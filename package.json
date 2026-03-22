@@ -1,0 +1,12 @@
+{
+  "name": "in-atelier",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "validate:structure": "node ./scripts/validate-structure.mjs",
+    "lint": "node ./scripts/validate-structure.mjs",
+    "test": "node ./scripts/validate-structure.mjs",
+    "typecheck": "node -e \"console.log('typecheck placeholder: no typed packages yet')\""
+  }
+}

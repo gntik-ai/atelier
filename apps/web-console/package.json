@@ -1,0 +1,11 @@
+{
+  "name": "@in-atelier/web-console",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "node -e \"console.log('web-console lint placeholder')\"",
+    "test": "node -e \"console.log('web-console test placeholder')\"",
+    "typecheck": "node -e \"console.log('web-console typecheck placeholder')\""
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@in-atelier/e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "node -e \"console.log('e2e lint placeholder')\"",
+    "test": "node -e \"console.log('e2e test placeholder')\"",
+    "typecheck": "node -e \"console.log('e2e typecheck placeholder')\""
+  }
+}

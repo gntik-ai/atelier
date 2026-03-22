@@ -1,0 +1,11 @@
+{
+  "name": "@in-atelier/adapters",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "node -e \"console.log('adapters lint placeholder')\"",
+    "test": "node -e \"console.log('adapters test placeholder')\"",
+    "typecheck": "node -e \"console.log('adapters typecheck placeholder')\""
+  }
+}

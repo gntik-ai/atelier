@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: in-atelier-gateway-config
+  labels:
+    app.kubernetes.io/name: in-atelier-gateway
+    app.kubernetes.io/part-of: in-atelier
+data:
+  GATEWAY_MODE: "managed"
+  GATEWAY_PORT: "8080"

@@ -1,50 +1,37 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# In Atelier Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Monorepo Separation of Concerns
+Applications live under `apps/`, reusable service-side logic and operational assets live under `services/`, deployment packaging lives under `charts/`, and executable end-to-end validation lives under `tests/`. New top-level folders require an explicit rationale in `docs/`.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Incremental Delivery First
+Bootstrap work must stay minimal, reviewable, and forward-compatible. Prefer adding stable structure, scripts, and documentation before introducing framework or infrastructure complexity.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Kubernetes and OpenShift Compatibility
+Deployment artifacts must use portable Kubernetes APIs and avoid assumptions that break OpenShift defaults. Security context, routes, service exposure, and secret handling must be introduced explicitly rather than implicitly.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Quality Gates at the Root
+Every feature must contribute to root-level quality gates that can run from the repository root. During bootstrap, these gates may be structural; later tasks must evolve them into behavioral lint, test, and typecheck checks.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Documentation as Part of the Change
+Every structural decision that affects repository layout, deployment shape, or developer workflow must be documented in `docs/` or `docs/adr/` within the same change.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Additional Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Package management standard: `pnpm` workspaces.
+- CI entry point starts from root scripts.
+- Secrets must not be committed to the repository.
+- Runtime stack choices for individual apps/services should remain open until follow-up tasks justify them.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Keep tasks narrowly scoped and reversible.
+- Prefer placeholders with clear intent over speculative implementation.
+- Add or update validation commands whenever repository expectations change.
+- Preserve room for sibling tasks before adding framework-specific tooling.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+This constitution governs early project bootstrap and supersedes undocumented conventions. Amendments must update this file and any affected repository guidance in the same change.
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 0.1.0 | **Ratified**: 2026-03-22 | **Last Amended**: 2026-03-22

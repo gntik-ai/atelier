@@ -1,0 +1,6 @@
+apiVersion: v2
+name: in-atelier
+description: Base Helm chart for the In Atelier platform bootstrap
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

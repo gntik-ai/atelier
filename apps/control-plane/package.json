@@ -1,0 +1,11 @@
+{
+  "name": "@in-atelier/control-plane",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "node -e \"console.log('control-plane lint placeholder')\"",
+    "test": "node -e \"console.log('control-plane test placeholder')\"",
+    "typecheck": "node -e \"console.log('control-plane typecheck placeholder')\""
+  }
+}

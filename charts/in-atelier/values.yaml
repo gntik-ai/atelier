@@ -1,0 +1,23 @@
+global:
+  nameOverride: in-atelier
+  namespace: in-atelier
+
+controlPlane:
+  enabled: true
+  image:
+    repository: ghcr.io/example/in-atelier-control-plane
+    tag: latest
+  service:
+    port: 8080
+
+webConsole:
+  enabled: true
+  image:
+    repository: ghcr.io/example/in-atelier-web-console
+    tag: latest
+  service:
+    port: 3000
+
+platform:
+  openshift:
+    enabled: true

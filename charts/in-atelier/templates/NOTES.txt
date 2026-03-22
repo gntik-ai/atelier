@@ -1,0 +1,6 @@
+The bootstrap chart defines only chart metadata and values at this stage.
+
+Future tasks should add deployable templates incrementally while preserving:
+- Kubernetes compatibility
+- OpenShift-safe defaults
+- explicit service contracts per component
