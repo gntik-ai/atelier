@@ -1,0 +1,4 @@
+model = "openai-codex/gpt-5.4"
+
+[tools]
+web_search = true
