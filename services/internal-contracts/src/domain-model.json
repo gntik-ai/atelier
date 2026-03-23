@@ -188,8 +188,8 @@
       "openapi": {
         "read_schema": "PlatformUser",
         "write_schema": "PlatformUserWriteRequest",
-        "read_path": "/v1/platform-users/{userId}",
-        "write_path": "/v1/platform-users"
+        "read_path": "/v1/platform/users/{userId}",
+        "write_path": "/v1/platform/users"
       }
     },
     {
@@ -275,8 +275,8 @@
       "openapi": {
         "read_schema": "Workspace",
         "write_schema": "WorkspaceWriteRequest",
-        "read_path": "/v1/tenants/{tenantId}/workspaces/{workspaceId}",
-        "write_path": "/v1/tenants/{tenantId}/workspaces"
+        "read_path": "/v1/workspaces/{workspaceId}",
+        "write_path": "/v1/workspaces"
       }
     },
     {
@@ -319,8 +319,8 @@
       "openapi": {
         "read_schema": "ExternalApplication",
         "write_schema": "ExternalApplicationWriteRequest",
-        "read_path": "/v1/workspaces/{workspaceId}/external-applications/{applicationId}",
-        "write_path": "/v1/workspaces/{workspaceId}/external-applications"
+        "read_path": "/v1/workspaces/{workspaceId}/applications/{applicationId}",
+        "write_path": "/v1/workspaces/{workspaceId}/applications"
       }
     },
     {
@@ -595,8 +595,8 @@
       "openapi": {
         "read_schema": "CommercialPlan",
         "write_schema": "CommercialPlanWriteRequest",
-        "read_path": "/v1/plans/{planId}",
-        "write_path": "/v1/plans"
+        "read_path": "/v1/platform/plans/{planId}",
+        "write_path": "/v1/platform/plans"
       }
     },
     {
@@ -638,8 +638,8 @@
       "openapi": {
         "read_schema": "QuotaPolicy",
         "write_schema": "QuotaPolicyWriteRequest",
-        "read_path": "/v1/plans/{planId}/quota-policies/{quotaPolicyId}",
-        "write_path": "/v1/plans/{planId}/quota-policies"
+        "read_path": "/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}",
+        "write_path": "/v1/platform/plans/{planId}/quota-policies"
       }
     },
     {
@@ -681,8 +681,8 @@
       "openapi": {
         "read_schema": "DeploymentProfileRecord",
         "write_schema": "DeploymentProfileRecordWriteRequest",
-        "read_path": "/v1/deployment-profiles/{deploymentProfileId}",
-        "write_path": "/v1/deployment-profiles"
+        "read_path": "/v1/platform/deployment-profiles/{deploymentProfileId}",
+        "write_path": "/v1/platform/deployment-profiles"
       }
     },
     {
@@ -724,8 +724,8 @@
       "openapi": {
         "read_schema": "ProviderCapabilityRecord",
         "write_schema": "ProviderCapabilityRecordWriteRequest",
-        "read_path": "/v1/provider-capabilities/{providerCapabilityId}",
-        "write_path": "/v1/provider-capabilities"
+        "read_path": "/v1/platform/provider-capabilities/{providerCapabilityId}",
+        "write_path": "/v1/platform/provider-capabilities"
       }
     }
   ],
@@ -1995,7 +1995,7 @@
     ],
     "paths": {
       "tenant": "/v1/tenants/{tenantId}/effective-capabilities",
-      "workspace": "/v1/tenants/{tenantId}/workspaces/{workspaceId}/effective-capabilities"
+      "workspace": "/v1/workspaces/{workspaceId}/effective-capabilities"
     }
   },
   "plan_change_scenarios": [

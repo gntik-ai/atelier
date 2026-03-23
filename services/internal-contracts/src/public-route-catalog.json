@@ -1,0 +1,1381 @@
+{
+  "generatedFrom": "apps/control-plane/openapi/control-plane.openapi.json",
+  "release": {
+    "header_version": "2026-03-23",
+    "openapi_semver": "1.0.0",
+    "path_version": "v1"
+  },
+  "routes": [
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "auth",
+      "familyTitle": "Auth",
+      "method": "POST",
+      "operationId": "resolveWorkspaceAccessCheck",
+      "path": "/v1/auth/access-checks",
+      "rateLimitClass": "catalog",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "authorization_decision",
+      "scope": "workspace",
+      "summary": "Resolve a contextual authorization decision under the auth family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Auth",
+        "Authorization"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "control_api",
+      "family": "events",
+      "familyTitle": "Events",
+      "method": "POST",
+      "operationId": "createEvents",
+      "path": "/v1/events/topics",
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "topic",
+      "scope": "workspace",
+      "summary": "Submit a workspace-scoped event topic provisioning request through the unified events family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Events"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "control_api",
+      "family": "events",
+      "familyTitle": "Events",
+      "method": "GET",
+      "operationId": "getEvents",
+      "path": "/v1/events/topics/{resourceId}",
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "topic",
+      "scope": "workspace",
+      "summary": "Fetch one workspace-scoped event topic contract under the events family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Events"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "openwhisk"
+      ],
+      "downstreamService": "control_api",
+      "family": "functions",
+      "familyTitle": "Functions",
+      "method": "POST",
+      "operationId": "createFunctions",
+      "path": "/v1/functions/actions",
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "function",
+      "scope": "workspace",
+      "summary": "Submit a workspace-scoped function action provisioning request through the unified functions family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Functions"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "openwhisk"
+      ],
+      "downstreamService": "control_api",
+      "family": "functions",
+      "familyTitle": "Functions",
+      "method": "GET",
+      "operationId": "getFunctions",
+      "path": "/v1/functions/actions/{resourceId}",
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "function",
+      "scope": "workspace",
+      "summary": "Fetch one workspace-scoped function action contract under the functions family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Functions"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_operator",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "method": "GET",
+      "operationId": "getWorkspaceMetricSeries",
+      "path": "/v1/metrics/workspaces/{workspaceId}/series",
+      "rateLimitClass": "observability",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "metric_series",
+      "scope": "workspace",
+      "summary": "Fetch one workspace metric series window through the unified metrics family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "method": "POST",
+      "operationId": "createMongo",
+      "path": "/v1/mongo/databases",
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "document_database",
+      "scope": "workspace",
+      "summary": "Submit a workspace-scoped MongoDB database provisioning request through the unified mongo family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "method": "GET",
+      "operationId": "getMongo",
+      "path": "/v1/mongo/databases/{resourceId}",
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "document_database",
+      "scope": "workspace",
+      "summary": "Fetch one workspace-scoped MongoDB database contract under the mongo family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "POST",
+      "operationId": "createDeploymentProfileRecord",
+      "path": "/v1/platform/deployment-profiles",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "deployment_profile",
+      "scope": "platform",
+      "summary": "Submit a deployment profile write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Platform",
+        "DeploymentProfiles"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "GET",
+      "operationId": "getDeploymentProfileRecord",
+      "path": "/v1/platform/deployment-profiles/{deploymentProfileId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "deployment_profile",
+      "scope": "platform",
+      "summary": "Fetch one deployment profile",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Platform",
+        "DeploymentProfiles"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "POST",
+      "operationId": "createCommercialPlan",
+      "path": "/v1/platform/plans",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "plan",
+      "scope": "platform",
+      "summary": "Submit a commercial plan write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Platform",
+        "Plans"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "GET",
+      "operationId": "getCommercialPlan",
+      "path": "/v1/platform/plans/{planId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "plan",
+      "scope": "platform",
+      "summary": "Fetch one commercial plan",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Platform",
+        "Plans"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "POST",
+      "operationId": "createQuotaPolicy",
+      "path": "/v1/platform/plans/{planId}/quota-policies",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "plan",
+      "scope": "platform",
+      "summary": "Submit a quota policy write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Platform",
+        "Quotas"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "GET",
+      "operationId": "getQuotaPolicy",
+      "path": "/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "plan",
+      "scope": "platform",
+      "summary": "Fetch one quota policy",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Platform",
+        "Quotas"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "POST",
+      "operationId": "createProviderCapabilityRecord",
+      "path": "/v1/platform/provider-capabilities",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "provider_capability",
+      "scope": "platform",
+      "summary": "Submit a provider capability write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Platform",
+        "ProviderCapabilities"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "GET",
+      "operationId": "getProviderCapabilityRecord",
+      "path": "/v1/platform/provider-capabilities/{providerCapabilityId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "provider_capability",
+      "scope": "platform",
+      "summary": "Fetch one provider capability record",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Platform",
+        "ProviderCapabilities"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "GET",
+      "operationId": "getRouteCatalog",
+      "path": "/v1/platform/route-catalog",
+      "rateLimitClass": "catalog",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "route_catalog",
+      "scope": "platform",
+      "summary": "List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Catalog",
+        "Platform"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "POST",
+      "operationId": "createPlatformUser",
+      "path": "/v1/platform/users",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "platform_user",
+      "scope": "platform",
+      "summary": "Submit a canonical platform user write request under the platform family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Platform",
+        "PlatformUsers"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "platform",
+      "familyTitle": "Platform",
+      "method": "GET",
+      "operationId": "getPlatformUser",
+      "path": "/v1/platform/users/{userId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "platform_user",
+      "scope": "platform",
+      "summary": "Fetch one canonical platform user entity under the platform family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Platform",
+        "PlatformUsers"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql"
+      ],
+      "downstreamService": "control_api",
+      "family": "postgres",
+      "familyTitle": "Postgres",
+      "method": "POST",
+      "operationId": "createPostgres",
+      "path": "/v1/postgres/instances",
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "database",
+      "scope": "workspace",
+      "summary": "Submit a workspace-scoped PostgreSQL instance provisioning request through the unified postgres family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Postgres"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql"
+      ],
+      "downstreamService": "control_api",
+      "family": "postgres",
+      "familyTitle": "Postgres",
+      "method": "GET",
+      "operationId": "getPostgres",
+      "path": "/v1/postgres/instances/{resourceId}",
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "database",
+      "scope": "workspace",
+      "summary": "Fetch one workspace-scoped PostgreSQL instance contract under the postgres family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Postgres"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "storage"
+      ],
+      "downstreamService": "control_api",
+      "family": "storage",
+      "familyTitle": "Storage",
+      "method": "POST",
+      "operationId": "createStorage",
+      "path": "/v1/storage/buckets",
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "bucket",
+      "scope": "workspace",
+      "summary": "Submit a workspace-scoped storage bucket provisioning request through the unified storage family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Storage"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "storage"
+      ],
+      "downstreamService": "control_api",
+      "family": "storage",
+      "familyTitle": "Storage",
+      "method": "GET",
+      "operationId": "getStorage",
+      "path": "/v1/storage/buckets/{resourceId}",
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "bucket",
+      "scope": "workspace",
+      "summary": "Fetch one workspace-scoped storage bucket contract under the storage family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Storage"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "POST",
+      "operationId": "createTenant",
+      "path": "/v1/tenants",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant",
+      "scope": "tenant",
+      "summary": "Submit a canonical tenant write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Tenants"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "GET",
+      "operationId": "getTenant",
+      "path": "/v1/tenants/{tenantId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant",
+      "scope": "tenant",
+      "summary": "Fetch one canonical tenant entity",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Tenants"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "GET",
+      "operationId": "getTenantEffectiveCapabilities",
+      "path": "/v1/tenants/{tenantId}/effective-capabilities",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant_capabilities",
+      "scope": "tenant",
+      "summary": "Resolve effective capabilities for one tenant",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Tenants",
+        "CapabilityResolution"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "POST",
+      "operationId": "createInvitation",
+      "path": "/v1/tenants/{tenantId}/invitations",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "invitation",
+      "scope": "tenant",
+      "summary": "Submit an invitation write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Tenants",
+        "Invitations"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "GET",
+      "operationId": "getInvitation",
+      "path": "/v1/tenants/{tenantId}/invitations/{invitationId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "invitation",
+      "scope": "tenant",
+      "summary": "Fetch one invitation record",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Tenants",
+        "Invitations"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "POST",
+      "operationId": "createTenantMembership",
+      "path": "/v1/tenants/{tenantId}/memberships",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant_membership",
+      "scope": "tenant",
+      "summary": "Submit a tenant membership write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Tenants",
+        "Memberships"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "method": "GET",
+      "operationId": "getTenantMembership",
+      "path": "/v1/tenants/{tenantId}/memberships/{tenantMembershipId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant_membership",
+      "scope": "tenant",
+      "summary": "Fetch one tenant membership record",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Tenants",
+        "Memberships"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "websockets",
+      "familyTitle": "WebSockets",
+      "method": "POST",
+      "operationId": "createWebSocketSession",
+      "path": "/v1/websockets/sessions",
+      "rateLimitClass": "realtime",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "websocket_session",
+      "scope": "workspace",
+      "summary": "Negotiate one websocket session through the unified realtime family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "WebSockets"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "websockets",
+      "familyTitle": "WebSockets",
+      "method": "GET",
+      "operationId": "getWebSocketSession",
+      "path": "/v1/websockets/sessions/{sessionId}",
+      "rateLimitClass": "realtime",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "websocket_session",
+      "scope": "workspace",
+      "summary": "Fetch one negotiated websocket session descriptor",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "WebSockets"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "POST",
+      "operationId": "createWorkspace",
+      "path": "/v1/workspaces",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "workspace",
+      "scope": "workspace",
+      "summary": "Submit a canonical workspace write request under the workspaces family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Workspaces"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "GET",
+      "operationId": "getWorkspace",
+      "path": "/v1/workspaces/{workspaceId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "workspace",
+      "scope": "workspace",
+      "summary": "Fetch one canonical workspace entity under the workspaces family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "POST",
+      "operationId": "createExternalApplication",
+      "path": "/v1/workspaces/{workspaceId}/applications",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "application",
+      "scope": "workspace",
+      "summary": "Submit a canonical external application write request under the workspaces family",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Workspaces",
+        "Applications"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "GET",
+      "operationId": "getExternalApplication",
+      "path": "/v1/workspaces/{workspaceId}/applications/{applicationId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "application",
+      "scope": "workspace",
+      "summary": "Fetch one canonical external application entity under the workspaces family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces",
+        "Applications"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "GET",
+      "operationId": "getWorkspaceEffectiveCapabilities",
+      "path": "/v1/workspaces/{workspaceId}/effective-capabilities",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "workspace_capabilities",
+      "scope": "workspace",
+      "summary": "Resolve effective capabilities for one workspace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces",
+        "CapabilityResolution"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "POST",
+      "operationId": "createManagedResource",
+      "path": "/v1/workspaces/{workspaceId}/managed-resources",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "managed_resource",
+      "scope": "workspace",
+      "summary": "Submit a canonical managed resource write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Workspaces",
+        "ManagedResources"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "GET",
+      "operationId": "getManagedResource",
+      "path": "/v1/workspaces/{workspaceId}/managed-resources/{resourceId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "managed_resource",
+      "scope": "workspace",
+      "summary": "Fetch one canonical managed resource entity",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces",
+        "ManagedResources"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "POST",
+      "operationId": "createWorkspaceMembership",
+      "path": "/v1/workspaces/{workspaceId}/memberships",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "workspace_membership",
+      "scope": "workspace",
+      "summary": "Submit a workspace membership write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Workspaces",
+        "Memberships"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "GET",
+      "operationId": "getWorkspaceMembership",
+      "path": "/v1/workspaces/{workspaceId}/memberships/{workspaceMembershipId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "workspace_membership",
+      "scope": "workspace",
+      "summary": "Fetch one workspace membership record",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces",
+        "Memberships"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "POST",
+      "operationId": "createServiceAccount",
+      "path": "/v1/workspaces/{workspaceId}/service-accounts",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "service_account",
+      "scope": "workspace",
+      "summary": "Submit a canonical service account write request",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Workspaces",
+        "ServiceAccounts"
+      ],
+      "visibility": "public"
+    },
+    {
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "family": "workspaces",
+      "familyTitle": "Workspaces",
+      "method": "GET",
+      "operationId": "getServiceAccount",
+      "path": "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}",
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "service_account",
+      "scope": "workspace",
+      "summary": "Fetch one canonical service account entity",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces",
+        "ServiceAccounts"
+      ],
+      "visibility": "public"
+    }
+  ],
+  "version": "2026-03-23"
+}

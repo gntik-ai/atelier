@@ -1,4 +1,4 @@
-import { OPENAPI_PATH, listOperations, readJson, readYaml, resolveParameters } from './quality-gates.mjs';
+import { OPENAPI_PATH, listOperations, readJson, readYaml, resolveLocalRef, resolveParameters } from './quality-gates.mjs';
 
 export const TESTING_STRATEGY_PATH = 'tests/reference/testing-strategy.yaml';
 export const REFERENCE_DATASET_PATH = 'tests/reference/reference-dataset.json';
@@ -177,7 +177,13 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
 
     if (path.includes('/access-checks')) {
       hasAccessCheckPath = true;
-      if (!path.includes('/tenants/{tenantId}/workspaces/{workspaceId}/')) {
+
+      const requestSchemaRef = operation?.requestBody?.content?.['application/json']?.schema?.$ref;
+      const requestSchema = requestSchemaRef ? resolveLocalRef(openapiDocument, requestSchemaRef) : null;
+      const requiredFields = new Set(requestSchema?.required ?? []);
+      const hasContextualBodyScope = requiredFields.has('tenantId') && requestSchema?.properties?.workspaceId;
+
+      if (!path.includes('/tenants/{tenantId}/workspaces/{workspaceId}/') && !hasContextualBodyScope) {
         violations.push(`${label} in OpenAPI must remain tenant/workspace-scoped.`);
       }
     }

@@ -1,10 +1,10 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "In Atelier Control Plane API",
-    "version": "0.4.0",
-    "summary": "Control-plane contract baseline with contextual authorization, canonical core-domain entities, and governance-capability resolution contracts.",
-    "description": "Public control-plane baseline contract used to validate versioning, contextual authorization, canonical core-domain entity read/write expectations, and governance/capability-resolution flows before later runtime implementation tasks.",
+    "title": "In Atelier Public API",
+    "version": "1.0.0",
+    "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
+    "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, data, events, functions, storage, metrics, and realtime routes.",
     "license": {
       "name": "Proprietary",
       "url": "https://in-atelier.example.com/licenses/proprietary"
@@ -13,7 +13,7 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "servers": [
     {
-      "url": "https://{publicHost}/control-plane",
+      "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
           "default": "api.dev.in-atelier.example.com",
@@ -29,16 +29,46 @@
   ],
   "tags": [
     {
-      "name": "System"
+      "name": "Platform"
     },
     {
-      "name": "PlatformUsers"
+      "name": "Catalog"
     },
     {
       "name": "Tenants"
     },
     {
       "name": "Workspaces"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Postgres"
+    },
+    {
+      "name": "Mongo"
+    },
+    {
+      "name": "Events"
+    },
+    {
+      "name": "Functions"
+    },
+    {
+      "name": "Storage"
+    },
+    {
+      "name": "Metrics"
+    },
+    {
+      "name": "WebSockets"
+    },
+    {
+      "name": "System"
+    },
+    {
+      "name": "PlatformUsers"
     },
     {
       "name": "Applications"
@@ -96,11 +126,12 @@
         }
       }
     },
-    "/v1/platform-users/{userId}": {
+    "/v1/platform/users/{userId}": {
       "get": {
         "operationId": "getPlatformUser",
-        "summary": "Fetch one canonical platform user entity",
+        "summary": "Fetch one canonical platform user entity under the platform family",
         "tags": [
+          "Platform",
           "PlatformUsers"
         ],
         "security": [
@@ -170,14 +201,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "platform_user",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/platform-users": {
+    "/v1/platform/users": {
       "post": {
         "operationId": "createPlatformUser",
-        "summary": "Submit a canonical platform user write request",
+        "summary": "Submit a canonical platform user write request under the platform family",
         "tags": [
+          "Platform",
           "PlatformUsers"
         ],
         "security": [
@@ -191,6 +233,9 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -254,7 +299,17 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "platform_user",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}": {
@@ -331,7 +386,18 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants": {
@@ -352,6 +418,9 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -415,13 +484,24 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/tenants/{tenantId}/workspaces/{workspaceId}": {
+    "/v1/workspaces/{workspaceId}": {
       "get": {
         "operationId": "getWorkspace",
-        "summary": "Fetch one canonical workspace entity",
+        "summary": "Fetch one canonical workspace entity under the workspaces family",
         "tags": [
           "Workspaces"
         ],
@@ -436,9 +516,6 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/TenantId"
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
@@ -495,13 +572,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/tenants/{tenantId}/workspaces": {
+    "/v1/workspaces": {
       "post": {
         "operationId": "createWorkspace",
-        "summary": "Submit a canonical workspace write request",
+        "summary": "Submit a canonical workspace write request under the workspaces family",
         "tags": [
           "Workspaces"
         ],
@@ -518,7 +607,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/TenantId"
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -582,14 +671,27 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/workspaces/{workspaceId}/external-applications/{applicationId}": {
+    "/v1/workspaces/{workspaceId}/applications/{applicationId}": {
       "get": {
         "operationId": "getExternalApplication",
-        "summary": "Fetch one canonical external application entity",
+        "summary": "Fetch one canonical external application entity under the workspaces family",
         "tags": [
+          "Workspaces",
           "Applications"
         ],
         "security": [
@@ -662,14 +764,27 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "application",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/workspaces/{workspaceId}/external-applications": {
+    "/v1/workspaces/{workspaceId}/applications": {
       "post": {
         "operationId": "createExternalApplication",
-        "summary": "Submit a canonical external application write request",
+        "summary": "Submit a canonical external application write request under the workspaces family",
         "tags": [
+          "Workspaces",
           "Applications"
         ],
         "security": [
@@ -686,6 +801,9 @@
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -749,7 +867,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "application",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}": {
@@ -757,6 +887,7 @@
         "operationId": "getServiceAccount",
         "summary": "Fetch one canonical service account entity",
         "tags": [
+          "Workspaces",
           "ServiceAccounts"
         ],
         "security": [
@@ -829,7 +960,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "service_account",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/workspaces/{workspaceId}/service-accounts": {
@@ -837,6 +980,7 @@
         "operationId": "createServiceAccount",
         "summary": "Submit a canonical service account write request",
         "tags": [
+          "Workspaces",
           "ServiceAccounts"
         ],
         "security": [
@@ -853,6 +997,9 @@
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -916,7 +1063,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "service_account",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/workspaces/{workspaceId}/managed-resources/{resourceId}": {
@@ -924,6 +1083,7 @@
         "operationId": "getManagedResource",
         "summary": "Fetch one canonical managed resource entity",
         "tags": [
+          "Workspaces",
           "ManagedResources"
         ],
         "security": [
@@ -996,7 +1156,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "managed_resource",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/workspaces/{workspaceId}/managed-resources": {
@@ -1004,6 +1176,7 @@
         "operationId": "createManagedResource",
         "summary": "Submit a canonical managed resource write request",
         "tags": [
+          "Workspaces",
           "ManagedResources"
         ],
         "security": [
@@ -1020,6 +1193,9 @@
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1083,14 +1259,27 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "managed_resource",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/tenants/{tenantId}/workspaces/{workspaceId}/access-checks": {
+    "/v1/auth/access-checks": {
       "post": {
         "operationId": "resolveWorkspaceAccessCheck",
-        "summary": "Resolve a contextual authorization decision for one tenant/workspace-scoped action",
+        "summary": "Resolve a contextual authorization decision under the auth family",
         "tags": [
+          "Auth",
           "Authorization"
         ],
         "security": [
@@ -1100,47 +1289,13 @@
         ],
         "parameters": [
           {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
-            "description": "Tenant targeted by the decision request.",
-            "schema": {
-              "type": "string",
-              "minLength": 3,
-              "pattern": "^[a-z0-9][a-z0-9-]+$"
-            }
+            "$ref": "#/components/parameters/XApiVersion"
           },
           {
-            "name": "workspaceId",
-            "in": "path",
-            "required": true,
-            "description": "Workspace targeted by the decision request.",
-            "schema": {
-              "type": "string",
-              "minLength": 3,
-              "pattern": "^[a-z0-9][a-z0-9-]+$"
-            }
+            "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "name": "X-API-Version",
-            "in": "header",
-            "required": true,
-            "description": "Pinned contract generation date for non-breaking evolution inside v1.",
-            "schema": {
-              "type": "string",
-              "pattern": "^2026-03-23$"
-            }
-          },
-          {
-            "name": "X-Correlation-Id",
-            "in": "header",
-            "required": true,
-            "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
-            "schema": {
-              "type": "string",
-              "minLength": 8,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1204,7 +1359,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "auth",
+        "x-scope": "workspace",
+        "x-resource-type": "authorization_decision",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "catalog",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}/memberships/{tenantMembershipId}": {
@@ -1212,6 +1379,7 @@
         "operationId": "getTenantMembership",
         "summary": "Fetch one tenant membership record",
         "tags": [
+          "Tenants",
           "Memberships"
         ],
         "security": [
@@ -1284,7 +1452,18 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_membership",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}/memberships": {
@@ -1292,6 +1471,7 @@
         "operationId": "createTenantMembership",
         "summary": "Submit a tenant membership write request",
         "tags": [
+          "Tenants",
           "Memberships"
         ],
         "security": [
@@ -1308,6 +1488,9 @@
           },
           {
             "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1371,7 +1554,18 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_membership",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/workspaces/{workspaceId}/memberships/{workspaceMembershipId}": {
@@ -1379,6 +1573,7 @@
         "operationId": "getWorkspaceMembership",
         "summary": "Fetch one workspace membership record",
         "tags": [
+          "Workspaces",
           "Memberships"
         ],
         "security": [
@@ -1451,7 +1646,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace_membership",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/workspaces/{workspaceId}/memberships": {
@@ -1459,6 +1666,7 @@
         "operationId": "createWorkspaceMembership",
         "summary": "Submit a workspace membership write request",
         "tags": [
+          "Workspaces",
           "Memberships"
         ],
         "security": [
@@ -1475,6 +1683,9 @@
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1538,7 +1749,19 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace_membership",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}/invitations/{invitationId}": {
@@ -1546,6 +1769,7 @@
         "operationId": "getInvitation",
         "summary": "Fetch one invitation record",
         "tags": [
+          "Tenants",
           "Invitations"
         ],
         "security": [
@@ -1618,7 +1842,18 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "invitation",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}/invitations": {
@@ -1626,6 +1861,7 @@
         "operationId": "createInvitation",
         "summary": "Submit an invitation write request",
         "tags": [
+          "Tenants",
           "Invitations"
         ],
         "security": [
@@ -1642,6 +1878,9 @@
           },
           {
             "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1705,14 +1944,26 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "invitation",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/plans/{planId}": {
+    "/v1/platform/plans/{planId}": {
       "get": {
         "operationId": "getCommercialPlan",
         "summary": "Fetch one commercial plan",
         "tags": [
+          "Platform",
           "Plans"
         ],
         "security": [
@@ -1782,14 +2033,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "plan",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/plans": {
+    "/v1/platform/plans": {
       "post": {
         "operationId": "createCommercialPlan",
         "summary": "Submit a commercial plan write request",
         "tags": [
+          "Platform",
           "Plans"
         ],
         "security": [
@@ -1803,6 +2065,9 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -1866,14 +2131,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "plan",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/plans/{planId}/quota-policies/{quotaPolicyId}": {
+    "/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}": {
       "get": {
         "operationId": "getQuotaPolicy",
         "summary": "Fetch one quota policy",
         "tags": [
+          "Platform",
           "Quotas"
         ],
         "security": [
@@ -1946,14 +2222,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "plan",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/plans/{planId}/quota-policies": {
+    "/v1/platform/plans/{planId}/quota-policies": {
       "post": {
         "operationId": "createQuotaPolicy",
         "summary": "Submit a quota policy write request",
         "tags": [
+          "Platform",
           "Quotas"
         ],
         "security": [
@@ -1970,6 +2257,9 @@
           },
           {
             "$ref": "#/components/parameters/PlanId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -2033,14 +2323,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "plan",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/deployment-profiles/{deploymentProfileId}": {
+    "/v1/platform/deployment-profiles/{deploymentProfileId}": {
       "get": {
         "operationId": "getDeploymentProfileRecord",
         "summary": "Fetch one deployment profile",
         "tags": [
+          "Platform",
           "DeploymentProfiles"
         ],
         "security": [
@@ -2110,14 +2411,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "deployment_profile",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/deployment-profiles": {
+    "/v1/platform/deployment-profiles": {
       "post": {
         "operationId": "createDeploymentProfileRecord",
         "summary": "Submit a deployment profile write request",
         "tags": [
+          "Platform",
           "DeploymentProfiles"
         ],
         "security": [
@@ -2131,6 +2443,9 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -2194,14 +2509,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "deployment_profile",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/provider-capabilities/{providerCapabilityId}": {
+    "/v1/platform/provider-capabilities/{providerCapabilityId}": {
       "get": {
         "operationId": "getProviderCapabilityRecord",
         "summary": "Fetch one provider capability record",
         "tags": [
+          "Platform",
           "ProviderCapabilities"
         ],
         "security": [
@@ -2271,14 +2597,25 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "provider_capability",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/provider-capabilities": {
+    "/v1/platform/provider-capabilities": {
       "post": {
         "operationId": "createProviderCapabilityRecord",
         "summary": "Submit a provider capability write request",
         "tags": [
+          "Platform",
           "ProviderCapabilities"
         ],
         "security": [
@@ -2292,6 +2629,9 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
           }
         ],
         "requestBody": {
@@ -2355,7 +2695,17 @@
               }
             }
           }
-        }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "provider_capability",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}/effective-capabilities": {
@@ -2363,6 +2713,7 @@
         "operationId": "getTenantEffectiveCapabilities",
         "summary": "Resolve effective capabilities for one tenant",
         "tags": [
+          "Tenants",
           "CapabilityResolution"
         ],
         "security": [
@@ -2432,14 +2783,26 @@
               }
             }
           }
-        }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_capabilities",
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
       }
     },
-    "/v1/tenants/{tenantId}/workspaces/{workspaceId}/effective-capabilities": {
+    "/v1/workspaces/{workspaceId}/effective-capabilities": {
       "get": {
         "operationId": "getWorkspaceEffectiveCapabilities",
         "summary": "Resolve effective capabilities for one workspace",
         "tags": [
+          "Workspaces",
           "CapabilityResolution"
         ],
         "security": [
@@ -2453,9 +2816,6 @@
           },
           {
             "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/TenantId"
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
@@ -2512,7 +2872,1332 @@
               }
             }
           }
-        }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace_capabilities",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/platform/route-catalog": {
+      "get": {
+        "operationId": "getRouteCatalog",
+        "summary": "List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility",
+        "tags": [
+          "Catalog",
+          "Platform"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterFamily"
+          },
+          {
+            "$ref": "#/components/parameters/FilterScope"
+          },
+          {
+            "$ref": "#/components/parameters/FilterResourceType"
+          },
+          {
+            "$ref": "#/components/parameters/FilterMethod"
+          },
+          {
+            "$ref": "#/components/parameters/FilterAudience"
+          },
+          {
+            "$ref": "#/components/parameters/FilterVisibility"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Route catalog page returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteCatalogResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The route-catalog request is malformed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for platform route discovery.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway discovery error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "route_catalog",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "catalog",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/postgres/instances": {
+      "post": {
+        "operationId": "createPostgres",
+        "summary": "Submit a workspace-scoped PostgreSQL instance provisioning request through the unified postgres family",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresInstanceWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "PostgreSQL provisioning request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "postgres",
+        "x-scope": "workspace",
+        "x-resource-type": "database",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      }
+    },
+    "/v1/postgres/instances/{resourceId}": {
+      "get": {
+        "operationId": "getPostgres",
+        "summary": "Fetch one workspace-scoped PostgreSQL instance contract under the postgres family",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresInstance"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "postgres",
+        "x-scope": "workspace",
+        "x-resource-type": "database",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      }
+    },
+    "/v1/mongo/databases": {
+      "post": {
+        "operationId": "createMongo",
+        "summary": "Submit a workspace-scoped MongoDB database provisioning request through the unified mongo family",
+        "tags": [
+          "Mongo"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDatabaseWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "MongoDB provisioning request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "mongo",
+        "x-scope": "workspace",
+        "x-resource-type": "document_database",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "mongodb"
+        ]
+      }
+    },
+    "/v1/mongo/databases/{resourceId}": {
+      "get": {
+        "operationId": "getMongo",
+        "summary": "Fetch one workspace-scoped MongoDB database contract under the mongo family",
+        "tags": [
+          "Mongo"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoDatabase"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "mongo",
+        "x-scope": "workspace",
+        "x-resource-type": "document_database",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "mongodb"
+        ]
+      }
+    },
+    "/v1/events/topics": {
+      "post": {
+        "operationId": "createEvents",
+        "summary": "Submit a workspace-scoped event topic provisioning request through the unified events family",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventTopicWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Event topic provisioning request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "topic",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
+    },
+    "/v1/events/topics/{resourceId}": {
+      "get": {
+        "operationId": "getEvents",
+        "summary": "Fetch one workspace-scoped event topic contract under the events family",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTopic"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "topic",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
+    },
+    "/v1/functions/actions": {
+      "post": {
+        "operationId": "createFunctions",
+        "summary": "Submit a workspace-scoped function action provisioning request through the unified functions family",
+        "tags": [
+          "Functions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionActionWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Function action deployment request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "functions",
+        "x-scope": "workspace",
+        "x-resource-type": "function",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "openwhisk"
+        ]
+      }
+    },
+    "/v1/functions/actions/{resourceId}": {
+      "get": {
+        "operationId": "getFunctions",
+        "summary": "Fetch one workspace-scoped function action contract under the functions family",
+        "tags": [
+          "Functions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionAction"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "functions",
+        "x-scope": "workspace",
+        "x-resource-type": "function",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "openwhisk"
+        ]
+      }
+    },
+    "/v1/storage/buckets": {
+      "post": {
+        "operationId": "createStorage",
+        "summary": "Submit a workspace-scoped storage bucket provisioning request through the unified storage family",
+        "tags": [
+          "Storage"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageBucketWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Storage bucket provisioning request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "storage",
+        "x-scope": "workspace",
+        "x-resource-type": "bucket",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "storage"
+        ]
+      }
+    },
+    "/v1/storage/buckets/{resourceId}": {
+      "get": {
+        "operationId": "getStorage",
+        "summary": "Fetch one workspace-scoped storage bucket contract under the storage family",
+        "tags": [
+          "Storage"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBucket"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "storage",
+        "x-scope": "workspace",
+        "x-resource-type": "bucket",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "storage"
+        ]
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/series": {
+      "get": {
+        "operationId": "getWorkspaceMetricSeries",
+        "summary": "Fetch one workspace metric series window through the unified metrics family",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "name": "metricKey",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "5m",
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Metric series returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricSeriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected metrics error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "workspace",
+        "x-resource-type": "metric_series",
+        "x-audiences": [
+          "developer_external",
+          "workspace_operator",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "observability",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/websockets/sessions": {
+      "post": {
+        "operationId": "createWebSocketSession",
+        "summary": "Negotiate one websocket session through the unified realtime family",
+        "tags": [
+          "WebSockets"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebSocketSessionWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Websocket session accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected realtime negotiation error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "websockets",
+        "x-scope": "workspace",
+        "x-resource-type": "websocket_session",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "realtime",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/websockets/sessions/{sessionId}": {
+      "get": {
+        "operationId": "getWebSocketSession",
+        "summary": "Fetch one negotiated websocket session descriptor",
+        "tags": [
+          "WebSockets"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^wss_[0-9a-z]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Websocket session returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSocketSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested session was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected realtime lookup error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "websockets",
+        "x-scope": "workspace",
+        "x-resource-type": "websocket_session",
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "realtime",
+        "x-owning-service": "control_api"
       }
     }
   },
@@ -2678,6 +4363,150 @@
           "type": "string",
           "pattern": "^pvc_[0-9a-z]+$"
         }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": true,
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        }
+      },
+      "PageSize": {
+        "name": "page[size]",
+        "in": "query",
+        "required": false,
+        "description": "Maximum number of items to return for list and catalog routes.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 25
+        }
+      },
+      "PageAfter": {
+        "name": "page[after]",
+        "in": "query",
+        "required": false,
+        "description": "Opaque cursor for the next page window.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "Sort": {
+        "name": "sort",
+        "in": "query",
+        "required": false,
+        "description": "Stable sort field for catalog and collection routes.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "Search": {
+        "name": "search",
+        "in": "query",
+        "required": false,
+        "description": "Free-text search across human-facing route metadata.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "FilterFamily": {
+        "name": "family",
+        "in": "query",
+        "required": false,
+        "description": "Filter the route catalog by public API family.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "platform",
+            "tenants",
+            "workspaces",
+            "auth",
+            "postgres",
+            "mongo",
+            "events",
+            "functions",
+            "storage",
+            "metrics",
+            "websockets"
+          ]
+        }
+      },
+      "FilterScope": {
+        "name": "scope",
+        "in": "query",
+        "required": false,
+        "description": "Filter the route catalog by control scope.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "platform",
+            "tenant",
+            "workspace"
+          ]
+        }
+      },
+      "FilterResourceType": {
+        "name": "resourceType",
+        "in": "query",
+        "required": false,
+        "description": "Filter the route catalog by canonical resource type.",
+        "schema": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        }
+      },
+      "FilterMethod": {
+        "name": "method",
+        "in": "query",
+        "required": false,
+        "description": "Filter the route catalog by HTTP method.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ]
+        }
+      },
+      "FilterAudience": {
+        "name": "audience",
+        "in": "query",
+        "required": false,
+        "description": "Filter the route catalog by intended consumer audience.",
+        "schema": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        }
+      },
+      "FilterVisibility": {
+        "name": "visibility",
+        "in": "query",
+        "required": false,
+        "description": "Filter the route catalog by visibility mode.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "public",
+            "private_preview",
+            "deprecated"
+          ]
+        }
       }
     },
     "schemas": {
@@ -2710,6 +4539,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
+          "tenantId",
           "resourceType",
           "resourceId",
           "action"
@@ -2738,6 +4568,14 @@
           },
           "delegationId": {
             "type": "string"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
           }
         }
       },
@@ -3454,6 +5292,7 @@
         "type": "object",
         "required": [
           "entityType",
+          "tenantId",
           "slug",
           "displayName",
           "environment",
@@ -3486,6 +5325,11 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$",
+            "description": "Stable tenant identifier for the parent tenant that will own the workspace."
           }
         },
         "additionalProperties": false
@@ -5096,6 +6940,790 @@
           }
         },
         "additionalProperties": false
+      },
+      "PageInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "size"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "after": {
+            "type": "string"
+          },
+          "nextCursor": {
+            "type": "string"
+          }
+        }
+      },
+      "RouteCatalogEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "family",
+          "method",
+          "path",
+          "operationId",
+          "summary",
+          "scope",
+          "visibility",
+          "audiences",
+          "authRequired",
+          "requiredHeaders",
+          "downstreamService"
+        ],
+        "properties": {
+          "family": {
+            "type": "string"
+          },
+          "familyTitle": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "operationId": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private_preview",
+              "deprecated"
+            ]
+          },
+          "audiences": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authRequired": {
+            "type": "boolean"
+          },
+          "requiredHeaders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supportsIdempotencyKey": {
+            "type": "boolean"
+          },
+          "downstreamService": {
+            "type": "string"
+          },
+          "downstreamAdapters": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rateLimitClass": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deprecated": {
+            "type": "boolean"
+          },
+          "discoveryRoute": {
+            "type": "string"
+          }
+        }
+      },
+      "RouteCatalogResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "generatedFrom",
+          "page",
+          "items"
+        ],
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "generatedFrom": {
+            "type": "string"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteCatalogEntry"
+            }
+          }
+        }
+      },
+      "GatewayMutationAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "status",
+          "family",
+          "resourceType",
+          "resourceId",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "queued"
+            ]
+          },
+          "family": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PostgresInstance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "engine",
+          "engineVersion",
+          "planTier",
+          "status",
+          "connectionPolicy",
+          "timestamps"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "engine": {
+            "type": "string",
+            "const": "postgresql"
+          },
+          "engineVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "planTier": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "active",
+              "suspended"
+            ]
+          },
+          "connectionPolicy": {
+            "type": "string",
+            "enum": [
+              "workspace_only",
+              "tenant_shared",
+              "read_replica_only"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "PostgresInstanceWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "engineVersion",
+          "planTier",
+          "connectionPolicy"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "engineVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "planTier": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "connectionPolicy": {
+            "type": "string",
+            "enum": [
+              "workspace_only",
+              "tenant_shared",
+              "read_replica_only"
+            ]
+          }
+        }
+      },
+      "MongoDatabase": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "engine",
+          "clusterProfile",
+          "isolationMode",
+          "status",
+          "timestamps"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "engine": {
+            "type": "string",
+            "const": "mongodb"
+          },
+          "clusterProfile": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "isolationMode": {
+            "type": "string",
+            "enum": [
+              "shared_cluster",
+              "dedicated_cluster"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "active",
+              "suspended"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "MongoDatabaseWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "clusterProfile",
+          "isolationMode"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "clusterProfile": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "isolationMode": {
+            "type": "string",
+            "enum": [
+              "shared_cluster",
+              "dedicated_cluster"
+            ]
+          }
+        }
+      },
+      "EventTopic": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "topicName",
+          "deliverySemantics",
+          "retentionHours",
+          "status",
+          "timestamps"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "topicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "deliverySemantics": {
+            "type": "string",
+            "enum": [
+              "at_least_once",
+              "exactly_once_candidate"
+            ]
+          },
+          "retentionHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "active",
+              "suspended"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "EventTopicWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "topicName",
+          "deliverySemantics",
+          "retentionHours"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "topicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "deliverySemantics": {
+            "type": "string",
+            "enum": [
+              "at_least_once",
+              "exactly_once_candidate"
+            ]
+          },
+          "retentionHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760
+          }
+        }
+      },
+      "FunctionAction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "runtime",
+          "entrypoint",
+          "status",
+          "timestamps"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "runtime": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "entrypoint": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "deploying",
+              "active",
+              "suspended"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "FunctionActionWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "runtime",
+          "entrypoint"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "runtime": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "entrypoint": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "deploymentDigest": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 255
+          }
+        }
+      },
+      "StorageBucket": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "bucketName",
+          "region",
+          "status",
+          "timestamps"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "bucketName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "region": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "active",
+              "suspended"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "StorageBucketWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "bucketName",
+          "region"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "bucketName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "region": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "objectLockMode": {
+            "type": "string",
+            "enum": [
+              "disabled",
+              "governance",
+              "compliance"
+            ]
+          }
+        }
+      },
+      "MetricSeriesResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "metricKey",
+          "window",
+          "points"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "metricKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "window": {
+            "type": "string",
+            "enum": [
+              "5m",
+              "1h",
+              "24h",
+              "7d",
+              "30d"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "timestamp",
+                "value"
+              ],
+              "properties": {
+                "timestamp": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "value": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      },
+      "WebSocketSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "tenantId",
+          "workspaceId",
+          "channel",
+          "handshakeUrl",
+          "expiresAt",
+          "status"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "pattern": "^wss_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "handshakeUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "closed"
+            ]
+          }
+        }
+      },
+      "WebSocketSessionWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "channel"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "ws",
+              "wss"
+            ]
+          }
+        }
       }
     }
   }

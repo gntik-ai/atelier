@@ -1,0 +1,1486 @@
+{
+  "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
+      "InvitationId": {
+        "description": "Stable invitation identifier.",
+        "in": "path",
+        "name": "invitationId",
+        "required": true,
+        "schema": {
+          "pattern": "^inv_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "TenantId": {
+        "description": "Stable tenant identifier.",
+        "in": "path",
+        "name": "tenantId",
+        "required": true,
+        "schema": {
+          "minLength": 3,
+          "pattern": "^ten_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "TenantMembershipId": {
+        "description": "Stable tenant membership identifier.",
+        "in": "path",
+        "name": "tenantMembershipId",
+        "required": true,
+        "schema": {
+          "pattern": "^tmb_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "pattern": "^2026-03-23$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "CapabilityPlane": {
+        "enum": [
+          "control",
+          "data",
+          "identity",
+          "observability"
+        ],
+        "type": "string"
+      },
+      "EffectiveCapabilityResolution": {
+        "additionalProperties": false,
+        "properties": {
+          "capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedCapability"
+            },
+            "type": "array"
+          },
+          "correlationContext": {
+            "additionalProperties": false,
+            "properties": {
+              "contractVersion": {
+                "maxLength": 40,
+                "minLength": 10,
+                "type": "string"
+              },
+              "planes": {
+                "items": {
+                  "$ref": "#/components/schemas/CapabilityPlane"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "contractVersion",
+              "planes"
+            ],
+            "type": "object"
+          },
+          "deploymentProfileId": {
+            "pattern": "^dpf_[0-9a-z]+$",
+            "type": "string"
+          },
+          "planId": {
+            "pattern": "^pln_[0-9a-z]+$",
+            "type": "string"
+          },
+          "quotas": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedQuota"
+            },
+            "type": "array"
+          },
+          "resolvedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "tenantId",
+          "planId",
+          "deploymentProfileId",
+          "quotas",
+          "capabilities",
+          "resolvedAt",
+          "correlationContext"
+        ],
+        "type": "object"
+      },
+      "EntityMetadata": {
+        "additionalProperties": {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "description": "Non-secret additive metadata for canonical entities.",
+        "type": "object"
+      },
+      "EntityState": {
+        "enum": [
+          "draft",
+          "provisioning",
+          "active",
+          "suspended",
+          "soft_deleted"
+        ],
+        "type": "string"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "Invitation": {
+        "additionalProperties": false,
+        "properties": {
+          "emailHash": {
+            "maxLength": 255,
+            "minLength": 12,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "invitation",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "invitationStatus": {
+            "$ref": "#/components/schemas/InvitationStatus"
+          },
+          "maskedEmail": {
+            "maxLength": 255,
+            "minLength": 5,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "role": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/InvitationTargetType"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "invitationId",
+          "tenantId",
+          "emailHash",
+          "targetType",
+          "role",
+          "invitationStatus",
+          "expiresAt",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "InvitationStatus": {
+        "enum": [
+          "pending",
+          "accepted",
+          "revoked",
+          "expired"
+        ],
+        "type": "string"
+      },
+      "InvitationTargetType": {
+        "enum": [
+          "tenant",
+          "workspace"
+        ],
+        "type": "string"
+      },
+      "InvitationWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "emailHash": {
+            "maxLength": 255,
+            "minLength": 12,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "invitation",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invitationStatus": {
+            "$ref": "#/components/schemas/InvitationStatus"
+          },
+          "maskedEmail": {
+            "maxLength": 255,
+            "minLength": 5,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "role": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "targetType": {
+            "$ref": "#/components/schemas/InvitationTargetType"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "emailHash",
+          "targetType",
+          "role",
+          "invitationStatus",
+          "expiresAt",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "LifecycleTimestamps": {
+        "additionalProperties": false,
+        "properties": {
+          "activatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "suspendedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MembershipStatus": {
+        "enum": [
+          "pending_activation",
+          "active",
+          "suspended",
+          "revoked"
+        ],
+        "type": "string"
+      },
+      "MutationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "acceptedEventType": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "commandId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "entityId": {
+            "maxLength": 128,
+            "minLength": 4,
+            "type": "string"
+          },
+          "entityType": {
+            "enum": [
+              "platform_user",
+              "tenant",
+              "workspace",
+              "external_application",
+              "service_account",
+              "managed_resource"
+            ],
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "requestId",
+          "entityType",
+          "entityId",
+          "status",
+          "acceptedEventType",
+          "desiredState",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "ProviderCapabilityStatus": {
+        "enum": [
+          "available",
+          "limited",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "QuotaEnforcementMode": {
+        "enum": [
+          "hard_stop",
+          "throttle",
+          "advisory"
+        ],
+        "type": "string"
+      },
+      "ResolvedCapability": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedEnvironments": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceEnvironment"
+            },
+            "type": "array"
+          },
+          "capabilityKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "capabilityStatus": {
+            "$ref": "#/components/schemas/ProviderCapabilityStatus"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "plane": {
+            "$ref": "#/components/schemas/CapabilityPlane"
+          },
+          "provider": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "supportLevel": {
+            "enum": [
+              "preview",
+              "ga",
+              "deprecated"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "capabilityKey",
+          "provider",
+          "plane",
+          "enabled",
+          "capabilityStatus",
+          "allowedEnvironments"
+        ],
+        "type": "object"
+      },
+      "ResolvedQuota": {
+        "additionalProperties": false,
+        "properties": {
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "limit": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "metricKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "metricKey",
+          "scope",
+          "unit",
+          "limit",
+          "enforcementMode"
+        ],
+        "type": "object"
+      },
+      "Tenant": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "tenant",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/TenantPlacement"
+          },
+          "planId": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "workspaceCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entityType",
+          "tenantId",
+          "slug",
+          "displayName",
+          "planId",
+          "placement",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TenantMembershipRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "entityType": {
+            "const": "tenant_membership",
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "membershipStatus": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TenantRole"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "tenantMembershipId": {
+            "pattern": "^tmb_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "tenantMembershipId",
+          "tenantId",
+          "userId",
+          "role",
+          "membershipStatus",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TenantMembershipRecordWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "entityType": {
+            "const": "tenant_membership",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "membershipStatus": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TenantRole"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "userId",
+          "role",
+          "membershipStatus",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TenantPlacement": {
+        "enum": [
+          "shared_schema",
+          "dedicated_database"
+        ],
+        "type": "string"
+      },
+      "TenantRole": {
+        "enum": [
+          "tenant_admin",
+          "tenant_operator",
+          "tenant_billing_admin",
+          "auditor"
+        ],
+        "type": "string"
+      },
+      "TenantWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "tenant",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/TenantPlacement"
+          },
+          "planId": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "planId",
+          "placement",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "WorkspaceEnvironment": {
+        "enum": [
+          "dev",
+          "sandbox",
+          "staging",
+          "prod"
+        ],
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "description": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces. Generated from the unified public API contract for v1.",
+    "summary": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.",
+    "title": "In Atelier Tenants API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/tenants": {
+      "post": {
+        "operationId": "createTenant",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Tenant mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a canonical tenant write request",
+        "tags": [
+          "Tenants"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "tenant",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getTenant",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tenant"
+                }
+              }
+            },
+            "description": "Tenant returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one canonical tenant entity",
+        "tags": [
+          "Tenants"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "tenant",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}/effective-capabilities": {
+      "get": {
+        "operationId": "getTenantEffectiveCapabilities",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EffectiveCapabilityResolution"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Resolve effective capabilities for one tenant",
+        "tags": [
+          "Tenants",
+          "CapabilityResolution"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "tenant_capabilities",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}/invitations": {
+      "post": {
+        "operationId": "createInvitation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit an invitation write request",
+        "tags": [
+          "Tenants",
+          "Invitations"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "invitation",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}/invitations/{invitationId}": {
+      "get": {
+        "operationId": "getInvitation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/InvitationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one invitation record",
+        "tags": [
+          "Tenants",
+          "Invitations"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "invitation",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}/memberships": {
+      "post": {
+        "operationId": "createTenantMembership",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantMembershipRecordWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a tenant membership write request",
+        "tags": [
+          "Tenants",
+          "Memberships"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "tenant_membership",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}/memberships/{tenantMembershipId}": {
+      "get": {
+        "operationId": "getTenantMembership",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantMembershipId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantMembershipRecord"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one tenant membership record",
+        "tags": [
+          "Tenants",
+          "Memberships"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "tenant_membership",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Tenants"
+    },
+    {
+      "name": "Memberships"
+    },
+    {
+      "name": "Invitations"
+    },
+    {
+      "name": "CapabilityResolution"
+    }
+  ]
+}

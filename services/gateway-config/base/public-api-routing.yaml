@@ -1,0 +1,79 @@
+apiVersion: gateway.in-atelier/v1alpha1
+kind: PublicApiRouting
+metadata:
+  name: in-atelier-public-api-routing
+spec:
+  version: 2026-03-23
+  uriPrefix: /v1
+  versionHeader:
+    name: X-API-Version
+    currentValue: '2026-03-23'
+  correlationHeader:
+    name: X-Correlation-Id
+  families:
+    - id: platform
+      pathPrefix: /v1/platform
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: true
+    - id: tenants
+      pathPrefix: /v1/tenants
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: workspaces
+      pathPrefix: /v1/workspaces
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: auth
+      pathPrefix: /v1/auth
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: postgres
+      pathPrefix: /v1/postgres
+      upstreamService: control_api
+      routeClass: data-control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: mongo
+      pathPrefix: /v1/mongo
+      upstreamService: control_api
+      routeClass: data-control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: events
+      pathPrefix: /v1/events
+      upstreamService: control_api
+      routeClass: event
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: functions
+      pathPrefix: /v1/functions
+      upstreamService: control_api
+      routeClass: functions
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: storage
+      pathPrefix: /v1/storage
+      upstreamService: control_api
+      routeClass: data-control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: metrics
+      pathPrefix: /v1/metrics
+      upstreamService: control_api
+      routeClass: observability
+      authMode: bearer_oidc
+      discoveryEnabled: false
+    - id: websockets
+      pathPrefix: /v1/websockets
+      upstreamService: control_api
+      routeClass: realtime
+      authMode: bearer_oidc
+      discoveryEnabled: false

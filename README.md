@@ -8,8 +8,8 @@ This repository establishes the minimal working structure for:
 
 - `apps/control-plane`: control plane backend surface
 - `apps/web-console`: web console frontend surface
-- `services/gateway-config`: gateway and runtime configuration assets
-- `services/internal-contracts`: internal service-map, authorization, deployment-topology, and core-domain contract baselines
+- `services/gateway-config`: gateway and runtime configuration assets, including the unified public API family routing manifest
+- `services/internal-contracts`: internal service-map, authorization, deployment-topology, core-domain, and public-API taxonomy baselines
 - `services/provisioning-orchestrator`: control-plane orchestration workspace
 - `services/audit`: audit/evidence workspace
 - `services/adapters`: external service adapter packages
@@ -61,12 +61,13 @@ The current baseline quality chain covers:
 - PostgreSQL ADR package validation
 - testing-strategy package validation
 - internal service-map validation
+- public-API taxonomy, route-catalog, family-contract, and gateway-routing validation
 - deployment-topology validation for domains, environments, overlays, smoke parity, and bootstrap policy
 - deployment-chart validation for umbrella dependencies, wrapper coverage, values layers, and bootstrap controller contracts
 - authorization-model validation for tenant/workspace context, permission matrices, and propagation targets
 - domain-model validation for canonical entities, lifecycle events, OpenAPI mapping, and seed fixtures
 - markdown linting
-- OpenAPI validation for the control-plane contract
+- OpenAPI validation for the unified control-plane/public-gateway contract
 - unit tests for helper logic and strategy consistency
 - adapter-integration scaffold tests
 - contract tests for API versioning/error expectations
@@ -81,6 +82,7 @@ Run:
 
 ```bash
 corepack pnpm install
+corepack pnpm generate:public-api
 corepack pnpm lint
 corepack pnpm test
 corepack pnpm security:deps

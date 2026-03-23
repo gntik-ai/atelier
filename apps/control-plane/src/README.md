@@ -12,9 +12,10 @@ Initial responsibility boundaries:
 - translation into internal control/provisioning contracts
 - internal health and readiness endpoints
 
-Scaffolding added by `US-ARC-01-T01` and `US-ARC-03`:
+Scaffolding added by `US-ARC-01-T01`, `US-ARC-03`, and `US-GW-01`:
 
 - `internal-service-map.mjs` exposes the control API slice of the shared contract package
 - `authorization-model.mjs` exposes the shared security-context and access-decision baseline
 - `domain-model.mjs` exposes the canonical entity, write-envelope, and lifecycle-event baseline
+- `public-api-catalog.mjs` exposes the generated family/route discovery catalog that backs the `/v1/platform/route-catalog` contract
 - provider-specific implementation remains out of this workspace
