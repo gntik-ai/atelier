@@ -34,7 +34,7 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.components.schemas.RouteCatalogResponse);
 });
 
-test('control-plane contract enforces versioning, authorization, family metadata, and idempotent mutation expectations', async () => {
+test('control-plane contract enforces versioning, authorization, family metadata, idempotent mutation expectations, and gateway hardening responses', async () => {
   const document = await SwaggerParser.validate(OPENAPI_PATH);
   const accessCheck = document.paths['/v1/auth/access-checks'].post;
   const createManagedResource = document.paths['/v1/workspaces/{workspaceId}/managed-resources'].post;
@@ -45,6 +45,18 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
+  assert.equal(document.info.version, '1.1.0');
+  assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
+  assert.deepEqual(document.components.schemas.ErrorResponse.required, [
+    'status',
+    'code',
+    'message',
+    'detail',
+    'requestId',
+    'correlationId',
+    'timestamp',
+    'resource'
+  ]);
 
   const accessCheckParameters = resolveParameters(document, accessCheck);
   const managedResourceParameters = resolveParameters(document, createManagedResource);
@@ -59,6 +71,10 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(accessCheckParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.ok(accessCheck.responses['403']);
   assert.ok(accessCheck.responses['200']);
+  assert.ok(accessCheck.responses['413']);
+  assert.ok(accessCheck.responses['429']);
+  assert.ok(accessCheck.responses['431']);
+  assert.ok(accessCheck.responses['504']);
 
   assert.equal(createManagedResource['x-family'], 'workspaces');
   assert.equal(managedResourceParameters.some((parameter) => parameter.name === 'X-API-Version'), true);
@@ -66,6 +82,10 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(managedResourceParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.ok(createManagedResource.responses['202']);
   assert.ok(createManagedResource.responses['403']);
+  assert.ok(createManagedResource.responses['413']);
+  assert.ok(createManagedResource.responses['429']);
+  assert.ok(createManagedResource.responses['431']);
+  assert.ok(createManagedResource.responses['504']);
 
   assert.equal(getWorkspaceCapabilities['x-family'], 'workspaces');
   assert.equal(workspaceCapabilitiesParameters.some((parameter) => parameter.name === 'workspaceId'), true);
@@ -84,7 +104,11 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(routeCatalogParameters.some((parameter) => parameter.name === 'family'), true);
   assert.equal(routeCatalogParameters.some((parameter) => parameter.name === 'scope'), true);
   assert.ok(getRouteCatalog.responses['200']);
-  assert.ok(document.components.schemas.RouteCatalogEntry);
+  assert.ok(getRouteCatalog.responses['429']);
+  assert.ok(getRouteCatalog.responses['431']);
+  assert.ok(getRouteCatalog.responses['504']);
+  assert.ok(document.components.schemas.RouteCatalogEntry.properties.gatewayQosProfile);
+  assert.ok(document.components.schemas.RouteCatalogEntry.properties.gatewayRequestValidationProfile);
 
   assert.equal(createPostgres['x-family'], 'postgres');
   assert.equal(postgresParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);

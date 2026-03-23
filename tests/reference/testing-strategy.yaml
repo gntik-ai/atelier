@@ -189,6 +189,16 @@ cross_domain_matrix:
         - event-tenant-provision-requested
         - adapter-event-bus-stub
       expected: Retry intent is explicit and duplicate side effects remain suppressed.
+    - id: RS-EVT-002
+      level: resilience
+      domain: events
+      taxonomy: resilience
+      title: Idempotent retry reuses the original create or provision acceptance instead of duplicating side effects.
+      fixtures:
+        - resilience-idempotent-retry
+        - event-tenant-provision-requested
+        - tenant-shared-a
+      expected: Safe retries preserve one logical acceptance, one correlation chain, and one downstream mutation envelope.
     - id: RS-TEN-001
       level: resilience
       domain: multi_tenant
@@ -209,6 +219,25 @@ cross_domain_matrix:
         - user-workspace-admin-alpha
         - workspace-alpha-dev
       expected: Replayed or mutated authorization context remains denied and fully traceable by correlation id.
+    - id: RS-SEC-002
+      level: resilience
+      domain: security
+      taxonomy: resilience
+      title: Gateway rejects spoofed downstream auth-context headers with the standard correlation-bearing error envelope.
+      fixtures:
+        - resilience-invalid-headers
+        - api-version-current
+      expected: Client-supplied trust headers are blocked before they can reach the control plane or adapters.
+    - id: RS-DAT-002
+      level: resilience
+      domain: data
+      taxonomy: resilience
+      title: Oversized provisioning payloads are rejected at the gateway before any control-plane side effects begin.
+      fixtures:
+        - resilience-oversized-body
+        - tenant-shared-a
+        - workspace-alpha-dev
+      expected: Body-size enforcement fails fast, returns the standard error envelope, and preserves tenant-safe retry guidance.
 
 scenario_taxonomy:
   categories:
@@ -310,7 +339,7 @@ api_contract:
   uri_prefix: /v1/
   version_header:
     name: X-API-Version
-    current_value: '2026-03-23'
+    current_value: '2026-03-24'
   required_error_contracts: true
   compatibility_expectations:
     - Non-health control-plane operations stay under `/v1/` until a deliberate versioning change is introduced.

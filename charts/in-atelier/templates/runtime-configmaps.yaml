@@ -14,6 +14,10 @@ data:
   oidcDiscoveryUrl: {{ .Values.gatewayPolicy.oidc.discoveryUrl | quote }}
   passthroughMode: {{ .Values.gatewayPolicy.passthrough.mode | quote }}
   propagatedAuthHeaders: {{ values .Values.gatewayPolicy.claimsPropagation.headers | join "," | quote }}
+  correlationHeader: {{ .Values.gatewayPolicy.correlation.headerName | quote }}
+  requestIdHeader: {{ .Values.gatewayPolicy.correlation.requestIdHeader | quote }}
+  gatewayInternalMode: {{ .Values.gatewayPolicy.internalRequests.mode | quote }}
+  errorEnvelopeSchema: {{ .Values.gatewayPolicy.errorEnvelope.schema | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap

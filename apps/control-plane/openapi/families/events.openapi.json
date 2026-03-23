@@ -2,13 +2,14 @@
   "components": {
     "parameters": {
       "IdempotencyKey": {
-        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway. Replays are retained for 24h and surfaced through X-Idempotency-Replayed.",
         "in": "header",
         "name": "Idempotency-Key",
         "required": true,
         "schema": {
           "maxLength": 128,
           "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
           "type": "string"
         }
       },
@@ -23,49 +24,112 @@
         }
       },
       "XApiVersion": {
-        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
         "in": "header",
         "name": "X-API-Version",
         "required": true,
         "schema": {
+          "const": "2026-03-24",
           "pattern": "^2026-03-23$",
           "type": "string"
         }
       },
       "XCorrelationId": {
-        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, audit flows, and backfilled by the gateway when recovery requires it.",
         "in": "header",
         "name": "X-Correlation-Id",
         "required": true,
         "schema": {
           "maxLength": 128,
           "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
           "type": "string"
         }
       }
     },
     "schemas": {
+      "ErrorDetail": {
+        "additionalProperties": true,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "violations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorResource": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
       "ErrorResponse": {
         "additionalProperties": false,
         "properties": {
           "code": {
+            "pattern": "^GW_[A-Z0-9_]+$",
             "type": "string"
           },
           "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$",
             "type": "string"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail"
           },
           "message": {
             "type": "string"
           },
           "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ErrorResource"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "status": {
+            "maximum": 599,
+            "minimum": 400,
+            "type": "integer"
+          },
+          "timestamp": {
+            "format": "date-time",
             "type": "string"
           }
         },
         "required": [
+          "status",
           "code",
           "message",
+          "detail",
           "requestId",
-          "correlationId"
+          "correlationId",
+          "timestamp",
+          "resource"
         ],
         "type": "object"
       },
@@ -244,7 +308,7 @@
     "description": "Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes.",
     "title": "In Atelier Events API",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -303,6 +367,46 @@
               }
             },
             "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
           },
           "default": {
             "content": {
@@ -395,6 +499,36 @@
               }
             },
             "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
           },
           "default": {
             "content": {

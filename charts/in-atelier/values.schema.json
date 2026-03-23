@@ -1092,7 +1092,13 @@
         "publicRoutes",
         "passthrough",
         "familyPolicies",
-        "accessMatrix"
+        "accessMatrix",
+        "errorEnvelope",
+        "idempotency",
+        "correlation",
+        "requestValidation",
+        "qos",
+        "internalRequests"
       ],
       "properties": {
         "version": {
@@ -1173,7 +1179,15 @@
           "type": "object",
           "minProperties": 1,
           "additionalProperties": {
-            "type": "object"
+            "type": "object",
+            "required": [
+              "tenantBinding",
+              "workspaceBinding",
+              "qosProfile",
+              "requestValidationProfile",
+              "planCapabilityAnyOf"
+            ],
+            "additionalProperties": true
           }
         },
         "accessMatrix": {
@@ -1181,6 +1195,68 @@
           "required": [
             "personas",
             "assertions"
+          ],
+          "additionalProperties": true
+        },
+        "errorEnvelope": {
+          "type": "object",
+          "required": [
+            "schema",
+            "correlationResponseHeader",
+            "requiredFields",
+            "retryableStatuses"
+          ],
+          "additionalProperties": true
+        },
+        "idempotency": {
+          "type": "object",
+          "required": [
+            "headerName",
+            "replayResponseHeader",
+            "ttlSeconds",
+            "hashRequestBody",
+            "supportedMethods",
+            "keyPattern"
+          ],
+          "additionalProperties": true
+        },
+        "correlation": {
+          "type": "object",
+          "required": [
+            "headerName",
+            "requestIdHeader",
+            "internalTimestampHeader",
+            "internalModeHeader",
+            "generateWhenMissing",
+            "responseHeader",
+            "tokenPattern"
+          ],
+          "additionalProperties": true
+        },
+        "requestValidation": {
+          "type": "object",
+          "required": [
+            "spoofedHeaders",
+            "profiles"
+          ],
+          "additionalProperties": true
+        },
+        "qos": {
+          "type": "object",
+          "required": [
+            "responseHeaders",
+            "profiles",
+            "timeoutProfiles",
+            "retryProfiles"
+          ],
+          "additionalProperties": true
+        },
+        "internalRequests": {
+          "type": "object",
+          "required": [
+            "mode",
+            "requiredHeaders",
+            "injectedHeaders"
           ],
           "additionalProperties": true
         }

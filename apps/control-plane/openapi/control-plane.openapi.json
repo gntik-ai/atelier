@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, data, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -191,6 +191,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -289,6 +319,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -368,6 +438,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -474,6 +574,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -554,6 +694,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -661,6 +831,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -746,6 +956,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -857,6 +1097,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -942,6 +1222,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1053,6 +1363,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -1138,6 +1488,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1249,6 +1629,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -1349,6 +1769,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -1434,6 +1894,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1544,6 +2034,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -1628,6 +2158,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1739,6 +2299,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -1824,6 +2424,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1934,6 +2564,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -2015,6 +2685,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2121,6 +2821,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -2204,6 +2944,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2313,6 +3083,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -2393,6 +3203,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2499,6 +3339,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -2579,6 +3459,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2685,6 +3595,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected control-plane error.",
             "content": {
@@ -2765,6 +3715,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2854,6 +3834,36 @@
           },
           "404": {
             "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2969,6 +3979,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected gateway discovery error.",
             "content": {
@@ -3048,6 +4088,46 @@
           },
           "403": {
             "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3148,6 +4228,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected gateway error.",
             "content": {
@@ -3232,6 +4342,46 @@
           },
           "403": {
             "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3332,6 +4482,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected gateway error.",
             "content": {
@@ -3416,6 +4596,46 @@
           },
           "403": {
             "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3516,6 +4736,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected gateway error.",
             "content": {
@@ -3600,6 +4850,46 @@
           },
           "403": {
             "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3700,6 +4990,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected gateway error.",
             "content": {
@@ -3792,6 +5112,46 @@
               }
             }
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected gateway error.",
             "content": {
@@ -3876,6 +5236,36 @@
           },
           "404": {
             "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3991,6 +5381,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected metrics error.",
             "content": {
@@ -4072,6 +5492,46 @@
           },
           "403": {
             "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4175,6 +5635,36 @@
               }
             }
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "description": "Unexpected realtime lookup error.",
             "content": {
@@ -4215,21 +5705,23 @@
         "name": "X-API-Version",
         "in": "header",
         "required": true,
-        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
         "schema": {
           "type": "string",
-          "pattern": "^2026-03-23$"
+          "pattern": "^2026-03-23$",
+          "const": "2026-03-24"
         }
       },
       "XCorrelationId": {
         "name": "X-Correlation-Id",
         "in": "header",
         "required": true,
-        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, audit flows, and backfilled by the gateway when recovery requires it.",
         "schema": {
           "type": "string",
           "minLength": 8,
-          "maxLength": 128
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$"
         }
       },
       "TenantId": {
@@ -4368,11 +5860,12 @@
         "name": "Idempotency-Key",
         "in": "header",
         "required": true,
-        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway. Replays are retained for 24h and surfaced through X-Idempotency-Replayed.",
         "schema": {
           "type": "string",
           "minLength": 8,
-          "maxLength": 128
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$"
         }
       },
       "PageSize": {
@@ -4756,23 +6249,51 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
+          "status",
           "code",
           "message",
+          "detail",
           "requestId",
-          "correlationId"
+          "correlationId",
+          "timestamp",
+          "resource"
         ],
         "properties": {
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
           "code": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^GW_[A-Z0-9_]+$"
           },
           "message": {
             "type": "string"
           },
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
           "requestId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
           },
           "correlationId": {
-            "type": "string"
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ErrorResource"
+          },
+          "retryable": {
+            "type": "boolean"
           }
         }
       },
@@ -6975,7 +8496,18 @@
           "audiences",
           "authRequired",
           "requiredHeaders",
-          "downstreamService"
+          "downstreamService",
+          "gatewayQosProfile",
+          "gatewayRequestValidationProfile",
+          "gatewayTimeoutProfile",
+          "gatewayRetryProfile",
+          "maxRequestBodyBytes",
+          "allowedContentTypes",
+          "correlationIdRequired",
+          "correlationIdGeneratedWhenMissing",
+          "internalRequestMode",
+          "errorEnvelope",
+          "qosBurst"
         ],
         "properties": {
           "family": {
@@ -7058,6 +8590,51 @@
           },
           "discoveryRoute": {
             "type": "string"
+          },
+          "gatewayQosProfile": {
+            "type": "string"
+          },
+          "gatewayRequestValidationProfile": {
+            "type": "string"
+          },
+          "gatewayTimeoutProfile": {
+            "type": "string"
+          },
+          "gatewayRetryProfile": {
+            "type": "string"
+          },
+          "maxRequestBodyBytes": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "allowedContentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "correlationIdRequired": {
+            "type": "boolean"
+          },
+          "correlationIdGeneratedWhenMissing": {
+            "type": "boolean"
+          },
+          "idempotencyTtlSeconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "idempotencyReplayHeader": {
+            "type": "string"
+          },
+          "internalRequestMode": {
+            "type": "string"
+          },
+          "errorEnvelope": {
+            "type": "string"
+          },
+          "qosBurst": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -7722,6 +9299,39 @@
               "ws",
               "wss"
             ]
+          }
+        }
+      },
+      "ErrorResource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "violations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

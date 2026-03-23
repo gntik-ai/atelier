@@ -7,9 +7,26 @@ export const ROOT_VALUES_PATH = 'charts/in-atelier/values.yaml';
 export const ENVIRONMENTS = ['dev', 'sandbox', 'staging', 'prod'];
 export const PASSTHROUGH_MODES = ['enabled', 'limited', 'disabled'];
 export const REQUIRED_PROPAGATED_HEADER_KEYS = ['subject', 'username', 'tenantId', 'workspaceId', 'planId', 'scopes', 'roles'];
-export const REQUIRED_PRODUCT_PLUGINS = ['openid-connect', 'cors', 'request-validation', 'proxy-rewrite'];
-export const REQUIRED_PASSTHROUGH_PLUGINS = ['openid-connect', 'cors', 'request-validation', 'proxy-rewrite', 'authz-keycloak', 'http-logger'];
+export const REQUIRED_PRODUCT_PLUGINS = ['openid-connect', 'cors', 'limit-count', 'client-control', 'request-validation', 'proxy-rewrite'];
+export const REQUIRED_PASSTHROUGH_PLUGINS = [
+  'openid-connect',
+  'cors',
+  'limit-count',
+  'client-control',
+  'request-validation',
+  'proxy-rewrite',
+  'authz-keycloak',
+  'http-logger'
+];
 export const REQUIRED_PERSONAS = ['basic_profile', 'tenant_admin', 'superadmin'];
+export const REQUIRED_SPOOFED_HEADERS = ['X-Auth-Subject', 'X-Actor-Username', 'X-Tenant-Id', 'X-Workspace-Id', 'X-Plan-Id', 'X-Auth-Scopes', 'X-Actor-Roles'];
+export const REQUIRED_INTERNAL_REQUEST_HEADERS = [
+  'X-Gateway-Managed-Route',
+  'X-Correlation-Id',
+  'X-Request-Id',
+  'X-Internal-Request-Mode',
+  'X-Internal-Request-Timestamp'
+];
 export const CORE_ROUTE_NAMES = ['control-plane', 'identity', 'realtime', 'console', 'health'];
 
 export function readGatewayPolicyValues(path = ROOT_VALUES_PATH) {
@@ -153,8 +170,92 @@ function collectCorsViolations(values, violations) {
     }
   }
 
+  for (const header of REQUIRED_SPOOFED_HEADERS) {
+    if ((cors.allowHeaders ?? []).includes(header)) {
+      violations.push(`gatewayPolicy.cors.allowHeaders must not expose spoofable downstream header ${header}.`);
+    }
+  }
+
   if (!(cors.allowMethods ?? []).includes('OPTIONS')) {
     violations.push('gatewayPolicy.cors.allowMethods must include OPTIONS for browser preflights.');
+  }
+}
+
+function collectHardeningViolations(values, gatewayRouting, violations) {
+  const correlation = values?.gatewayPolicy?.correlation ?? {};
+  const idempotency = values?.gatewayPolicy?.idempotency ?? {};
+  const errorEnvelope = values?.gatewayPolicy?.errorEnvelope ?? {};
+  const requestValidation = values?.gatewayPolicy?.requestValidation ?? {};
+  const internalRequests = values?.gatewayPolicy?.internalRequests ?? {};
+
+  if (correlation.headerName !== 'X-Correlation-Id') {
+    violations.push('gatewayPolicy.correlation.headerName must remain X-Correlation-Id.');
+  }
+  if (correlation.generateWhenMissing !== true) {
+    violations.push('gatewayPolicy.correlation.generateWhenMissing must remain true.');
+  }
+  if (idempotency.headerName !== 'Idempotency-Key') {
+    violations.push('gatewayPolicy.idempotency.headerName must remain Idempotency-Key.');
+  }
+  if (!Number.isInteger(idempotency.ttlSeconds) || idempotency.ttlSeconds < 60) {
+    violations.push('gatewayPolicy.idempotency.ttlSeconds must be a sane positive integer.');
+  }
+  if (errorEnvelope.schema !== 'ErrorResponse') {
+    violations.push('gatewayPolicy.errorEnvelope.schema must remain ErrorResponse.');
+  }
+  for (const field of ['status', 'code', 'message', 'detail', 'requestId', 'correlationId', 'timestamp', 'resource']) {
+    if (!(errorEnvelope.requiredFields ?? []).includes(field)) {
+      violations.push(`gatewayPolicy.errorEnvelope.requiredFields must include ${field}.`);
+    }
+  }
+  for (const header of REQUIRED_SPOOFED_HEADERS) {
+    if (!(requestValidation.spoofedHeaders ?? []).includes(header)) {
+      violations.push(`gatewayPolicy.requestValidation.spoofedHeaders must include ${header}.`);
+    }
+  }
+  if (internalRequests.mode !== gatewayRouting?.spec?.internalRequestMode?.mode) {
+    violations.push('gatewayPolicy.internalRequests.mode must align with gateway routing internalRequestMode.mode.');
+  }
+  for (const header of REQUIRED_INTERNAL_REQUEST_HEADERS) {
+    if (!(internalRequests.requiredHeaders ?? []).includes(header)) {
+      violations.push(`gatewayPolicy.internalRequests.requiredHeaders must include ${header}.`);
+    }
+  }
+}
+
+function collectQosViolations(values, gatewayRouting, violations) {
+  const qos = values?.gatewayPolicy?.qos ?? {};
+  const requestValidation = values?.gatewayPolicy?.requestValidation ?? {};
+  const familyPolicies = values?.gatewayPolicy?.familyPolicies ?? {};
+
+  for (const [familyId, policy] of Object.entries(familyPolicies)) {
+    if (!qos?.profiles?.[policy.qosProfile]) {
+      violations.push(`gatewayPolicy.familyPolicies.${familyId}.qosProfile must reference an existing gatewayPolicy.qos.profiles entry.`);
+    }
+    if (!requestValidation?.profiles?.[policy.requestValidationProfile]) {
+      violations.push(
+        `gatewayPolicy.familyPolicies.${familyId}.requestValidationProfile must reference an existing gatewayPolicy.requestValidation.profiles entry.`
+      );
+    }
+  }
+
+  for (const route of values?.gatewayPolicy?.passthrough?.routes ?? []) {
+    if (!qos?.profiles?.[route.qosProfile]) {
+      violations.push(`gatewayPolicy.passthrough.routes.${route.id}.qosProfile must reference an existing gatewayPolicy.qos.profiles entry.`);
+    }
+    if (!requestValidation?.profiles?.[route.requestValidationProfile]) {
+      violations.push(
+        `gatewayPolicy.passthrough.routes.${route.id}.requestValidationProfile must reference an existing gatewayPolicy.requestValidation.profiles entry.`
+      );
+    }
+  }
+
+  if (JSON.stringify(values?.gatewayPolicy?.qos?.timeoutProfiles ?? {}) !== JSON.stringify(gatewayRouting?.spec?.timeoutProfiles ?? {})) {
+    violations.push('gatewayPolicy.qos.timeoutProfiles must align with services/gateway-config/base/public-api-routing.yaml.');
+  }
+
+  if (JSON.stringify(values?.gatewayPolicy?.qos?.retryProfiles ?? {}) !== JSON.stringify(gatewayRouting?.spec?.retryProfiles ?? {})) {
+    violations.push('gatewayPolicy.qos.retryProfiles must align with services/gateway-config/base/public-api-routing.yaml.');
   }
 }
 
@@ -188,6 +289,14 @@ function collectRoutingAlignmentViolations(values, gatewayRouting, routeCatalog,
     if (routing.workspaceBinding !== policy.workspaceBinding) {
       violations.push(`Gateway routing family ${familyId} must keep workspaceBinding=${policy.workspaceBinding}.`);
     }
+    if (routing.qosProfile !== policy.qosProfile) {
+      violations.push(`Gateway routing family ${familyId} must keep qosProfile=${policy.qosProfile}.`);
+    }
+    if (routing.requestValidationProfile !== policy.requestValidationProfile) {
+      violations.push(
+        `Gateway routing family ${familyId} must keep requestValidationProfile=${policy.requestValidationProfile}.`
+      );
+    }
 
     if (JSON.stringify((routing.propagatedHeaders ?? []).slice().sort()) !== JSON.stringify(propagatedHeaders)) {
       violations.push(`Gateway routing family ${familyId} must propagate the approved auth context headers.`);
@@ -207,6 +316,14 @@ function collectRoutingAlignmentViolations(values, gatewayRouting, routeCatalog,
     }
     if (route.gatewayRouteClass !== routing.routeClass) {
       violations.push(`Route catalog entry ${route.operationId} must expose gatewayRouteClass ${routing.routeClass}.`);
+    }
+    if (route.gatewayQosProfile !== routing.qosProfile) {
+      violations.push(`Route catalog entry ${route.operationId} must preserve gatewayQosProfile ${routing.qosProfile}.`);
+    }
+    if (route.gatewayRequestValidationProfile !== routing.requestValidationProfile) {
+      violations.push(
+        `Route catalog entry ${route.operationId} must preserve gatewayRequestValidationProfile ${routing.requestValidationProfile}.`
+      );
     }
     if (JSON.stringify(route.gatewayContextHeaders ?? []) !== JSON.stringify(routing.propagatedHeaders ?? [])) {
       violations.push(`Route catalog entry ${route.operationId} must preserve gatewayContextHeaders.`);
@@ -240,6 +357,14 @@ function collectApisixRouteViolations(values, gatewayRouting, violations) {
 
     if (route.labels?.['gateway.in-atelier.io/family'] !== family.id) {
       violations.push(`APISIX route public-api-${family.id} must carry the family label.`);
+    }
+
+    if ((route.plugins?.['limit-count']?.rejected_code ?? null) !== 429) {
+      violations.push(`APISIX route public-api-${family.id} must reject rate-limit violations with HTTP 429.`);
+    }
+
+    if ((route.plugins?.['client-control']?.max_body_size ?? 0) <= 0) {
+      violations.push(`APISIX route public-api-${family.id} must declare a positive client-control.max_body_size.`);
     }
   }
 
@@ -325,6 +450,8 @@ export function collectGatewayPolicyViolations({
   collectOidcViolations(values, violations);
   collectClaimsViolations(values, violations);
   collectCorsViolations(values, violations);
+  collectHardeningViolations(values, gatewayRouting, violations);
+  collectQosViolations(values, gatewayRouting, violations);
   collectRoutingAlignmentViolations(values, gatewayRouting, routeCatalog, violations);
   collectApisixRouteViolations(values, gatewayRouting, violations);
   collectAccessMatrixViolations(values, routeCatalog, domainModel, violations);

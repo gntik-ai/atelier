@@ -3,191 +3,377 @@ kind: PublicApiRouting
 metadata:
   name: in-atelier-public-api-routing
 spec:
-  version: 2026-03-23
+  version: 2026-03-24
   uriPrefix: /v1
   versionHeader:
     name: X-API-Version
-    currentValue: '2026-03-23'
+    currentValue: '2026-03-24'
   correlationHeader:
     name: X-Correlation-Id
-  families:
-  - id: platform
-    pathPrefix: /v1/platform
-    upstreamService: control_api
-    routeClass: control
-    authMode: bearer_oidc
-    discoveryEnabled: true
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: none
-    workspaceBinding: none
-    propagatedHeaders: &id001
-    - X-Auth-Subject
-    - X-Actor-Username
-    - X-Tenant-Id
-    - X-Workspace-Id
-    - X-Plan-Id
-    - X-Auth-Scopes
-    - X-Actor-Roles
-  - id: tenants
-    pathPrefix: /v1/tenants
-    upstreamService: control_api
-    routeClass: control
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: none
-    propagatedHeaders: *id001
-  - id: workspaces
-    pathPrefix: /v1/workspaces
-    upstreamService: control_api
-    routeClass: control
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: optional
-    propagatedHeaders: *id001
-  - id: auth
-    pathPrefix: /v1/auth
-    upstreamService: control_api
-    routeClass: control
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-  - id: postgres
-    pathPrefix: /v1/postgres
-    upstreamService: control_api
-    routeClass: data-control
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-    planCapabilityAnyOf:
-    - data.postgresql.shared
-    - data.postgresql.dedicated
-  - id: mongo
-    pathPrefix: /v1/mongo
-    upstreamService: control_api
-    routeClass: data-control
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-  - id: events
-    pathPrefix: /v1/events
-    upstreamService: control_api
-    routeClass: event
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-    planCapabilityAnyOf:
-    - data.kafka.topics
-  - id: functions
-    pathPrefix: /v1/functions
-    upstreamService: control_api
-    routeClass: functions
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-    planCapabilityAnyOf:
-    - data.openwhisk.actions
-  - id: storage
-    pathPrefix: /v1/storage
-    upstreamService: control_api
-    routeClass: data-control
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-    planCapabilityAnyOf:
-    - data.storage.bucket
-  - id: metrics
-    pathPrefix: /v1/metrics
-    upstreamService: control_api
-    routeClass: observability
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-    planCapabilityAnyOf:
-    - observability.metrics.basic
-  - id: websockets
-    pathPrefix: /v1/websockets
-    upstreamService: control_api
-    routeClass: realtime
-    authMode: bearer_oidc
-    discoveryEnabled: false
-    corsProfile: product_api
-    allowAnonymousOptions: true
-    tenantBinding: required
-    workspaceBinding: required
-    propagatedHeaders: *id001
-  allowedRequestHeaders: &id002
-  - Authorization
-  - Content-Type
-  - Idempotency-Key
-  - X-API-Version
-  - X-Correlation-Id
-  - X-Requested-With
-  - X-Auth-Subject
-  - X-Actor-Username
-  - X-Tenant-Id
-  - X-Workspace-Id
-  - X-Plan-Id
-  - X-Auth-Scopes
-  - X-Actor-Roles
-  propagatedHeaders: *id001
-  corsProfiles:
-    product_api:
-      allowOrigins:
-      - console_hostname
-      allowMethods:
-      - GET
+    required: true
+    format: trace_token
+    generateWhenMissing: true
+    responseHeader: X-Correlation-Id
+    requestIdHeader: X-Request-Id
+  idempotencyHeader:
+    name: Idempotency-Key
+    requiredForMethods:
       - POST
       - PUT
       - PATCH
       - DELETE
-      - OPTIONS
-      allowHeaders: *id002
-      exposeHeaders:
+    ttlSeconds: 86400
+    hashRequestBody: true
+    replayResponseHeader: X-Idempotency-Replayed
+  errorEnvelope:
+    schema: ErrorResponse
+    correlationResponseHeader: X-Correlation-Id
+    requiredFields:
+      - status
+      - code
+      - message
+      - detail
+      - requestId
+      - correlationId
+      - timestamp
+      - resource
+  timeoutProfiles:
+    control_plane:
+      connectSeconds: 3
+      sendSeconds: 15
+      readSeconds: 20
+    provisioning:
+      connectSeconds: 3
+      sendSeconds: 20
+      readSeconds: 30
+    observability:
+      connectSeconds: 3
+      sendSeconds: 10
+      readSeconds: 15
+    realtime:
+      connectSeconds: 3
+      sendSeconds: 10
+      readSeconds: 20
+    native_admin:
+      connectSeconds: 3
+      sendSeconds: 15
+      readSeconds: 25
+  retryProfiles:
+    safe_reads:
+      retries: 1
+      retryTimeoutSeconds: 2
+      retryOnStatuses:
+        - 502
+        - 503
+        - 504
+    mutations:
+      retries: 0
+      retryTimeoutSeconds: 0
+      retryOnStatuses: []
+    native_admin:
+      retries: 0
+      retryTimeoutSeconds: 0
+      retryOnStatuses: []
+  requestValidationProfiles:
+    platform_control:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 262144
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
+    tenant_control:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 262144
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
+    workspace_control:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 262144
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
+    auth_control:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 131072
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
+    provisioning:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 1048576
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
+    observability:
+      allowedContentTypes: []
+      maxBodyBytes: 65536
+      requireIdempotencyHeaderOnMutations: false
+      rejectSpoofedContextHeaders: true
+    realtime:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 131072
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
+    native_admin:
+      allowedContentTypes:
+        - application/json
+      maxBodyBytes: 524288
+      requireIdempotencyHeaderOnMutations: false
+      rejectSpoofedContextHeaders: true
+  qosProfiles:
+    platform_control:
+      rateLimitClass: control-write
+      requestsPerMinute: 240
+      burst: 60
+      timeoutProfile: control_plane
+      retryProfile: mutations
+    tenant_control:
+      rateLimitClass: control-write
+      requestsPerMinute: 240
+      burst: 60
+      timeoutProfile: control_plane
+      retryProfile: mutations
+    workspace_control:
+      rateLimitClass: control-write
+      requestsPerMinute: 240
+      burst: 60
+      timeoutProfile: control_plane
+      retryProfile: mutations
+    auth_control:
+      rateLimitClass: catalog
+      requestsPerMinute: 180
+      burst: 40
+      timeoutProfile: control_plane
+      retryProfile: mutations
+    provisioning:
+      rateLimitClass: data-control
+      requestsPerMinute: 120
+      burst: 30
+      timeoutProfile: provisioning
+      retryProfile: mutations
+    observability:
+      rateLimitClass: observability
+      requestsPerMinute: 300
+      burst: 80
+      timeoutProfile: observability
+      retryProfile: safe_reads
+    realtime:
+      rateLimitClass: realtime
+      requestsPerMinute: 120
+      burst: 40
+      timeoutProfile: realtime
+      retryProfile: mutations
+    native_admin:
+      rateLimitClass: native-admin
+      requestsPerMinute: 30
+      burst: 10
+      timeoutProfile: native_admin
+      retryProfile: native_admin
+  internalRequestMode:
+    mode: validated_attestation
+    trustBoundary: gateway_to_control_plane
+    requiredHeaders:
+      - X-Gateway-Managed-Route
       - X-Correlation-Id
-      - X-RateLimit-Limit
-      - X-RateLimit-Remaining
-      - X-RateLimit-Reset
+      - X-Request-Id
+      - X-Internal-Request-Mode
+      - X-Internal-Request-Timestamp
+  families:
+    - id: platform
+      pathPrefix: /v1/platform
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: true
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: none
+      workspaceBinding: none
+      propagatedHeaders: &propagatedHeaders
+        - X-Auth-Subject
+        - X-Actor-Username
+        - X-Tenant-Id
+        - X-Workspace-Id
+        - X-Plan-Id
+        - X-Auth-Scopes
+        - X-Actor-Roles
+      qosProfile: platform_control
+      requestValidationProfile: platform_control
+    - id: tenants
+      pathPrefix: /v1/tenants
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: none
+      propagatedHeaders: *propagatedHeaders
+      qosProfile: tenant_control
+      requestValidationProfile: tenant_control
+    - id: workspaces
+      pathPrefix: /v1/workspaces
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: optional
+      propagatedHeaders: *propagatedHeaders
+      qosProfile: workspace_control
+      requestValidationProfile: workspace_control
+    - id: auth
+      pathPrefix: /v1/auth
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      qosProfile: auth_control
+      requestValidationProfile: auth_control
+    - id: postgres
+      pathPrefix: /v1/postgres
+      upstreamService: control_api
+      routeClass: data-control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      planCapabilityAnyOf:
+        - data.postgresql.shared
+        - data.postgresql.dedicated
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
+    - id: mongo
+      pathPrefix: /v1/mongo
+      upstreamService: control_api
+      routeClass: data-control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
+    - id: events
+      pathPrefix: /v1/events
+      upstreamService: control_api
+      routeClass: event
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      planCapabilityAnyOf:
+        - data.kafka.topics
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
+    - id: functions
+      pathPrefix: /v1/functions
+      upstreamService: control_api
+      routeClass: functions
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      planCapabilityAnyOf:
+        - data.openwhisk.actions
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
+    - id: storage
+      pathPrefix: /v1/storage
+      upstreamService: control_api
+      routeClass: data-control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      planCapabilityAnyOf:
+        - data.storage.bucket
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
+    - id: metrics
+      pathPrefix: /v1/metrics
+      upstreamService: control_api
+      routeClass: observability
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      planCapabilityAnyOf:
+        - observability.metrics.basic
+      qosProfile: observability
+      requestValidationProfile: observability
+    - id: websockets
+      pathPrefix: /v1/websockets
+      upstreamService: control_api
+      routeClass: realtime
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *propagatedHeaders
+      qosProfile: realtime
+      requestValidationProfile: realtime
+  allowedRequestHeaders: &allowedRequestHeaders
+    - Authorization
+    - Content-Type
+    - Idempotency-Key
+    - X-API-Version
+    - X-Correlation-Id
+    - X-Requested-With
+  propagatedHeaders: *propagatedHeaders
+  corsProfiles:
+    product_api:
+      allowOrigins:
+        - console_hostname
+      allowMethods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allowHeaders: *allowedRequestHeaders
+      exposeHeaders:
+        - X-Correlation-Id
+        - X-Idempotency-Replayed
+        - X-RateLimit-Limit
+        - X-RateLimit-Remaining
+        - X-RateLimit-Reset
       allowCredentials: true
       maxAgeSeconds: 3600
   publicRoutes:
-  - id: health
-    path: /health
-    methods:
-    - GET
-    upstreamService: control_api
-    authMode: none
+    - id: health
+      path: /health
+      methods:
+        - GET
+      upstreamService: control_api
+      authMode: none

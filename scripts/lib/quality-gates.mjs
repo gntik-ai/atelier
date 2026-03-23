@@ -62,6 +62,14 @@ export function collectContractViolations(document) {
     violations.push(`OpenAPI info.version must be semver; received ${String(document?.info?.version)}`);
   }
 
+  const errorSchema = document?.components?.schemas?.ErrorResponse;
+  const requiredErrorFields = ['status', 'code', 'message', 'detail', 'requestId', 'correlationId', 'timestamp', 'resource'];
+  for (const field of requiredErrorFields) {
+    if (!(errorSchema?.required ?? []).includes(field)) {
+      violations.push(`OpenAPI ErrorResponse must require field ${field}.`);
+    }
+  }
+
   for (const { path, method, operation } of listOperations(document)) {
     const operationLabel = `${method.toUpperCase()} ${path}`;
 
@@ -104,6 +112,16 @@ export function collectContractViolations(document) {
 
       if (!responseCodes.includes('403')) {
         violations.push(`${operationLabel} must declare a 403 authorization error response.`);
+      }
+
+      for (const status of ['429', '431', '504']) {
+        if (!responseCodes.includes(status)) {
+          violations.push(`${operationLabel} must declare gateway resilience response ${status}.`);
+        }
+      }
+
+      if ((operation.requestBody || ['post', 'put', 'patch', 'delete'].includes(method)) && !responseCodes.includes('413')) {
+        violations.push(`${operationLabel} must declare oversized-body response 413.`);
       }
     }
   }

@@ -1,18 +1,18 @@
 {
-  "version": "2026-03-23",
-  "scope": "US-GW-01",
+  "version": "2026-03-24",
+  "scope": "US-GW-03",
   "system": "in-atelier-public-api",
   "release": {
     "path_version": "v1",
-    "header_version": "2026-03-23",
-    "openapi_semver": "1.0.0"
+    "header_version": "2026-03-24",
+    "openapi_semver": "1.1.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
     "discovery_route": "/v1/platform/route-catalog",
     "non_breaking_evolution": [
       "The URI major version remains pinned at /v1 while additive evolution is announced through the X-API-Version header.",
-      "New optional fields, response metadata, and additive routes may ship within v1 when they preserve current semantics and authorization boundaries.",
+      "Gateway QoS, request hardening, and response-envelope improvements may add optional metadata and response codes within v1 when they preserve current semantics and authorization boundaries.",
       "Generated family contracts and the route catalog must be refreshed from the unified contract on every published change."
     ],
     "breaking_change_policy": [
@@ -26,13 +26,13 @@
       "api_version": {
         "name": "X-API-Version",
         "required": true,
-        "current_value": "2026-03-23",
+        "current_value": "2026-03-24",
         "purpose": "Pins the non-breaking contract generation inside /v1."
       },
       "correlation_id": {
         "name": "X-Correlation-Id",
         "required": true,
-        "purpose": "Carries one stable trace, audit, and orchestration identifier across gateway and internal services."
+        "purpose": "Carries one stable trace, audit, and orchestration identifier across gateway and internal services; the gateway preserves or backfills it for downstream continuity."
       },
       "idempotency_key": {
         "name": "Idempotency-Key",
@@ -42,7 +42,7 @@
           "patch",
           "delete"
         ],
-        "purpose": "Coalesces safe retries for mutating requests accepted by the gateway."
+        "purpose": "Coalesces safe retries for mutating requests accepted by the gateway and critical create/provision flows."
       }
     },
     "pagination": {
@@ -68,18 +68,47 @@
     "errors": {
       "schema": "ErrorResponse",
       "required_fields": [
+        "status",
         "code",
         "message",
+        "detail",
         "requestId",
-        "correlationId"
+        "correlationId",
+        "timestamp",
+        "resource"
       ],
-      "code_prefix": "GW_"
+      "code_prefix": "GW_",
+      "replay_header": "X-Idempotency-Replayed",
+      "retryable_statuses": [
+        429,
+        502,
+        503,
+        504
+      ]
     },
     "security": {
       "default_scheme": "bearerAuth",
       "default_authn": "Keycloak OIDC bearer token",
       "default_authz": "deny_by_default contextual authorization",
       "audit_mode": "accept_and_reject"
+    },
+    "qos": {
+      "family_profiles": [
+        "platform_control",
+        "tenant_control",
+        "workspace_control",
+        "auth_control",
+        "provisioning",
+        "observability",
+        "realtime"
+      ],
+      "enforced_at_gateway": [
+        "rate_limit",
+        "body_size",
+        "header_validation",
+        "timeouts",
+        "retry_policy"
+      ]
     }
   },
   "families": [

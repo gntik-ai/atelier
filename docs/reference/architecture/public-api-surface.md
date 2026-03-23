@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-23, OpenAPI 1.0.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.1.0)
 
 ## Product API vs native passthrough
 
@@ -11,7 +11,7 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 ## Versioning strategy
 
 - The URI major version remains pinned at /v1 while additive evolution is announced through the X-API-Version header.
-- New optional fields, response metadata, and additive routes may ship within v1 when they preserve current semantics and authorization boundaries.
+- Gateway QoS, request hardening, and response-envelope improvements may add optional metadata and response codes within v1 when they preserve current semantics and authorization boundaries.
 - Generated family contracts and the route catalog must be refreshed from the unified contract on every published change.
 - Breaking request/response, authentication, or authorization changes require a new URI family such as /v2 and an explicit coexistence window.
 - Deprecated routes remain cataloged with a sunset marker until the replacement family is published and documented.
@@ -22,10 +22,29 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 - URI prefix: `/v1`
 - Discovery route: `/v1/platform/route-catalog`
 - Required headers: X-API-Version, X-Correlation-Id
+- Gateway correlation continuity: X-Correlation-Id is preserved end-to-end and may be backfilled for downstream continuity when recovery requires it.
 - Idempotency header for mutations: Idempotency-Key
+- Idempotency replay header: X-Idempotency-Replayed
 - Pagination: page[after] + page[size]
 - Filter prefix: `filter[...]`
-- Error schema: `ErrorResponse`
+- Error schema: `ErrorResponse` with required fields status, code, message, detail, requestId, correlationId, timestamp, resource
+- Retryable gateway statuses: 429, 502, 503, 504
+
+## Gateway protection matrix
+
+| Family | QoS profile | Validation profile | Max body bytes | Timeout profile | Retry profile |
+| --- | --- | --- | ---: | --- | --- |
+| platform | platform_control | platform_control | 262144 | control_plane | mutations |
+| tenants | tenant_control | tenant_control | 262144 | control_plane | mutations |
+| workspaces | workspace_control | workspace_control | 262144 | control_plane | mutations |
+| auth | auth_control | auth_control | 131072 | control_plane | mutations |
+| postgres | provisioning | provisioning | 1048576 | provisioning | mutations |
+| mongo | provisioning | provisioning | 1048576 | provisioning | mutations |
+| events | provisioning | provisioning | 1048576 | provisioning | mutations |
+| functions | provisioning | provisioning | 1048576 | provisioning | mutations |
+| storage | provisioning | provisioning | 1048576 | provisioning | mutations |
+| metrics | observability | observability | 65536 | observability | safe_reads |
+| websockets | realtime | realtime | 131072 | realtime | mutations |
 
 ## Families
 

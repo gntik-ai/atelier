@@ -24,9 +24,12 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   });
 
   assert.equal(taxonomy.release.path_version, 'v1');
-  assert.equal(taxonomy.release.header_version, '2026-03-23');
-  assert.equal(taxonomy.release.openapi_semver, '1.0.0');
+  assert.equal(taxonomy.release.header_version, '2026-03-24');
+  assert.equal(taxonomy.release.openapi_semver, '1.1.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
+  assert.ok(routeCatalog.routes.every((route) => typeof route.gatewayQosProfile === 'string'));
+  assert.ok(routeCatalog.routes.every((route) => typeof route.gatewayRequestValidationProfile === 'string'));
+  assert.ok(routeCatalog.routes.every((route) => route.errorEnvelope === 'ErrorResponse'));
   assert.deepEqual(violations, []);
 });

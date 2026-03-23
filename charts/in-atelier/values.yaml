@@ -650,6 +650,15 @@ bootstrap:
             ssl_verify: true
             timeout: 3
           cors: *id001
+          limit-count:
+            count: 240
+            time_window: 60
+            rejected_code: 429
+            key_type: var
+            key: $consumer_name
+            allow_degradation: false
+          client-control:
+            max_body_size: 262144
           request-validation: &id005
             header_schema:
               type: object
@@ -661,9 +670,37 @@ bootstrap:
                   type: string
                 X-Correlation-Id:
                   type: string
+                Idempotency-Key:
+                  type: string
+                X-Auth-Subject:
+                  type: string
+                  maxLength: 0
+                X-Actor-Username:
+                  type: string
+                  maxLength: 0
+                X-Tenant-Id:
+                  type: string
+                  maxLength: 0
+                X-Workspace-Id:
+                  type: string
+                  maxLength: 0
+                X-Plan-Id:
+                  type: string
+                  maxLength: 0
+                X-Auth-Scopes:
+                  type: string
+                  maxLength: 0
+                X-Actor-Roles:
+                  type: string
+                  maxLength: 0
           proxy-rewrite:
             headers: &id006
               X-Gateway-Managed-Route: 'true'
+              X-Correlation-Id: $http_x_correlation_id
+              X-Request-Id: $request_id
+              X-Internal-Request-Mode: validated_attestation
+              X-Internal-Request-Timestamp: $time_iso8601
+              Idempotency-Key: $http_idempotency_key
               X-Auth-Subject: $jwt_claim_sub
               X-Actor-Username: $jwt_claim_preferred_username
               X-Tenant-Id: $jwt_claim_tenant_id
@@ -849,6 +886,15 @@ bootstrap:
         plugins:
           openid-connect: *id004
           cors: *id001
+          limit-count:
+            count: 30
+            time_window: 60
+            rejected_code: 429
+            key_type: var
+            key: $consumer_name
+            allow_degradation: false
+          client-control:
+            max_body_size: 524288
           request-validation: *id005
           proxy-rewrite:
             headers: *id006
@@ -883,6 +929,15 @@ bootstrap:
         plugins:
           openid-connect: *id004
           cors: *id001
+          limit-count:
+            count: 30
+            time_window: 60
+            rejected_code: 429
+            key_type: var
+            key: $consumer_name
+            allow_degradation: false
+          client-control:
+            max_body_size: 524288
           request-validation: *id005
           proxy-rewrite:
             headers: *id006
@@ -1752,7 +1807,7 @@ webConsole:
         drop:
         - ALL
 gatewayPolicy:
-  version: '2026-03-23'
+  version: '2026-03-24'
   oidc:
     enabled: true
     provider: keycloak
@@ -1799,6 +1854,52 @@ gatewayPolicy:
     - X-API-Version
     - X-Correlation-Id
     - X-Requested-With
+    exposeHeaders:
+    - X-Correlation-Id
+    - X-Idempotency-Replayed
+    - X-RateLimit-Limit
+    - X-RateLimit-Remaining
+    - X-RateLimit-Reset
+    allowCredentials: true
+    maxAgeSeconds: 3600
+  errorEnvelope:
+    schema: ErrorResponse
+    correlationResponseHeader: X-Correlation-Id
+    requiredFields:
+    - status
+    - code
+    - message
+    - detail
+    - requestId
+    - correlationId
+    - timestamp
+    - resource
+    retryableStatuses:
+    - 429
+    - 502
+    - 503
+    - 504
+  idempotency:
+    headerName: Idempotency-Key
+    replayResponseHeader: X-Idempotency-Replayed
+    ttlSeconds: 86400
+    hashRequestBody: true
+    supportedMethods:
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    keyPattern: ^[A-Za-z0-9._:-]{8,128}$
+  correlation:
+    headerName: X-Correlation-Id
+    requestIdHeader: X-Request-Id
+    internalTimestampHeader: X-Internal-Request-Timestamp
+    internalModeHeader: X-Internal-Request-Mode
+    generateWhenMissing: true
+    responseHeader: X-Correlation-Id
+    tokenPattern: ^[A-Za-z0-9._:-]{8,128}$
+  requestValidation:
+    spoofedHeaders:
     - X-Auth-Subject
     - X-Actor-Username
     - X-Tenant-Id
@@ -1806,13 +1907,145 @@ gatewayPolicy:
     - X-Plan-Id
     - X-Auth-Scopes
     - X-Actor-Roles
-    exposeHeaders:
-    - X-Correlation-Id
+    profiles:
+      platform_control:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 262144
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
+      tenant_control:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 262144
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
+      workspace_control:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 262144
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
+      auth_control:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 131072
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
+      provisioning:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 1048576
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
+      observability:
+        allowedContentTypes: []
+        maxBodyBytes: 65536
+        requireIdempotencyHeaderOnMutations: false
+        rejectSpoofedContextHeaders: true
+      realtime:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 131072
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
+      native_admin:
+        allowedContentTypes:
+        - application/json
+        maxBodyBytes: 524288
+        requireIdempotencyHeaderOnMutations: false
+        rejectSpoofedContextHeaders: true
+  qos:
+    responseHeaders:
     - X-RateLimit-Limit
     - X-RateLimit-Remaining
     - X-RateLimit-Reset
-    allowCredentials: true
-    maxAgeSeconds: 3600
+    profiles:
+      platform_control:
+        rateLimitClass: control-write
+        requestsPerMinute: 240
+        burst: 60
+        timeoutProfile: control_plane
+        retryProfile: mutations
+      tenant_control:
+        rateLimitClass: control-write
+        requestsPerMinute: 240
+        burst: 60
+        timeoutProfile: control_plane
+        retryProfile: mutations
+      workspace_control:
+        rateLimitClass: control-write
+        requestsPerMinute: 240
+        burst: 60
+        timeoutProfile: control_plane
+        retryProfile: mutations
+      auth_control:
+        rateLimitClass: catalog
+        requestsPerMinute: 180
+        burst: 40
+        timeoutProfile: control_plane
+        retryProfile: mutations
+      provisioning:
+        rateLimitClass: data-control
+        requestsPerMinute: 120
+        burst: 30
+        timeoutProfile: provisioning
+        retryProfile: mutations
+      observability:
+        rateLimitClass: observability
+        requestsPerMinute: 300
+        burst: 80
+        timeoutProfile: observability
+        retryProfile: safe_reads
+      realtime:
+        rateLimitClass: realtime
+        requestsPerMinute: 120
+        burst: 40
+        timeoutProfile: realtime
+        retryProfile: mutations
+      native_admin:
+        rateLimitClass: native-admin
+        requestsPerMinute: 30
+        burst: 10
+        timeoutProfile: native_admin
+        retryProfile: native_admin
+    timeoutProfiles:
+      control_plane:
+        connectSeconds: 3
+        sendSeconds: 15
+        readSeconds: 20
+      provisioning:
+        connectSeconds: 3
+        sendSeconds: 20
+        readSeconds: 30
+      observability:
+        connectSeconds: 3
+        sendSeconds: 10
+        readSeconds: 15
+      realtime:
+        connectSeconds: 3
+        sendSeconds: 10
+        readSeconds: 20
+      native_admin:
+        connectSeconds: 3
+        sendSeconds: 15
+        readSeconds: 25
+    retryProfiles:
+      safe_reads:
+        retries: 1
+        retryTimeoutSeconds: 2
+        retryOnStatuses:
+        - 502
+        - 503
+        - 504
+      mutations:
+        retries: 0
+        retryTimeoutSeconds: 0
+        retryOnStatuses: []
+      native_admin:
+        retries: 0
+        retryTimeoutSeconds: 0
+        retryOnStatuses: []
   publicRoutes:
     allowAnonymousOptions: true
     routes:
@@ -1840,6 +2073,8 @@ gatewayPolicy:
       - enabled
       - limited
       pathPrefix: /_native/keycloak/admin/*
+      qosProfile: native_admin
+      requestValidationProfile: native_admin
       requiredScopes:
       - gateway.native.keycloak.admin
       requiredRoles:
@@ -1850,61 +2085,98 @@ gatewayPolicy:
       enabledInModes:
       - enabled
       pathPrefix: /_native/openwhisk/api/v1/*
+      qosProfile: native_admin
+      requestValidationProfile: native_admin
       requiredScopes:
       - gateway.native.openwhisk.admin
       requiredRoles:
       - superadmin
       auditAction: openwhisk_admin_passthrough
+  internalRequests:
+    mode: validated_attestation
+    requiredHeaders:
+    - X-Gateway-Managed-Route
+    - X-Correlation-Id
+    - X-Request-Id
+    - X-Internal-Request-Mode
+    - X-Internal-Request-Timestamp
+    injectedHeaders:
+      correlationId: X-Correlation-Id
+      requestId: X-Request-Id
+      mode: X-Internal-Request-Mode
+      timestamp: X-Internal-Request-Timestamp
   familyPolicies:
     platform:
       tenantBinding: none
       workspaceBinding: none
+      qosProfile: platform_control
+      requestValidationProfile: platform_control
       planCapabilityAnyOf: []
     tenants:
       tenantBinding: required
       workspaceBinding: none
+      qosProfile: tenant_control
+      requestValidationProfile: tenant_control
       planCapabilityAnyOf: []
     workspaces:
       tenantBinding: required
       workspaceBinding: optional
+      qosProfile: workspace_control
+      requestValidationProfile: workspace_control
       planCapabilityAnyOf: []
     auth:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: auth_control
+      requestValidationProfile: auth_control
       planCapabilityAnyOf: []
     postgres:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
       planCapabilityAnyOf:
       - data.postgresql.shared
       - data.postgresql.dedicated
     mongo:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
       planCapabilityAnyOf: []
     events:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
       planCapabilityAnyOf:
       - data.kafka.topics
     functions:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
       planCapabilityAnyOf:
       - data.openwhisk.actions
     storage:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: provisioning
+      requestValidationProfile: provisioning
       planCapabilityAnyOf:
       - data.storage.bucket
     metrics:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: observability
+      requestValidationProfile: observability
       planCapabilityAnyOf:
       - observability.metrics.basic
     websockets:
       tenantBinding: required
       workspaceBinding: required
+      qosProfile: realtime
+      requestValidationProfile: realtime
       planCapabilityAnyOf: []
   accessMatrix:
     personas:

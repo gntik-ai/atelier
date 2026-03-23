@@ -187,20 +187,40 @@ function normalizeSecurity(operation) {
   return Array.isArray(operation?.security) && operation.security.length > 0;
 }
 
+function resolveGatewayProfiles(gatewayRouting, familyId) {
+  const routingFamilies = new Map((gatewayRouting?.spec?.families ?? []).map((family) => [family.id, family]));
+  const routing = routingFamilies.get(familyId) ?? {};
+  const qosProfileName = routing.qosProfile ?? null;
+  const requestValidationProfileName = routing.requestValidationProfile ?? null;
+  const qosProfile = qosProfileName ? gatewayRouting?.spec?.qosProfiles?.[qosProfileName] ?? {} : {};
+  const requestValidationProfile = requestValidationProfileName
+    ? gatewayRouting?.spec?.requestValidationProfiles?.[requestValidationProfileName] ?? {}
+    : {};
+
+  return {
+    routing,
+    qosProfileName,
+    requestValidationProfileName,
+    qosProfile,
+    requestValidationProfile
+  };
+}
+
 export function buildRouteCatalog(
   document = readJson(OPENAPI_PATH),
   taxonomy = readPublicApiTaxonomy(),
   gatewayRouting = readGatewayRouting()
 ) {
-  const routingFamilies = new Map((gatewayRouting?.spec?.families ?? []).map((family) => [family.id, family]));
   const allowedHeaders = gatewayRouting?.spec?.allowedRequestHeaders ?? [];
 
   const routes = listOperations(document)
     .filter(({ path }) => path !== '/health')
     .map(({ path, method, operation }) => {
       const family = taxonomy.families.find((entry) => entry.id === operation['x-family']);
-      const routing = routingFamilies.get(operation['x-family']) ?? {};
+      const { routing, qosProfileName, requestValidationProfileName, qosProfile, requestValidationProfile } =
+        resolveGatewayProfiles(gatewayRouting, operation['x-family']);
       const requiredHeaders = normalizeRequiredHeaders(document, operation);
+      const supportsIdempotencyKey = requiredHeaders.includes('Idempotency-Key');
 
       return {
         family: operation['x-family'],
@@ -219,14 +239,27 @@ export function buildRouteCatalog(
         gatewayContextHeaders: routing.propagatedHeaders ?? [],
         gatewayAuthMode: routing.authMode ?? null,
         gatewayRouteClass: routing.routeClass ?? null,
+        gatewayQosProfile: qosProfileName,
+        gatewayRequestValidationProfile: requestValidationProfileName,
+        gatewayTimeoutProfile: qosProfile.timeoutProfile ?? null,
+        gatewayRetryProfile: qosProfile.retryProfile ?? null,
+        maxRequestBodyBytes: requestValidationProfile.maxBodyBytes ?? null,
+        allowedContentTypes: requestValidationProfile.allowedContentTypes ?? [],
+        correlationIdRequired: gatewayRouting?.spec?.correlationHeader?.required !== false,
+        correlationIdGeneratedWhenMissing: gatewayRouting?.spec?.correlationHeader?.generateWhenMissing === true,
         tenantBinding: routing.tenantBinding ?? null,
         workspaceBinding: routing.workspaceBinding ?? null,
         planCapabilityAnyOf: routing.planCapabilityAnyOf ?? [],
         allowAnonymousOptions: routing.allowAnonymousOptions === true,
-        supportsIdempotencyKey: requiredHeaders.includes('Idempotency-Key'),
+        supportsIdempotencyKey,
+        idempotencyTtlSeconds: supportsIdempotencyKey ? gatewayRouting?.spec?.idempotencyHeader?.ttlSeconds ?? null : null,
+        idempotencyReplayHeader: supportsIdempotencyKey ? gatewayRouting?.spec?.idempotencyHeader?.replayResponseHeader ?? null : null,
         downstreamService: operation['x-owning-service'] ?? family?.owning_service ?? null,
         downstreamAdapters: operation['x-downstream-adapters'] ?? family?.downstream_adapters ?? [],
         rateLimitClass: operation['x-rate-limit-class'] ?? 'default',
+        qosBurst: qosProfile.burst ?? 0,
+        internalRequestMode: gatewayRouting?.spec?.internalRequestMode?.mode ?? null,
+        errorEnvelope: gatewayRouting?.spec?.errorEnvelope?.schema ?? null,
         tags: operation.tags ?? [],
         deprecated: operation.deprecated === true,
         discoveryRoute: taxonomy.versioning.discovery_route
@@ -251,6 +284,18 @@ export function buildPublicApiDocs(
   taxonomy = readPublicApiTaxonomy(),
   routeCatalog = buildRouteCatalog(document, taxonomy)
 ) {
+  const gatewayRouting = readGatewayRouting();
+  const protectionRows = [
+    '| Family | QoS profile | Validation profile | Max body bytes | Timeout profile | Retry profile |',
+    '| --- | --- | --- | ---: | --- | --- |',
+    ...taxonomy.families.map((family) => {
+      const { routing, qosProfileName, requestValidationProfileName, qosProfile, requestValidationProfile } = resolveGatewayProfiles(
+        gatewayRouting,
+        family.id
+      );
+      return `| ${family.id} | ${qosProfileName ?? 'n/a'} | ${requestValidationProfileName ?? 'n/a'} | ${requestValidationProfile.maxBodyBytes ?? 'n/a'} | ${qosProfile.timeoutProfile ?? 'n/a'} | ${qosProfile.retryProfile ?? 'n/a'} |`;
+    })
+  ];
   const familySections = taxonomy.families
     .map((family) => {
       const routes = routeCatalog.routes.filter((route) => route.family === family.id);
@@ -288,10 +333,17 @@ export function buildPublicApiDocs(
     `- URI prefix: \`${taxonomy.versioning.uri_prefix}\``,
     `- Discovery route: \`${taxonomy.versioning.discovery_route}\``,
     `- Required headers: ${taxonomy.shared_http.headers.api_version.name}, ${taxonomy.shared_http.headers.correlation_id.name}`,
+    `- Gateway correlation continuity: ${taxonomy.shared_http.headers.correlation_id.name} is preserved end-to-end and may be backfilled for downstream continuity when recovery requires it.`,
     `- Idempotency header for mutations: ${taxonomy.shared_http.headers.idempotency_key.name}`,
+    `- Idempotency replay header: ${taxonomy.shared_http.errors.replay_header}`,
     `- Pagination: ${taxonomy.shared_http.pagination.cursor_param} + ${taxonomy.shared_http.pagination.limit_param}`,
     `- Filter prefix: \`${taxonomy.shared_http.filtering.filter_prefix}...]\``,
-    `- Error schema: \`${taxonomy.shared_http.errors.schema}\``,
+    `- Error schema: \`${taxonomy.shared_http.errors.schema}\` with required fields ${taxonomy.shared_http.errors.required_fields.join(', ')}`,
+    `- Retryable gateway statuses: ${(taxonomy.shared_http.errors.retryable_statuses ?? []).join(', ')}`,
+    '',
+    '## Gateway protection matrix',
+    '',
+    ...protectionRows,
     '',
     '## Families',
     '',
@@ -328,12 +380,22 @@ function collectOperationViolations(document, taxonomy, violations) {
   const familyIds = new Set(taxonomy.families.map((family) => family.id));
   const familyPrefixes = new Map(taxonomy.families.map((family) => [family.id, family.prefix]));
   const requiredMutationMethods = new Set(taxonomy.shared_http.headers.idempotency_key.required_for_methods);
+  const requiredErrorFields = new Set(taxonomy.shared_http.errors.required_fields ?? []);
+  const errorSchema = document?.components?.schemas?.[taxonomy.shared_http.errors.schema] ?? {};
+  const declaredErrorFields = new Set(errorSchema.required ?? []);
+
+  for (const field of requiredErrorFields) {
+    if (!declaredErrorFields.has(field)) {
+      violations.push(`OpenAPI error schema ${taxonomy.shared_http.errors.schema} must require field ${field}.`);
+    }
+  }
 
   for (const { path, method, operation } of listOperations(document)) {
     if (path === '/health') continue;
 
     const familyId = operation['x-family'];
     const headers = normalizeRequiredHeaders(document, operation);
+    const responseCodes = new Set(Object.keys(operation.responses ?? {}));
 
     if (!familyIds.has(familyId)) {
       violations.push(`${method.toUpperCase()} ${path} must declare an x-family present in public-api-taxonomy.`);
@@ -360,12 +422,26 @@ function collectOperationViolations(document, taxonomy, violations) {
     if (!operation['x-scope']) {
       violations.push(`${method.toUpperCase()} ${path} must declare x-scope.`);
     }
+
+    for (const status of ['429', '431', '504']) {
+      if (!responseCodes.has(status)) {
+        violations.push(`${method.toUpperCase()} ${path} must declare gateway resilience response ${status}.`);
+      }
+    }
+
+    if ((operation.requestBody || requiredMutationMethods.has(method)) && !responseCodes.has('413')) {
+      violations.push(`${method.toUpperCase()} ${path} must declare oversized-body response 413.`);
+    }
   }
 }
 
 function collectGatewayAlignmentViolations(taxonomy, gatewayRouting, violations) {
   const routingFamilies = gatewayRouting?.spec?.families ?? [];
   const routingById = new Map(routingFamilies.map((family) => [family.id, family]));
+
+  if (gatewayRouting?.spec?.versionHeader?.currentValue !== taxonomy.release.header_version) {
+    violations.push(`Gateway routing version header must use ${taxonomy.release.header_version}.`);
+  }
 
   for (const family of taxonomy.families) {
     const routingFamily = routingById.get(family.id);
@@ -380,6 +456,14 @@ function collectGatewayAlignmentViolations(taxonomy, gatewayRouting, violations)
 
     if (routingFamily.upstreamService !== family.owning_service) {
       violations.push(`Gateway family ${family.id} must target upstream service ${family.owning_service}.`);
+    }
+
+    if (!routingFamily.qosProfile || !gatewayRouting?.spec?.qosProfiles?.[routingFamily.qosProfile]) {
+      violations.push(`Gateway family ${family.id} must reference a declared qosProfile.`);
+    }
+
+    if (!routingFamily.requestValidationProfile || !gatewayRouting?.spec?.requestValidationProfiles?.[routingFamily.requestValidationProfile]) {
+      violations.push(`Gateway family ${family.id} must reference a declared requestValidationProfile.`);
     }
   }
 }
@@ -418,6 +502,24 @@ function collectRouteCatalogViolations(document, taxonomy, routeCatalog, gateway
 
     if (JSON.stringify(route.gatewayContextHeaders ?? []) !== JSON.stringify(routing.propagatedHeaders ?? [])) {
       violations.push(`Route catalog entry ${operation.operationId} must expose gatewayContextHeaders from routing policy.`);
+    }
+
+    if (route.gatewayQosProfile !== routing.qosProfile) {
+      violations.push(`Route catalog entry ${operation.operationId} must expose gatewayQosProfile ${routing.qosProfile}.`);
+    }
+
+    if (route.gatewayRequestValidationProfile !== routing.requestValidationProfile) {
+      violations.push(
+        `Route catalog entry ${operation.operationId} must expose gatewayRequestValidationProfile ${routing.requestValidationProfile}.`
+      );
+    }
+
+    if (route.internalRequestMode !== gatewayRouting?.spec?.internalRequestMode?.mode) {
+      violations.push(`Route catalog entry ${operation.operationId} must expose internalRequestMode from gateway routing.`);
+    }
+
+    if (route.errorEnvelope !== gatewayRouting?.spec?.errorEnvelope?.schema) {
+      violations.push(`Route catalog entry ${operation.operationId} must expose errorEnvelope ${gatewayRouting?.spec?.errorEnvelope?.schema}.`);
     }
   }
 

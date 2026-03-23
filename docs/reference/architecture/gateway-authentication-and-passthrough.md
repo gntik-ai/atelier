@@ -64,6 +64,14 @@ Approved downstream headers:
 - `X-Auth-Scopes`
 - `X-Actor-Roles`
 
+Hardened gateway-to-internal attestation headers:
+
+- `X-Gateway-Managed-Route`
+- `X-Correlation-Id`
+- `X-Request-Id`
+- `X-Internal-Request-Mode`
+- `X-Internal-Request-Timestamp`
+
 Required request headers for protected product routes:
 
 - `X-API-Version`
@@ -75,6 +83,8 @@ Browser policy additionally allows:
 - `Content-Type`
 - `Idempotency-Key`
 - `X-Requested-With`
+
+Spoofable downstream context headers are no longer browser-allowed and the request-validation policy rejects them when they are supplied by clients.
 
 ## Troubleshooting
 

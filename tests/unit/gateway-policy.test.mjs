@@ -11,6 +11,10 @@ import { readPublicRouteCatalog } from '../../scripts/lib/public-api.mjs';
 import { readDomainModel } from '../../scripts/lib/domain-model.mjs';
 
 test('gateway policy package remains internally consistent', () => {
+  const values = readGatewayPolicyValues();
+  assert.equal(values.gatewayPolicy.correlation.generateWhenMissing, true);
+  assert.equal(values.gatewayPolicy.errorEnvelope.schema, 'ErrorResponse');
+  assert.ok(Object.keys(values.gatewayPolicy.qos.profiles).length > 0);
   assert.deepEqual(collectGatewayPolicyViolations(), []);
 });
 

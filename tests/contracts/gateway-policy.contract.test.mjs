@@ -21,6 +21,8 @@ test('gateway contract publishes APISIX policy for every public family and passt
     assert.equal(route.uri, `${family.pathPrefix}/*`);
     assert.equal(route.labels['gateway.in-atelier.io/family'], family.id);
     assert.deepEqual(Object.keys(route.plugins).sort(), REQUIRED_PRODUCT_PLUGINS.slice().sort());
+    assert.equal(route.plugins['limit-count'].rejected_code, 429);
+    assert.ok(route.plugins['client-control'].max_body_size > 0);
   }
 
   for (const routeId of ['keycloak_admin', 'openwhisk_admin']) {
@@ -28,6 +30,7 @@ test('gateway contract publishes APISIX policy for every public family and passt
     assert.ok(route, `missing enabled passthrough route ${routeId}`);
     assert.deepEqual(Object.keys(route.plugins).sort(), REQUIRED_PASSTHROUGH_PLUGINS.slice().sort());
     assert.equal(route.labels['gateway.in-atelier.io/audit-required'], 'true');
+    assert.ok(route.plugins['client-control'].max_body_size > 0);
   }
 
   const catalogFamilies = new Set(routeCatalog.routes.map((route) => route.family));
@@ -42,10 +45,16 @@ test('route catalog exposes gateway-facing auth and context metadata for every o
   for (const route of routeCatalog.routes) {
     assert.equal(typeof route.gatewayAuthMode, 'string');
     assert.equal(typeof route.gatewayRouteClass, 'string');
+    assert.equal(typeof route.gatewayQosProfile, 'string');
+    assert.equal(typeof route.gatewayRequestValidationProfile, 'string');
     assert.equal(Array.isArray(route.gatewayAllowedHeaders), true);
     assert.equal(Array.isArray(route.gatewayContextHeaders), true);
+    assert.equal(Array.isArray(route.allowedContentTypes), true);
     assert.equal(route.gatewayAllowedHeaders.includes('Authorization'), true);
     assert.equal(route.gatewayAllowedHeaders.includes('X-API-Version'), true);
     assert.equal(route.gatewayContextHeaders.includes('X-Auth-Subject'), true);
+    assert.equal(route.errorEnvelope, 'ErrorResponse');
+    assert.equal(route.internalRequestMode, 'validated_attestation');
+    assert.ok(route.maxRequestBodyBytes > 0);
   }
 });

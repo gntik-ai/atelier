@@ -55,6 +55,21 @@
 {{- if eq (len (.Values.gatewayPolicy.cors.allowHeaders | default (list))) 0 -}}
   {{- fail "gatewayPolicy.cors.allowHeaders must define the approved browser request headers" -}}
 {{- end -}}
+{{- if not .Values.gatewayPolicy.correlation.generateWhenMissing -}}
+  {{- fail "gatewayPolicy.correlation.generateWhenMissing must remain true to preserve gateway trace continuity" -}}
+{{- end -}}
+{{- if ne .Values.gatewayPolicy.errorEnvelope.schema "ErrorResponse" -}}
+  {{- fail "gatewayPolicy.errorEnvelope.schema must remain ErrorResponse" -}}
+{{- end -}}
+{{- if eq (len (.Values.gatewayPolicy.requestValidation.spoofedHeaders | default (list))) 0 -}}
+  {{- fail "gatewayPolicy.requestValidation.spoofedHeaders must list the downstream-only auth context headers" -}}
+{{- end -}}
+{{- if eq (len (.Values.gatewayPolicy.qos.profiles | keys | default (list))) 0 -}}
+  {{- fail "gatewayPolicy.qos.profiles must define at least one QoS profile" -}}
+{{- end -}}
+{{- if eq (len (.Values.gatewayPolicy.internalRequests.requiredHeaders | default (list))) 0 -}}
+  {{- fail "gatewayPolicy.internalRequests.requiredHeaders must declare the hardened downstream trust headers" -}}
+{{- end -}}
 {{- if .Values.bootstrap.enabled -}}
   {{- if eq .Values.bootstrap.lock.name .Values.bootstrap.markers.name -}}
     {{- fail "bootstrap.lock.name and bootstrap.markers.name must be different resources" -}}
