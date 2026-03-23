@@ -37,6 +37,81 @@ Runtime secret references remain in Helm values, but secret material must stay o
 
 The base chart defaults to `deployment.profile=standard`. Select another profile by inserting the matching overlay immediately after `values.yaml`.
 
+## Bootstrap controller baseline
+
+`US-DEP-02` adds a post-install/post-upgrade bootstrap job that separates:
+
+- **create-only / one-shot bootstrap**
+  - platform Keycloak realm
+  - superadmin user + realm role assignment
+  - governance catalog seed (`plans`, `quota-policies`, `deployment-profiles`)
+  - internal namespace/prefix catalog for OpenWhisk and storage
+- **reconcile-on-every-upgrade**
+  - APISIX route definitions
+  - bootstrap payload ConfigMap that feeds the job
+
+The job uses:
+
+- a **ConfigMap lock** to refuse concurrent executions
+- a **ConfigMap marker** with the one-shot payload hash to skip duplicate create-only work on reinstall/upgrade/restore
+- idempotent provider calls (`GET if exists`, `PUT for APISIX routes`, `create only if missing` for one-shot catalogs)
+
+### Secret-resolution strategy
+
+Sensitive bootstrap inputs are modeled under `bootstrap.secretResolution.sources` and support three strategies:
+
+1. `kubernetesSecret` — default; rendered as `secretKeyRef`
+2. `env` — use a pre-injected pod environment variable from `bootstrap.job.extraEnv`
+3. `externalRef` — document an external secret manager reference while still resolving the runtime value through an injected env var
+
+Repository-tracked values must never contain plaintext credentials.
+
+#### Example: existing Kubernetes Secret
+
+```yaml
+bootstrap:
+  secretResolution:
+    sources:
+      keycloakAdminPassword:
+        strategy: kubernetesSecret
+        envVarName: BOOTSTRAP_KEYCLOAK_ADMIN_PASSWORD
+        existingSecret:
+          name: in-atelier-keycloak-admin
+          key: password
+```
+
+#### Example: pre-injected env var
+
+```yaml
+bootstrap:
+  job:
+    extraEnv:
+      - name: BOOTSTRAP_KEYCLOAK_ADMIN_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: runtime-bootstrap-secrets
+            key: kc-password
+  secretResolution:
+    sources:
+      keycloakAdminPassword:
+        strategy: env
+        envVarName: BOOTSTRAP_KEYCLOAK_ADMIN_PASSWORD
+```
+
+#### Example: external secret reference metadata
+
+```yaml
+bootstrap:
+  secretResolution:
+    sources:
+      apisixAdminKey:
+        strategy: externalRef
+        envVarName: BOOTSTRAP_APISIX_ADMIN_KEY
+        externalRef:
+          provider: external-secrets
+          reference: secret/data/in-atelier/platform/apisix-admin
+```
+
 ## Package the chart
 
 ```bash
@@ -191,7 +266,8 @@ npm run test:e2e:deployment
 3. Run the validation commands above.
 4. On in-place upgrades, set `deployment.upgrade.currentVersion` to the currently deployed chart application version.
 5. Apply the upgrade with the same ordered values files used during installation.
-6. Capture the Helm revision, selected profile, values set, and promoted image tags in the deployment evidence trail.
+6. Wait for the post-upgrade bootstrap job to reconcile APISIX routes and confirm the bootstrap marker hash updated.
+7. Capture the Helm revision, selected profile, values set, and promoted image tags in the deployment evidence trail.
 
 Example (`0.2.0 -> 0.3.0`):
 
@@ -209,22 +285,28 @@ helm upgrade in-atelier charts/in-atelier \
 
 The chart blocks unsupported in-place upgrades and downgrade attempts unless operators explicitly opt into a different policy.
 
-## Rollback flow
+## Rollback / restore flow
 
 1. Inspect release history.
 2. Roll back to the last known good revision.
 3. Reapply the last known good values stack if the failure came from configuration drift.
 4. Verify the public endpoints, selected deployment profile, enabled component set, and secret references.
+5. If a restore recreates the namespace, keep the marker and governance/internal catalog ConfigMaps when possible; if they are missing, the bootstrap job recreates only the missing one-shot resources.
+6. Never remove the bootstrap lock or marker unless you are intentionally performing operator-supervised break-glass recovery.
 
 ```bash
 helm history in-atelier --namespace in-atelier
 helm rollback in-atelier <REVISION> --namespace in-atelier
+kubectl get configmap in-atelier-bootstrap-state --namespace in-atelier
+kubectl get jobs --namespace in-atelier | grep bootstrap
 ```
 
 ## Operational notes
 
 - `publicSurface.bindings.*` controls which service backs each public hostname/path.
 - `publicSurface.tls.mode=clusterManaged` keeps TLS secrets bound inside the charted exposure layer; `external` is intended for LoadBalancer or externally terminated edge paths.
+- `bootstrap.reconcile.apisix.routes` is the declarative source of truth for the base APISIX routes.
+- `bootstrap.oneShot.governanceCatalog.*` mirrors the canonical governance catalog in `services/internal-contracts/src/domain-model.json`.
 - `global.privateRegistry.*`, `global.imageRegistry`, and `values/airgap.yaml` provide the private-registry / disconnected install model.
 - Each component wrapper exposes image, replicas, resources, affinity, tolerations, service, persistence, init containers, security context, and file-permission helpers directly in Helm values.
 - The chart favors OpenShift-safe defaults (`runAsNonRoot`, `automountToken=false`, restricted SCC-compatible settings, and Route support) while keeping Kubernetes parity through the same umbrella contract.

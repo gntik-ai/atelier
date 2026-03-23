@@ -1,6 +1,7 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { deepMerge, readDeploymentTopology } from './deployment-topology.mjs';
+import { readDomainModel } from './domain-model.mjs';
 import { readYaml } from './quality-gates.mjs';
 
 export const ROOT_CHART_PATH = 'charts/in-atelier/Chart.yaml';
@@ -26,6 +27,22 @@ export const RECOMMENDED_DEPLOYMENT_PROFILES = ['all-in-one', 'standard', 'ha'];
 export const SUPPORTED_TLS_MODES = ['clusterManaged', 'external'];
 export const SUPPORTED_LOADBALANCER_PORT_KEYS = ['api', 'console', 'identity', 'realtime'];
 export const EXPECTED_SUPPORTED_PREVIOUS_VERSIONS = ['0.2.0'];
+export const REQUIRED_BOOTSTRAP_TEMPLATES = [
+  'charts/in-atelier/templates/bootstrap-rbac.yaml',
+  'charts/in-atelier/templates/bootstrap-payload-configmap.yaml',
+  'charts/in-atelier/templates/bootstrap-script-configmap.yaml',
+  'charts/in-atelier/templates/bootstrap-job.yaml',
+  'charts/in-atelier/templates/bootstrap-apisix-admin-service.yaml'
+];
+const REQUIRED_BOOTSTRAP_SECRET_STRATEGIES = ['kubernetesSecret', 'env', 'externalRef'];
+const REQUIRED_BOOTSTRAP_ONE_SHOT_RESOURCES = ['superadmin', 'platform_realm', 'governance_catalog', 'internal_namespaces'];
+const REQUIRED_BOOTSTRAP_RECONCILE_RESOURCES = ['apisix_routes', 'bootstrap_payload_config'];
+const REQUIRED_APISIX_ROUTE_PREFIXES = {
+  'control-plane': '/control-plane/*',
+  identity: '/auth/*',
+  realtime: '/realtime/*',
+  console: '/*'
+};
 
 export function readRootChart() {
   return readYaml(ROOT_CHART_PATH);
@@ -41,6 +58,10 @@ export function readWrapperChart() {
 
 export function readProfileValues(profileId) {
   return readYaml(`charts/in-atelier/values/profiles/${profileId}.yaml`);
+}
+
+function readText(filePath) {
+  return readFileSync(filePath, 'utf8');
 }
 
 function normalizeDependencies(chart) {
@@ -133,11 +154,207 @@ export function collectUpgradeValidationViolations(
   return violations;
 }
 
+function collectBootstrapValueViolations(values, topology, domainModel, violations) {
+  const bootstrap = values?.bootstrap;
+  if (!bootstrap) {
+    violations.push('Root values must define bootstrap.');
+    return;
+  }
+
+  if (!bootstrap.enabled) {
+    violations.push('bootstrap.enabled must remain true for the platform deployment baseline.');
+  }
+
+  if (!bootstrap?.job?.image?.repository) {
+    violations.push('bootstrap.job.image.repository must be defined.');
+  }
+
+  if (!bootstrap?.job?.image?.tag) {
+    violations.push('bootstrap.job.image.tag must be defined.');
+  }
+
+  if (bootstrap?.lock?.name === bootstrap?.markers?.name) {
+    violations.push('bootstrap.lock.name and bootstrap.markers.name must be different resources.');
+  }
+
+  const supportedStrategies = bootstrap?.secretResolution?.supportedStrategies ?? [];
+  if (JSON.stringify(supportedStrategies) !== JSON.stringify(REQUIRED_BOOTSTRAP_SECRET_STRATEGIES)) {
+    violations.push(
+      `bootstrap.secretResolution.supportedStrategies must equal ${REQUIRED_BOOTSTRAP_SECRET_STRATEGIES.join(', ')}.`
+    );
+  }
+
+  if (
+    JSON.stringify(topology?.bootstrap_policy?.supported_secret_strategies ?? []) !==
+    JSON.stringify(REQUIRED_BOOTSTRAP_SECRET_STRATEGIES)
+  ) {
+    violations.push('Deployment topology bootstrap_policy.supported_secret_strategies must align with chart bootstrap support.');
+  }
+
+  const secretSources = bootstrap?.secretResolution?.sources ?? {};
+  if (Object.keys(secretSources).length === 0) {
+    violations.push('bootstrap.secretResolution.sources must not be empty.');
+  }
+
+  for (const [name, source] of Object.entries(secretSources)) {
+    if (!REQUIRED_BOOTSTRAP_SECRET_STRATEGIES.includes(source?.strategy)) {
+      violations.push(`bootstrap secret source ${name} must use a supported strategy.`);
+    }
+
+    if (typeof source?.envVarName !== 'string' || source.envVarName.length === 0) {
+      violations.push(`bootstrap secret source ${name} must define envVarName.`);
+    }
+
+    if ('value' in (source ?? {})) {
+      violations.push(`bootstrap secret source ${name} must not inline raw values.`);
+    }
+
+    if (source?.strategy === 'kubernetesSecret') {
+      if (!source?.existingSecret?.name || !source?.existingSecret?.key) {
+        violations.push(`bootstrap secret source ${name} must define existingSecret.name and existingSecret.key.`);
+      }
+    }
+
+    if (source?.strategy === 'externalRef') {
+      if (!source?.externalRef?.provider || !source?.externalRef?.reference) {
+        violations.push(`bootstrap secret source ${name} must define externalRef.provider and externalRef.reference.`);
+      }
+    }
+  }
+
+  if (!values?.keycloak?.enabled) {
+    violations.push('bootstrap baseline requires keycloak.enabled=true.');
+  }
+
+  if (!values?.apisix?.enabled) {
+    violations.push('bootstrap baseline requires apisix.enabled=true.');
+  }
+
+  const governanceCatalog = bootstrap?.oneShot?.governanceCatalog ?? {};
+  const domainCatalog = domainModel?.governance_catalogs ?? {};
+  if (JSON.stringify(governanceCatalog.plans ?? []) !== JSON.stringify(domainCatalog.plans ?? [])) {
+    violations.push('bootstrap.oneShot.governanceCatalog.plans must mirror the canonical domain-model governance catalog.');
+  }
+
+  if (JSON.stringify(governanceCatalog.quotaPolicies ?? []) !== JSON.stringify(domainCatalog.quota_policies ?? [])) {
+    violations.push(
+      'bootstrap.oneShot.governanceCatalog.quotaPolicies must mirror the canonical domain-model quota policy catalog.'
+    );
+  }
+
+  if (JSON.stringify(governanceCatalog.deploymentProfiles ?? []) !== JSON.stringify(domainCatalog.deployment_profiles ?? [])) {
+    violations.push(
+      'bootstrap.oneShot.governanceCatalog.deploymentProfiles must mirror the canonical domain-model deployment profile catalog.'
+    );
+  }
+
+  const internalNamespaces = bootstrap?.oneShot?.internalNamespaces ?? {};
+  if (!Array.isArray(internalNamespaces?.openwhisk) || internalNamespaces.openwhisk.length === 0) {
+    violations.push('bootstrap.oneShot.internalNamespaces.openwhisk must define at least one namespace.');
+  }
+
+  if (!Array.isArray(internalNamespaces?.storage?.buckets) || internalNamespaces.storage.buckets.length === 0) {
+    violations.push('bootstrap.oneShot.internalNamespaces.storage.buckets must define at least one bucket prefix set.');
+  }
+
+  const routeIds = new Set();
+  const routes = bootstrap?.reconcile?.apisix?.routes ?? [];
+  if (routes.length !== Object.keys(REQUIRED_APISIX_ROUTE_PREFIXES).length) {
+    violations.push('bootstrap.reconcile.apisix.routes must define the four baseline APISIX routes.');
+  }
+
+  for (const route of routes) {
+    if (routeIds.has(route.routeId)) {
+      violations.push(`bootstrap APISIX route ${route.routeId} must be unique.`);
+    }
+    routeIds.add(route.routeId);
+
+    if (REQUIRED_APISIX_ROUTE_PREFIXES[route.name] !== route.uri) {
+      violations.push(`bootstrap APISIX route ${route.name} must use uri ${REQUIRED_APISIX_ROUTE_PREFIXES[route.name]}.`);
+    }
+
+    if (!REQUIRED_COMPONENT_ALIASES.includes(route?.upstream?.component)) {
+      violations.push(`bootstrap APISIX route ${route.name} references unknown upstream component ${String(route?.upstream?.component)}.`);
+    }
+  }
+
+  if (!bootstrap?.reconcile?.apisix?.adminService?.enabled) {
+    violations.push('bootstrap.reconcile.apisix.adminService.enabled must remain true for bootstrap route reconciliation.');
+  }
+
+  if ((topology?.bootstrap_policy?.one_shot_resources ?? []).join(',') !== REQUIRED_BOOTSTRAP_ONE_SHOT_RESOURCES.join(',')) {
+    violations.push('Deployment topology bootstrap_policy.one_shot_resources must align with the chart one-shot bootstrap contract.');
+  }
+
+  if ((topology?.bootstrap_policy?.reconcile_each_upgrade ?? []).join(',') !== REQUIRED_BOOTSTRAP_RECONCILE_RESOURCES.join(',')) {
+    violations.push(
+      'Deployment topology bootstrap_policy.reconcile_each_upgrade must align with the chart bootstrap reconciliation contract.'
+    );
+  }
+}
+
+function collectBootstrapTemplateViolations(violations) {
+  for (const path of REQUIRED_BOOTSTRAP_TEMPLATES) {
+    if (!existsSync(path)) {
+      violations.push(`Required bootstrap template ${path} is missing.`);
+    }
+  }
+
+  if (violations.some((violation) => violation.includes('Required bootstrap template'))) {
+    return;
+  }
+
+  const jobTemplate = readText('charts/in-atelier/templates/bootstrap-job.yaml');
+  const scriptTemplate = readText('charts/in-atelier/templates/bootstrap-script-configmap.yaml');
+  const payloadTemplate = readText('charts/in-atelier/templates/bootstrap-payload-configmap.yaml');
+  const rbacTemplate = readText('charts/in-atelier/templates/bootstrap-rbac.yaml');
+  const adminServiceTemplate = readText('charts/in-atelier/templates/bootstrap-apisix-admin-service.yaml');
+
+  if (!jobTemplate.includes('helm.sh/hook: post-install,post-upgrade')) {
+    violations.push('bootstrap job template must run as a post-install/post-upgrade Helm hook.');
+  }
+
+  if (!jobTemplate.includes('serviceAccountName: {{ include "in-atelier.bootstrapServiceAccountName" . }}')) {
+    violations.push('bootstrap job template must use the dedicated bootstrap service account.');
+  }
+
+  if (!jobTemplate.includes('name: tmp') || !jobTemplate.includes('emptyDir: {}')) {
+    violations.push('bootstrap job template must mount a writable /tmp volume for read-only root filesystems.');
+  }
+
+  for (const marker of ['create-only bootstrap phase', 'upgrade reconciliation phase', 'bootstrap marker already matches']) {
+    if (!scriptTemplate.includes(marker)) {
+      violations.push(`bootstrap script template must include ${marker}.`);
+    }
+  }
+
+  for (const marker of ['ensure_keycloak_realm', 'ensure_keycloak_superadmin', 'ensure_apisix_route', 'acquire_lock']) {
+    if (!scriptTemplate.includes(marker)) {
+      violations.push(`bootstrap script template must implement ${marker}.`);
+    }
+  }
+
+  for (const marker of ['governance-plans.json', 'governance-quota-policies.json', 'internal-namespaces.json']) {
+    if (!payloadTemplate.includes(marker)) {
+      violations.push(`bootstrap payload template must include ${marker}.`);
+    }
+  }
+
+  if (!rbacTemplate.includes('resources:\n      - configmaps')) {
+    violations.push('bootstrap RBAC template must grant configmap access for markers and locks.');
+  }
+
+  if (!adminServiceTemplate.includes('targetPort: {{ .Values.bootstrap.reconcile.apisix.adminService.targetPort }}')) {
+    violations.push('bootstrap APISIX admin service template must expose the configured admin targetPort.');
+  }
+}
+
 export function collectDeploymentChartViolations(
   chart = readRootChart(),
   values = readRootValues(),
   topology = readDeploymentTopology(),
-  wrapperChart = readWrapperChart()
+  wrapperChart = readWrapperChart(),
+  domainModel = readDomainModel()
 ) {
   const violations = [];
 
@@ -378,6 +595,9 @@ export function collectDeploymentChartViolations(
       violations.push(`Required deployment packaging artifact ${path} is missing.`);
     }
   }
+
+  collectBootstrapValueViolations(values, topology, domainModel, violations);
+  collectBootstrapTemplateViolations(violations);
 
   return violations;
 }

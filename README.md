@@ -61,8 +61,8 @@ The current baseline quality chain covers:
 - PostgreSQL ADR package validation
 - testing-strategy package validation
 - internal service-map validation
-- deployment-topology validation for domains, environments, overlays, and smoke parity
-- deployment-chart validation for umbrella dependencies, wrapper coverage, and values layers
+- deployment-topology validation for domains, environments, overlays, smoke parity, and bootstrap policy
+- deployment-chart validation for umbrella dependencies, wrapper coverage, values layers, and bootstrap controller contracts
 - authorization-model validation for tenant/workspace context, permission matrices, and propagation targets
 - domain-model validation for canonical entities, lifecycle events, OpenAPI mapping, and seed fixtures
 - markdown linting

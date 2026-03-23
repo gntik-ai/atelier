@@ -10,6 +10,7 @@ import {
   OPTIONAL_LOADBALANCER_VALUES_PATH
 } from '../../scripts/lib/deployment-chart.mjs';
 import { readDeploymentTopology } from '../../scripts/lib/deployment-topology.mjs';
+import { readDomainModel } from '../../scripts/lib/domain-model.mjs';
 import { readYaml } from '../../scripts/lib/quality-gates.mjs';
 
 test('deployment chart contract exposes aliased wrapper dependencies for every required component', () => {
@@ -43,4 +44,30 @@ test('deployment contract carries profile, exposure, and upgrade defaults', () =
   assert.equal(loadBalancerValues.platform.network.exposureKind, 'LoadBalancer');
   assert.equal(loadBalancerValues.publicSurface.tls.mode, 'external');
   assert.deepEqual(values.deployment.upgrade.supportedPreviousVersions, ['0.2.0']);
+});
+
+test('bootstrap contract keeps one-shot catalogs and upgrade reconciliation explicit', () => {
+  const values = readRootValues();
+  const topology = readDeploymentTopology();
+  const domainModel = readDomainModel();
+
+  assert.equal(values.bootstrap.enabled, true);
+  assert.deepEqual(values.bootstrap.secretResolution.supportedStrategies, ['kubernetesSecret', 'env', 'externalRef']);
+  assert.deepEqual(topology.bootstrap_policy.one_shot_resources, [
+    'superadmin',
+    'platform_realm',
+    'governance_catalog',
+    'internal_namespaces'
+  ]);
+  assert.deepEqual(topology.bootstrap_policy.reconcile_each_upgrade, ['apisix_routes', 'bootstrap_payload_config']);
+  assert.deepEqual(values.bootstrap.oneShot.governanceCatalog.plans, domainModel.governance_catalogs.plans);
+  assert.deepEqual(values.bootstrap.oneShot.governanceCatalog.quotaPolicies, domainModel.governance_catalogs.quota_policies);
+  assert.deepEqual(
+    values.bootstrap.oneShot.governanceCatalog.deploymentProfiles,
+    domainModel.governance_catalogs.deployment_profiles
+  );
+  assert.deepEqual(
+    values.bootstrap.reconcile.apisix.routes.map((route) => route.uri),
+    ['/control-plane/*', '/auth/*', '/realtime/*', '/*']
+  );
 });

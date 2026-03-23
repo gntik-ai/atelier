@@ -20,3 +20,8 @@ Public endpoints:
 - Identity: https://{{ .Values.publicSurface.hostnames.identity }}{{ .Values.publicSurface.bindings.identity.path }}
 - Realtime: https://{{ .Values.publicSurface.hostnames.realtime }}{{ .Values.publicSurface.bindings.realtime.path }}
 - Console: https://{{ .Values.publicSurface.hostnames.console }}{{ .Values.publicSurface.bindings.console.path }}
+
+Bootstrap:
+- Hook job: {{ include "in-atelier.fullname" . }}-bootstrap
+- Lock ConfigMap: {{ .Values.bootstrap.lock.name }}
+- Marker ConfigMap: {{ .Values.bootstrap.markers.name }}

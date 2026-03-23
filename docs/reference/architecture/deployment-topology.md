@@ -1,4 +1,4 @@
-# Public Domain, Environment Profiles, and Deployment Topology Baseline
+# Public Domain, Environment Profiles, Deployment Topology, and Bootstrap Baseline
 
 This note is the human-readable companion to `services/internal-contracts/src/deployment-topology.json`.
 
@@ -7,6 +7,8 @@ This note is the human-readable companion to `services/internal-contracts/src/de
 `US-ARC-02` established one public-domain strategy that can be deployed consistently across `dev`, `sandbox`, `staging`, and `prod`, while keeping the same logical API surface when the platform later evolves from single-cluster to multi-cluster or multi-region.
 
 `US-DEP-03` extends that baseline with deployment-profile overlays, additional Kubernetes exposure options, upgrade guardrails, and operational constraints for security-hardened clusters.
+
+`US-DEP-02` extends that baseline with an idempotent bootstrap controller contract for install, upgrade, reinstall, and restore flows.
 
 ## Public-domain strategy
 
@@ -74,6 +76,45 @@ Future multi-cluster or multi-region work must preserve:
 - placement metadata (`environment_id`, `cluster_ref`, `region_ref`)
 - deterministic promotion/failover identifiers for future mutating deployment APIs
 
+## Bootstrap controller baseline
+
+The deployment contract now distinguishes:
+
+### Create-only / one-shot resources
+
+These are created only when missing and are protected by a marker hash:
+
+- platform Keycloak realm
+- superadmin user and realm-role assignment
+- governance catalog seed (`plans`, `quota policies`, `deployment profiles`)
+- internal namespace/prefix catalog for OpenWhisk and storage
+
+### Reconcile-on-every-upgrade resources
+
+These reconcile on every install/upgrade even when the one-shot marker already exists:
+
+- APISIX base routes
+- bootstrap payload ConfigMap consumed by the controller job
+
+### Concurrency and recovery rules
+
+- controller kind: post-install/post-upgrade Kubernetes Job
+- lock resource: ConfigMap
+- marker resource: ConfigMap
+- if the lock exists, the job must fail fast instead of risking concurrent bootstrap side effects
+- reinstall/restore flows must recreate only missing create-only resources and preserve existing identifiers
+- upgrades may refresh reconcile-on-upgrade resources without resetting one-shot markers
+
+## Secret-resolution policy
+
+Bootstrap credentials are resolved through one of three supported strategies:
+
+1. `kubernetesSecret`
+2. `env`
+3. `externalRef`
+
+Repository-tracked values files may store only the metadata required to resolve those inputs. Plaintext credentials remain forbidden.
+
 ## Promotion and upgrade strategy
 
 Canonical promotion path:
@@ -91,6 +132,7 @@ Each promotion must review functional config drift for:
 - quota profile
 - demo-data policy
 - TLS secret references
+- bootstrap payload hash and bootstrap secret source metadata
 
 ### In-place upgrade guardrails
 
@@ -107,6 +149,7 @@ Baseline parity remains:
 - OpenShift exposes the same logical surface via `Route`.
 - Both platforms keep the same base resource set (`Namespace`, `ConfigMap`, `Deployment`, `Service`) and differ only on the final exposure resource kind.
 - Public endpoint bindings may target disabled wrapper components only when the chart values point to an explicit externally managed service name.
+- Bootstrap job behavior, secret-resolution semantics, and APISIX route intents must remain identical across Kubernetes and OpenShift.
 
 Additional supported exposure options:
 

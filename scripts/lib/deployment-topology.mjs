@@ -53,6 +53,9 @@ const EXPECTED_UPGRADE_GUARDRAILS = {
   supported_previous_versions: ['0.2.0'],
   default_strategy: 'rolling'
 };
+const REQUIRED_BOOTSTRAP_SECRET_STRATEGIES = ['kubernetesSecret', 'env', 'externalRef'];
+const REQUIRED_BOOTSTRAP_ONE_SHOT_RESOURCES = ['superadmin', 'platform_realm', 'governance_catalog', 'internal_namespaces'];
+const REQUIRED_BOOTSTRAP_RECONCILE_RESOURCES = ['apisix_routes', 'bootstrap_payload_config'];
 
 export function readDeploymentTopology() {
   return readJson(DEPLOYMENT_TOPOLOGY_PATH);
@@ -197,6 +200,10 @@ function collectTopologyContractViolations(topology) {
     );
   }
 
+  if (!(topology?.configuration_policy?.secret_rules ?? []).some((rule) => rule.includes('Bootstrap credentials resolve'))) {
+    violations.push('Deployment topology configuration_policy.secret_rules must document bootstrap credential resolution.');
+  }
+
   if (topology?.packaging_guidance?.umbrella_chart !== 'charts/in-atelier') {
     violations.push('Deployment topology packaging_guidance.umbrella_chart must be charts/in-atelier.');
   }
@@ -263,6 +270,41 @@ function collectTopologyContractViolations(topology) {
   for (const key of ['network_policy', 'corporate_proxy', 'internal_certificates', 'file_permissions']) {
     if (!Array.isArray(topology?.operational_constraints?.[key]) || topology.operational_constraints[key].length === 0) {
       violations.push(`Deployment topology operational_constraints.${key} must be a non-empty array.`);
+    }
+  }
+
+  const bootstrapPolicy = topology?.bootstrap_policy;
+  if (!bootstrapPolicy) {
+    violations.push('Deployment topology must define bootstrap_policy.');
+  } else {
+    if (bootstrapPolicy.controller_kind !== 'post_install_upgrade_job') {
+      violations.push('Deployment topology bootstrap_policy.controller_kind must be post_install_upgrade_job.');
+    }
+
+    if (bootstrapPolicy.lock_resource_kind !== 'ConfigMap') {
+      violations.push('Deployment topology bootstrap_policy.lock_resource_kind must be ConfigMap.');
+    }
+
+    if (bootstrapPolicy.marker_resource_kind !== 'ConfigMap') {
+      violations.push('Deployment topology bootstrap_policy.marker_resource_kind must be ConfigMap.');
+    }
+
+    if (JSON.stringify(bootstrapPolicy.supported_secret_strategies ?? []) !== JSON.stringify(REQUIRED_BOOTSTRAP_SECRET_STRATEGIES)) {
+      violations.push(
+        `Deployment topology bootstrap_policy.supported_secret_strategies must equal ${REQUIRED_BOOTSTRAP_SECRET_STRATEGIES.join(', ')}.`
+      );
+    }
+
+    if (JSON.stringify(bootstrapPolicy.one_shot_resources ?? []) !== JSON.stringify(REQUIRED_BOOTSTRAP_ONE_SHOT_RESOURCES)) {
+      violations.push('Deployment topology bootstrap_policy.one_shot_resources must match the required bootstrap create-only resources.');
+    }
+
+    if (JSON.stringify(bootstrapPolicy.reconcile_each_upgrade ?? []) !== JSON.stringify(REQUIRED_BOOTSTRAP_RECONCILE_RESOURCES)) {
+      violations.push('Deployment topology bootstrap_policy.reconcile_each_upgrade must match the required bootstrap reconciliation resources.');
+    }
+
+    if (!Array.isArray(bootstrapPolicy.restore_behaviour) || bootstrapPolicy.restore_behaviour.length < 3) {
+      violations.push('Deployment topology bootstrap_policy.restore_behaviour must document restore and reinstall guardrails.');
     }
   }
 
@@ -376,6 +418,32 @@ function collectValuesViolations(topology) {
 
       if (values?.config?.secretRefs?.gatewayTls?.existingSecret !== values?.publicSurface?.certificates?.surfaces?.api) {
         violations.push(`Resolved values for ${environmentId}/${platformId} must bind gatewayTls to the API certificate secret.`);
+      }
+
+      const bootstrap = values?.bootstrap ?? {};
+      if (!bootstrap?.enabled) {
+        violations.push(`Resolved values for ${environmentId}/${platformId} must keep bootstrap.enabled=true.`);
+      }
+
+      if (bootstrap?.lock?.name === bootstrap?.markers?.name) {
+        violations.push(`Resolved values for ${environmentId}/${platformId} must use distinct bootstrap lock and marker names.`);
+      }
+
+      if (
+        JSON.stringify(bootstrap?.secretResolution?.supportedStrategies ?? []) !==
+        JSON.stringify(REQUIRED_BOOTSTRAP_SECRET_STRATEGIES)
+      ) {
+        violations.push(
+          `Resolved values for ${environmentId}/${platformId} must expose bootstrap secret strategies ${REQUIRED_BOOTSTRAP_SECRET_STRATEGIES.join(', ')}.`
+        );
+      }
+
+      if (!bootstrap?.reconcile?.apisix?.adminService?.enabled) {
+        violations.push(`Resolved values for ${environmentId}/${platformId} must expose the APISIX admin service for bootstrap.`);
+      }
+
+      if ((bootstrap?.reconcile?.apisix?.routes ?? []).length !== 4) {
+        violations.push(`Resolved values for ${environmentId}/${platformId} must keep the four baseline APISIX routes.`);
       }
     }
   }

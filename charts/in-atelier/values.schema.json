@@ -8,6 +8,7 @@
     "deployment",
     "platform",
     "config",
+    "bootstrap",
     "apisix",
     "keycloak",
     "postgresql",
@@ -605,6 +606,480 @@
     },
     "webConsole": {
       "$ref": "#/definitions/component"
+    },
+    "bootstrap": {
+      "type": "object",
+      "required": [
+        "enabled",
+        "serviceAccount",
+        "job",
+        "lock",
+        "markers",
+        "secretResolution",
+        "oneShot",
+        "reconcile"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "serviceAccount": {
+          "type": "object",
+          "required": [
+            "create",
+            "name"
+          ],
+          "properties": {
+            "create": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "job": {
+          "type": "object",
+          "required": [
+            "image",
+            "backoffLimit",
+            "activeDeadlineSeconds",
+            "ttlSecondsAfterFinished",
+            "extraEnv"
+          ],
+          "properties": {
+            "image": {
+              "type": "object",
+              "required": [
+                "repository",
+                "tag",
+                "pullPolicy"
+              ],
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tag": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                },
+                "pullPolicy": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "additionalProperties": true
+            },
+            "backoffLimit": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "activeDeadlineSeconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "ttlSecondsAfterFinished": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "annotations": {
+              "type": "object"
+            },
+            "podAnnotations": {
+              "type": "object"
+            },
+            "podLabels": {
+              "type": "object"
+            },
+            "podSecurityContext": {
+              "type": "object"
+            },
+            "securityContext": {
+              "type": "object"
+            },
+            "resources": {
+              "type": "object"
+            },
+            "nodeSelector": {
+              "type": "object"
+            },
+            "tolerations": {
+              "type": "array"
+            },
+            "affinity": {
+              "type": "object"
+            },
+            "extraEnv": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "string"
+                  },
+                  "valueFrom": {
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "lock": {
+          "type": "object",
+          "required": [
+            "name",
+            "breakGlassExistingLock"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "breakGlassExistingLock": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
+        },
+        "markers": {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": true
+        },
+        "secretResolution": {
+          "type": "object",
+          "required": [
+            "supportedStrategies",
+            "sources"
+          ],
+          "properties": {
+            "supportedStrategies": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "kubernetesSecret",
+                  "env",
+                  "externalRef"
+                ]
+              },
+              "minItems": 3
+            },
+            "sources": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "strategy",
+                  "envVarName"
+                ],
+                "properties": {
+                  "strategy": {
+                    "type": "string",
+                    "enum": [
+                      "kubernetesSecret",
+                      "env",
+                      "externalRef"
+                    ]
+                  },
+                  "envVarName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "existingSecret": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "key"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "key": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "additionalProperties": true
+                  },
+                  "externalRef": {
+                    "type": "object",
+                    "required": [
+                      "provider",
+                      "reference"
+                    ],
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "reference": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "oneShot": {
+          "type": "object",
+          "required": [
+            "keycloak",
+            "governanceCatalog",
+            "internalNamespaces"
+          ],
+          "properties": {
+            "keycloak": {
+              "type": "object",
+              "required": [
+                "realm",
+                "superadmin"
+              ],
+              "properties": {
+                "realm": {
+                  "type": "object",
+                  "required": [
+                    "realm",
+                    "displayName",
+                    "enabled"
+                  ],
+                  "properties": {
+                    "realm": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "superadmin": {
+                  "type": "object",
+                  "required": [
+                    "username",
+                    "email",
+                    "firstName",
+                    "lastName",
+                    "realmRoles"
+                  ],
+                  "properties": {
+                    "username": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "email": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "firstName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "lastName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "realmRoles": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "minItems": 1
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": true
+            },
+            "governanceCatalog": {
+              "type": "object",
+              "required": [
+                "plans",
+                "quotaPolicies",
+                "deploymentProfiles"
+              ],
+              "properties": {
+                "plans": {
+                  "type": "array",
+                  "minItems": 1
+                },
+                "quotaPolicies": {
+                  "type": "array",
+                  "minItems": 1
+                },
+                "deploymentProfiles": {
+                  "type": "array",
+                  "minItems": 1
+                }
+              },
+              "additionalProperties": true
+            },
+            "internalNamespaces": {
+              "type": "object",
+              "required": [
+                "openwhisk",
+                "storage"
+              ],
+              "properties": {
+                "openwhisk": {
+                  "type": "array",
+                  "minItems": 1
+                },
+                "storage": {
+                  "type": "object"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "reconcile": {
+          "type": "object",
+          "required": [
+            "apisix"
+          ],
+          "properties": {
+            "apisix": {
+              "type": "object",
+              "required": [
+                "adminService",
+                "routes"
+              ],
+              "properties": {
+                "adminService": {
+                  "type": "object",
+                  "required": [
+                    "enabled",
+                    "port",
+                    "targetPort",
+                    "portName"
+                  ],
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "port": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "targetPort": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "portName": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "annotations": {
+                      "type": "object"
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "routes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "routeId",
+                      "name",
+                      "uri",
+                      "priority",
+                      "upstream"
+                    ],
+                    "properties": {
+                      "routeId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "uri": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "priority": {
+                        "type": "integer"
+                      },
+                      "upstream": {
+                        "type": "object",
+                        "required": [
+                          "component",
+                          "port"
+                        ],
+                        "properties": {
+                          "component": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "serviceName": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "type": [
+                              "integer",
+                              "string"
+                            ]
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
     }
   },
   "definitions": {

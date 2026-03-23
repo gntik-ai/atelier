@@ -29,3 +29,19 @@ test('platform smoke scaffold keeps the same logical surface while swapping only
     assert.equal(openshiftValues.platform.network.exposureKind, 'Route');
   }
 });
+
+test('deployment smoke scaffold keeps bootstrap create-only and reconcile inputs stable across environments', () => {
+  const topology = readDeploymentTopology();
+
+  for (const environment of topology.environment_profiles.map((profile) => profile.id)) {
+    const values = resolveValues(environment, 'kubernetes');
+
+    assert.equal(values.bootstrap.enabled, true);
+    assert.deepEqual(values.bootstrap.secretResolution.supportedStrategies, ['kubernetesSecret', 'env', 'externalRef']);
+    assert.equal(values.bootstrap.oneShot.governanceCatalog.plans.length >= 4, true);
+    assert.deepEqual(
+      values.bootstrap.reconcile.apisix.routes.map((route) => route.uri),
+      ['/control-plane/*', '/auth/*', '/realtime/*', '/*']
+    );
+  }
+});
