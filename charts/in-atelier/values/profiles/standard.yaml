@@ -1,0 +1,14 @@
+deployment:
+  profile: standard
+apisix:
+  replicas: 2
+keycloak:
+  replicas: 1
+kafka:
+  replicas: 3
+controlPlane:
+  replicas: 2
+webConsole:
+  replicas: 2
+observability:
+  enabled: true

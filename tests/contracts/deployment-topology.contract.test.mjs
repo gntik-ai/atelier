@@ -25,6 +25,7 @@ test('deployment topology contract exposes the required descriptors and promotio
     'airgap',
     'localOverride'
   ]);
+  assert.deepEqual(topology.configuration_policy.optional_helm_value_layers, ['profile']);
   assert.deepEqual(topology.packaging_guidance.component_aliases, [
     'apisix',
     'keycloak',
@@ -37,6 +38,8 @@ test('deployment topology contract exposes the required descriptors and promotio
     'controlPlane',
     'webConsole'
   ]);
+  assert.deepEqual(topology.packaging_guidance.deployment_profiles, ['all-in-one', 'standard', 'ha']);
+  assert.equal(topology.packaging_guidance.profile_values_path, 'charts/in-atelier/values/profiles/{profile}.yaml');
 });
 
 test('resolved environment overlays preserve the same public route semantics across platforms', () => {
@@ -47,6 +50,17 @@ test('resolved environment overlays preserve the same public route semantics acr
   assert.deepEqual(kubernetesValues.publicSurface.hostnames, openshiftValues.publicSurface.hostnames);
   assert.equal(kubernetesValues.platform.network.exposureKind, 'Ingress');
   assert.equal(openshiftValues.platform.network.exposureKind, 'Route');
+});
+
+test('deployment topology publishes exposure and upgrade guardrails', () => {
+  const topology = readDeploymentTopology();
+
+  assert.deepEqual(topology.exposure_matrix.supported_tls_modes, ['clusterManaged', 'external']);
+  assert.deepEqual(topology.exposure_matrix.kubernetes.supported_exposure_kinds, ['Ingress', 'LoadBalancer']);
+  assert.deepEqual(topology.exposure_matrix.openshift.supported_exposure_kinds, ['Route']);
+  assert.equal(topology.upgrade_guardrails.in_place_supported, true);
+  assert.equal(topology.upgrade_guardrails.values_key, 'deployment.upgrade.currentVersion');
+  assert.deepEqual(topology.upgrade_guardrails.supported_previous_versions, ['0.2.0']);
 });
 
 test('deployment smoke matrix matches the contract version and scenario expectations', () => {

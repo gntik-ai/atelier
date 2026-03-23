@@ -278,6 +278,9 @@
       "Use Route instead of Ingress when platform target is openshift.",
       "Keep runAsNonRoot and seccomp RuntimeDefault defaults.",
       "Prefer restricted SCC-compatible settings and avoid privileged containers."
+    ],
+    "optional_helm_value_layers": [
+      "profile"
     ]
   },
   "promotion_strategy": {
@@ -347,6 +350,64 @@
       "observability",
       "controlPlane",
       "webConsole"
+    ],
+    "deployment_profiles": [
+      "all-in-one",
+      "standard",
+      "ha"
+    ],
+    "profile_values_path": "charts/in-atelier/values/profiles/{profile}.yaml"
+  },
+  "exposure_matrix": {
+    "supported_tls_modes": [
+      "clusterManaged",
+      "external"
+    ],
+    "kubernetes": {
+      "supported_exposure_kinds": [
+        "Ingress",
+        "LoadBalancer"
+      ],
+      "default_exposure_kind": "Ingress",
+      "default_tls_mode": "clusterManaged",
+      "loadBalancer_tls_mode": "external"
+    },
+    "openshift": {
+      "supported_exposure_kinds": [
+        "Route"
+      ],
+      "default_exposure_kind": "Route",
+      "default_tls_mode": "clusterManaged"
+    }
+  },
+  "upgrade_guardrails": {
+    "in_place_supported": true,
+    "values_key": "deployment.upgrade.currentVersion",
+    "supported_previous_versions": [
+      "0.2.0"
+    ],
+    "default_strategy": "rolling",
+    "prohibited_actions": [
+      "downgrade_without_explicit_override",
+      "reinstall_for_supported_minor_upgrade"
+    ]
+  },
+  "operational_constraints": {
+    "network_policy": [
+      "Allow ingress from the selected exposure controller to the bound Services and permit namespace-local service discovery for stateful dependencies.",
+      "Allow egress from APISIX, control-plane, and web-console Pods to identity, data, storage, and observability services before enforcing default-deny policies."
+    ],
+    "corporate_proxy": [
+      "Inject HTTP_PROXY, HTTPS_PROXY, and NO_PROXY through component env values or config overlays so runtime containers inherit the approved corporate proxy path.",
+      "Keep cluster-local service DNS suffixes, Pod CIDRs, and the release namespace in NO_PROXY to avoid breaking east-west traffic."
+    ],
+    "internal_certificates": [
+      "Mount internal CA bundles through extraVolumes and extraVolumeMounts or trust-store capable images when private registries, proxies, or upstream IdPs use non-public roots.",
+      "Do not store certificate material in repository-tracked values files; keep only ConfigMap or Secret references."
+    ],
+    "file_permissions": [
+      "Prefer fsGroup-based access with runAsNonRoot and enable the optional volumePermissions init container only when the storage class ignores group ownership changes.",
+      "OpenShift deployments must remain compatible with restricted-v2 SCC semantics and avoid privileged or root-only steady-state containers."
     ]
   }
 }

@@ -9,43 +9,34 @@ global:
     caBundleConfigMap: in-atelier-registry-ca
   imagePullSecrets:
     - name: in-atelier-registry
-
+  imageRegistry: registry.airgap.in-atelier.local
 apisix:
   image:
     repository: registry.airgap.in-atelier.local/apache/apisix
-
 keycloak:
   image:
     repository: registry.airgap.in-atelier.local/keycloak/keycloak
-
 postgresql:
   image:
     repository: registry.airgap.in-atelier.local/bitnami/postgresql
-
 mongodb:
   image:
     repository: registry.airgap.in-atelier.local/bitnami/mongodb
-
 kafka:
   image:
     repository: registry.airgap.in-atelier.local/bitnami/kafka
-
 openwhisk:
   image:
     repository: registry.airgap.in-atelier.local/apache/openwhisk-controller
-
 storage:
   image:
     repository: registry.airgap.in-atelier.local/minio/minio
-
 observability:
   image:
     repository: registry.airgap.in-atelier.local/prometheus/prometheus
-
 controlPlane:
   image:
     repository: registry.airgap.in-atelier.local/example/in-atelier-control-plane
-
 webConsole:
   image:
     repository: registry.airgap.in-atelier.local/example/in-atelier-web-console

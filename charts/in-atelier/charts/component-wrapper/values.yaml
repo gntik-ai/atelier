@@ -9,10 +9,12 @@ image:
   pullPolicy: IfNotPresent
 command: []
 args: []
+initContainers: []
 replicas: 1
 serviceAccount:
   create: true
   name: ""
+  automountToken: false
 service:
   enabled: true
   type: ClusterIP
@@ -43,6 +45,21 @@ persistence:
     - ReadWriteOnce
   mountPath: /var/lib/component
   annotations: {}
+volumePermissions:
+  enabled: false
+  image:
+    repository: docker.io/library/busybox
+    tag: 1.36.1
+    pullPolicy: IfNotPresent
+  command: []
+  securityContext:
+    runAsUser: 0
+    runAsGroup: 0
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
 podAnnotations: {}
 podLabels: {}
 podSecurityContext: {}

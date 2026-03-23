@@ -3,10 +3,16 @@ import assert from 'node:assert/strict';
 
 import {
   collectDeploymentChartViolations,
+  collectUpgradeValidationViolations,
+  compareVersions,
+  readProfileValues,
   readRootChart,
   readRootValues,
   readWrapperChart,
-  REQUIRED_COMPONENT_ALIASES
+  REQUIRED_COMPONENT_ALIASES,
+  RECOMMENDED_DEPLOYMENT_PROFILES,
+  resolveComponentImage,
+  resolveImageRepository
 } from '../../scripts/lib/deployment-chart.mjs';
 import { readDeploymentTopology } from '../../scripts/lib/deployment-topology.mjs';
 
@@ -42,4 +48,50 @@ test('deployment chart validation detects missing dependency aliases and values 
 test('all expected component aliases are present in the root chart dependencies', () => {
   const aliases = readRootChart().dependencies.map((entry) => entry.alias);
   assert.deepEqual(aliases, REQUIRED_COMPONENT_ALIASES);
+});
+
+test('recommended deployment profile overlays exist and declare their own profile id', () => {
+  const declaredProfiles = RECOMMENDED_DEPLOYMENT_PROFILES.map((profileId) => readProfileValues(profileId).deployment.profile);
+  assert.deepEqual(declaredProfiles, RECOMMENDED_DEPLOYMENT_PROFILES);
+});
+
+test('registry rewriting preserves repository paths while swapping the registry host', () => {
+  assert.equal(resolveImageRepository('docker.io/apache/apisix', 'registry.airgap.in-atelier.local'), 'registry.airgap.in-atelier.local/apache/apisix');
+  assert.equal(
+    resolveImageRepository('ghcr.io/example/in-atelier-control-plane', 'registry.airgap.in-atelier.local'),
+    'registry.airgap.in-atelier.local/example/in-atelier-control-plane'
+  );
+
+  const values = readRootValues();
+  const mirroredValues = structuredClone(values);
+  mirroredValues.global.imageRegistry = 'registry.airgap.in-atelier.local';
+  assert.equal(resolveComponentImage(mirroredValues, 'apisix'), 'registry.airgap.in-atelier.local/apache/apisix:3.10.0');
+});
+
+test('upgrade validation requires an approved currentVersion during in-place upgrades', () => {
+  const chart = readRootChart();
+  const values = readRootValues();
+
+  assert.deepEqual(
+    collectUpgradeValidationViolations(chart, values, { releaseIsUpgrade: true, currentVersion: '0.2.0' }),
+    []
+  );
+
+  const missingVersionViolations = collectUpgradeValidationViolations(chart, values, {
+    releaseIsUpgrade: true,
+    currentVersion: ''
+  });
+  assert.ok(missingVersionViolations.some((violation) => violation.includes('currentVersion is required')));
+
+  const unsupportedVersionViolations = collectUpgradeValidationViolations(chart, values, {
+    releaseIsUpgrade: true,
+    currentVersion: '0.1.0'
+  });
+  assert.ok(unsupportedVersionViolations.some((violation) => violation.includes('not listed in supportedPreviousVersions')));
+});
+
+test('compareVersions orders supported chart upgrades predictably', () => {
+  assert.equal(compareVersions('0.2.0', '0.3.0') < 0, true);
+  assert.equal(compareVersions('0.3.0', '0.3.0'), 0);
+  assert.equal(compareVersions('0.4.0', '0.3.0') > 0, true);
 });

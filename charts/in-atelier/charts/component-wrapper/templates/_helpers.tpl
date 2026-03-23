@@ -27,13 +27,37 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 {{- end -}}
 
-{{- define "component-wrapper.image" -}}
-{{- $repository := required (printf "%s image.repository is required" (include "component-wrapper.name" .)) .Values.image.repository -}}
-{{- if .Values.image.digest -}}
-{{ printf "%s@%s" $repository .Values.image.digest }}
+{{- define "component-wrapper.normalizeRepository" -}}
+{{- $repository := .repository -}}
+{{- $globalRegistry := trimSuffix "/" (default "" .Values.global.imageRegistry) -}}
+{{- if or (eq $globalRegistry "") (eq $repository $globalRegistry) (hasPrefix (printf "%s/" $globalRegistry) $repository) -}}
+{{- $repository -}}
 {{- else -}}
-{{ printf "%s:%s" $repository .Values.image.tag }}
+{{- $segments := splitList "/" $repository -}}
+{{- $first := first $segments -}}
+{{- $hasRegistry := or (contains "." $first) (contains ":" $first) (eq $first "localhost") -}}
+{{- if and $hasRegistry (gt (len $segments) 1) -}}
+{{- printf "%s/%s" $globalRegistry (join "/" (rest $segments)) -}}
+{{- else -}}
+{{- printf "%s/%s" $globalRegistry $repository -}}
 {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "component-wrapper.renderImage" -}}
+{{- $name := .name | default "component" -}}
+{{- $image := .image -}}
+{{- $repository := required (printf "%s image.repository is required" $name) $image.repository -}}
+{{- $normalizedRepository := include "component-wrapper.normalizeRepository" (dict "Values" .Values "repository" $repository) -}}
+{{- if $image.digest -}}
+{{ printf "%s@%s" $normalizedRepository $image.digest }}
+{{- else -}}
+{{ printf "%s:%s" $normalizedRepository $image.tag }}
+{{- end -}}
+{{- end -}}
+
+{{- define "component-wrapper.image" -}}
+{{- include "component-wrapper.renderImage" (dict "Values" .Values "image" .Values.image "name" (include "component-wrapper.name" .)) -}}
 {{- end -}}
 
 {{- define "component-wrapper.persistenceClaimName" -}}

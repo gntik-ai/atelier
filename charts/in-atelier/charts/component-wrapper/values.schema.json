@@ -71,6 +71,9 @@
         },
         "name": {
           "type": "string"
+        },
+        "automountToken": {
+          "type": "boolean"
         }
       },
       "additionalProperties": true
@@ -156,6 +159,47 @@
               "boolean"
             ]
           }
+        }
+      },
+      "additionalProperties": true
+    },
+    "initContainers": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "volumePermissions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pullPolicy": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "securityContext": {
+          "type": "object"
         }
       },
       "additionalProperties": true

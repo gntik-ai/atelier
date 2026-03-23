@@ -23,6 +23,8 @@ test('platform smoke scaffold keeps the same logical surface while swapping only
 
     assert.deepEqual(kubernetesValues.publicSurface.hostnames, openshiftValues.publicSurface.hostnames);
     assert.deepEqual(kubernetesValues.publicSurface.routePrefixes, openshiftValues.publicSurface.routePrefixes);
+    assert.equal(kubernetesValues.deployment.profile, 'standard');
+    assert.equal(kubernetesValues.publicSurface.tls.mode, 'clusterManaged');
     assert.equal(kubernetesValues.platform.network.exposureKind, 'Ingress');
     assert.equal(openshiftValues.platform.network.exposureKind, 'Route');
   }

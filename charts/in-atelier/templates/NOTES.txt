@@ -3,7 +3,9 @@ In Atelier umbrella chart
 
 Environment: {{ .Values.global.environment }}
 Namespace: {{ .Values.global.namespace }}
+Deployment profile: {{ .Values.deployment.profile }}
 Exposure kind: {{ .Values.platform.network.exposureKind }}
+TLS mode: {{ .Values.publicSurface.tls.mode }}
 
 Recommended values layering order:
 1. {{ .Values.deployment.valuesLayers.common }}

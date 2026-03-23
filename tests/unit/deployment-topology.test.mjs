@@ -50,10 +50,22 @@ test('resolveValues applies environment and platform overlays deterministically'
   assert.equal(resolved.publicSurface.hostnames.api, 'api.in-atelier.example.com');
 });
 
+test('deployment topology includes optional profile, exposure, and operational constraint metadata', () => {
+  const topology = readDeploymentTopology();
+
+  assert.deepEqual(topology.configuration_policy.optional_helm_value_layers, ['profile']);
+  assert.deepEqual(topology.exposure_matrix.supported_tls_modes, ['clusterManaged', 'external']);
+  assert.equal(topology.exposure_matrix.kubernetes.loadBalancer_tls_mode, 'external');
+  assert.equal(topology.upgrade_guardrails.default_strategy, 'rolling');
+  assert.equal(topology.operational_constraints.network_policy.length >= 1, true);
+  assert.equal(topology.operational_constraints.corporate_proxy.length >= 1, true);
+});
+
 test('collectDeploymentTopologyViolations flags route-prefix drift and missing smoke coverage', () => {
   const topology = readDeploymentTopology();
   const brokenTopology = structuredClone(topology);
   brokenTopology.public_surface.route_prefixes.control_plane = '/api';
+  brokenTopology.exposure_matrix.kubernetes.loadBalancer_tls_mode = 'clusterManaged';
 
   const smokeMatrix = readDeploymentSmokeMatrix();
   const brokenSmokeMatrix = structuredClone(smokeMatrix);
@@ -68,5 +80,6 @@ test('collectDeploymentTopologyViolations flags route-prefix drift and missing s
   );
 
   assert.ok(violations.some((violation) => violation.includes('route prefix control_plane')));
+  assert.ok(violations.some((violation) => violation.includes('loadBalancer_tls_mode')));
   assert.ok(violations.some((violation) => violation.includes('must cover prod/openshift')));
 });

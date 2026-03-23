@@ -32,6 +32,7 @@ const REQUIRED_ROUTE_PREFIXES = {
   console: '/'
 };
 const REQUIRED_HELM_VALUE_LAYERS = ['common', 'environment', 'customer', 'platform', 'airgap', 'localOverride'];
+const OPTIONAL_HELM_VALUE_LAYERS = ['profile'];
 const REQUIRED_COMPONENT_ALIASES = [
   'apisix',
   'keycloak',
@@ -44,6 +45,14 @@ const REQUIRED_COMPONENT_ALIASES = [
   'controlPlane',
   'webConsole'
 ];
+const REQUIRED_DEPLOYMENT_PROFILES = ['all-in-one', 'standard', 'ha'];
+const SUPPORTED_TLS_MODES = ['clusterManaged', 'external'];
+const EXPECTED_UPGRADE_GUARDRAILS = {
+  in_place_supported: true,
+  values_key: 'deployment.upgrade.currentVersion',
+  supported_previous_versions: ['0.2.0'],
+  default_strategy: 'rolling'
+};
 
 export function readDeploymentTopology() {
   return readJson(DEPLOYMENT_TOPOLOGY_PATH);
@@ -182,6 +191,12 @@ function collectTopologyContractViolations(topology) {
     );
   }
 
+  if (JSON.stringify(topology?.configuration_policy?.optional_helm_value_layers ?? []) !== JSON.stringify(OPTIONAL_HELM_VALUE_LAYERS)) {
+    violations.push(
+      `Deployment topology optional_helm_value_layers must equal ${OPTIONAL_HELM_VALUE_LAYERS.join(', ')}.`
+    );
+  }
+
   if (topology?.packaging_guidance?.umbrella_chart !== 'charts/in-atelier') {
     violations.push('Deployment topology packaging_guidance.umbrella_chart must be charts/in-atelier.');
   }
@@ -194,6 +209,14 @@ function collectTopologyContractViolations(topology) {
 
   if (JSON.stringify(topology?.packaging_guidance?.component_aliases ?? []) !== JSON.stringify(REQUIRED_COMPONENT_ALIASES)) {
     violations.push('Deployment topology packaging_guidance.component_aliases must match the required component aliases.');
+  }
+
+  if (JSON.stringify(topology?.packaging_guidance?.deployment_profiles ?? []) !== JSON.stringify(REQUIRED_DEPLOYMENT_PROFILES)) {
+    violations.push('Deployment topology packaging_guidance.deployment_profiles must match the recommended deployment profiles.');
+  }
+
+  if (topology?.packaging_guidance?.profile_values_path !== 'charts/in-atelier/values/profiles/{profile}.yaml') {
+    violations.push('Deployment topology packaging_guidance.profile_values_path must point to charts/in-atelier/values/profiles/{profile}.yaml.');
   }
 
   const supportedInstallModes = topology?.packaging_guidance?.supported_install_modes ?? [];
@@ -212,6 +235,34 @@ function collectTopologyContractViolations(topology) {
 
     if (!Array.isArray(platform.base_resources) || platform.base_resources.length < 5) {
       violations.push(`Platform ${platformId} must define the full base_resources set.`);
+    }
+  }
+
+  if (JSON.stringify(topology?.exposure_matrix?.supported_tls_modes ?? []) !== JSON.stringify(SUPPORTED_TLS_MODES)) {
+    violations.push('Deployment topology exposure_matrix.supported_tls_modes must equal clusterManaged and external.');
+  }
+
+  if (JSON.stringify(topology?.exposure_matrix?.kubernetes?.supported_exposure_kinds ?? []) !== JSON.stringify(['Ingress', 'LoadBalancer'])) {
+    violations.push('Deployment topology exposure_matrix.kubernetes.supported_exposure_kinds must equal [Ingress, LoadBalancer].');
+  }
+
+  if (JSON.stringify(topology?.exposure_matrix?.openshift?.supported_exposure_kinds ?? []) !== JSON.stringify(['Route'])) {
+    violations.push('Deployment topology exposure_matrix.openshift.supported_exposure_kinds must equal [Route].');
+  }
+
+  if (topology?.exposure_matrix?.kubernetes?.loadBalancer_tls_mode !== 'external') {
+    violations.push('Deployment topology exposure_matrix.kubernetes.loadBalancer_tls_mode must be external.');
+  }
+
+  for (const [key, expected] of Object.entries(EXPECTED_UPGRADE_GUARDRAILS)) {
+    if (JSON.stringify(topology?.upgrade_guardrails?.[key]) !== JSON.stringify(expected)) {
+      violations.push(`Deployment topology upgrade_guardrails.${key} must match the approved upgrade guardrail contract.`);
+    }
+  }
+
+  for (const key of ['network_policy', 'corporate_proxy', 'internal_certificates', 'file_permissions']) {
+    if (!Array.isArray(topology?.operational_constraints?.[key]) || topology.operational_constraints[key].length === 0) {
+      violations.push(`Deployment topology operational_constraints.${key} must be a non-empty array.`);
     }
   }
 

@@ -19,7 +19,7 @@ global:
     fsGroup: 1001
     seccompProfile:
       type: RuntimeDefault
-
+    fsGroupChangePolicy: OnRootMismatch
 publicSurface:
   routePrefixes:
     controlPlane: /control-plane
@@ -28,7 +28,7 @@ publicSurface:
     console: /
   optionalWorkspaceSubdomains:
     enabled: false
-    hostTemplate: '{workspaceSlug}.apps.{environment}.in-atelier.example.com'
+    hostTemplate: "{workspaceSlug}.apps.{environment}.in-atelier.example.com"
   hostnames:
     api: api.dev.in-atelier.example.com
     console: console.dev.in-atelier.example.com
@@ -67,7 +67,24 @@ publicSurface:
     annotations: {}
   route:
     annotations: {}
-
+    tls:
+      termination: edge
+      insecureEdgeTerminationPolicy: Redirect
+  tls:
+    mode: clusterManaged
+  loadBalancer:
+    annotations: {}
+    className: ""
+    ports:
+      api: 443
+      console: 443
+      identity: 443
+      realtime: 443
+    sourceRanges: []
+    externalTrafficPolicy: Cluster
+    ipFamilyPolicy: ""
+    ipFamilies: []
+    allocateLoadBalancerNodePorts: true
 environmentProfile:
   id: dev
   diagnostics:
@@ -77,7 +94,6 @@ environmentProfile:
   demoData:
     enabled: true
   limitsProfile: relaxed
-
 deployment:
   topology:
     mode: single_cluster
@@ -93,7 +109,21 @@ deployment:
     platform: values/platform-kubernetes.yaml
     airgap: values/airgap.yaml
     localOverride: values/local.example.yaml
-
+  profile: standard
+  recommendedProfiles:
+    default: standard
+    pathPattern: values/profiles/{profile}.yaml
+    supported:
+      - all-in-one
+      - standard
+      - ha
+  upgrade:
+    allowInPlace: true
+    currentVersion: ""
+    supportedPreviousVersions:
+      - 0.2.0
+    allowDowngrade: false
+    strategy: rolling
 platform:
   target: kubernetes
   network:
@@ -107,7 +137,6 @@ platform:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
-
 config:
   inheritanceOrder:
     - common
@@ -154,7 +183,6 @@ config:
       keys:
         - access-key
         - secret-key
-
 apisix:
   enabled: true
   wrapper:
@@ -169,6 +197,7 @@ apisix:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -214,6 +243,7 @@ apisix:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -222,7 +252,22 @@ apisix:
   config:
     inline:
       APISIX_STAND_ALONE: "true"
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 keycloak:
   enabled: true
   wrapper:
@@ -243,6 +288,7 @@ keycloak:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -287,6 +333,7 @@ keycloak:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -295,7 +342,22 @@ keycloak:
   config:
     inline:
       publicPath: /auth
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 postgresql:
   enabled: true
   wrapper:
@@ -310,6 +372,7 @@ postgresql:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -353,6 +416,7 @@ postgresql:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -361,7 +425,22 @@ postgresql:
   config:
     inline:
       tenantIsolationMode: schema-per-tenant
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 mongodb:
   enabled: true
   wrapper:
@@ -376,6 +455,7 @@ mongodb:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -419,6 +499,7 @@ mongodb:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -427,7 +508,22 @@ mongodb:
   config:
     inline:
       tenantPartitionKey: tenantId
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 kafka:
   enabled: true
   wrapper:
@@ -442,6 +538,7 @@ kafka:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -485,6 +582,7 @@ kafka:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -493,7 +591,22 @@ kafka:
   config:
     inline:
       deliverySemantics: at-least-once
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 openwhisk:
   enabled: true
   wrapper:
@@ -508,6 +621,7 @@ openwhisk:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -549,6 +663,7 @@ openwhisk:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -557,7 +672,22 @@ openwhisk:
   config:
     inline:
       executionPlane: serverless
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 storage:
   enabled: true
   wrapper:
@@ -579,6 +709,7 @@ storage:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -625,6 +756,7 @@ storage:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -633,7 +765,22 @@ storage:
   config:
     inline:
       provider: s3-compatible
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 observability:
   enabled: true
   wrapper:
@@ -648,6 +795,7 @@ observability:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -690,6 +838,7 @@ observability:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -698,7 +847,22 @@ observability:
   config:
     inline:
       scrapeModel: platform-wide
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 controlPlane:
   enabled: true
   wrapper:
@@ -713,6 +877,7 @@ controlPlane:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -757,6 +922,7 @@ controlPlane:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -765,7 +931,22 @@ controlPlane:
   config:
     inline:
       openapiPath: /control-plane/openapi
-
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
 webConsole:
   enabled: true
   wrapper:
@@ -780,6 +961,7 @@ webConsole:
   serviceAccount:
     create: true
     name: ""
+    automountToken: false
   service:
     enabled: true
     type: ClusterIP
@@ -824,6 +1006,7 @@ webConsole:
     capabilities:
       drop:
         - ALL
+    runAsNonRoot: true
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -832,3 +1015,19 @@ webConsole:
   config:
     inline:
       homepageHost: console.dev.in-atelier.example.com
+  initContainers: []
+  volumePermissions:
+    enabled: false
+    image:
+      repository: docker.io/library/busybox
+      tag: 1.36.1
+      pullPolicy: IfNotPresent
+    command: []
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL

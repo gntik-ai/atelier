@@ -349,7 +349,102 @@
           "type": "object"
         },
         "route": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "annotations": {
+              "type": "object"
+            },
+            "tls": {
+              "type": "object",
+              "properties": {
+                "termination": {
+                  "type": "string"
+                },
+                "insecureEdgeTerminationPolicy": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "tls": {
+          "type": "object",
+          "required": [
+            "mode"
+          ],
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "clusterManaged",
+                "external"
+              ]
+            }
+          },
+          "additionalProperties": true
+        },
+        "loadBalancer": {
+          "type": "object",
+          "properties": {
+            "annotations": {
+              "type": "object"
+            },
+            "className": {
+              "type": "string"
+            },
+            "ports": {
+              "type": "object",
+              "required": [
+                "api",
+                "console",
+                "identity",
+                "realtime"
+              ],
+              "properties": {
+                "api": {
+                  "type": "number"
+                },
+                "console": {
+                  "type": "number"
+                },
+                "identity": {
+                  "type": "number"
+                },
+                "realtime": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": true
+            },
+            "sourceRanges": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "externalTrafficPolicy": {
+              "type": "string",
+              "enum": [
+                "Cluster",
+                "Local"
+              ]
+            },
+            "ipFamilyPolicy": {
+              "type": "string"
+            },
+            "ipFamilies": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allocateLoadBalancerNodePorts": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": true
@@ -361,7 +456,10 @@
       "type": "object",
       "required": [
         "topology",
-        "valuesLayers"
+        "valuesLayers",
+        "profile",
+        "recommendedProfiles",
+        "upgrade"
       ],
       "properties": {
         "topology": {
@@ -394,6 +492,76 @@
               "type": "string"
             },
             "localOverride": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "profile": {
+          "type": "string",
+          "enum": [
+            "all-in-one",
+            "standard",
+            "ha"
+          ]
+        },
+        "recommendedProfiles": {
+          "type": "object",
+          "required": [
+            "default",
+            "pathPattern",
+            "supported"
+          ],
+          "properties": {
+            "default": {
+              "type": "string",
+              "enum": [
+                "standard"
+              ]
+            },
+            "pathPattern": {
+              "type": "string"
+            },
+            "supported": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "all-in-one",
+                  "standard",
+                  "ha"
+                ]
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "upgrade": {
+          "type": "object",
+          "required": [
+            "allowInPlace",
+            "currentVersion",
+            "supportedPreviousVersions",
+            "allowDowngrade",
+            "strategy"
+          ],
+          "properties": {
+            "allowInPlace": {
+              "type": "boolean"
+            },
+            "currentVersion": {
+              "type": "string"
+            },
+            "supportedPreviousVersions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowDowngrade": {
+              "type": "boolean"
+            },
+            "strategy": {
               "type": "string"
             }
           },
@@ -635,6 +803,9 @@
             },
             "name": {
               "type": "string"
+            },
+            "automountToken": {
+              "type": "boolean"
             }
           },
           "additionalProperties": true
@@ -720,6 +891,47 @@
                   "boolean"
                 ]
               }
+            }
+          },
+          "additionalProperties": true
+        },
+        "initContainers": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "volumePermissions": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "image": {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tag": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pullPolicy": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            },
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "securityContext": {
+              "type": "object"
             }
           },
           "additionalProperties": true

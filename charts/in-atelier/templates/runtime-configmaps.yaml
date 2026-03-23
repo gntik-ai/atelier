@@ -7,6 +7,7 @@ metadata:
 data:
   environment: {{ .Values.global.environment | quote }}
   exposureKind: {{ .Values.platform.network.exposureKind | quote }}
+  tlsMode: {{ .Values.publicSurface.tls.mode | quote }}
   apiHostname: {{ .Values.publicSurface.hostnames.api | quote }}
   realtimeHostname: {{ .Values.publicSurface.hostnames.realtime | quote }}
 ---
@@ -19,6 +20,7 @@ metadata:
 data:
   diagnostics.logLevel: {{ .Values.environmentProfile.diagnostics.logLevel | quote }}
   diagnostics.debugEndpoints: {{ .Values.environmentProfile.diagnostics.debugEndpoints | quote }}
+  deploymentProfile: {{ .Values.deployment.profile | quote }}
   limitsProfile: {{ .Values.environmentProfile.limitsProfile | quote }}
 ---
 apiVersion: v1

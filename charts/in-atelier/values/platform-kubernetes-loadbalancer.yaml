@@ -1,0 +1,13 @@
+platform:
+  target: kubernetes
+  network:
+    exposureKind: LoadBalancer
+  securityProfile: restricted
+  openshift:
+    enabled: false
+publicSurface:
+  tls:
+    mode: external
+  loadBalancer:
+    annotations: {}
+    externalTrafficPolicy: Cluster

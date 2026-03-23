@@ -23,3 +23,9 @@ app.kubernetes.io/part-of: in-atelier
 {{- printf "%s-%s" $root.Release.Name ((index $root.Values $binding.component).wrapper.componentId | default $binding.component) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "in-atelier.componentSelectorLabels" -}}
+{{- $component := index .root.Values .component -}}
+app.kubernetes.io/name: {{ $component.wrapper.componentId | default .component }}
+app.kubernetes.io/instance: {{ .root.Release.Name }}
+{{- end -}}

@@ -4,9 +4,15 @@
 global:
   namespace: in-atelier-dev-local
 
+# Optional deployment profile overlays live in values/profiles/*.yaml and should be applied
+# after values.yaml but before the environment/platform files.
+
+deployment:
+  profile: standard
+
 controlPlane:
   image:
-    tag: 0.1.0-dev1
+    tag: 0.3.0-dev1
   env:
     - name: NODE_ENV
       value: development
@@ -15,7 +21,7 @@ controlPlane:
 
 webConsole:
   image:
-    tag: 0.1.0-dev1
+    tag: 0.3.0-dev1
   env:
     - name: NODE_ENV
       value: development

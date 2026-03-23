@@ -1,0 +1,85 @@
+deployment:
+  profile: ha
+apisix:
+  replicas: 3
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - apisix
+            topologyKey: kubernetes.io/hostname
+keycloak:
+  replicas: 2
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - keycloak
+            topologyKey: kubernetes.io/hostname
+openwhisk:
+  replicas: 3
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - openwhisk
+            topologyKey: kubernetes.io/hostname
+controlPlane:
+  replicas: 3
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - control-plane
+            topologyKey: kubernetes.io/hostname
+webConsole:
+  replicas: 3
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - web-console
+            topologyKey: kubernetes.io/hostname
+postgresql:
+  persistence:
+    size: 200Gi
+mongodb:
+  persistence:
+    size: 200Gi
+kafka:
+  replicas: 3
+  persistence:
+    size: 250Gi
+storage:
+  persistence:
+    size: 1Ti
