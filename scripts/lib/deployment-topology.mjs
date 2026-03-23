@@ -31,6 +31,19 @@ const REQUIRED_ROUTE_PREFIXES = {
   realtime: '/realtime',
   console: '/'
 };
+const REQUIRED_HELM_VALUE_LAYERS = ['common', 'environment', 'customer', 'platform', 'airgap', 'localOverride'];
+const REQUIRED_COMPONENT_ALIASES = [
+  'apisix',
+  'keycloak',
+  'postgresql',
+  'mongodb',
+  'kafka',
+  'openwhisk',
+  'storage',
+  'observability',
+  'controlPlane',
+  'webConsole'
+];
 
 export function readDeploymentTopology() {
   return readJson(DEPLOYMENT_TOPOLOGY_PATH);
@@ -163,6 +176,33 @@ function collectTopologyContractViolations(topology) {
     violations.push('Promotion strategy sandbox_source must be prod.');
   }
 
+  if (JSON.stringify(topology?.configuration_policy?.helm_value_layers ?? []) !== JSON.stringify(REQUIRED_HELM_VALUE_LAYERS)) {
+    violations.push(
+      `Deployment topology helm_value_layers must equal ${REQUIRED_HELM_VALUE_LAYERS.join(', ')}.`
+    );
+  }
+
+  if (topology?.packaging_guidance?.umbrella_chart !== 'charts/in-atelier') {
+    violations.push('Deployment topology packaging_guidance.umbrella_chart must be charts/in-atelier.');
+  }
+
+  if (topology?.packaging_guidance?.component_wrapper_chart !== 'charts/in-atelier/charts/component-wrapper') {
+    violations.push(
+      'Deployment topology packaging_guidance.component_wrapper_chart must be charts/in-atelier/charts/component-wrapper.'
+    );
+  }
+
+  if (JSON.stringify(topology?.packaging_guidance?.component_aliases ?? []) !== JSON.stringify(REQUIRED_COMPONENT_ALIASES)) {
+    violations.push('Deployment topology packaging_guidance.component_aliases must match the required component aliases.');
+  }
+
+  const supportedInstallModes = topology?.packaging_guidance?.supported_install_modes ?? [];
+  for (const mode of ['umbrella', 'component_only', 'external_dependency']) {
+    if (!supportedInstallModes.includes(mode)) {
+      violations.push(`Deployment topology packaging guidance must include install mode ${mode}.`);
+    }
+  }
+
   for (const platformId of REQUIRED_PLATFORMS) {
     const platform = topology?.platform_matrix?.[platformId];
     if (!platform) {
@@ -189,6 +229,38 @@ function collectValuesViolations(topology) {
   for (const filePath of [...Object.values(ENVIRONMENT_VALUES), ...Object.values(PLATFORM_VALUES)]) {
     if (!existsSync(filePath)) {
       violations.push(`Missing values overlay ${filePath}.`);
+    }
+  }
+
+  for (const filePath of [
+    'charts/in-atelier/values/customer-reference.yaml',
+    'charts/in-atelier/values/airgap.yaml',
+    'charts/in-atelier/values/local.example.yaml'
+  ]) {
+    if (!existsSync(filePath)) {
+      violations.push(`Missing deployment values layer ${filePath}.`);
+    }
+  }
+
+  const baseValues = readValuesFile(BASE_VALUES_PATH);
+  if (JSON.stringify(baseValues?.config?.inheritanceOrder ?? []) !== JSON.stringify([...REQUIRED_HELM_VALUE_LAYERS, 'secretRefs'])) {
+    violations.push('Base values must keep the documented inheritance order for deployment layers.');
+  }
+
+  if (JSON.stringify(Object.keys(baseValues?.deployment?.valuesLayers ?? {})) !== JSON.stringify(REQUIRED_HELM_VALUE_LAYERS)) {
+    violations.push('Base values must define the full deployment.valuesLayers map.');
+  }
+
+  for (const [layer, expectedPath] of Object.entries({
+    common: 'values.yaml',
+    environment: 'values/dev.yaml',
+    customer: 'values/customer-reference.yaml',
+    platform: 'values/platform-kubernetes.yaml',
+    airgap: 'values/airgap.yaml',
+    localOverride: 'values/local.example.yaml'
+  })) {
+    if (baseValues?.deployment?.valuesLayers?.[layer] !== expectedPath) {
+      violations.push(`Base values layer ${layer} must point to ${expectedPath}.`);
     }
   }
 

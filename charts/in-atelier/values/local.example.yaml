@@ -1,0 +1,26 @@
+# Copy this file to values/local.yaml and keep it out of version control.
+# Apply it last in your Helm command so workstation-specific overrides remain local.
+
+global:
+  namespace: in-atelier-dev-local
+
+controlPlane:
+  image:
+    tag: 0.1.0-dev1
+  env:
+    - name: NODE_ENV
+      value: development
+    - name: DEPLOYMENT_PROFILE
+      value: dev-local
+
+webConsole:
+  image:
+    tag: 0.1.0-dev1
+  env:
+    - name: NODE_ENV
+      value: development
+    - name: PUBLIC_BASE_PATH
+      value: /
+
+observability:
+  enabled: false

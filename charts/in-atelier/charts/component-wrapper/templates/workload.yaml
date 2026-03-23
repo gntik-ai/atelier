@@ -1,0 +1,120 @@
+{{- if .Values.enabled }}
+{{- $workloadKind := .Values.wrapper.workload.kind | default "Deployment" -}}
+apiVersion: apps/v1
+kind: {{ $workloadKind }}
+metadata:
+  name: {{ include "component-wrapper.fullname" . }}
+  labels:
+    {{- include "component-wrapper.labels" . | nindent 4 }}
+spec:
+  {{- if eq $workloadKind "StatefulSet" }}
+  serviceName: {{ include "component-wrapper.fullname" . }}
+  {{- end }}
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      {{- include "component-wrapper.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "component-wrapper.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "component-wrapper.serviceAccountName" . }}
+      {{- $imagePullSecrets := .Values.global.imagePullSecrets | default list }}
+      {{- if gt (len $imagePullSecrets) 0 }}
+      imagePullSecrets:
+        {{- range $imagePullSecrets }}
+        - name: {{ .name | default . }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- else if .Values.global.podSecurity }}
+      securityContext:
+        {{- toYaml .Values.global.podSecurity | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ include "component-wrapper.name" . }}
+          image: {{ include "component-wrapper.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy | default "IfNotPresent" }}
+          {{- with .Values.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.ports }}
+          ports:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.env }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or (gt (len .Values.envFromSecrets) 0) (gt (len .Values.envFromConfigMaps) 0) (and .Values.config.inline (gt (len .Values.config.inline) 0)) }}
+          envFrom:
+            {{- if and .Values.config.inline (gt (len .Values.config.inline) 0) }}
+            - configMapRef:
+                name: {{ include "component-wrapper.generatedConfigMapName" . }}
+            {{- end }}
+            {{- range .Values.envFromConfigMaps }}
+            - configMapRef:
+                name: {{ . }}
+            {{- end }}
+            {{- range .Values.envFromSecrets }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.persistence.enabled (gt (len .Values.extraVolumeMounts) 0) }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- if or .Values.persistence.enabled (gt (len .Values.extraVolumes) 0) }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "component-wrapper.persistenceClaimName" . }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

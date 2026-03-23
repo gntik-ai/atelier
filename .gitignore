@@ -6,3 +6,4 @@ coverage/
 .env
 .env.*
 !.env.example
+charts/in-atelier/values/local.yaml

@@ -1,0 +1,61 @@
+enabled: true
+wrapper:
+  componentId: component
+  workload:
+    kind: Deployment
+image:
+  repository: ghcr.io/example/component
+  tag: 0.1.0
+  pullPolicy: IfNotPresent
+command: []
+args: []
+replicas: 1
+serviceAccount:
+  create: true
+  name: ""
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+  portName: http
+  annotations: {}
+ports:
+  - name: http
+    containerPort: 80
+    protocol: TCP
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+env: []
+envFromSecrets: []
+envFromConfigMaps: []
+persistence:
+  enabled: false
+  existingClaim: ""
+  size: ""
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /var/lib/component
+  annotations: {}
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+nodeSelector: {}
+tolerations: []
+affinity: {}
+extraVolumes: []
+extraVolumeMounts: []
+config:
+  inline: {}

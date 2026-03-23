@@ -7,3 +7,9 @@ platform:
     enabled: false
   routeAnnotations:
     kubernetes.io/ingress.class: nginx
+
+publicSurface:
+  ingress:
+    className: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx

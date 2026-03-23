@@ -39,3 +39,9 @@ config:
 deployment:
   topology:
     clusterRef: cluster-sandbox-shared
+
+controlPlane:
+  replicas: 2
+
+webConsole:
+  replicas: 2

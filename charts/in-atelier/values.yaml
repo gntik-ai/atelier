@@ -2,11 +2,23 @@ global:
   nameOverride: in-atelier
   namespace: in-atelier-dev
   environment: dev
-  publicDomain:
-    root: in-atelier.example.com
-    certificateIssuerRef:
-      name: letsencrypt-public
-      kind: ClusterIssuer
+  createNamespace: true
+  imageRegistry: ""
+  imagePullSecrets:
+    - name: ghcr-reader
+  airgap:
+    enabled: false
+  privateRegistry:
+    enabled: false
+    registry: ""
+    pullSecretNames: []
+    caBundleConfigMap: ""
+  defaultStorageClass: ""
+  podSecurity:
+    runAsNonRoot: true
+    fsGroup: 1001
+    seccompProfile:
+      type: RuntimeDefault
 
 publicSurface:
   routePrefixes:
@@ -29,6 +41,32 @@ publicSurface:
       console: in-atelier-dev-console-tls
       identity: in-atelier-dev-identity-tls
       realtime: in-atelier-dev-realtime-tls
+  bindings:
+    api:
+      component: apisix
+      serviceName: ""
+      servicePort: http
+      path: /control-plane
+    identity:
+      component: keycloak
+      serviceName: ""
+      servicePort: http
+      path: /auth
+    realtime:
+      component: apisix
+      serviceName: ""
+      servicePort: http
+      path: /realtime
+    console:
+      component: webConsole
+      serviceName: ""
+      servicePort: http
+      path: /
+  ingress:
+    className: nginx
+    annotations: {}
+  route:
+    annotations: {}
 
 environmentProfile:
   id: dev
@@ -48,6 +86,13 @@ deployment:
     futureScaleVector:
       - multi_cluster
       - multi_region
+  valuesLayers:
+    common: values.yaml
+    environment: values/dev.yaml
+    customer: values/customer-reference.yaml
+    platform: values/platform-kubernetes.yaml
+    airgap: values/airgap.yaml
+    localOverride: values/local.example.yaml
 
 platform:
   target: kubernetes
@@ -56,15 +101,21 @@ platform:
   securityProfile: restricted
   openshift:
     enabled: false
+  routeAnnotations:
+    kubernetes.io/ingress.class: nginx
   podSecurity:
     runAsNonRoot: true
-    seccompProfile: RuntimeDefault
+    seccompProfile:
+      type: RuntimeDefault
 
 config:
   inheritanceOrder:
-    - base
+    - common
     - environment
+    - customer
     - platform
+    - airgap
+    - localOverride
     - secretRefs
   configMapNames:
     gateway: in-atelier-gateway-config
@@ -81,19 +132,703 @@ config:
       keys:
         - client-id
         - client-secret
+    postgresCredentials:
+      existingSecret: in-atelier-postgresql
+      keys:
+        - username
+        - password
+        - database
+    mongoCredentials:
+      existingSecret: in-atelier-mongodb
+      keys:
+        - username
+        - password
+        - database
+    kafkaCredentials:
+      existingSecret: in-atelier-kafka
+      keys:
+        - username
+        - password
+    objectStorageCredentials:
+      existingSecret: in-atelier-storage
+      keys:
+        - access-key
+        - secret-key
+
+apisix:
+  enabled: true
+  wrapper:
+    componentId: apisix
+    workload:
+      kind: Deployment
+  image:
+    repository: docker.io/apache/apisix
+    tag: 3.10.0
+    pullPolicy: IfNotPresent
+  replicas: 2
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 9080
+    targetPort: 9080
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 9080
+      protocol: TCP
+    - name: admin
+      containerPort: 9180
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  env:
+    - name: APISIX_STAND_ALONE
+      value: "true"
+  envFromSecrets: []
+  envFromConfigMaps:
+    - in-atelier-gateway-config
+  persistence:
+    enabled: false
+    existingClaim: ""
+    size: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /usr/local/apisix/conf
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      APISIX_STAND_ALONE: "true"
+
+keycloak:
+  enabled: true
+  wrapper:
+    componentId: keycloak
+    workload:
+      kind: Deployment
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: 26.1.0
+    pullPolicy: IfNotPresent
+  command:
+    - /opt/keycloak/bin/kc.sh
+  args:
+    - start
+    - --http-enabled=true
+    - --hostname-strict=false
+  replicas: 1
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 8080
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  env:
+    - name: KC_PROXY_HEADERS
+      value: xforwarded
+    - name: KC_HEALTH_ENABLED
+      value: "true"
+  envFromSecrets:
+    - in-atelier-identity-client
+  envFromConfigMaps: []
+  persistence:
+    enabled: false
+    existingClaim: ""
+    size: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /opt/keycloak/data
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      publicPath: /auth
+
+postgresql:
+  enabled: true
+  wrapper:
+    componentId: postgresql
+    workload:
+      kind: StatefulSet
+  image:
+    repository: docker.io/bitnami/postgresql
+    tag: 17.2.0
+    pullPolicy: IfNotPresent
+  replicas: 1
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+    portName: tcp-postgresql
+    annotations: {}
+  ports:
+    - name: tcp-postgresql
+      containerPort: 5432
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  env:
+    - name: POSTGRESQL_DATABASE
+      value: in_atelier
+  envFromSecrets:
+    - in-atelier-postgresql
+  envFromConfigMaps: []
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 20Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /bitnami/postgresql
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    fsGroup: 1001
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      tenantIsolationMode: schema-per-tenant
+
+mongodb:
+  enabled: true
+  wrapper:
+    componentId: mongodb
+    workload:
+      kind: StatefulSet
+  image:
+    repository: docker.io/bitnami/mongodb
+    tag: 8.0.0
+    pullPolicy: IfNotPresent
+  replicas: 1
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 27017
+    targetPort: 27017
+    portName: tcp-mongodb
+    annotations: {}
+  ports:
+    - name: tcp-mongodb
+      containerPort: 27017
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  env:
+    - name: MONGODB_DATABASE
+      value: in_atelier
+  envFromSecrets:
+    - in-atelier-mongodb
+  envFromConfigMaps: []
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 20Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /bitnami/mongodb
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    fsGroup: 1001
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      tenantPartitionKey: tenantId
+
+kafka:
+  enabled: true
+  wrapper:
+    componentId: kafka
+    workload:
+      kind: StatefulSet
+  image:
+    repository: docker.io/bitnami/kafka
+    tag: 3.9.0
+    pullPolicy: IfNotPresent
+  replicas: 3
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 9092
+    targetPort: 9092
+    portName: tcp-kafka
+    annotations: {}
+  ports:
+    - name: tcp-kafka
+      containerPort: 9092
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 300m
+      memory: 768Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  env:
+    - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+      value: "false"
+  envFromSecrets:
+    - in-atelier-kafka
+  envFromConfigMaps: []
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 50Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /bitnami/kafka
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    fsGroup: 1001
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      deliverySemantics: at-least-once
+
+openwhisk:
+  enabled: true
+  wrapper:
+    componentId: openwhisk
+    workload:
+      kind: Deployment
+  image:
+    repository: docker.io/apache/openwhisk-controller
+    tag: 2.0.0
+    pullPolicy: IfNotPresent
+  replicas: 2
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 3233
+    targetPort: 3233
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 3233
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  env:
+    - name: OPENWHISK_RUNTIME_ENV
+      value: kubernetes
+  envFromSecrets: []
+  envFromConfigMaps: []
+  persistence:
+    enabled: false
+    existingClaim: ""
+    size: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /openwhisk
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      executionPlane: serverless
+
+storage:
+  enabled: true
+  wrapper:
+    componentId: storage
+    workload:
+      kind: StatefulSet
+  image:
+    repository: docker.io/minio/minio
+    tag: 2026.3.23
+    pullPolicy: IfNotPresent
+  command:
+    - /usr/bin/docker-entrypoint.sh
+  args:
+    - minio
+    - server
+    - /data
+    - --console-address=:9001
+  replicas: 1
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 9000
+    targetPort: 9000
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 9000
+      protocol: TCP
+    - name: console
+      containerPort: 9001
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1
+      memory: 2Gi
+  env:
+    - name: MINIO_BROWSER_REDIRECT_URL
+      value: https://console.dev.in-atelier.example.com
+  envFromSecrets:
+    - in-atelier-storage
+  envFromConfigMaps: []
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 100Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /data
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    fsGroup: 1001
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      provider: s3-compatible
+
+observability:
+  enabled: true
+  wrapper:
+    componentId: observability
+    workload:
+      kind: Deployment
+  image:
+    repository: docker.io/prom/prometheus
+    tag: 3.2.1
+    pullPolicy: IfNotPresent
+  replicas: 1
+  serviceAccount:
+    create: true
+    name: ""
+  service:
+    enabled: true
+    type: ClusterIP
+    port: 9090
+    targetPort: 9090
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 9090
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  env:
+    - name: PROMETHEUS_RETENTION_TIME
+      value: 15d
+  envFromSecrets: []
+  envFromConfigMaps: []
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 20Gi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /prometheus
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext:
+    fsGroup: 1001
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      scrapeModel: platform-wide
 
 controlPlane:
   enabled: true
+  wrapper:
+    componentId: control-plane
+    workload:
+      kind: Deployment
   image:
     repository: ghcr.io/example/in-atelier-control-plane
     tag: 0.1.0
+    pullPolicy: IfNotPresent
+  replicas: 2
+  serviceAccount:
+    create: true
+    name: ""
   service:
+    enabled: true
+    type: ClusterIP
     port: 8080
+    targetPort: 8080
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 8080
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: DEPLOYMENT_PROFILE
+      value: dev
+  envFromSecrets: []
+  envFromConfigMaps:
+    - in-atelier-control-plane-config
+  persistence:
+    enabled: false
+    existingClaim: ""
+    size: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /srv/control-plane
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      openapiPath: /control-plane/openapi
 
 webConsole:
   enabled: true
+  wrapper:
+    componentId: web-console
+    workload:
+      kind: Deployment
   image:
     repository: ghcr.io/example/in-atelier-web-console
     tag: 0.1.0
+    pullPolicy: IfNotPresent
+  replicas: 2
+  serviceAccount:
+    create: true
+    name: ""
   service:
+    enabled: true
+    type: ClusterIP
     port: 3000
+    targetPort: 3000
+    portName: http
+    annotations: {}
+  ports:
+    - name: http
+      containerPort: 3000
+      protocol: TCP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: PUBLIC_BASE_PATH
+      value: /
+  envFromSecrets: []
+  envFromConfigMaps:
+    - in-atelier-web-console-config
+  persistence:
+    enabled: false
+    existingClaim: ""
+    size: ""
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    mountPath: /srv/web-console
+    annotations: {}
+  podAnnotations: {}
+  podLabels: {}
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+  config:
+    inline:
+      homepageHost: console.dev.in-atelier.example.com

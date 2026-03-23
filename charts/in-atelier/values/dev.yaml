@@ -29,3 +29,13 @@ environmentProfile:
 deployment:
   topology:
     clusterRef: cluster-dev-shared
+
+controlPlane:
+  replicas: 1
+
+webConsole:
+  replicas: 1
+
+observability:
+  persistence:
+    size: 10Gi

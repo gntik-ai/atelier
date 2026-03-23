@@ -7,3 +7,23 @@ platform:
     enabled: true
   routeAnnotations:
     haproxy.router.openshift.io/timeout: 30s
+
+publicSurface:
+  route:
+    annotations:
+      haproxy.router.openshift.io/timeout: 30s
+
+apisix:
+  podSecurityContext: {}
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+
+controlPlane:
+  podSecurityContext: {}
+
+webConsole:
+  podSecurityContext: {}

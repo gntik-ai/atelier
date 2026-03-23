@@ -1,0 +1,60 @@
+{{- if eq .Values.platform.network.exposureKind "Ingress" }}
+{{- $ingressAnnotations := merge (default (dict) .Values.platform.routeAnnotations) (default (dict) .Values.publicSurface.ingress.annotations) -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "in-atelier.fullname" . }}-public
+  labels:
+    {{- include "in-atelier.labels" . | nindent 4 }}
+  {{- if gt (len $ingressAnnotations) 0 }}
+  annotations:
+    {{- toYaml $ingressAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.publicSurface.ingress.className | quote }}
+  tls:
+    {{- range $surface, $hostname := .Values.publicSurface.hostnames }}
+    - hosts:
+        - {{ $hostname }}
+      secretName: {{ index $.Values.publicSurface.certificates.surfaces $surface }}
+    {{- end }}
+  rules:
+    {{- range $surface, $binding := .Values.publicSurface.bindings }}
+    - host: {{ index $.Values.publicSurface.hostnames $surface }}
+      http:
+        paths:
+          - path: {{ $binding.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "in-atelier.componentServiceName" (dict "root" $ "binding" $binding) }}
+                port:
+                  name: {{ $binding.servicePort }}
+    {{- end }}
+{{- else if eq .Values.platform.network.exposureKind "Route" }}
+{{- $routeAnnotations := merge (default (dict) .Values.platform.routeAnnotations) (default (dict) .Values.publicSurface.route.annotations) -}}
+{{- range $surface, $binding := .Values.publicSurface.bindings }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "in-atelier.fullname" $ }}-{{ $surface }}
+  labels:
+    {{- include "in-atelier.labels" $ | nindent 4 }}
+  {{- if gt (len $routeAnnotations) 0 }}
+  annotations:
+    {{- toYaml $routeAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  host: {{ index $.Values.publicSurface.hostnames $surface }}
+  path: {{ $binding.path }}
+  to:
+    kind: Service
+    name: {{ include "in-atelier.componentServiceName" (dict "root" $ "binding" $binding) }}
+  port:
+    targetPort: {{ $binding.servicePort }}
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+{{- end }}
+{{- end }}

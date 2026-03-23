@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.configMapNames.gateway }}
+  labels:
+    {{- include "in-atelier.labels" . | nindent 4 }}
+data:
+  environment: {{ .Values.global.environment | quote }}
+  exposureKind: {{ .Values.platform.network.exposureKind | quote }}
+  apiHostname: {{ .Values.publicSurface.hostnames.api | quote }}
+  realtimeHostname: {{ .Values.publicSurface.hostnames.realtime | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.configMapNames.controlPlane }}
+  labels:
+    {{- include "in-atelier.labels" . | nindent 4 }}
+data:
+  diagnostics.logLevel: {{ .Values.environmentProfile.diagnostics.logLevel | quote }}
+  diagnostics.debugEndpoints: {{ .Values.environmentProfile.diagnostics.debugEndpoints | quote }}
+  limitsProfile: {{ .Values.environmentProfile.limitsProfile | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.configMapNames.webConsole }}
+  labels:
+    {{- include "in-atelier.labels" . | nindent 4 }}
+data:
+  consoleHostname: {{ .Values.publicSurface.hostnames.console | quote }}
+  publicBasePath: {{ .Values.publicSurface.routePrefixes.console | quote }}
+  environment: {{ .Values.global.environment | quote }}

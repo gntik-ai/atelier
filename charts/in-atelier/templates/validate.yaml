@@ -1,0 +1,34 @@
+{{- define "in-atelier.validate" -}}
+{{- $components := list "apisix" "keycloak" "postgresql" "mongodb" "kafka" "openwhisk" "storage" "observability" "controlPlane" "webConsole" -}}
+{{- range $components }}
+  {{- $component := index $.Values . -}}
+  {{- if and $component.enabled (not $component.image.repository) -}}
+    {{- fail (printf "%s.image.repository is required when the component is enabled" .) -}}
+  {{- end -}}
+  {{- if and $component.enabled $component.persistence.enabled (not $component.persistence.existingClaim) (not $component.persistence.size) -}}
+    {{- fail (printf "%s.persistence.size is required when persistence is enabled without existingClaim" .) -}}
+  {{- end -}}
+{{- end -}}
+{{- if and .Values.global.airgap.enabled (not .Values.global.privateRegistry.registry) -}}
+  {{- fail "global.privateRegistry.registry is required when global.airgap.enabled=true" -}}
+{{- end -}}
+{{- if and .Values.global.privateRegistry.enabled (eq (len .Values.global.privateRegistry.pullSecretNames) 0) -}}
+  {{- fail "global.privateRegistry.pullSecretNames must not be empty when the private registry is enabled" -}}
+{{- end -}}
+{{- if and .Values.platform.openshift.enabled (ne .Values.platform.network.exposureKind "Route") -}}
+  {{- fail "platform.network.exposureKind must be Route when platform.openshift.enabled=true" -}}
+{{- end -}}
+{{- if and (not .Values.platform.openshift.enabled) (ne .Values.platform.network.exposureKind "Ingress") -}}
+  {{- fail "platform.network.exposureKind must be Ingress when platform.openshift.enabled=false" -}}
+{{- end -}}
+{{- range $surface, $binding := .Values.publicSurface.bindings -}}
+  {{- $component := index $.Values $binding.component -}}
+  {{- if and (not $binding.serviceName) (not $component.enabled) -}}
+    {{- fail (printf "publicSurface.bindings.%s needs either an enabled component or an explicit serviceName" $surface) -}}
+  {{- end -}}
+{{- end -}}
+{{- if not (has "common" .Values.config.inheritanceOrder) -}}
+  {{- fail "config.inheritanceOrder must include the common values layer" -}}
+{{- end -}}
+{{- end -}}
+{{ include "in-atelier.validate" . }}

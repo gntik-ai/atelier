@@ -17,6 +17,26 @@ test('deployment topology contract exposes the required descriptors and promotio
   assert.ok(topology.contracts.public_endpoint_descriptor.required_fields.includes('route_prefix'));
   assert.ok(topology.contracts.promotion_plan_descriptor.error_classes.includes('config_drift_detected'));
   assert.ok(topology.contracts.smoke_assertion_descriptor.required_fields.includes('expected_exposure_kind'));
+  assert.deepEqual(topology.configuration_policy.helm_value_layers, [
+    'common',
+    'environment',
+    'customer',
+    'platform',
+    'airgap',
+    'localOverride'
+  ]);
+  assert.deepEqual(topology.packaging_guidance.component_aliases, [
+    'apisix',
+    'keycloak',
+    'postgresql',
+    'mongodb',
+    'kafka',
+    'openwhisk',
+    'storage',
+    'observability',
+    'controlPlane',
+    'webConsole'
+  ]);
 });
 
 test('resolved environment overlays preserve the same public route semantics across platforms', () => {

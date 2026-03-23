@@ -37,3 +37,35 @@ config:
 deployment:
   topology:
     clusterRef: cluster-prod-shared
+
+apisix:
+  replicas: 4
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 2Gi
+
+postgresql:
+  persistence:
+    size: 100Gi
+
+mongodb:
+  persistence:
+    size: 100Gi
+
+kafka:
+  persistence:
+    size: 200Gi
+
+storage:
+  persistence:
+    size: 500Gi
+
+controlPlane:
+  replicas: 3
+
+webConsole:
+  replicas: 3

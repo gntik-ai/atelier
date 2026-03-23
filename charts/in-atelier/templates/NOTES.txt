@@ -1,7 +1,20 @@
-The bootstrap chart defines only chart metadata and values at this stage.
+In Atelier umbrella chart
+=========================
 
-Future tasks should add deployable templates incrementally while preserving:
-- Kubernetes compatibility
-- OpenShift-safe defaults
-- explicit service contracts per component
-- stable public route prefixes and environment-profile overlays from US-ARC-02
+Environment: {{ .Values.global.environment }}
+Namespace: {{ .Values.global.namespace }}
+Exposure kind: {{ .Values.platform.network.exposureKind }}
+
+Recommended values layering order:
+1. {{ .Values.deployment.valuesLayers.common }}
+2. {{ .Values.deployment.valuesLayers.environment }}
+3. {{ .Values.deployment.valuesLayers.customer }}
+4. {{ .Values.deployment.valuesLayers.platform }}
+5. {{ .Values.deployment.valuesLayers.airgap }}
+6. {{ .Values.deployment.valuesLayers.localOverride }}
+
+Public endpoints:
+- API: https://{{ .Values.publicSurface.hostnames.api }}{{ .Values.publicSurface.bindings.api.path }}
+- Identity: https://{{ .Values.publicSurface.hostnames.identity }}{{ .Values.publicSurface.bindings.identity.path }}
+- Realtime: https://{{ .Values.publicSurface.hostnames.realtime }}{{ .Values.publicSurface.bindings.realtime.path }}
+- Console: https://{{ .Values.publicSurface.hostnames.console }}{{ .Values.publicSurface.bindings.console.path }}

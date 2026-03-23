@@ -241,9 +241,12 @@
   },
   "configuration_policy": {
     "helm_value_layers": [
-      "base",
+      "common",
       "environment",
-      "platform"
+      "customer",
+      "platform",
+      "airgap",
+      "localOverride"
     ],
     "runtime_secret_layer": "secretRefs",
     "allowed_environment_overrides": [
@@ -324,5 +327,26 @@
       ],
       "security_profile": "restricted-v2"
     }
+  },
+  "packaging_guidance": {
+    "umbrella_chart": "charts/in-atelier",
+    "component_wrapper_chart": "charts/in-atelier/charts/component-wrapper",
+    "supported_install_modes": [
+      "umbrella",
+      "component_only",
+      "external_dependency"
+    ],
+    "component_aliases": [
+      "apisix",
+      "keycloak",
+      "postgresql",
+      "mongodb",
+      "kafka",
+      "openwhisk",
+      "storage",
+      "observability",
+      "controlPlane",
+      "webConsole"
+    ]
   }
 }

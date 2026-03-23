@@ -37,3 +37,12 @@ config:
 deployment:
   topology:
     clusterRef: cluster-staging-shared
+
+apisix:
+  replicas: 3
+
+controlPlane:
+  replicas: 2
+
+webConsole:
+  replicas: 2

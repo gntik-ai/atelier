@@ -68,10 +68,13 @@ Model the current state as single-cluster and single-region per environment, but
 
 Standardize Helm/runtime layering as:
 
-1. base chart values
+1. common chart values
 2. environment overlay
-3. platform overlay
-4. runtime secret references
+3. customer overlay
+4. platform overlay
+5. air-gap/private-registry overlay
+6. local workstation override
+7. runtime secret references
 
 Repository-tracked artifacts may store only secret references, never raw credentials or TLS material.
 

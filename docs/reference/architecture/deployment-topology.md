@@ -47,7 +47,8 @@ Only the above operational characteristics, hostname/certificate bindings, and a
 - one cluster per environment
 - one region per environment (`eu-west-1` in the baseline metadata)
 - same logical public API surface across environments
-- same Helm chart layered as `base -> environment -> platform -> secretRefs`
+- one umbrella Helm chart with aliased reusable component wrappers for APISIX, Keycloak, PostgreSQL, MongoDB, Kafka, OpenWhisk, storage, observability, control-plane, and web-console
+- same Helm chart layered as `common -> environment -> customer -> platform -> airgap -> localOverride -> secretRefs`
 
 ### Forward-compatibility guardrails
 
@@ -82,5 +83,7 @@ Each promotion must review functional config drift for:
 - Kubernetes exposes the public surface via `Ingress`.
 - OpenShift exposes the same logical surface via `Route`.
 - Both platforms must keep the same base resource set (`Namespace`, `ConfigMap`, `Deployment`, `Service`) and differ only on the final exposure resource kind.
+- Public endpoint bindings may target disabled wrapper components only when the chart values point to an explicit externally managed service name.
 
 The smoke matrix under `tests/reference/deployment-smoke-matrix.yaml` is the executable parity checklist.
+The operator packaging guide lives in `charts/in-atelier/README.md` and is part of the deployment baseline.
