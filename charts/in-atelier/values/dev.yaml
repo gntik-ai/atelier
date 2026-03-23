@@ -1,0 +1,31 @@
+global:
+  namespace: in-atelier-dev
+  environment: dev
+
+publicSurface:
+  hostnames:
+    api: api.dev.in-atelier.example.com
+    console: console.dev.in-atelier.example.com
+    identity: iam.dev.in-atelier.example.com
+    realtime: realtime.dev.in-atelier.example.com
+  certificates:
+    wildcardSecretName: in-atelier-dev-wildcard-tls
+    surfaces:
+      api: in-atelier-dev-api-tls
+      console: in-atelier-dev-console-tls
+      identity: in-atelier-dev-identity-tls
+      realtime: in-atelier-dev-realtime-tls
+
+environmentProfile:
+  id: dev
+  diagnostics:
+    logLevel: debug
+    debugEndpoints: true
+    passthroughHeaders: true
+  demoData:
+    enabled: true
+  limitsProfile: relaxed
+
+deployment:
+  topology:
+    clusterRef: cluster-dev-shared

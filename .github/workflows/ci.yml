@@ -50,6 +50,9 @@ jobs:
       - name: Console E2E scaffolding
         run: pnpm test:e2e:console
 
+      - name: Deployment smoke scaffolding
+        run: pnpm test:e2e:deployment
+
       - name: Resilience scaffolding
         run: pnpm test:resilience
 
@@ -58,6 +61,13 @@ jobs:
         with:
           name: control-plane-openapi-contract
           path: apps/control-plane/openapi/control-plane.openapi.json
+          if-no-files-found: error
+
+      - name: Upload deployment topology artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-topology-contract
+          path: services/internal-contracts/src/deployment-topology.json
           if-no-files-found: error
 
   security:

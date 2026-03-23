@@ -6,6 +6,7 @@ This directory contains the reusable testing-strategy package for `US-PRG-04-T01
 
 - `testing-strategy.yaml` — the testing pyramid, cross-domain matrix, taxonomy, console-state expectations, and API-versioning expectations
 - `reference-dataset.json` — synthetic fixtures shared across multi-tenant, security, data, event, console, and resilience scenarios
+- `deployment-smoke-matrix.yaml` — environment/platform smoke assertions for Kubernetes/OpenShift public-surface parity
 
 ## Usage rules
 
@@ -13,3 +14,4 @@ This directory contains the reusable testing-strategy package for `US-PRG-04-T01
 - Add new matrix scenarios before adding framework-specific test implementations.
 - Keep the assets synthetic and non-secret.
 - Preserve alignment with `apps/control-plane/openapi/control-plane.openapi.json` when contract expectations change.
+- Keep deployment smoke assertions aligned with `services/internal-contracts/src/deployment-topology.json` and Helm value overlays.

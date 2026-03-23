@@ -1,0 +1,39 @@
+global:
+  namespace: in-atelier
+  environment: prod
+
+publicSurface:
+  hostnames:
+    api: api.in-atelier.example.com
+    console: console.in-atelier.example.com
+    identity: iam.in-atelier.example.com
+    realtime: realtime.in-atelier.example.com
+  certificates:
+    wildcardSecretName: in-atelier-prod-wildcard-tls
+    surfaces:
+      api: in-atelier-prod-api-tls
+      console: in-atelier-prod-console-tls
+      identity: in-atelier-prod-identity-tls
+      realtime: in-atelier-prod-realtime-tls
+
+environmentProfile:
+  id: prod
+  diagnostics:
+    logLevel: warn
+    debugEndpoints: false
+    passthroughHeaders: false
+  demoData:
+    enabled: false
+  limitsProfile: strict
+
+config:
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-atelier-prod-api-tls
+      keys:
+        - tls.crt
+        - tls.key
+
+deployment:
+  topology:
+    clusterRef: cluster-prod-shared

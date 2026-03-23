@@ -13,7 +13,7 @@ This repository establishes the minimal working structure for:
 - `services/provisioning-orchestrator`: control-plane orchestration workspace
 - `services/audit`: audit/evidence workspace
 - `services/adapters`: external service adapter packages
-- `charts/in-atelier`: Helm chart skeleton for Kubernetes/OpenShift deployments
+- `charts/in-atelier`: Helm chart baseline plus environment/platform overlays for Kubernetes/OpenShift deployments
 - `docs`: architecture and working conventions
 - `tests/e2e`: end-to-end test workspace
 - `tests/reference`: reusable testing strategy package and synthetic reference dataset
@@ -50,6 +50,7 @@ tests/
 - Keep reusable service-side packages and operational assets under `services/`.
 - Keep documentation under `docs/` and decisions under `docs/adr/`.
 - Keep environment-specific deployment values outside chart templates when possible.
+- Layer deployment values as `base -> environment -> platform -> secretRefs` to make promotion and rollback auditable.
 - Keep OpenShift compatibility by avoiding privileged defaults and using standard Kubernetes APIs.
 
 ## Quality gates
@@ -60,6 +61,7 @@ The current baseline quality chain covers:
 - PostgreSQL ADR package validation
 - testing-strategy package validation
 - internal service-map validation
+- deployment-topology validation for domains, environments, overlays, and smoke parity
 - markdown linting
 - OpenAPI validation for the control-plane contract
 - unit tests for helper logic and strategy consistency
@@ -67,6 +69,7 @@ The current baseline quality chain covers:
 - contract tests for API versioning/error expectations
 - internal contract/service-map tests
 - console E2E scaffold tests
+- deployment smoke scaffold tests for Kubernetes/OpenShift parity
 - resilience scaffold tests
 - dependency vulnerability audit
 - immutable image-reference policy checks

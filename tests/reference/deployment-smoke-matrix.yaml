@@ -1,0 +1,143 @@
+shared_expectations:
+  required_host_keys:
+    - api
+    - console
+    - identity
+    - realtime
+  required_resources:
+    - Namespace
+    - ConfigMap
+    - Deployment
+    - Service
+  route_prefixes:
+    controlPlane: /control-plane
+    identity: /auth
+    realtime: /realtime
+    console: /
+  logical_resources:
+    - gateway-config
+    - control-plane
+    - web-console
+    - public-exposure
+
+smoke_scenarios:
+  - id: SMOKE-DEV-K8S
+    environment: dev
+    platform: kubernetes
+    expected_exposure_kind: Ingress
+    expected_hostnames:
+      api: api.dev.in-atelier.example.com
+      console: console.dev.in-atelier.example.com
+      identity: iam.dev.in-atelier.example.com
+      realtime: realtime.dev.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Ingress
+  - id: SMOKE-DEV-OCP
+    environment: dev
+    platform: openshift
+    expected_exposure_kind: Route
+    expected_hostnames:
+      api: api.dev.in-atelier.example.com
+      console: console.dev.in-atelier.example.com
+      identity: iam.dev.in-atelier.example.com
+      realtime: realtime.dev.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Route
+  - id: SMOKE-SANDBOX-K8S
+    environment: sandbox
+    platform: kubernetes
+    expected_exposure_kind: Ingress
+    expected_hostnames:
+      api: api.sandbox.in-atelier.example.com
+      console: console.sandbox.in-atelier.example.com
+      identity: iam.sandbox.in-atelier.example.com
+      realtime: realtime.sandbox.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Ingress
+  - id: SMOKE-SANDBOX-OCP
+    environment: sandbox
+    platform: openshift
+    expected_exposure_kind: Route
+    expected_hostnames:
+      api: api.sandbox.in-atelier.example.com
+      console: console.sandbox.in-atelier.example.com
+      identity: iam.sandbox.in-atelier.example.com
+      realtime: realtime.sandbox.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Route
+  - id: SMOKE-STAGING-K8S
+    environment: staging
+    platform: kubernetes
+    expected_exposure_kind: Ingress
+    expected_hostnames:
+      api: api.staging.in-atelier.example.com
+      console: console.staging.in-atelier.example.com
+      identity: iam.staging.in-atelier.example.com
+      realtime: realtime.staging.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Ingress
+  - id: SMOKE-STAGING-OCP
+    environment: staging
+    platform: openshift
+    expected_exposure_kind: Route
+    expected_hostnames:
+      api: api.staging.in-atelier.example.com
+      console: console.staging.in-atelier.example.com
+      identity: iam.staging.in-atelier.example.com
+      realtime: realtime.staging.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Route
+  - id: SMOKE-PROD-K8S
+    environment: prod
+    platform: kubernetes
+    expected_exposure_kind: Ingress
+    expected_hostnames:
+      api: api.in-atelier.example.com
+      console: console.in-atelier.example.com
+      identity: iam.in-atelier.example.com
+      realtime: realtime.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Ingress
+  - id: SMOKE-PROD-OCP
+    environment: prod
+    platform: openshift
+    expected_exposure_kind: Route
+    expected_hostnames:
+      api: api.in-atelier.example.com
+      console: console.in-atelier.example.com
+      identity: iam.in-atelier.example.com
+      realtime: realtime.in-atelier.example.com
+    required_resources:
+      - Namespace
+      - ConfigMap
+      - Deployment
+      - Service
+      - Route

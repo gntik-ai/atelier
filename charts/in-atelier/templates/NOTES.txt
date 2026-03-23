@@ -4,3 +4,4 @@ Future tasks should add deployable templates incrementally while preserving:
 - Kubernetes compatibility
 - OpenShift-safe defaults
 - explicit service contracts per component
+- stable public route prefixes and environment-profile overlays from US-ARC-02

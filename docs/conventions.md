@@ -15,6 +15,7 @@
 - avoid introducing runtime dependencies without a task that justifies them
 - document intent before adding framework-specific complexity
 - keep Kubernetes manifests portable and OpenShift-safe by default
+- keep public route prefixes stable across environments; vary only approved profile, hostname, certificate, and secret-reference settings
 
 ## Quality gates
 
@@ -27,3 +28,4 @@ Every future feature should preserve at least:
 5. supply-chain checks for dependencies and declared deployable images
 6. deployability path that remains compatible with Kubernetes and OpenShift
 7. internal boundary and contract metadata that remain machine-checkable as the control plane grows
+8. deployment topology, environment-profile, and promotion rules that remain machine-checkable as the platform expands

@@ -1,0 +1,9 @@
+platform:
+  target: kubernetes
+  network:
+    exposureKind: Ingress
+  securityProfile: restricted
+  openshift:
+    enabled: false
+  routeAnnotations:
+    kubernetes.io/ingress.class: nginx

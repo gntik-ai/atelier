@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 
 const INTERNAL_SERVICE_MAP_URL = new URL('./internal-service-map.json', import.meta.url);
+const DEPLOYMENT_TOPOLOGY_URL = new URL('./deployment-topology.json', import.meta.url);
 
 let cachedInternalServiceMap;
+let cachedDeploymentTopology;
 
 export function readInternalServiceMap() {
   if (!cachedInternalServiceMap) {
@@ -12,7 +14,16 @@ export function readInternalServiceMap() {
   return cachedInternalServiceMap;
 }
 
+export function readDeploymentTopology() {
+  if (!cachedDeploymentTopology) {
+    cachedDeploymentTopology = JSON.parse(readFileSync(DEPLOYMENT_TOPOLOGY_URL, 'utf8'));
+  }
+
+  return cachedDeploymentTopology;
+}
+
 export const INTERNAL_CONTRACT_VERSION = readInternalServiceMap().version;
+export const DEPLOYMENT_TOPOLOGY_VERSION = readDeploymentTopology().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
 export const AUDIT_MODULE_SERVICE_ID = 'audit_module';
@@ -43,6 +54,22 @@ export function getContract(contractId) {
 
 export function listInteractionFlows() {
   return readInternalServiceMap().interaction_flows;
+}
+
+export function listEnvironmentProfiles() {
+  return readDeploymentTopology().environment_profiles;
+}
+
+export function getEnvironmentProfile(environmentId) {
+  return listEnvironmentProfiles().find((profile) => profile.id === environmentId);
+}
+
+export function listDeploymentPlatforms() {
+  return Object.entries(readDeploymentTopology().platform_matrix).map(([id, platform]) => ({ id, ...platform }));
+}
+
+export function getDeploymentContract(contractId) {
+  return readDeploymentTopology().contracts[contractId];
 }
 
 export function listAdapterPortsForConsumer(serviceId) {

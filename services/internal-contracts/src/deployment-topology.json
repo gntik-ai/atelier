@@ -1,0 +1,328 @@
+{
+  "version": "2026-03-23",
+  "scope": "US-ARC-02",
+  "system": "in-atelier-public-domain-topology",
+  "contracts": {
+    "deployment_profile_descriptor": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "id",
+        "hostnames",
+        "operational_profile",
+        "topology",
+        "promotion"
+      ],
+      "versioning": "Environment profiles evolve additively while preserving the stable public surface and route prefixes for v1 consumers.",
+      "error_classes": [
+        "invalid_environment_profile",
+        "forbidden_profile_override"
+      ]
+    },
+    "public_endpoint_descriptor": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "surface",
+        "hostname",
+        "route_prefix",
+        "certificate_secret_name"
+      ],
+      "versioning": "Hostnames may vary by environment, but public endpoint surface names and route prefix semantics remain stable until an explicit contract migration.",
+      "error_classes": [
+        "hostname_collision",
+        "invalid_certificate_reference"
+      ]
+    },
+    "promotion_plan_descriptor": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "source_environment",
+        "target_environment",
+        "functional_config_units",
+        "gates",
+        "rollback"
+      ],
+      "versioning": "Promotion flow may add new gates or config units, but the canonical environment order and rollback requirements must remain explicit.",
+      "error_classes": [
+        "promotion_path_violation",
+        "config_drift_detected"
+      ]
+    },
+    "smoke_assertion_descriptor": {
+      "owner": "tests/reference",
+      "version": "2026-03-23",
+      "required_fields": [
+        "environment",
+        "platform",
+        "expected_exposure_kind",
+        "expected_hostnames",
+        "required_resources"
+      ],
+      "versioning": "Smoke assertions expand by adding new scenarios while preserving the baseline Kubernetes/OpenShift parity checks for the shared public surface.",
+      "error_classes": [
+        "missing_smoke_coverage",
+        "platform_surface_drift"
+      ]
+    }
+  },
+  "public_surface": {
+    "root_domain": "in-atelier.example.com",
+    "route_prefixes": {
+      "control_plane": "/control-plane",
+      "identity": "/auth",
+      "realtime": "/realtime",
+      "console": "/"
+    },
+    "optional_workspace_subdomain": {
+      "enabled_by_default": false,
+      "hostname_pattern": "{workspaceSlug}.apps.{environment}.in-atelier.example.com",
+      "allowed_environments": [
+        "dev",
+        "sandbox"
+      ]
+    },
+    "certificate_naming": {
+      "issuer_ref": {
+        "name": "letsencrypt-public",
+        "kind": "ClusterIssuer"
+      },
+      "wildcard_secret_pattern": "in-atelier-{environment}-wildcard-tls",
+      "surface_secret_pattern": "in-atelier-{environment}-{surface}-tls"
+    }
+  },
+  "environment_profiles": [
+    {
+      "id": "dev",
+      "purpose": "Developer integration and rapid feedback",
+      "hostnames": {
+        "api": "api.dev.in-atelier.example.com",
+        "console": "console.dev.in-atelier.example.com",
+        "identity": "iam.dev.in-atelier.example.com",
+        "realtime": "realtime.dev.in-atelier.example.com"
+      },
+      "operational_profile": {
+        "log_level": "debug",
+        "debug_headers": true,
+        "passthrough_mode": "enabled",
+        "demo_data": true,
+        "quota_profile": "relaxed"
+      },
+      "topology": {
+        "cluster_mode": "single_cluster",
+        "region_mode": "single_region",
+        "cluster_ref": "cluster-dev-shared",
+        "region_ref": "eu-west-1"
+      },
+      "promotion": {
+        "incoming_from": [],
+        "outgoing_to": [
+          "staging"
+        ],
+        "config_freeze_required": false
+      }
+    },
+    {
+      "id": "sandbox",
+      "purpose": "Customer-safe preview and solution validation",
+      "hostnames": {
+        "api": "api.sandbox.in-atelier.example.com",
+        "console": "console.sandbox.in-atelier.example.com",
+        "identity": "iam.sandbox.in-atelier.example.com",
+        "realtime": "realtime.sandbox.in-atelier.example.com"
+      },
+      "operational_profile": {
+        "log_level": "info",
+        "debug_headers": false,
+        "passthrough_mode": "limited",
+        "demo_data": true,
+        "quota_profile": "preview"
+      },
+      "topology": {
+        "cluster_mode": "single_cluster",
+        "region_mode": "single_region",
+        "cluster_ref": "cluster-sandbox-shared",
+        "region_ref": "eu-west-1"
+      },
+      "promotion": {
+        "incoming_from": [
+          "prod"
+        ],
+        "outgoing_to": [],
+        "config_freeze_required": true
+      }
+    },
+    {
+      "id": "staging",
+      "purpose": "Pre-production verification with production-like controls",
+      "hostnames": {
+        "api": "api.staging.in-atelier.example.com",
+        "console": "console.staging.in-atelier.example.com",
+        "identity": "iam.staging.in-atelier.example.com",
+        "realtime": "realtime.staging.in-atelier.example.com"
+      },
+      "operational_profile": {
+        "log_level": "info",
+        "debug_headers": false,
+        "passthrough_mode": "disabled",
+        "demo_data": false,
+        "quota_profile": "production_like"
+      },
+      "topology": {
+        "cluster_mode": "single_cluster",
+        "region_mode": "single_region",
+        "cluster_ref": "cluster-staging-shared",
+        "region_ref": "eu-west-1"
+      },
+      "promotion": {
+        "incoming_from": [
+          "dev"
+        ],
+        "outgoing_to": [
+          "prod"
+        ],
+        "config_freeze_required": true
+      }
+    },
+    {
+      "id": "prod",
+      "purpose": "Production control plane and tenant runtime exposure",
+      "hostnames": {
+        "api": "api.in-atelier.example.com",
+        "console": "console.in-atelier.example.com",
+        "identity": "iam.in-atelier.example.com",
+        "realtime": "realtime.in-atelier.example.com"
+      },
+      "operational_profile": {
+        "log_level": "warn",
+        "debug_headers": false,
+        "passthrough_mode": "disabled",
+        "demo_data": false,
+        "quota_profile": "strict"
+      },
+      "topology": {
+        "cluster_mode": "single_cluster",
+        "region_mode": "single_region",
+        "cluster_ref": "cluster-prod-shared",
+        "region_ref": "eu-west-1"
+      },
+      "promotion": {
+        "incoming_from": [
+          "staging"
+        ],
+        "outgoing_to": [
+          "sandbox"
+        ],
+        "config_freeze_required": true
+      }
+    }
+  ],
+  "future_topology": {
+    "compatibility_contract": {
+      "stable_public_hosts": true,
+      "stable_route_prefixes": true,
+      "api_version_header": {
+        "name": "X-API-Version",
+        "current_value": "2026-03-23"
+      },
+      "placement_metadata": [
+        "environment_id",
+        "cluster_ref",
+        "region_ref"
+      ],
+      "idempotency": "Future mutating deployment APIs must use stable deployment_change_id values so promotion, failover, and replay semantics remain deterministic."
+    },
+    "evolution_targets": [
+      "multi_cluster",
+      "multi_region"
+    ],
+    "routing_rule": "DNS and gateway policy may shift traffic between clusters or regions without changing public URI prefixes or tenant-visible hostnames."
+  },
+  "configuration_policy": {
+    "helm_value_layers": [
+      "base",
+      "environment",
+      "platform"
+    ],
+    "runtime_secret_layer": "secretRefs",
+    "allowed_environment_overrides": [
+      "environmentProfile.diagnostics.logLevel",
+      "environmentProfile.diagnostics.debugEndpoints",
+      "environmentProfile.diagnostics.passthroughHeaders",
+      "environmentProfile.demoData.enabled",
+      "environmentProfile.limitsProfile",
+      "publicSurface.hostnames",
+      "publicSurface.certificates"
+    ],
+    "forbidden_environment_overrides": [
+      "publicSurface.routePrefixes",
+      "controlPlane.service.port",
+      "webConsole.service.port"
+    ],
+    "configmaps": [
+      {
+        "id": "gateway-runtime",
+        "source": "services/gateway-config/base/gateway.yaml",
+        "environment_overrides": "allowed via Helm values only"
+      }
+    ],
+    "secret_rules": [
+      "Repository-tracked values files may reference existingSecret names only and must not store raw credentials.",
+      "TLS material is injected out-of-band via secret references per environment and platform."
+    ],
+    "openshift_compatibility": [
+      "Use Route instead of Ingress when platform target is openshift.",
+      "Keep runAsNonRoot and seccomp RuntimeDefault defaults.",
+      "Prefer restricted SCC-compatible settings and avoid privileged containers."
+    ]
+  },
+  "promotion_strategy": {
+    "canonical_path": [
+      "dev",
+      "staging",
+      "prod"
+    ],
+    "sandbox_source": "prod",
+    "functional_config_units": [
+      "gateway-hosts",
+      "feature-flags",
+      "quota-profile",
+      "demo-data-policy",
+      "tls-secret-refs"
+    ],
+    "gates": [
+      "deployment topology validation",
+      "smoke matrix parity for kubernetes and openshift",
+      "explicit config diff review"
+    ],
+    "rollback": [
+      "Reapply last-known-good environment values and secret refs.",
+      "Preserve public hostnames and route prefixes during rollback."
+    ]
+  },
+  "platform_matrix": {
+    "kubernetes": {
+      "route_kind": "Ingress",
+      "base_resources": [
+        "Namespace",
+        "ConfigMap",
+        "Deployment",
+        "Service",
+        "Ingress"
+      ],
+      "security_profile": "restricted"
+    },
+    "openshift": {
+      "route_kind": "Route",
+      "base_resources": [
+        "Namespace",
+        "ConfigMap",
+        "Deployment",
+        "Service",
+        "Route"
+      ],
+      "security_profile": "restricted-v2"
+    }
+  }
+}

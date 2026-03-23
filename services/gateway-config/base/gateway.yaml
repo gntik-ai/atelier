@@ -8,3 +8,9 @@ metadata:
 data:
   GATEWAY_MODE: "managed"
   GATEWAY_PORT: "8080"
+  PUBLIC_DOMAIN_ROOT: "in-atelier.example.com"
+  CONTROL_PLANE_BASE_PATH: "/control-plane"
+  IDENTITY_BASE_PATH: "/auth"
+  REALTIME_BASE_PATH: "/realtime"
+  OPTIONAL_WORKSPACE_SUBDOMAIN_TEMPLATE: "{workspaceSlug}.apps.{environment}.in-atelier.example.com"
+  TLS_SECRET_REF_MODE: "existingSecret"

@@ -1,0 +1,9 @@
+platform:
+  target: openshift
+  network:
+    exposureKind: Route
+  securityProfile: restricted-v2
+  openshift:
+    enabled: true
+  routeAnnotations:
+    haproxy.router.openshift.io/timeout: 30s

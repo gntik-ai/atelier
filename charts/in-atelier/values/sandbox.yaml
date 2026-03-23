@@ -1,0 +1,41 @@
+global:
+  namespace: in-atelier-sandbox
+  environment: sandbox
+
+publicSurface:
+  hostnames:
+    api: api.sandbox.in-atelier.example.com
+    console: console.sandbox.in-atelier.example.com
+    identity: iam.sandbox.in-atelier.example.com
+    realtime: realtime.sandbox.in-atelier.example.com
+  optionalWorkspaceSubdomains:
+    enabled: true
+  certificates:
+    wildcardSecretName: in-atelier-sandbox-wildcard-tls
+    surfaces:
+      api: in-atelier-sandbox-api-tls
+      console: in-atelier-sandbox-console-tls
+      identity: in-atelier-sandbox-identity-tls
+      realtime: in-atelier-sandbox-realtime-tls
+
+environmentProfile:
+  id: sandbox
+  diagnostics:
+    logLevel: info
+    debugEndpoints: false
+    passthroughHeaders: false
+  demoData:
+    enabled: true
+  limitsProfile: preview
+
+config:
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-atelier-sandbox-api-tls
+      keys:
+        - tls.crt
+        - tls.key
+
+deployment:
+  topology:
+    clusterRef: cluster-sandbox-shared

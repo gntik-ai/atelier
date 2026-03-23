@@ -1,0 +1,39 @@
+global:
+  namespace: in-atelier-staging
+  environment: staging
+
+publicSurface:
+  hostnames:
+    api: api.staging.in-atelier.example.com
+    console: console.staging.in-atelier.example.com
+    identity: iam.staging.in-atelier.example.com
+    realtime: realtime.staging.in-atelier.example.com
+  certificates:
+    wildcardSecretName: in-atelier-staging-wildcard-tls
+    surfaces:
+      api: in-atelier-staging-api-tls
+      console: in-atelier-staging-console-tls
+      identity: in-atelier-staging-identity-tls
+      realtime: in-atelier-staging-realtime-tls
+
+environmentProfile:
+  id: staging
+  diagnostics:
+    logLevel: info
+    debugEndpoints: false
+    passthroughHeaders: false
+  demoData:
+    enabled: false
+  limitsProfile: production_like
+
+config:
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-atelier-staging-api-tls
+      keys:
+        - tls.crt
+        - tls.key
+
+deployment:
+  topology:
+    clusterRef: cluster-staging-shared

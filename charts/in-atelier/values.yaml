@@ -1,6 +1,86 @@
 global:
   nameOverride: in-atelier
-  namespace: in-atelier
+  namespace: in-atelier-dev
+  environment: dev
+  publicDomain:
+    root: in-atelier.example.com
+    certificateIssuerRef:
+      name: letsencrypt-public
+      kind: ClusterIssuer
+
+publicSurface:
+  routePrefixes:
+    controlPlane: /control-plane
+    identity: /auth
+    realtime: /realtime
+    console: /
+  optionalWorkspaceSubdomains:
+    enabled: false
+    hostTemplate: '{workspaceSlug}.apps.{environment}.in-atelier.example.com'
+  hostnames:
+    api: api.dev.in-atelier.example.com
+    console: console.dev.in-atelier.example.com
+    identity: iam.dev.in-atelier.example.com
+    realtime: realtime.dev.in-atelier.example.com
+  certificates:
+    wildcardSecretName: in-atelier-dev-wildcard-tls
+    surfaces:
+      api: in-atelier-dev-api-tls
+      console: in-atelier-dev-console-tls
+      identity: in-atelier-dev-identity-tls
+      realtime: in-atelier-dev-realtime-tls
+
+environmentProfile:
+  id: dev
+  diagnostics:
+    logLevel: debug
+    debugEndpoints: true
+    passthroughHeaders: true
+  demoData:
+    enabled: true
+  limitsProfile: relaxed
+
+deployment:
+  topology:
+    mode: single_cluster
+    region: eu-west-1
+    clusterRef: cluster-dev-shared
+    futureScaleVector:
+      - multi_cluster
+      - multi_region
+
+platform:
+  target: kubernetes
+  network:
+    exposureKind: Ingress
+  securityProfile: restricted
+  openshift:
+    enabled: false
+  podSecurity:
+    runAsNonRoot: true
+    seccompProfile: RuntimeDefault
+
+config:
+  inheritanceOrder:
+    - base
+    - environment
+    - platform
+    - secretRefs
+  configMapNames:
+    gateway: in-atelier-gateway-config
+    controlPlane: in-atelier-control-plane-config
+    webConsole: in-atelier-web-console-config
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-atelier-dev-api-tls
+      keys:
+        - tls.crt
+        - tls.key
+    identityClient:
+      existingSecret: in-atelier-identity-client
+      keys:
+        - client-id
+        - client-secret
 
 controlPlane:
   enabled: true
@@ -17,7 +97,3 @@ webConsole:
     tag: 0.1.0
   service:
     port: 3000
-
-platform:
-  openshift:
-    enabled: true
