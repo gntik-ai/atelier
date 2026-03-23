@@ -20,5 +20,8 @@
 Every future feature should preserve at least:
 
 1. documented purpose of new workspace additions
-2. runnable root-level validation command
-3. deployability path that remains compatible with Kubernetes and OpenShift
+2. runnable root-level validation commands
+3. markdown and contract artifacts that can be checked in CI
+4. API versioning rules that remain explicit and testable
+5. supply-chain checks for dependencies and declared deployable images
+6. deployability path that remains compatible with Kubernetes and OpenShift

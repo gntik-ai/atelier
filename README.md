@@ -42,17 +42,23 @@ tests/
 
 ## Quality gates
 
-Current bootstrap quality gates are intentionally lightweight:
+The current baseline quality chain covers:
 
 - repository structure validation
 - PostgreSQL ADR package validation
-- workspace script presence
-- chart file presence
+- markdown linting
+- OpenAPI validation for the control-plane contract
+- unit tests for CI quality helpers
+- contract tests for API versioning/error expectations
+- dependency vulnerability audit
+- immutable image-reference policy checks
 
 Run:
 
 ```bash
-pnpm validate:structure
-pnpm lint
-pnpm test
+corepack pnpm install
+corepack pnpm lint
+corepack pnpm test
+corepack pnpm security:deps
+corepack pnpm security:images
 ```

@@ -1,0 +1,170 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "In Atelier Control Plane API",
+    "version": "0.1.0",
+    "summary": "Bootstrap control-plane contract for CI and downstream implementation tasks.",
+    "description": "Minimal public contract used to validate versioning, OpenAPI integrity, and contract-test plumbing before later control-plane implementation tasks.",
+    "license": {
+      "name": "Proprietary",
+      "url": "https://in-atelier.example.com/licenses/proprietary"
+    }
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "servers": [
+    {
+      "url": "https://api.in-atelier.example.com/control-plane"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System"
+    },
+    {
+      "name": "Tenants"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Return control-plane health status",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "The service is reachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getTenantSummary",
+        "summary": "Fetch tenant placement and activation summary",
+        "tags": ["Tenants"],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "Stable tenant identifier.",
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "pattern": "^[a-z0-9][a-z0-9-]+$"
+            }
+          },
+          {
+            "name": "X-API-Version",
+            "in": "header",
+            "required": true,
+            "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+            "schema": {
+              "type": "string",
+              "pattern": "^2026-03-23$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant summary returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tenant was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "service", "timestamp"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok"]
+          },
+          "service": {
+            "type": "string",
+            "const": "control-plane"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TenantSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tenantId", "displayName", "placement", "status"],
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "placement": {
+            "type": "string",
+            "enum": ["shared_schema", "dedicated_database"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "suspended"]
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "requestId"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

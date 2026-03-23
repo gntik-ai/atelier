@@ -6,7 +6,7 @@ controlPlane:
   enabled: true
   image:
     repository: ghcr.io/example/in-atelier-control-plane
-    tag: latest
+    tag: 0.1.0
   service:
     port: 8080
 
@@ -14,7 +14,7 @@ webConsole:
   enabled: true
   image:
     repository: ghcr.io/example/in-atelier-web-console
-    tag: latest
+    tag: 0.1.0
   service:
     port: 3000
 

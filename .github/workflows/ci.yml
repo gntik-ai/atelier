@@ -7,20 +7,72 @@ on:
       - main
       - feature/**
 
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.0.0'
+
 jobs:
-  bootstrap-quality-gates:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
 
-      - name: Enable Corepack
-        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Validate repository structure
-        run: node ./scripts/validate-structure.mjs
+      - name: Lint and repository validation
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test:unit
+
+      - name: Contract tests
+        run: pnpm test:contracts
+
+      - name: Upload control-plane contract artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-plane-openapi-contract
+          path: apps/control-plane/openapi/control-plane.openapi.json
+          if-no-files-found: error
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Dependency vulnerability audit
+        run: pnpm security:deps
+
+      - name: Image supply-chain policy validation
+        run: pnpm security:images
