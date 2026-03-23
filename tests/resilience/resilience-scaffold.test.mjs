@@ -23,4 +23,5 @@ test('resilience scaffold covers retry and tenant-safe recovery expectations', (
 
   assert.equal(dataset.resilience_cases.some((entry) => entry.failure_mode === 'timeout'), true);
   assert.equal(dataset.resilience_cases.some((entry) => entry.failure_mode === 'placement_recovery'), true);
+  assert.equal(dataset.resilience_cases.some((entry) => entry.failure_mode === 'privilege_escalation'), true);
 });

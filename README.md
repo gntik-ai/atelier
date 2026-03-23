@@ -62,6 +62,7 @@ The current baseline quality chain covers:
 - testing-strategy package validation
 - internal service-map validation
 - deployment-topology validation for domains, environments, overlays, and smoke parity
+- authorization-model validation for tenant/workspace context, permission matrices, and propagation targets
 - markdown linting
 - OpenAPI validation for the control-plane contract
 - unit tests for helper logic and strategy consistency

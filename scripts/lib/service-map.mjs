@@ -13,6 +13,12 @@ export const REQUIRED_CONTRACT_IDS = [
   'adapter_result',
   'audit_record'
 ];
+export const REQUIRED_AUTHORIZATION_FIELDS = {
+  control_api_command: ['tenant_id', 'workspace_id', 'plan_id', 'scopes', 'effective_roles', 'correlation_id', 'authorization_decision_id'],
+  provisioning_request: ['tenant_id', 'workspace_id', 'plan_id', 'scopes', 'effective_roles', 'correlation_id', 'authorization_decision_id'],
+  adapter_call: ['tenant_id', 'workspace_id', 'plan_id', 'scopes', 'effective_roles', 'correlation_id', 'authorization_decision_id'],
+  audit_record: ['tenant_id', 'workspace_id', 'correlation_id', 'authorization_decision_id', 'effective_roles', 'delegation_chain']
+};
 
 export function readServiceMap() {
   return readJson(INTERNAL_SERVICE_MAP_PATH);
@@ -288,6 +294,16 @@ export function collectServiceMapViolations(serviceMap = readServiceMap()) {
 
   if (!(contracts.provisioning_request?.required_fields ?? []).includes('idempotency_key')) {
     violations.push('Contract provisioning_request must require idempotency_key.');
+  }
+
+  for (const [contractId, requiredFields] of Object.entries(REQUIRED_AUTHORIZATION_FIELDS)) {
+    const actualFields = contracts[contractId]?.required_fields ?? [];
+
+    for (const field of requiredFields) {
+      if (!actualFields.includes(field)) {
+        violations.push(`Contract ${contractId} must require authorization field ${field}.`);
+      }
+    }
   }
 
   if (!ensureNonEmptyArray(serviceMap?.interaction_flows)) {

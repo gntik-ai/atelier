@@ -6,12 +6,21 @@ import { OPENAPI_PATH, collectContractViolations } from '../../scripts/lib/quali
 
 test('control-plane OpenAPI document remains structurally valid', async () => {
   const document = await SwaggerParser.validate(OPENAPI_PATH);
+
   assert.equal(document.openapi, '3.1.0');
   assert.ok(document.paths['/health']);
   assert.ok(document.paths['/v1/tenants/{tenantId}']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/workspaces/{workspaceId}/access-checks']);
+  assert.ok(document.components.securitySchemes.bearerAuth);
 });
 
-test('control-plane contract enforces versioning and error-contract expectations', async () => {
+test('control-plane contract enforces versioning, authorization, and error-contract expectations', async () => {
   const document = await SwaggerParser.validate(OPENAPI_PATH);
+  const accessCheck = document.paths['/v1/tenants/{tenantId}/workspaces/{workspaceId}/access-checks'].post;
+
   assert.deepEqual(collectContractViolations(document), []);
+  assert.equal(accessCheck.security?.[0]?.bearerAuth?.length ?? 0, 0);
+  assert.equal(accessCheck.parameters.some((parameter) => parameter.name === 'X-Correlation-Id'), true);
+  assert.ok(accessCheck.responses['403']);
+  assert.ok(accessCheck.responses['200']);
 });

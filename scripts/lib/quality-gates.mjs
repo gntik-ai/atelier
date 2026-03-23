@@ -63,6 +63,15 @@ export function collectContractViolations(document) {
         violations.push(`${operationLabel} must require the X-API-Version header.`);
       }
 
+      const correlationHeader = parameters.find(
+        (parameter) =>
+          parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id' && parameter?.required === true
+      );
+
+      if (!correlationHeader) {
+        violations.push(`${operationLabel} must require the X-Correlation-Id header.`);
+      }
+
       const responseCodes = Object.keys(operation.responses ?? {});
       const hasErrorContract = responseCodes.some(
         (status) => status === 'default' || /^4\d\d$/.test(status) || /^5\d\d$/.test(status)
@@ -70,6 +79,10 @@ export function collectContractViolations(document) {
 
       if (!hasErrorContract) {
         violations.push(`${operationLabel} must declare at least one 4xx/5xx/default error response contract.`);
+      }
+
+      if (!responseCodes.includes('403')) {
+        violations.push(`${operationLabel} must declare a 403 authorization error response.`);
       }
     }
   }

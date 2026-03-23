@@ -6,7 +6,8 @@
     "Public REST concerns stay in control_api.",
     "Provisioning side effects are coordinated only through provisioning_orchestrator.",
     "Provider-specific details stay behind adapter ports.",
-    "Audit evidence is append-only and separately governed from request handling."
+    "Audit evidence is append-only and separately governed from request handling.",
+    "Authorization decisions are deny-by-default and stay tenant/workspace-bound across internal contracts."
   ],
   "services": [
     {
@@ -16,13 +17,15 @@
       "responsibilities": [
         "Expose the public control-plane REST surface.",
         "Validate request shape, tenant context, and API version headers.",
+        "Resolve contextual authorization with actor, tenant, workspace, plan, scopes, effective roles, and correlation metadata.",
         "Translate accepted operations into internal command envelopes.",
         "Emit audit evidence for request acceptance and synchronous rejection where required."
       ],
       "owned_resources": [
         "public route contract",
         "authorization context",
-        "request validation policy"
+        "request validation policy",
+        "authorization decision"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -44,12 +47,14 @@
         "Create or reload provisioning runs using stable idempotency keys.",
         "Sequence provider-facing provisioning steps.",
         "Aggregate provider outcomes into a shared provisioning result envelope.",
+        "Preserve workspace-safe authorization context and plan guardrails across provider-facing adapter calls.",
         "Emit audit evidence for step transitions and final outcomes."
       ],
       "owned_resources": [
         "provisioning run state",
         "step plan",
-        "retry classification"
+        "retry classification",
+        "propagated authorization context"
       ],
       "service_dependencies": [
         "audit_module"
@@ -78,12 +83,14 @@
       "responsibilities": [
         "Persist append-only evidence for control and provisioning activity.",
         "Attach correlation metadata and evidence pointers to audit records.",
+        "Persist authorization decision identifiers, effective roles, and delegation-chain evidence without storing raw credentials.",
         "Apply redaction and retention policy in later tasks without changing callers."
       ],
       "owned_resources": [
         "audit append log",
         "evidence pointers",
-        "redaction policy"
+        "redaction policy",
+        "authorization decision evidence"
       ],
       "service_dependencies": [],
       "adapter_dependencies": [
@@ -235,7 +242,14 @@
         "payload",
         "idempotency_key",
         "contract_version",
-        "requested_at"
+        "requested_at",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id",
+        "delegation_chain",
+        "authorization_decision_id"
       ],
       "idempotency": "All non-read control-plane commands carry a stable idempotency_key supplied or derived by control_api.",
       "versioning": "Public REST remains under /v1/ and is translated into this internal contract version until a deliberate migration plan changes it.",
@@ -257,7 +271,12 @@
         "correlation_id",
         "triggered_by",
         "contract_version",
-        "requested_at"
+        "requested_at",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "authorization_decision_id"
       ],
       "idempotency": "The orchestrator must create or resume one logical provisioning run per idempotency_key.",
       "versioning": "Breaking changes require a new contract version and an explicit migration note.",
@@ -301,7 +320,12 @@
         "idempotency_key",
         "correlation_id",
         "contract_version",
-        "requested_at"
+        "requested_at",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "authorization_decision_id"
       ],
       "idempotency": "Each adapter call must be safe to retry with the same idempotency_key when the underlying provider supports idempotent upsert semantics.",
       "versioning": "Provider-specific data lives inside payload while the shared envelope stays stable across adapters.",
@@ -342,7 +366,12 @@
         "correlation_id",
         "occurred_at",
         "evidence_pointer",
-        "contract_version"
+        "contract_version",
+        "tenant_id",
+        "workspace_id",
+        "authorization_decision_id",
+        "effective_roles",
+        "delegation_chain"
       ],
       "idempotency": "Duplicate submissions with the same record_id must be coalesced into one append-only evidence record.",
       "versioning": "Audit consumers may add derived indexes later, but the canonical evidence envelope is versioned and immutable once written.",
@@ -358,19 +387,19 @@
       "id": "tenant_provisioning",
       "entry_service": "control_api",
       "steps": [
-        "control_api validates the request and emits control_api_command and provisioning_request envelopes.",
-        "provisioning_orchestrator creates or reloads a provisioning run by idempotency_key.",
-        "provisioning_orchestrator invokes adapter ports for identity, relational, document, event, functions, and storage setup.",
-        "audit_module appends evidence for acceptance, step transitions, and the terminal outcome."
+        "control_api validates the request, resolves contextual authorization for actor/tenant/workspace scope, and emits control_api_command and provisioning_request envelopes with one correlation_id.",
+        "provisioning_orchestrator creates or reloads a provisioning run by idempotency_key while preserving plan, role, and workspace constraints.",
+        "provisioning_orchestrator invokes adapter ports for identity, relational, document, event, functions, and storage setup using propagated authorization metadata.",
+        "audit_module appends evidence for the decision context, step transitions, and the terminal outcome."
       ]
     },
     {
       "id": "tenant_suspension",
       "entry_service": "control_api",
       "steps": [
-        "control_api accepts the request and emits a versioned control command.",
-        "provisioning_orchestrator coordinates provider-facing suspend and access-revocation capabilities.",
-        "audit_module records requested scope, outcome, and any evidence pointer needed for later review."
+        "control_api resolves tenant-scoped authorization, accepts the request, and emits a versioned control command with authorization_decision_id and correlation metadata.",
+        "provisioning_orchestrator coordinates provider-facing suspend and access-revocation capabilities without widening tenant or workspace scope.",
+        "audit_module records requested scope, authorization evidence, outcome, and any pointer needed for later review."
       ]
     }
   ]

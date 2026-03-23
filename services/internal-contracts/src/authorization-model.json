@@ -1,0 +1,954 @@
+{
+  "version": "2026-03-23",
+  "scope": "US-ARC-03",
+  "system": "in-atelier-contextual-authorization",
+  "contracts": {
+    "security_context": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id"
+      ],
+      "versioning": "The normalized context envelope evolves additively while preserving actor, tenant, workspace, plan, scopes, effective roles, and correlation semantics.",
+      "error_classes": [
+        "missing_context",
+        "ambiguous_context",
+        "cross_tenant_violation",
+        "workspace_context_required"
+      ]
+    },
+    "authorization_decision": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "decision_id",
+        "resource_type",
+        "action",
+        "effect",
+        "reason",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "effective_roles",
+        "matched_policies"
+      ],
+      "versioning": "Decision envelopes keep stable effect and reason semantics so control-plane, adapters, and audit consumers can evolve independently.",
+      "error_classes": [
+        "insufficient_scope",
+        "cross_tenant_violation",
+        "delegation_violation",
+        "quota_exceeded"
+      ]
+    },
+    "context_projection": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "target",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "correlation_id",
+        "effective_roles",
+        "scopes",
+        "delegation_chain"
+      ],
+      "versioning": "Projection metadata may add targets, but correlation, tenant/workspace bindings, and delegated scope semantics must remain explicit and lossless.",
+      "error_classes": [
+        "projection_loss",
+        "redaction_violation"
+      ]
+    },
+    "negative_authorization_case": {
+      "owner": "tests/reference",
+      "version": "2026-03-23",
+      "required_fields": [
+        "id",
+        "surface",
+        "category",
+        "expected_effect",
+        "summary"
+      ],
+      "versioning": "Negative coverage grows by adding new abuse cases while preserving baseline cross-tenant and privilege-escalation protections.",
+      "error_classes": [
+        "missing_negative_coverage",
+        "unsafe_surface_gap"
+      ]
+    }
+  },
+  "role_catalog": {
+    "platform": [
+      {
+        "id": "platform_admin",
+        "scope": "platform",
+        "inherits": [],
+        "summary": "Full cross-tenant control-plane operations with explicit audit obligations."
+      },
+      {
+        "id": "platform_operator",
+        "scope": "platform",
+        "inherits": [],
+        "summary": "Platform-wide operational visibility and remediation without tenant data administration."
+      },
+      {
+        "id": "platform_auditor",
+        "scope": "platform",
+        "inherits": [],
+        "summary": "Read-only cross-tenant audit and compliance visibility."
+      }
+    ],
+    "tenant": [
+      {
+        "id": "tenant_admin",
+        "scope": "tenant",
+        "inherits": [],
+        "summary": "Tenant-wide administration excluding platform-only operations."
+      },
+      {
+        "id": "tenant_operator",
+        "scope": "tenant",
+        "inherits": [],
+        "summary": "Operate tenant workloads and inspect tenant usage without membership or billing administration."
+      },
+      {
+        "id": "tenant_billing_admin",
+        "scope": "tenant",
+        "inherits": [],
+        "summary": "Manage plan and quota workflows without workspace runtime administration."
+      },
+      {
+        "id": "auditor",
+        "scope": "tenant",
+        "inherits": [],
+        "summary": "Read-only tenant audit and evidence review."
+      }
+    ],
+    "workspace": [
+      {
+        "id": "workspace_admin",
+        "scope": "workspace",
+        "inherits": [],
+        "summary": "Workspace-wide administration for resources owned by one workspace."
+      },
+      {
+        "id": "workspace_developer",
+        "scope": "workspace",
+        "inherits": [],
+        "summary": "Create and modify application-facing resources in one workspace."
+      },
+      {
+        "id": "workspace_operator",
+        "scope": "workspace",
+        "inherits": [],
+        "summary": "Operate deployed workspace resources and inspect runtime state."
+      },
+      {
+        "id": "workspace_auditor",
+        "scope": "workspace",
+        "inherits": [],
+        "summary": "Review audit evidence and configuration posture for one workspace."
+      },
+      {
+        "id": "workspace_viewer",
+        "scope": "workspace",
+        "inherits": [],
+        "summary": "Read-only visibility for workspace metadata and runtime inventory."
+      }
+    ]
+  },
+  "security_context": {
+    "actor_types": [
+      {
+        "id": "human_user",
+        "credential_sources": [
+          "keycloak_oidc"
+        ],
+        "required_claims": [
+          "sub",
+          "scope"
+        ],
+        "optional_claims": [
+          "email",
+          "name",
+          "tenant_memberships",
+          "workspace_memberships"
+        ]
+      },
+      {
+        "id": "service_workload",
+        "credential_sources": [
+          "keycloak_client_credentials",
+          "signed_service_token"
+        ],
+        "required_claims": [
+          "client_id",
+          "scope"
+        ],
+        "optional_claims": [
+          "tenant_bindings",
+          "delegation_chain"
+        ]
+      },
+      {
+        "id": "platform_break_glass",
+        "credential_sources": [
+          "keycloak_oidc"
+        ],
+        "required_claims": [
+          "sub",
+          "scope",
+          "reason_code"
+        ],
+        "optional_claims": [
+          "ticket_ref"
+        ]
+      }
+    ],
+    "required_fields": [
+      "actor",
+      "tenant_id",
+      "workspace_id",
+      "plan_id",
+      "scopes",
+      "effective_roles",
+      "correlation_id"
+    ],
+    "optional_fields": [
+      "delegation_chain",
+      "quota_snapshot",
+      "resource_ownership",
+      "request_id",
+      "idempotency_key"
+    ],
+    "resolution_order": [
+      "Authenticate the actor and classify the credential source.",
+      "Resolve the requested tenant and verify the actor is explicitly bound to that tenant unless a platform role authorizes cross-tenant access.",
+      "Resolve the requested workspace and verify the workspace belongs to the resolved tenant before any resource lookup proceeds.",
+      "Merge platform, tenant, and workspace role bindings into one effective role set limited to the resolved tenant/workspace boundary.",
+      "Intersect effective roles with granted scopes and tenant-plan guardrails before making an allow decision.",
+      "Emit one correlation_id reused by control-plane handlers, internal contracts, provider adapters, events, and audit records."
+    ],
+    "default_denials": [
+      "deny_missing_tenant_binding",
+      "deny_workspace_outside_tenant",
+      "deny_cross_tenant_access_without_explicit_platform_role",
+      "deny_delegation_scope_expansion",
+      "deny_break_glass_without_reason"
+    ]
+  },
+  "enforcement_surfaces": [
+    {
+      "id": "control_api",
+      "planes": [
+        "control_plane"
+      ],
+      "request_bindings": {
+        "tenant_sources": [
+          "path",
+          "body"
+        ],
+        "workspace_sources": [
+          "path",
+          "body",
+          "header:x-workspace-id"
+        ],
+        "correlation_sources": [
+          "header:x-correlation-id",
+          "generated"
+        ]
+      },
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id"
+      ],
+      "decision_contract": "authorization_decision",
+      "quota_stage": "preflight",
+      "audit_mode": "accept_and_reject"
+    },
+    {
+      "id": "data_api",
+      "planes": [
+        "data_plane"
+      ],
+      "request_bindings": {
+        "tenant_sources": [
+          "session",
+          "connection"
+        ],
+        "workspace_sources": [
+          "session",
+          "sql_setting:app.workspace_id"
+        ],
+        "correlation_sources": [
+          "header:x-correlation-id",
+          "generated"
+        ]
+      },
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id"
+      ],
+      "decision_contract": "authorization_decision",
+      "quota_stage": "preflight_and_row_filter",
+      "audit_mode": "denials_and_admin_mutations"
+    },
+    {
+      "id": "functions_runtime",
+      "planes": [
+        "functions_plane"
+      ],
+      "request_bindings": {
+        "tenant_sources": [
+          "activation_annotation",
+          "request_header"
+        ],
+        "workspace_sources": [
+          "activation_annotation",
+          "request_header"
+        ],
+        "correlation_sources": [
+          "activation_annotation",
+          "header:x-correlation-id"
+        ]
+      },
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id"
+      ],
+      "decision_contract": "authorization_decision",
+      "quota_stage": "invocation_preflight",
+      "audit_mode": "activations_and_denials"
+    },
+    {
+      "id": "event_bus",
+      "planes": [
+        "event_plane"
+      ],
+      "request_bindings": {
+        "tenant_sources": [
+          "message_header:tenant-id",
+          "acl_subject"
+        ],
+        "workspace_sources": [
+          "message_header:workspace-id",
+          "acl_subject"
+        ],
+        "correlation_sources": [
+          "message_header:correlation-id"
+        ]
+      },
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id"
+      ],
+      "decision_contract": "authorization_decision",
+      "quota_stage": "publish_or_consume_preflight",
+      "audit_mode": "topic_admin_and_denials"
+    },
+    {
+      "id": "object_storage",
+      "planes": [
+        "storage_plane"
+      ],
+      "request_bindings": {
+        "tenant_sources": [
+          "bucket_policy_tag",
+          "presign_context"
+        ],
+        "workspace_sources": [
+          "bucket_policy_tag",
+          "presign_context"
+        ],
+        "correlation_sources": [
+          "presign_context",
+          "header:x-correlation-id"
+        ]
+      },
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "correlation_id"
+      ],
+      "decision_contract": "authorization_decision",
+      "quota_stage": "presign_and_write_preflight",
+      "audit_mode": "bucket_admin_and_denials"
+    }
+  ],
+  "resource_actions": {
+    "tenant": [
+      "tenant.read",
+      "tenant.update",
+      "tenant.members.manage",
+      "tenant.workspaces.create",
+      "tenant.audit.read",
+      "tenant.usage.read",
+      "tenant.suspend"
+    ],
+    "workspace": [
+      "workspace.read",
+      "workspace.update",
+      "workspace.members.manage",
+      "workspace.delete"
+    ],
+    "database": [
+      "database.read",
+      "database.write",
+      "database.admin"
+    ],
+    "bucket": [
+      "bucket.read",
+      "bucket.write",
+      "bucket.admin"
+    ],
+    "topic": [
+      "topic.publish",
+      "topic.consume",
+      "topic.admin"
+    ],
+    "function": [
+      "function.invoke",
+      "function.deploy",
+      "function.admin"
+    ],
+    "app": [
+      "app.read",
+      "app.deploy",
+      "app.admin"
+    ]
+  },
+  "resource_semantics": [
+    {
+      "resource_type": "tenant",
+      "parent_scope": "platform",
+      "workspace_scoped": false,
+      "ownership_model": "tenant-owned with audited platform override",
+      "membership_bindings": [
+        "tenant_roles"
+      ],
+      "delegable_actions": [
+        "tenant.members.manage",
+        "tenant.workspaces.create",
+        "tenant.usage.read"
+      ],
+      "forbidden_actions": [
+        "cross_tenant.impersonate",
+        "delegation.scope.expand"
+      ]
+    },
+    {
+      "resource_type": "workspace",
+      "parent_scope": "tenant",
+      "workspace_scoped": true,
+      "ownership_model": "tenant-owned workspace with workspace-level delegates",
+      "membership_bindings": [
+        "tenant_roles",
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "workspace.read",
+        "workspace.update",
+        "workspace.members.manage"
+      ],
+      "forbidden_actions": [
+        "workspace.delete_without_tenant_admin",
+        "cross_workspace_membership_reuse"
+      ]
+    },
+    {
+      "resource_type": "database",
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned data service",
+      "membership_bindings": [
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "database.read",
+        "database.write"
+      ],
+      "forbidden_actions": [
+        "database.admin_without_workspace_admin",
+        "cross_workspace_connection_reuse"
+      ]
+    },
+    {
+      "resource_type": "bucket",
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned storage surface",
+      "membership_bindings": [
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "bucket.read",
+        "bucket.write"
+      ],
+      "forbidden_actions": [
+        "bucket.admin_without_workspace_admin",
+        "presign_outside_workspace_context"
+      ]
+    },
+    {
+      "resource_type": "topic",
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned event surface",
+      "membership_bindings": [
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "topic.publish",
+        "topic.consume"
+      ],
+      "forbidden_actions": [
+        "topic.admin_without_workspace_admin",
+        "cross_tenant_header_spoof"
+      ]
+    },
+    {
+      "resource_type": "function",
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned function namespace",
+      "membership_bindings": [
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "function.invoke",
+        "function.deploy"
+      ],
+      "forbidden_actions": [
+        "function.admin_without_workspace_admin",
+        "delegation_chain_override"
+      ]
+    },
+    {
+      "resource_type": "app",
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned application metadata",
+      "membership_bindings": [
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "app.read",
+        "app.deploy"
+      ],
+      "forbidden_actions": [
+        "app.admin_without_workspace_admin",
+        "cross_workspace_slug_claim"
+      ]
+    }
+  ],
+  "permission_matrix": {
+    "platform": [
+      {
+        "role": "platform_admin",
+        "allowed_actions": [
+          "tenant.read",
+          "tenant.update",
+          "tenant.members.manage",
+          "tenant.workspaces.create",
+          "tenant.audit.read",
+          "tenant.usage.read",
+          "tenant.suspend",
+          "workspace.read",
+          "workspace.update",
+          "workspace.members.manage",
+          "workspace.delete"
+        ],
+        "denied_actions": []
+      },
+      {
+        "role": "platform_operator",
+        "allowed_actions": [
+          "tenant.read",
+          "tenant.usage.read",
+          "workspace.read"
+        ],
+        "denied_actions": [
+          "tenant.members.manage",
+          "tenant.suspend",
+          "workspace.delete"
+        ]
+      },
+      {
+        "role": "platform_auditor",
+        "allowed_actions": [
+          "tenant.audit.read",
+          "tenant.read",
+          "workspace.read"
+        ],
+        "denied_actions": [
+          "tenant.update",
+          "tenant.suspend",
+          "workspace.update"
+        ]
+      }
+    ],
+    "tenant": [
+      {
+        "role": "tenant_admin",
+        "allowed_actions": [
+          "tenant.read",
+          "tenant.update",
+          "tenant.members.manage",
+          "tenant.workspaces.create",
+          "tenant.audit.read",
+          "tenant.usage.read",
+          "workspace.read",
+          "workspace.update",
+          "workspace.members.manage",
+          "database.admin",
+          "bucket.admin",
+          "topic.admin",
+          "function.admin",
+          "app.admin"
+        ],
+        "denied_actions": [
+          "tenant.suspend"
+        ]
+      },
+      {
+        "role": "tenant_operator",
+        "allowed_actions": [
+          "tenant.read",
+          "tenant.usage.read",
+          "workspace.read",
+          "database.read",
+          "database.write",
+          "bucket.read",
+          "bucket.write",
+          "topic.publish",
+          "topic.consume",
+          "function.invoke",
+          "app.read"
+        ],
+        "denied_actions": [
+          "tenant.members.manage",
+          "workspace.members.manage",
+          "database.admin",
+          "bucket.admin",
+          "topic.admin",
+          "function.admin",
+          "app.admin"
+        ]
+      },
+      {
+        "role": "tenant_billing_admin",
+        "allowed_actions": [
+          "tenant.read",
+          "tenant.usage.read"
+        ],
+        "denied_actions": [
+          "workspace.update",
+          "database.admin",
+          "bucket.admin",
+          "topic.admin",
+          "function.admin",
+          "app.admin"
+        ]
+      },
+      {
+        "role": "auditor",
+        "allowed_actions": [
+          "tenant.read",
+          "tenant.audit.read",
+          "workspace.read",
+          "database.read",
+          "bucket.read",
+          "app.read"
+        ],
+        "denied_actions": [
+          "tenant.update",
+          "tenant.members.manage",
+          "database.write",
+          "bucket.write",
+          "topic.publish",
+          "function.deploy",
+          "app.deploy"
+        ]
+      }
+    ],
+    "workspace": [
+      {
+        "role": "workspace_admin",
+        "allowed_actions": [
+          "workspace.read",
+          "workspace.update",
+          "workspace.members.manage",
+          "database.admin",
+          "bucket.admin",
+          "topic.admin",
+          "function.admin",
+          "app.admin"
+        ],
+        "denied_actions": [
+          "tenant.members.manage",
+          "tenant.suspend"
+        ]
+      },
+      {
+        "role": "workspace_developer",
+        "allowed_actions": [
+          "workspace.read",
+          "database.read",
+          "database.write",
+          "bucket.read",
+          "bucket.write",
+          "topic.publish",
+          "topic.consume",
+          "function.invoke",
+          "function.deploy",
+          "app.read",
+          "app.deploy"
+        ],
+        "denied_actions": [
+          "workspace.members.manage",
+          "database.admin",
+          "bucket.admin",
+          "topic.admin",
+          "function.admin",
+          "app.admin"
+        ]
+      },
+      {
+        "role": "workspace_operator",
+        "allowed_actions": [
+          "workspace.read",
+          "database.read",
+          "bucket.read",
+          "topic.consume",
+          "function.invoke",
+          "app.read"
+        ],
+        "denied_actions": [
+          "workspace.update",
+          "database.write",
+          "bucket.write",
+          "topic.admin",
+          "function.deploy",
+          "app.deploy"
+        ]
+      },
+      {
+        "role": "workspace_auditor",
+        "allowed_actions": [
+          "workspace.read",
+          "database.read",
+          "bucket.read",
+          "app.read"
+        ],
+        "denied_actions": [
+          "workspace.update",
+          "database.write",
+          "bucket.write",
+          "topic.publish",
+          "function.deploy",
+          "app.deploy"
+        ]
+      },
+      {
+        "role": "workspace_viewer",
+        "allowed_actions": [
+          "workspace.read",
+          "app.read"
+        ],
+        "denied_actions": [
+          "workspace.update",
+          "database.write",
+          "bucket.write",
+          "topic.publish",
+          "function.deploy",
+          "app.deploy"
+        ]
+      }
+    ]
+  },
+  "propagation_targets": [
+    {
+      "target": "control_api_command",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "correlation_id",
+        "effective_roles",
+        "scopes",
+        "delegation_chain",
+        "authorization_decision_id"
+      ],
+      "redacted_fields": [
+        "quota_snapshot"
+      ],
+      "reason": "Public handlers must normalize one context envelope before emitting internal commands."
+    },
+    {
+      "target": "provisioning_request",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "correlation_id",
+        "effective_roles",
+        "scopes",
+        "authorization_decision_id"
+      ],
+      "redacted_fields": [
+        "credentials",
+        "raw_tokens"
+      ],
+      "reason": "Orchestration steps must preserve the same tenant/workspace decision used at the edge."
+    },
+    {
+      "target": "adapter_call",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "correlation_id",
+        "effective_roles",
+        "scopes",
+        "authorization_decision_id"
+      ],
+      "redacted_fields": [
+        "raw_tokens",
+        "break_glass_reason"
+      ],
+      "reason": "Adapter ACLs and provider metadata need the resolved context without leaking credential internals."
+    },
+    {
+      "target": "audit_record",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "authorization_decision_id",
+        "effective_roles",
+        "delegation_chain"
+      ],
+      "redacted_fields": [
+        "credentials",
+        "raw_tokens"
+      ],
+      "reason": "Audit evidence must reconstruct why a decision was allowed or denied without storing raw credentials."
+    },
+    {
+      "target": "kafka_headers",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "authorization_decision_id"
+      ],
+      "redacted_fields": [
+        "effective_roles"
+      ],
+      "reason": "Event consumers need routing-safe identity while role details stay in audit and internal contracts."
+    },
+    {
+      "target": "openwhisk_activation",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "correlation_id",
+        "authorization_decision_id"
+      ],
+      "redacted_fields": [
+        "raw_tokens",
+        "delegation_chain"
+      ],
+      "reason": "Function activations need enough context for scoped invocation and observability while minimizing token leakage."
+    },
+    {
+      "target": "storage_presign_context",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "correlation_id",
+        "authorization_decision_id"
+      ],
+      "redacted_fields": [
+        "effective_roles",
+        "raw_tokens"
+      ],
+      "reason": "Presigned URL issuance and multipart completion must stay tenant/workspace-bound even if the client retries later."
+    }
+  ],
+  "negative_scenarios": [
+    {
+      "id": "AUTHZ-XTEN-001",
+      "surface": "control_api",
+      "category": "cross_tenant",
+      "expected_effect": "deny",
+      "summary": "A tenant-scoped actor cannot request a resource in another tenant even if the workspace slug matches."
+    },
+    {
+      "id": "AUTHZ-XWS-002",
+      "surface": "data_api",
+      "category": "workspace_mismatch",
+      "expected_effect": "deny",
+      "summary": "A valid tenant binding does not authorize access to another workspace inside the same tenant."
+    },
+    {
+      "id": "AUTHZ-DEL-003",
+      "surface": "functions_runtime",
+      "category": "delegation_escalation",
+      "expected_effect": "deny",
+      "summary": "Delegated function invocations cannot add scopes or roles absent from the delegation chain."
+    },
+    {
+      "id": "AUTHZ-ACL-004",
+      "surface": "object_storage",
+      "category": "storage_acl_bypass",
+      "expected_effect": "deny",
+      "summary": "Presigned URL issuance fails when bucket policy or workspace binding does not match the resolved context."
+    },
+    {
+      "id": "AUTHZ-EVT-005",
+      "surface": "event_bus",
+      "category": "event_replay",
+      "expected_effect": "deny",
+      "summary": "Replay or publish attempts with mismatched tenant/workspace headers are rejected before provider ACLs are reached."
+    },
+    {
+      "id": "AUTHZ-PLN-006",
+      "surface": "control_api",
+      "category": "plan_guardrail",
+      "expected_effect": "deny",
+      "summary": "Actions outside the tenant plan, such as restricted workspace capacity, are denied even when the actor has a role grant."
+    }
+  ]
+}

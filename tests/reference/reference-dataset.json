@@ -26,25 +26,91 @@
       "tenant_ids": []
     },
     {
+      "id": "user-platform-operator",
+      "role": "platform_operator",
+      "tenant_ids": []
+    },
+    {
+      "id": "user-platform-auditor",
+      "role": "platform_auditor",
+      "tenant_ids": []
+    },
+    {
       "id": "user-tenant-admin-a",
       "role": "tenant_admin",
-      "tenant_ids": ["tenant-shared-a"]
+      "tenant_ids": [
+        "tenant-shared-a"
+      ]
     },
     {
       "id": "user-tenant-operator-a",
       "role": "tenant_operator",
-      "tenant_ids": ["tenant-shared-a"]
+      "tenant_ids": [
+        "tenant-shared-a"
+      ]
     },
     {
       "id": "user-auditor-a",
       "role": "auditor",
-      "tenant_ids": ["tenant-shared-a"]
+      "tenant_ids": [
+        "tenant-shared-a"
+      ]
+    },
+    {
+      "id": "user-workspace-admin-alpha",
+      "role": "workspace_admin",
+      "tenant_ids": [
+        "tenant-shared-a"
+      ],
+      "workspace_ids": [
+        "workspace-alpha-dev"
+      ]
+    },
+    {
+      "id": "user-workspace-dev-alpha",
+      "role": "workspace_developer",
+      "tenant_ids": [
+        "tenant-shared-a"
+      ],
+      "workspace_ids": [
+        "workspace-alpha-dev"
+      ]
+    },
+    {
+      "id": "user-workspace-operator-alpha",
+      "role": "workspace_operator",
+      "tenant_ids": [
+        "tenant-shared-a"
+      ],
+      "workspace_ids": [
+        "workspace-alpha-dev"
+      ]
+    },
+    {
+      "id": "user-cross-tenant-operator-b",
+      "role": "tenant_operator",
+      "tenant_ids": [
+        "tenant-shared-b"
+      ],
+      "workspace_ids": [
+        "workspace-beta-dev"
+      ]
     }
   ],
   "workspaces": [
     {
       "id": "workspace-alpha-dev",
       "tenant_id": "tenant-shared-a",
+      "environment": "dev"
+    },
+    {
+      "id": "workspace-alpha-ops",
+      "tenant_id": "tenant-shared-a",
+      "environment": "staging"
+    },
+    {
+      "id": "workspace-beta-dev",
+      "tenant_id": "tenant-shared-b",
       "environment": "dev"
     },
     {
@@ -96,6 +162,10 @@
     {
       "id": "resilience-tenant-failover",
       "failure_mode": "placement_recovery"
+    },
+    {
+      "id": "resilience-privilege-escalation",
+      "failure_mode": "privilege_escalation"
     }
   ],
   "console_routes": [
@@ -114,6 +184,14 @@
     {
       "id": "route-audit-log",
       "path": "/tenant/:tenantId/audit"
+    },
+    {
+      "id": "route-workspace-dashboard",
+      "path": "/tenant/:tenantId/workspaces/:workspaceId"
+    },
+    {
+      "id": "route-workspace-settings",
+      "path": "/tenant/:tenantId/workspaces/:workspaceId/settings"
     }
   ]
 }

@@ -142,6 +142,8 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
     }
   }
 
+  let hasAccessCheckPath = false;
+
   for (const { path, method, operation } of listOperations(openapiDocument).filter(({ path }) => path !== '/health')) {
     const label = `${method.toUpperCase()} ${path}`;
 
@@ -158,9 +160,24 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
       continue;
     }
 
+    const correlationHeader = (operation?.parameters ?? []).find(
+      (parameter) => parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id' && parameter?.required === true
+    );
+
+    if (!correlationHeader) {
+      violations.push(`${label} in OpenAPI must require X-Correlation-Id.`);
+    }
+
     const exactValue = extractExactHeaderValue(versionHeader);
     if (exactValue && exactValue !== currentValue) {
       violations.push(`${label} in OpenAPI requires ${exactValue} but strategy expects ${String(currentValue)}.`);
+    }
+
+    if (path.includes('/access-checks')) {
+      hasAccessCheckPath = true;
+      if (!path.includes('/tenants/{tenantId}/workspaces/{workspaceId}/')) {
+        violations.push(`${label} in OpenAPI must remain tenant/workspace-scoped.`);
+      }
     }
 
     if (requireErrorContracts) {
@@ -173,6 +190,10 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
         violations.push(`${label} in OpenAPI must declare an error contract to match strategy expectations.`);
       }
     }
+  }
+
+  if (!hasAccessCheckPath) {
+    violations.push('OpenAPI must include a tenant/workspace-scoped access-check route.');
   }
 
   return violations;

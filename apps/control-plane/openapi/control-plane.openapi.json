@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Control Plane API",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "summary": "Bootstrap control-plane contract for CI and downstream implementation tasks.",
-    "description": "Minimal public contract used to validate versioning, OpenAPI integrity, and contract-test plumbing before later control-plane implementation tasks.",
+    "description": "Public control-plane baseline contract used to validate versioning, contextual-authorization expectations, and contract-test plumbing before later runtime implementation tasks.",
     "license": {
       "name": "Proprietary",
       "url": "https://in-atelier.example.com/licenses/proprietary"
@@ -33,6 +33,9 @@
     },
     {
       "name": "Tenants"
+    },
+    {
+      "name": "Authorization"
     }
   ],
   "paths": {
@@ -40,7 +43,9 @@
       "get": {
         "operationId": "getHealth",
         "summary": "Return control-plane health status",
-        "tags": ["System"],
+        "tags": [
+          "System"
+        ],
         "responses": {
           "200": {
             "description": "The service is reachable.",
@@ -59,7 +64,14 @@
       "get": {
         "operationId": "getTenantSummary",
         "summary": "Fetch tenant placement and activation summary",
-        "tags": ["Tenants"],
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "parameters": [
           {
             "name": "tenantId",
@@ -81,6 +93,17 @@
               "type": "string",
               "pattern": "^2026-03-23$"
             }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "required": true,
+            "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
           }
         ],
         "responses": {
@@ -90,6 +113,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TenantSummary"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -116,18 +149,153 @@
           }
         }
       }
+    },
+    "/v1/tenants/{tenantId}/workspaces/{workspaceId}/access-checks": {
+      "post": {
+        "operationId": "resolveWorkspaceAccessCheck",
+        "summary": "Resolve a contextual authorization decision for one tenant/workspace-scoped action",
+        "tags": [
+          "Authorization"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "Tenant targeted by the decision request.",
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "pattern": "^[a-z0-9][a-z0-9-]+$"
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace targeted by the decision request.",
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "pattern": "^[a-z0-9][a-z0-9-]+$"
+            }
+          },
+          {
+            "name": "X-API-Version",
+            "in": "header",
+            "required": true,
+            "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+            "schema": {
+              "type": "string",
+              "pattern": "^2026-03-23$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "required": true,
+            "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessCheckRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authorization decision resolved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessCheckDecision"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The decision request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for the requested tenant/workspace action.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The tenant, workspace, or target resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Keycloak-issued access token carrying platform, tenant, and workspace authorization bindings."
+      }
+    },
     "schemas": {
       "HealthStatus": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "service", "timestamp"],
+        "required": [
+          "status",
+          "service",
+          "timestamp"
+        ],
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ok"]
+            "enum": [
+              "ok"
+            ]
           },
           "service": {
             "type": "string",
@@ -142,7 +310,13 @@
       "TenantSummary": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["tenantId", "displayName", "placement", "status"],
+        "required": [
+          "tenantId",
+          "displayName",
+          "placement",
+          "status",
+          "planId"
+        ],
         "properties": {
           "tenantId": {
             "type": "string"
@@ -152,18 +326,251 @@
           },
           "placement": {
             "type": "string",
-            "enum": ["shared_schema", "dedicated_database"]
+            "enum": [
+              "shared_schema",
+              "dedicated_database"
+            ]
           },
           "status": {
             "type": "string",
-            "enum": ["active", "suspended"]
+            "enum": [
+              "active",
+              "suspended"
+            ]
+          },
+          "planId": {
+            "type": "string",
+            "enum": [
+              "starter",
+              "growth",
+              "regulated",
+              "enterprise"
+            ]
+          }
+        }
+      },
+      "AccessCheckRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceType",
+          "resourceId",
+          "action"
+        ],
+        "properties": {
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace",
+              "database",
+              "bucket",
+              "topic",
+              "function",
+              "app"
+            ]
+          },
+          "resourceId": {
+            "type": "string",
+            "minLength": 3
+          },
+          "action": {
+            "type": "string",
+            "minLength": 3,
+            "description": "Canonical action identifier such as workspace.update or bucket.write."
+          },
+          "delegationId": {
+            "type": "string"
+          }
+        }
+      },
+      "AccessCheckDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionId",
+          "decision",
+          "reason",
+          "correlationId",
+          "context",
+          "matchedPolicies"
+        ],
+        "properties": {
+          "decisionId": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "deny"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/AuthorizationContext"
+          },
+          "ownership": {
+            "$ref": "#/components/schemas/OwnershipContext"
+          },
+          "quota": {
+            "$ref": "#/components/schemas/QuotaContext"
+          },
+          "matchedPolicies": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AuthorizationContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actor",
+          "tenantId",
+          "workspaceId",
+          "planId",
+          "scopes",
+          "effectiveRoles"
+        ],
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/ActorContext"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "planId": {
+            "type": "string",
+            "enum": [
+              "starter",
+              "growth",
+              "regulated",
+              "enterprise"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "effectiveRoles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "delegationChain": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ActorContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actorId",
+          "actorType"
+        ],
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "human_user",
+              "service_workload",
+              "platform_break_glass"
+            ]
+          }
+        }
+      },
+      "OwnershipContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceType",
+          "parentScope"
+        ],
+        "properties": {
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace",
+              "database",
+              "bucket",
+              "topic",
+              "function",
+              "app"
+            ]
+          },
+          "parentScope": {
+            "type": "string",
+            "enum": [
+              "platform",
+              "tenant",
+              "workspace"
+            ]
+          },
+          "workspaceScoped": {
+            "type": "boolean"
+          }
+        }
+      },
+      "QuotaContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "planId",
+          "enforced"
+        ],
+        "properties": {
+          "planId": {
+            "type": "string",
+            "enum": [
+              "starter",
+              "growth",
+              "regulated",
+              "enterprise"
+            ]
+          },
+          "enforced": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["code", "message", "requestId"],
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
         "properties": {
           "code": {
             "type": "string"
@@ -172,6 +579,9 @@
             "type": "string"
           },
           "requestId": {
+            "type": "string"
+          },
+          "correlationId": {
             "type": "string"
           }
         }

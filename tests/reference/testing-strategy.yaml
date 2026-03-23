@@ -1,18 +1,20 @@
 pyramid:
   - level: unit
-    purpose: Validate pure policy logic, fixture builders, and permission reducers with no infrastructure.
+    purpose: Validate pure policy logic, fixture builders, permission reducers, and contextual authorization resolution with no infrastructure.
     why_now: Gives the fastest feedback path while runtime stacks are still intentionally open.
     future_extensions:
       - tenant-context builders
       - permission evaluators
+      - workspace-membership reducers
       - event-envelope serializers
   - level: adapter_integration
     purpose: Validate adapter behavior against local doubles and stable fixtures.
-    why_now: Preserves payload, tenant-context, and retry semantics before real providers are wired in.
+    why_now: Preserves payload, tenant-context, authorization-propagation, and retry semantics before real providers are wired in.
     future_extensions:
       - PostgreSQL adapters
       - object-storage adapters
       - external HTTP providers
+      - authorization projection checks
   - level: api_contract
     purpose: Validate versioning, headers, error contracts, and schema expectations against the public API boundary.
     why_now: The repository already stores a control-plane OpenAPI contract that later stories must preserve.
@@ -20,6 +22,7 @@ pyramid:
       - consumer-driven contracts
       - compatibility snapshots
       - schema-diff policy gates
+      - authorization decision endpoints
   - level: console_e2e
     purpose: Validate visible workflows, navigation, and permission boundaries from the user viewpoint.
     why_now: Console role/state expectations should be explicit before UI implementation begins.
@@ -27,6 +30,7 @@ pyramid:
       - browser automation
       - accessibility journeys
       - cross-tenant route protection
+      - workspace-scoped navigation guards
   - level: resilience
     purpose: Validate degraded behavior, retries, replay safety, tenant-safe recovery, and operator visibility under failure.
     why_now: Multi-tenant systems need resilience expectations early even before live chaos tooling exists.
@@ -34,13 +38,14 @@ pyramid:
       - queue redelivery tests
       - dependency fault injection
       - operator console degradation flows
+      - privilege-escalation replay guards
 
 cross_domain_matrix:
   domains:
     - id: multi_tenant
-      description: Tenant placement, context propagation, and boundary safety.
+      description: Tenant placement, workspace binding, context propagation, and boundary safety.
     - id: security
-      description: Role and permission enforcement, version-header requirements, and unsafe access prevention.
+      description: Role and permission enforcement, version-header requirements, correlation metadata, and unsafe access prevention.
     - id: data
       description: Contracted reads/writes, lifecycle transitions, and storage-bound expectations.
     - id: events
@@ -57,6 +62,16 @@ cross_domain_matrix:
         - tenant-shared-a
         - user-tenant-admin-a
       expected: Missing tenant context is rejected before any adapter or console flow begins.
+    - id: UT-TEN-002
+      level: unit
+      domain: multi_tenant
+      taxonomy: negative
+      title: Workspace context resolver rejects a workspace that is outside the resolved tenant binding.
+      fixtures:
+        - tenant-shared-a
+        - workspace-beta-dev
+        - user-workspace-admin-alpha
+      expected: Workspace identifiers cannot be reused across tenant boundaries or mismatched memberships.
     - id: UT-SEC-001
       level: unit
       domain: security
@@ -66,6 +81,15 @@ cross_domain_matrix:
         - user-tenant-operator-a
         - route-platform-overview
       expected: Tenant operator permissions remain tenant-scoped and platform-only actions stay blocked.
+    - id: UT-SEC-002
+      level: unit
+      domain: security
+      taxonomy: permission
+      title: Workspace developer cannot manage tenant membership or workspace administration actions.
+      fixtures:
+        - user-workspace-dev-alpha
+        - workspace-alpha-dev
+      expected: Workspace roles cannot escalate into tenant-admin responsibilities.
     - id: AI-DAT-001
       level: adapter_integration
       domain: data
@@ -86,6 +110,16 @@ cross_domain_matrix:
         - event-tenant-provision-requested
         - tenant-shared-a
       expected: Outbound event envelopes are stable and replay-aware before provider integration.
+    - id: AI-SEC-002
+      level: adapter_integration
+      domain: security
+      taxonomy: contract
+      title: Adapter calls preserve correlation id, effective roles, and workspace binding when the authorization context is projected downstream.
+      fixtures:
+        - adapter-object-storage-stub
+        - user-workspace-admin-alpha
+        - workspace-alpha-dev
+      expected: Adapter-facing metadata remains authorization-safe and does not silently drop workspace scope.
     - id: AC-DAT-001
       level: api_contract
       domain: data
@@ -102,6 +136,14 @@ cross_domain_matrix:
       fixtures:
         - api-version-current
       expected: Contract validation fails if `X-API-Version` becomes optional or drifts from the current value.
+    - id: AC-SEC-002
+      level: api_contract
+      domain: security
+      taxonomy: contract
+      title: Workspace access-check operations require correlation metadata and return explicit authorization decisions.
+      fixtures:
+        - api-version-current
+      expected: Access-check routes preserve tenant/workspace scoping, correlation headers, and explicit allow or deny semantics.
     - id: CE-CON-001
       level: console_e2e
       domain: console
@@ -125,6 +167,18 @@ cross_domain_matrix:
       states:
         - tenant_admin
       expected: Tenant admin workflows stay within the tenant boundary.
+    - id: CE-SEC-002
+      level: console_e2e
+      domain: security
+      taxonomy: permission
+      title: Workspace admin can manage one workspace but cannot see platform-wide or cross-tenant navigation.
+      fixtures:
+        - user-workspace-admin-alpha
+        - route-workspace-dashboard
+        - route-platform-overview
+      states:
+        - workspace_admin
+      expected: Workspace-scoped roles stay inside one workspace and do not inherit tenant-wide or platform-wide surfaces.
     - id: RS-EVT-001
       level: resilience
       domain: events
@@ -145,6 +199,16 @@ cross_domain_matrix:
         - tenant-shared-a
         - tenant-dedicated-a
       expected: Recovery paths preserve the logical tenant contract and isolation boundary.
+    - id: RS-SEC-001
+      level: resilience
+      domain: security
+      taxonomy: resilience
+      title: Replay or escalation attempts cannot widen delegated authorization after the original context was denied or narrowed.
+      fixtures:
+        - resilience-privilege-escalation
+        - user-workspace-admin-alpha
+        - workspace-alpha-dev
+      expected: Replayed or mutated authorization context remains denied and fully traceable by correlation id.
 
 scenario_taxonomy:
   categories:
@@ -176,6 +240,7 @@ console:
       blocked_sections:
         - platform-overview
         - tenant-dashboard
+        - workspace-dashboard
         - audit-log
       allowed_actions:
         - request-login
@@ -197,6 +262,7 @@ console:
         - tenant-dashboard
         - tenant-members
         - tenant-settings
+        - workspace-directory
       blocked_sections:
         - platform-overview
         - cross-tenant-directory
@@ -204,6 +270,7 @@ console:
         - manage-tenant-members
         - rotate-tenant-secrets-reference
         - review-tenant-usage
+        - create-workspace
     - id: tenant_operator
       visible_sections:
         - tenant-dashboard
@@ -225,6 +292,19 @@ console:
       allowed_actions:
         - view-audit-evidence
         - export-audit-report
+    - id: workspace_admin
+      visible_sections:
+        - workspace-dashboard
+        - workspace-settings
+        - workspace-members
+      blocked_sections:
+        - platform-overview
+        - cross-tenant-directory
+        - tenant-billing-admin-only-view
+      allowed_actions:
+        - manage-workspace-members
+        - deploy-workspace-app
+        - rotate-workspace-secrets-reference
 
 api_contract:
   uri_prefix: /v1/
@@ -235,5 +315,6 @@ api_contract:
   compatibility_expectations:
     - Non-health control-plane operations stay under `/v1/` until a deliberate versioning change is introduced.
     - The current pinned API-version value remains `2026-03-23` for this contract generation.
+    - Access-check routes remain tenant/workspace-scoped and carry explicit correlation metadata.
     - Backward-compatible additions may add optional fields but must preserve existing required fields and error shapes.
     - Breaking changes require an explicit versioning plan rather than silent contract drift.

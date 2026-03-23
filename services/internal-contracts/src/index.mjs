@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 
 const INTERNAL_SERVICE_MAP_URL = new URL('./internal-service-map.json', import.meta.url);
 const DEPLOYMENT_TOPOLOGY_URL = new URL('./deployment-topology.json', import.meta.url);
+const AUTHORIZATION_MODEL_URL = new URL('./authorization-model.json', import.meta.url);
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;
+let cachedAuthorizationModel;
 
 export function readInternalServiceMap() {
   if (!cachedInternalServiceMap) {
@@ -22,8 +24,17 @@ export function readDeploymentTopology() {
   return cachedDeploymentTopology;
 }
 
+export function readAuthorizationModel() {
+  if (!cachedAuthorizationModel) {
+    cachedAuthorizationModel = JSON.parse(readFileSync(AUTHORIZATION_MODEL_URL, 'utf8'));
+  }
+
+  return cachedAuthorizationModel;
+}
+
 export const INTERNAL_CONTRACT_VERSION = readInternalServiceMap().version;
 export const DEPLOYMENT_TOPOLOGY_VERSION = readDeploymentTopology().version;
+export const AUTHORIZATION_MODEL_VERSION = readAuthorizationModel().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
 export const AUDIT_MODULE_SERVICE_ID = 'audit_module';
@@ -84,4 +95,74 @@ export function listContractsForService(serviceId) {
     id: contractId,
     ...getContract(contractId)
   }));
+}
+
+export function listAuthorizationContracts() {
+  return Object.entries(readAuthorizationModel().contracts).map(([id, contract]) => ({ id, ...contract }));
+}
+
+export function getAuthorizationContract(contractId) {
+  return readAuthorizationModel().contracts[contractId];
+}
+
+export function listAuthorizationRoles(scope) {
+  if (!scope) {
+    return Object.entries(readAuthorizationModel().role_catalog).flatMap(([catalogScope, roles]) =>
+      roles.map((role) => ({ catalog_scope: catalogScope, ...role }))
+    );
+  }
+
+  return (readAuthorizationModel().role_catalog[scope] ?? []).map((role) => ({ catalog_scope: scope, ...role }));
+}
+
+export function getAuthorizationRole(scope, roleId) {
+  return (readAuthorizationModel().role_catalog[scope] ?? []).find((role) => role.id === roleId);
+}
+
+export function listEnforcementSurfaces() {
+  return readAuthorizationModel().enforcement_surfaces;
+}
+
+export function getEnforcementSurface(surfaceId) {
+  return listEnforcementSurfaces().find((surface) => surface.id === surfaceId);
+}
+
+export function listResourceSemantics() {
+  return readAuthorizationModel().resource_semantics;
+}
+
+export function getResourceSemantics(resourceType) {
+  return listResourceSemantics().find((resource) => resource.resource_type === resourceType);
+}
+
+export function listResourceActions(resourceType) {
+  if (!resourceType) {
+    return Object.entries(readAuthorizationModel().resource_actions).flatMap(([type, actions]) =>
+      actions.map((action) => ({ resource_type: type, action }))
+    );
+  }
+
+  return (readAuthorizationModel().resource_actions[resourceType] ?? []).map((action) => ({ resource_type: resourceType, action }));
+}
+
+export function listPermissionMatrix(scope) {
+  if (!scope) {
+    return Object.entries(readAuthorizationModel().permission_matrix).flatMap(([matrixScope, entries]) =>
+      entries.map((entry) => ({ matrix_scope: matrixScope, ...entry }))
+    );
+  }
+
+  return (readAuthorizationModel().permission_matrix[scope] ?? []).map((entry) => ({ matrix_scope: scope, ...entry }));
+}
+
+export function listContextPropagationTargets() {
+  return readAuthorizationModel().propagation_targets;
+}
+
+export function getContextPropagationTarget(targetId) {
+  return listContextPropagationTargets().find((target) => target.target === targetId);
+}
+
+export function listNegativeAuthorizationScenarios() {
+  return readAuthorizationModel().negative_scenarios;
 }

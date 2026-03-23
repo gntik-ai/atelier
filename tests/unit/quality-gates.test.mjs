@@ -49,6 +49,8 @@ test('collectContractViolations flags missing versioning and operation metadata'
     'GET /tenants/{tenantId} is missing operationId.',
     'GET /tenants/{tenantId} must use the /v1/ URI prefix for the current contract generation.',
     'GET /tenants/{tenantId} must require the X-API-Version header.',
-    'GET /tenants/{tenantId} must declare at least one 4xx/5xx/default error response contract.'
+    'GET /tenants/{tenantId} must require the X-Correlation-Id header.',
+    'GET /tenants/{tenantId} must declare at least one 4xx/5xx/default error response contract.',
+    'GET /tenants/{tenantId} must declare a 403 authorization error response.'
   ]);
 });
