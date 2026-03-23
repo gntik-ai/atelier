@@ -1,0 +1,33 @@
+{{- if .Values.bootstrap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "in-atelier.bootstrapPayloadConfigMapName" . }}
+  labels:
+    {{- include "in-atelier.labels" . | nindent 4 }}
+    in-atelier.io/bootstrap-phase: payload
+    in-atelier.io/reconcile-scope: upgrade-safe
+    in-atelier.io/component: bootstrap
+    in-atelier.io/managed-lifecycle: reconcile
+  annotations:
+    in-atelier.io/bootstrap-one-shot-hash: {{ include "in-atelier.bootstrapOneShotHash" . | quote }}
+data:
+  realm.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.keycloak.realm | nindent 4 }}
+  superadmin.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.keycloak.superadmin | nindent 4 }}
+  governance-plans.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.governanceCatalog.plans | nindent 4 }}
+  governance-quota-policies.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.governanceCatalog.quotaPolicies | nindent 4 }}
+  governance-deployment-profiles.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.governanceCatalog.deploymentProfiles | nindent 4 }}
+  internal-namespaces.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.internalNamespaces | nindent 4 }}
+  role-superadmin.json: |
+{{ toPrettyJson (dict "name" "superadmin") | nindent 4 }}
+{{ range .Values.bootstrap.reconcile.apisix.routes }}
+  route-{{ .routeId }}.json: |
+{{ toPrettyJson (dict "name" .name "priority" .priority "uri" .uri "upstream" (dict "type" "roundrobin" "nodes" (dict (printf "%s.%s.svc.cluster.local:%v" (include "in-atelier.componentServiceNameByAlias" (dict "root" $ "component" .upstream.component "serviceName" (.upstream.serviceName | default ""))) $.Release.Namespace .upstream.port) 1))) | nindent 4 }}
+{{ end }}
+{{- end }}

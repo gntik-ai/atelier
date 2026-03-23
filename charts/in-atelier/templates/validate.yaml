@@ -30,5 +30,19 @@
 {{- if not (has "common" .Values.config.inheritanceOrder) -}}
   {{- fail "config.inheritanceOrder must include the common values layer" -}}
 {{- end -}}
+{{- if .Values.bootstrap.enabled -}}
+  {{- if eq .Values.bootstrap.lock.name .Values.bootstrap.markers.name -}}
+    {{- fail "bootstrap.lock.name and bootstrap.markers.name must be different resources" -}}
+  {{- end -}}
+  {{- if not .Values.keycloak.enabled -}}
+    {{- fail "bootstrap requires keycloak.enabled=true for the default realm/superadmin flow" -}}
+  {{- end -}}
+  {{- if not .Values.apisix.enabled -}}
+    {{- fail "bootstrap requires apisix.enabled=true for the default APISIX route reconciliation flow" -}}
+  {{- end -}}
+  {{- if eq (len .Values.bootstrap.secretResolution.sources) 0 -}}
+    {{- fail "bootstrap.secretResolution.sources must define the required credential inputs" -}}
+  {{- end -}}
+{{- end -}}
 {{- end -}}
 {{ include "in-atelier.validate" . }}

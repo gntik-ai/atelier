@@ -155,6 +155,424 @@ config:
         - access-key
         - secret-key
 
+bootstrap:
+  enabled: true
+  serviceAccount:
+    create: true
+    name: ""
+  job:
+    image:
+      repository: docker.io/bitnami/kubectl
+      tag: 1.32.2
+      pullPolicy: IfNotPresent
+    backoffLimit: 1
+    activeDeadlineSeconds: 900
+    ttlSecondsAfterFinished: 86400
+    annotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    podSecurityContext:
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      capabilities:
+        drop:
+          - ALL
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    extraEnv: []
+  lock:
+    name: in-atelier-bootstrap-lock
+    breakGlassExistingLock: false
+  markers:
+    name: in-atelier-bootstrap-state
+  secretResolution:
+    supportedStrategies:
+      - kubernetesSecret
+      - env
+      - externalRef
+    sources:
+      keycloakAdminUsername:
+        strategy: kubernetesSecret
+        envVarName: BOOTSTRAP_KEYCLOAK_ADMIN_USERNAME
+        existingSecret:
+          name: in-atelier-keycloak-admin
+          key: username
+      keycloakAdminPassword:
+        strategy: kubernetesSecret
+        envVarName: BOOTSTRAP_KEYCLOAK_ADMIN_PASSWORD
+        existingSecret:
+          name: in-atelier-keycloak-admin
+          key: password
+      superadminPassword:
+        strategy: kubernetesSecret
+        envVarName: BOOTSTRAP_SUPERADMIN_PASSWORD
+        existingSecret:
+          name: in-atelier-superadmin
+          key: password
+      apisixAdminKey:
+        strategy: kubernetesSecret
+        envVarName: BOOTSTRAP_APISIX_ADMIN_KEY
+        existingSecret:
+          name: in-atelier-apisix-admin
+          key: admin-key
+  oneShot:
+    keycloak:
+      realm:
+        realm: in-atelier-platform
+        displayName: In Atelier Platform
+        enabled: true
+      superadmin:
+        username: superadmin
+        email: platform-admin@in-atelier.example.com
+        firstName: Platform
+        lastName: Admin
+        realmRoles:
+          - superadmin
+    governanceCatalog:
+      plans:
+        - planId: pln_01starter
+          slug: starter
+          displayName: Starter
+          planFamily: starter
+          planStatus: active
+          deploymentProfileId: dpf_01sharedstarter
+          quotaPolicyId: qta_01starter
+          billingInterval: monthly
+          capabilityKeys:
+            - identity.sso.oidc
+            - data.postgresql.shared
+            - data.storage.bucket
+            - observability.metrics.basic
+        - planId: pln_01growth
+          slug: growth
+          displayName: Growth
+          planFamily: growth
+          planStatus: active
+          deploymentProfileId: dpf_01sharedgrowth
+          quotaPolicyId: qta_01growth
+          billingInterval: monthly
+          capabilityKeys:
+            - identity.sso.oidc
+            - data.postgresql.shared
+            - data.storage.bucket
+            - data.kafka.topics
+            - data.openwhisk.actions
+            - observability.metrics.basic
+            - observability.logs.extended
+        - planId: pln_01regulated
+          slug: regulated
+          displayName: Regulated
+          planFamily: regulated
+          planStatus: active
+          deploymentProfileId: dpf_01regulateddedicated
+          quotaPolicyId: qta_01regulated
+          billingInterval: annual
+          capabilityKeys:
+            - identity.sso.oidc
+            - data.postgresql.dedicated
+            - data.storage.bucket
+            - data.kafka.topics
+            - observability.metrics.basic
+            - observability.audit.export
+        - planId: pln_01enterprise
+          slug: enterprise
+          displayName: Enterprise
+          planFamily: enterprise
+          planStatus: active
+          deploymentProfileId: dpf_01enterprisefederated
+          quotaPolicyId: qta_01enterprise
+          billingInterval: annual
+          capabilityKeys:
+            - identity.sso.oidc
+            - data.postgresql.dedicated
+            - data.storage.bucket
+            - data.kafka.topics
+            - data.openwhisk.actions
+            - control.federated_clusters
+            - observability.metrics.basic
+            - observability.logs.extended
+            - observability.traces.long_retention
+            - observability.audit.export
+      quotaPolicies:
+        - quotaPolicyId: qta_01starter
+          slug: starter-default
+          displayName: Starter default quota policy
+          quotaScope: tenant_and_workspace
+          enforcementMode: hard_stop
+          warningThresholdPercent: 80
+          defaultLimits:
+            - metricKey: tenant.workspaces.max
+              scope: tenant
+              unit: count
+              limit: 1
+            - metricKey: tenant.members.max
+              scope: tenant
+              unit: count
+              limit: 10
+            - metricKey: workspace.managed_resources.max
+              scope: workspace
+              unit: count
+              limit: 8
+            - metricKey: workspace.kafka_topics.max
+              scope: workspace
+              unit: count
+              limit: 0
+            - metricKey: workspace.monthly_function_invocations.max
+              scope: workspace
+              unit: count
+              limit: 100000
+            - metricKey: tenant.audit_retention_days.max
+              scope: tenant
+              unit: days
+              limit: 30
+        - quotaPolicyId: qta_01growth
+          slug: growth-default
+          displayName: Growth default quota policy
+          quotaScope: tenant_and_workspace
+          enforcementMode: hard_stop
+          warningThresholdPercent: 85
+          defaultLimits:
+            - metricKey: tenant.workspaces.max
+              scope: tenant
+              unit: count
+              limit: 3
+            - metricKey: tenant.members.max
+              scope: tenant
+              unit: count
+              limit: 50
+            - metricKey: workspace.managed_resources.max
+              scope: workspace
+              unit: count
+              limit: 24
+            - metricKey: workspace.kafka_topics.max
+              scope: workspace
+              unit: count
+              limit: 20
+            - metricKey: workspace.monthly_function_invocations.max
+              scope: workspace
+              unit: count
+              limit: 1000000
+            - metricKey: tenant.audit_retention_days.max
+              scope: tenant
+              unit: days
+              limit: 90
+        - quotaPolicyId: qta_01regulated
+          slug: regulated-default
+          displayName: Regulated default quota policy
+          quotaScope: tenant_and_workspace
+          enforcementMode: hard_stop
+          warningThresholdPercent: 90
+          defaultLimits:
+            - metricKey: tenant.workspaces.max
+              scope: tenant
+              unit: count
+              limit: 5
+            - metricKey: tenant.members.max
+              scope: tenant
+              unit: count
+              limit: 100
+            - metricKey: workspace.managed_resources.max
+              scope: workspace
+              unit: count
+              limit: 40
+            - metricKey: workspace.kafka_topics.max
+              scope: workspace
+              unit: count
+              limit: 40
+            - metricKey: workspace.monthly_function_invocations.max
+              scope: workspace
+              unit: count
+              limit: 500000
+            - metricKey: tenant.audit_retention_days.max
+              scope: tenant
+              unit: days
+              limit: 365
+        - quotaPolicyId: qta_01enterprise
+          slug: enterprise-default
+          displayName: Enterprise default quota policy
+          quotaScope: tenant_and_workspace
+          enforcementMode: hard_stop
+          warningThresholdPercent: 90
+          defaultLimits:
+            - metricKey: tenant.workspaces.max
+              scope: tenant
+              unit: count
+              limit: 10
+            - metricKey: tenant.members.max
+              scope: tenant
+              unit: count
+              limit: 250
+            - metricKey: workspace.managed_resources.max
+              scope: workspace
+              unit: count
+              limit: 100
+            - metricKey: workspace.kafka_topics.max
+              scope: workspace
+              unit: count
+              limit: 200
+            - metricKey: workspace.monthly_function_invocations.max
+              scope: workspace
+              unit: count
+              limit: 5000000
+            - metricKey: tenant.audit_retention_days.max
+              scope: tenant
+              unit: days
+              limit: 730
+      deploymentProfiles:
+        - deploymentProfileId: dpf_01sharedstarter
+          slug: shared-starter
+          displayName: Shared starter profile
+          profileClass: shared
+          supportedEnvironments:
+            - dev
+            - sandbox
+          planeBindings:
+            control: shared-control-plane
+            data: shared-schema
+            identity: shared-keycloak-realm
+            observability: shared-30d-retention
+          providerCapabilityIds:
+            - pvc_01keycloakoidc
+            - pvc_01pgshared
+            - pvc_01storagebucket
+            - pvc_01metricsbasic
+        - deploymentProfileId: dpf_01sharedgrowth
+          slug: shared-growth
+          displayName: Shared growth profile
+          profileClass: shared
+          supportedEnvironments:
+            - dev
+            - sandbox
+            - staging
+            - prod
+          planeBindings:
+            control: shared-control-plane
+            data: shared-schema-plus-streams
+            identity: shared-keycloak-realm
+            observability: shared-90d-retention
+          providerCapabilityIds:
+            - pvc_01keycloakoidc
+            - pvc_01pgshared
+            - pvc_01storagebucket
+            - pvc_01kafkatopics
+            - pvc_01openwhiskactions
+            - pvc_01metricsbasic
+            - pvc_01logsextended
+        - deploymentProfileId: dpf_01regulateddedicated
+          slug: regulated-dedicated
+          displayName: Regulated dedicated profile
+          profileClass: dedicated
+          supportedEnvironments:
+            - staging
+            - prod
+          planeBindings:
+            control: dedicated-control-plane-policy-set
+            data: dedicated-database
+            identity: dedicated-keycloak-realm
+            observability: regulated-365d-retention
+          providerCapabilityIds:
+            - pvc_01keycloakoidc
+            - pvc_01pgdedicated
+            - pvc_01storagebucket
+            - pvc_01kafkatopics
+            - pvc_01metricsbasic
+            - pvc_01auditexport
+        - deploymentProfileId: dpf_01enterprisefederated
+          slug: enterprise-federated
+          displayName: Enterprise federated profile
+          profileClass: federated
+          supportedEnvironments:
+            - dev
+            - sandbox
+            - staging
+            - prod
+          planeBindings:
+            control: federated-control-plane
+            data: dedicated-data-plane
+            identity: federated-identity-plane
+            observability: enterprise-730d-retention
+          providerCapabilityIds:
+            - pvc_01keycloakoidc
+            - pvc_01pgdedicated
+            - pvc_01storagebucket
+            - pvc_01kafkatopics
+            - pvc_01openwhiskactions
+            - pvc_01metricsbasic
+            - pvc_01logsextended
+            - pvc_01tracesretention
+            - pvc_01federatedclusters
+            - pvc_01auditexport
+    internalNamespaces:
+      openwhisk:
+        - namespace: platform-system
+          description: Shared control-plane automation namespace
+          packages:
+            - provisioning
+            - observability
+        - namespace: platform-audit
+          description: Audit evidence and export workflows
+          packages:
+            - evidence
+      storage:
+        buckets:
+          - name: platform-audit
+            prefixes:
+              - evidence/
+              - exports/
+          - name: platform-artifacts
+            prefixes:
+              - packages/
+              - bundles/
+  reconcile:
+    apisix:
+      adminService:
+        enabled: true
+        port: 9180
+        targetPort: 9180
+        portName: admin
+        annotations: {}
+      routes:
+        - routeId: "1001"
+          name: control-plane
+          uri: /control-plane/*
+          priority: 100
+          upstream:
+            component: controlPlane
+            port: 8080
+        - routeId: "1002"
+          name: identity
+          uri: /auth/*
+          priority: 90
+          upstream:
+            component: keycloak
+            port: 8080
+        - routeId: "1003"
+          name: realtime
+          uri: /realtime/*
+          priority: 80
+          upstream:
+            component: controlPlane
+            port: 8080
+        - routeId: "1004"
+          name: console
+          uri: /*
+          priority: 10
+          upstream:
+            component: webConsole
+            port: 3000
+
 apisix:
   enabled: true
   wrapper:
