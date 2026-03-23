@@ -1,0 +1,361 @@
+{
+  "version": "2026-03-23",
+  "profiles": [
+    {
+      "id": "starter-single-workspace",
+      "label": "Starter tenant with one development workspace",
+      "tenant_size": "starter",
+      "workspace_count": 1,
+      "tenant": {
+        "tenantId": "ten_01starteralpha",
+        "slug": "starter-alpha",
+        "displayName": "Starter Alpha",
+        "planId": "plan-starter",
+        "placement": "shared_schema",
+        "state": "active"
+      },
+      "platformUsers": [
+        {
+          "userId": "usr_01platformadmin",
+          "username": "paula-admin",
+          "role": "platform_admin"
+        },
+        {
+          "userId": "usr_01tenantadmin",
+          "username": "alice-tenant",
+          "role": "tenant_admin"
+        },
+        {
+          "userId": "usr_01workspaceadmin",
+          "username": "diego-workspace",
+          "role": "workspace_admin"
+        }
+      ],
+      "workspaces": [
+        {
+          "workspaceId": "wrk_01starterdev",
+          "tenantId": "ten_01starteralpha",
+          "slug": "alpha-dev",
+          "displayName": "Alpha Dev",
+          "environment": "dev",
+          "state": "active"
+        }
+      ],
+      "externalApplications": [
+        {
+          "applicationId": "app_01starterportal",
+          "workspaceId": "wrk_01starterdev",
+          "slug": "customer-portal",
+          "protocol": "oidc",
+          "state": "active"
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "serviceAccountId": "svc_01starterci",
+          "workspaceId": "wrk_01starterdev",
+          "slug": "ci-bot",
+          "roleBindings": [
+            "workspace_developer"
+          ],
+          "state": "active"
+        }
+      ],
+      "managedResources": [
+        {
+          "resourceId": "res_01starterdb",
+          "workspaceId": "wrk_01starterdev",
+          "slug": "alpha-db",
+          "kind": "database",
+          "provider": "postgresql",
+          "serviceAccountId": "svc_01starterci",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01starterbucket",
+          "workspaceId": "wrk_01starterdev",
+          "slug": "alpha-assets",
+          "kind": "bucket",
+          "provider": "storage",
+          "applicationId": "app_01starterportal",
+          "state": "active"
+        }
+      ]
+    },
+    {
+      "id": "growth-multi-workspace",
+      "label": "Growth tenant with dev, staging, and production workspaces",
+      "tenant_size": "growth",
+      "workspace_count": 3,
+      "tenant": {
+        "tenantId": "ten_01growthbeta",
+        "slug": "growth-beta",
+        "displayName": "Growth Beta",
+        "planId": "plan-growth",
+        "placement": "shared_schema",
+        "state": "active"
+      },
+      "platformUsers": [
+        {
+          "userId": "usr_01betatenantadmin",
+          "username": "bea-tenant",
+          "role": "tenant_admin"
+        },
+        {
+          "userId": "usr_01betadeveloper",
+          "username": "bruno-dev",
+          "role": "workspace_developer"
+        },
+        {
+          "userId": "usr_01betaauditor",
+          "username": "bianca-audit",
+          "role": "auditor"
+        }
+      ],
+      "workspaces": [
+        {
+          "workspaceId": "wrk_01betadev",
+          "tenantId": "ten_01growthbeta",
+          "slug": "beta-dev",
+          "displayName": "Beta Dev",
+          "environment": "dev",
+          "state": "active"
+        },
+        {
+          "workspaceId": "wrk_01betastaging",
+          "tenantId": "ten_01growthbeta",
+          "slug": "beta-staging",
+          "displayName": "Beta Staging",
+          "environment": "staging",
+          "state": "active"
+        },
+        {
+          "workspaceId": "wrk_01betaprod",
+          "tenantId": "ten_01growthbeta",
+          "slug": "beta-prod",
+          "displayName": "Beta Production",
+          "environment": "prod",
+          "state": "active"
+        }
+      ],
+      "externalApplications": [
+        {
+          "applicationId": "app_01betaadmin",
+          "workspaceId": "wrk_01betastaging",
+          "slug": "ops-console",
+          "protocol": "oidc",
+          "state": "active"
+        },
+        {
+          "applicationId": "app_01betashop",
+          "workspaceId": "wrk_01betaprod",
+          "slug": "shop-web",
+          "protocol": "oidc",
+          "state": "active"
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "serviceAccountId": "svc_01betadeploy",
+          "workspaceId": "wrk_01betastaging",
+          "slug": "deploy-bot",
+          "roleBindings": [
+            "workspace_operator"
+          ],
+          "state": "active"
+        },
+        {
+          "serviceAccountId": "svc_01betaanalytics",
+          "workspaceId": "wrk_01betaprod",
+          "slug": "analytics-bot",
+          "roleBindings": [
+            "workspace_viewer"
+          ],
+          "state": "suspended"
+        }
+      ],
+      "managedResources": [
+        {
+          "resourceId": "res_01betadb",
+          "workspaceId": "wrk_01betaprod",
+          "slug": "beta-db",
+          "kind": "database",
+          "provider": "postgresql",
+          "serviceAccountId": "svc_01betadeploy",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01betatopic",
+          "workspaceId": "wrk_01betastaging",
+          "slug": "events-topic",
+          "kind": "topic",
+          "provider": "kafka",
+          "applicationId": "app_01betaadmin",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01betabucket",
+          "workspaceId": "wrk_01betaprod",
+          "slug": "beta-assets",
+          "kind": "bucket",
+          "provider": "storage",
+          "applicationId": "app_01betashop",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01betafn",
+          "workspaceId": "wrk_01betadev",
+          "slug": "preview-functions",
+          "kind": "function",
+          "provider": "openwhisk",
+          "serviceAccountId": "svc_01betadeploy",
+          "state": "provisioning"
+        }
+      ]
+    },
+    {
+      "id": "enterprise-dedicated",
+      "label": "Enterprise tenant with dedicated database placement and multiple production-grade workspaces",
+      "tenant_size": "enterprise",
+      "workspace_count": 4,
+      "tenant": {
+        "tenantId": "ten_01enterprisedelta",
+        "slug": "enterprise-delta",
+        "displayName": "Enterprise Delta",
+        "planId": "plan-enterprise",
+        "placement": "dedicated_database",
+        "state": "active"
+      },
+      "platformUsers": [
+        {
+          "userId": "usr_01deltaplatformoperator",
+          "username": "olivia-platform",
+          "role": "platform_operator"
+        },
+        {
+          "userId": "usr_01deltatenantadmin",
+          "username": "emma-tenant",
+          "role": "tenant_admin"
+        },
+        {
+          "userId": "usr_01deltaworkspaceoperator",
+          "username": "noah-workspace",
+          "role": "workspace_operator"
+        },
+        {
+          "userId": "usr_01deltaauditor",
+          "username": "liam-auditor",
+          "role": "workspace_auditor"
+        }
+      ],
+      "workspaces": [
+        {
+          "workspaceId": "wrk_01deltadev",
+          "tenantId": "ten_01enterprisedelta",
+          "slug": "delta-dev",
+          "displayName": "Delta Dev",
+          "environment": "dev",
+          "state": "active"
+        },
+        {
+          "workspaceId": "wrk_01deltasandbox",
+          "tenantId": "ten_01enterprisedelta",
+          "slug": "delta-sandbox",
+          "displayName": "Delta Sandbox",
+          "environment": "sandbox",
+          "state": "active"
+        },
+        {
+          "workspaceId": "wrk_01deltastaging",
+          "tenantId": "ten_01enterprisedelta",
+          "slug": "delta-staging",
+          "displayName": "Delta Staging",
+          "environment": "staging",
+          "state": "active"
+        },
+        {
+          "workspaceId": "wrk_01deltaprod",
+          "tenantId": "ten_01enterprisedelta",
+          "slug": "delta-prod",
+          "displayName": "Delta Production",
+          "environment": "prod",
+          "state": "active"
+        }
+      ],
+      "externalApplications": [
+        {
+          "applicationId": "app_01deltagateway",
+          "workspaceId": "wrk_01deltaprod",
+          "slug": "customer-gateway",
+          "protocol": "oidc",
+          "state": "active"
+        },
+        {
+          "applicationId": "app_01deltaops",
+          "workspaceId": "wrk_01deltastaging",
+          "slug": "ops-portal",
+          "protocol": "oidc",
+          "state": "active"
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "serviceAccountId": "svc_01deltaprovisioner",
+          "workspaceId": "wrk_01deltaprod",
+          "slug": "provisioner",
+          "roleBindings": [
+            "workspace_admin"
+          ],
+          "state": "active"
+        },
+        {
+          "serviceAccountId": "svc_01deltareporter",
+          "workspaceId": "wrk_01deltastaging",
+          "slug": "reporter",
+          "roleBindings": [
+            "workspace_auditor"
+          ],
+          "state": "active"
+        }
+      ],
+      "managedResources": [
+        {
+          "resourceId": "res_01deltaprimarydb",
+          "workspaceId": "wrk_01deltaprod",
+          "slug": "primary-db",
+          "kind": "database",
+          "provider": "postgresql",
+          "serviceAccountId": "svc_01deltaprovisioner",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01deltaauditbucket",
+          "workspaceId": "wrk_01deltastaging",
+          "slug": "audit-bucket",
+          "kind": "bucket",
+          "provider": "storage",
+          "serviceAccountId": "svc_01deltareporter",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01deltabus",
+          "workspaceId": "wrk_01deltaprod",
+          "slug": "event-bus",
+          "kind": "topic",
+          "provider": "kafka",
+          "applicationId": "app_01deltagateway",
+          "state": "active"
+        },
+        {
+          "resourceId": "res_01deltaworkers",
+          "workspaceId": "wrk_01deltasandbox",
+          "slug": "worker-functions",
+          "kind": "function",
+          "provider": "openwhisk",
+          "serviceAccountId": "svc_01deltaprovisioner",
+          "state": "provisioning"
+        }
+      ]
+    }
+  ]
+}

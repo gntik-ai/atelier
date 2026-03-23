@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 
-import { OPENAPI_PATH, readJson, readYaml } from './quality-gates.mjs';
+import { OPENAPI_PATH, readJson, readYaml, resolveParameters } from './quality-gates.mjs';
 
 export const DEPLOYMENT_TOPOLOGY_PATH = 'services/internal-contracts/src/deployment-topology.json';
 export const DEPLOYMENT_SMOKE_MATRIX_PATH = 'tests/reference/deployment-smoke-matrix.yaml';
@@ -284,7 +284,8 @@ function collectOpenApiAlignmentViolations(topology, openapiDocument) {
   }
 
   const getTenantSummary = openapiDocument?.paths?.['/v1/tenants/{tenantId}']?.get;
-  const versionHeader = (getTenantSummary?.parameters ?? []).find(
+  const parameters = resolveParameters(openapiDocument, getTenantSummary);
+  const versionHeader = parameters.find(
     (parameter) => parameter?.in === 'header' && parameter?.name === 'X-API-Version'
   );
 

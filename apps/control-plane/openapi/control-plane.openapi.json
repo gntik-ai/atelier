@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Control Plane API",
-    "version": "0.2.0",
-    "summary": "Bootstrap control-plane contract for CI and downstream implementation tasks.",
-    "description": "Public control-plane baseline contract used to validate versioning, contextual-authorization expectations, and contract-test plumbing before later runtime implementation tasks.",
+    "version": "0.3.0",
+    "summary": "Control-plane contract baseline with contextual authorization and canonical core-domain entity contracts.",
+    "description": "Public control-plane baseline contract used to validate versioning, contextual authorization, and canonical core-domain entity read/write expectations before later runtime implementation tasks.",
     "license": {
       "name": "Proprietary",
       "url": "https://in-atelier.example.com/licenses/proprietary"
@@ -32,7 +32,22 @@
       "name": "System"
     },
     {
+      "name": "PlatformUsers"
+    },
+    {
       "name": "Tenants"
+    },
+    {
+      "name": "Workspaces"
+    },
+    {
+      "name": "Applications"
+    },
+    {
+      "name": "ServiceAccounts"
+    },
+    {
+      "name": "ManagedResources"
     },
     {
       "name": "Authorization"
@@ -60,12 +75,12 @@
         }
       }
     },
-    "/v1/tenants/{tenantId}": {
+    "/v1/platform-users/{userId}": {
       "get": {
-        "operationId": "getTenantSummary",
-        "summary": "Fetch tenant placement and activation summary",
+        "operationId": "getPlatformUser",
+        "summary": "Fetch one canonical platform user entity",
         "tags": [
-          "Tenants"
+          "PlatformUsers"
         ],
         "security": [
           {
@@ -74,51 +89,28 @@
         ],
         "parameters": [
           {
-            "name": "tenantId",
-            "in": "path",
-            "required": true,
-            "description": "Stable tenant identifier.",
-            "schema": {
-              "type": "string",
-              "minLength": 3,
-              "pattern": "^[a-z0-9][a-z0-9-]+$"
-            }
+            "$ref": "#/components/parameters/XApiVersion"
           },
           {
-            "name": "X-API-Version",
-            "in": "header",
-            "required": true,
-            "description": "Pinned contract generation date for non-breaking evolution inside v1.",
-            "schema": {
-              "type": "string",
-              "pattern": "^2026-03-23$"
-            }
+            "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "name": "X-Correlation-Id",
-            "in": "header",
-            "required": true,
-            "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
-            "schema": {
-              "type": "string",
-              "minLength": 8,
-              "maxLength": 128
-            }
+            "$ref": "#/components/parameters/UserId"
           }
         ],
         "responses": {
           "200": {
-            "description": "Tenant summary returned.",
+            "description": "Platform user returned.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantSummary"
+                  "$ref": "#/components/schemas/PlatformUser"
                 }
               }
             }
           },
-          "403": {
-            "description": "The caller is authenticated but not authorized for this tenant scope.",
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
                 "schema": {
@@ -127,8 +119,8 @@
               }
             }
           },
-          "404": {
-            "description": "Tenant was not found.",
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
             "content": {
               "application/json": {
                 "schema": {
@@ -139,6 +131,929 @@
           },
           "default": {
             "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/platform-users": {
+      "post": {
+        "operationId": "createPlatformUser",
+        "summary": "Submit a canonical platform user write request",
+        "tags": [
+          "PlatformUsers"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformUserWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Platform user mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tenants/{tenantId}": {
+      "get": {
+        "operationId": "getTenant",
+        "summary": "Fetch one canonical tenant entity",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tenant"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tenants": {
+      "post": {
+        "operationId": "createTenant",
+        "summary": "Submit a canonical tenant write request",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tenants/{tenantId}/workspaces/{workspaceId}": {
+      "get": {
+        "operationId": "getWorkspace",
+        "summary": "Fetch one canonical workspace entity",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/tenants/{tenantId}/workspaces": {
+      "post": {
+        "operationId": "createWorkspace",
+        "summary": "Submit a canonical workspace write request",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Workspace mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/external-applications/{applicationId}": {
+      "get": {
+        "operationId": "getExternalApplication",
+        "summary": "Fetch one canonical external application entity",
+        "tags": [
+          "Applications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ApplicationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "External application returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalApplication"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/external-applications": {
+      "post": {
+        "operationId": "createExternalApplication",
+        "summary": "Submit a canonical external application write request",
+        "tags": [
+          "Applications"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalApplicationWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "External application mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}": {
+      "get": {
+        "operationId": "getServiceAccount",
+        "summary": "Fetch one canonical service account entity",
+        "tags": [
+          "ServiceAccounts"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ServiceAccountId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service account returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/service-accounts": {
+      "post": {
+        "operationId": "createServiceAccount",
+        "summary": "Submit a canonical service account write request",
+        "tags": [
+          "ServiceAccounts"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAccountWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Service account mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/managed-resources/{resourceId}": {
+      "get": {
+        "operationId": "getManagedResource",
+        "summary": "Fetch one canonical managed resource entity",
+        "tags": [
+          "ManagedResources"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Managed resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedResource"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/managed-resources": {
+      "post": {
+        "operationId": "createManagedResource",
+        "summary": "Submit a canonical managed resource write request",
+        "tags": [
+          "ManagedResources"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagedResourceWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Managed resource mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
             "content": {
               "application/json": {
                 "schema": {
@@ -281,6 +1196,91 @@
         "description": "Keycloak-issued access token carrying platform, tenant, and workspace authorization bindings."
       }
     },
+    "parameters": {
+      "XApiVersion": {
+        "name": "X-API-Version",
+        "in": "header",
+        "required": true,
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "schema": {
+          "type": "string",
+          "pattern": "^2026-03-23$"
+        }
+      },
+      "XCorrelationId": {
+        "name": "X-Correlation-Id",
+        "in": "header",
+        "required": true,
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        }
+      },
+      "TenantId": {
+        "name": "tenantId",
+        "in": "path",
+        "required": true,
+        "description": "Stable tenant identifier.",
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^ten_[0-9a-z]+$"
+        }
+      },
+      "WorkspaceId": {
+        "name": "workspaceId",
+        "in": "path",
+        "required": true,
+        "description": "Stable workspace identifier.",
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^wrk_[0-9a-z]+$"
+        }
+      },
+      "UserId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "description": "Stable platform user identifier.",
+        "schema": {
+          "type": "string",
+          "pattern": "^usr_[0-9a-z]+$"
+        }
+      },
+      "ApplicationId": {
+        "name": "applicationId",
+        "in": "path",
+        "required": true,
+        "description": "Stable external application identifier.",
+        "schema": {
+          "type": "string",
+          "pattern": "^app_[0-9a-z]+$"
+        }
+      },
+      "ServiceAccountId": {
+        "name": "serviceAccountId",
+        "in": "path",
+        "required": true,
+        "description": "Stable service account identifier.",
+        "schema": {
+          "type": "string",
+          "pattern": "^svc_[0-9a-z]+$"
+        }
+      },
+      "ResourceId": {
+        "name": "resourceId",
+        "in": "path",
+        "required": true,
+        "description": "Stable managed resource identifier.",
+        "schema": {
+          "type": "string",
+          "pattern": "^res_[0-9a-z]+$"
+        }
+      }
+    },
     "schemas": {
       "HealthStatus": {
         "type": "object",
@@ -304,48 +1304,6 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
-          }
-        }
-      },
-      "TenantSummary": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "tenantId",
-          "displayName",
-          "placement",
-          "status",
-          "planId"
-        ],
-        "properties": {
-          "tenantId": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "placement": {
-            "type": "string",
-            "enum": [
-              "shared_schema",
-              "dedicated_database"
-            ]
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "suspended"
-            ]
-          },
-          "planId": {
-            "type": "string",
-            "enum": [
-              "starter",
-              "growth",
-              "regulated",
-              "enterprise"
-            ]
           }
         }
       },
@@ -585,6 +1543,966 @@
             "type": "string"
           }
         }
+      },
+      "EntityState": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "provisioning",
+          "active",
+          "suspended",
+          "soft_deleted"
+        ]
+      },
+      "EntityMetadata": {
+        "type": "object",
+        "description": "Non-secret additive metadata for canonical entities.",
+        "additionalProperties": {
+          "type": "string",
+          "maxLength": 1024
+        }
+      },
+      "LifecycleTimestamps": {
+        "type": "object",
+        "required": [
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "activatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suspendedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformRole": {
+        "type": "string",
+        "enum": [
+          "platform_admin",
+          "platform_operator",
+          "platform_auditor"
+        ]
+      },
+      "TenantRole": {
+        "type": "string",
+        "enum": [
+          "tenant_admin",
+          "tenant_operator",
+          "tenant_billing_admin",
+          "auditor"
+        ]
+      },
+      "WorkspaceRole": {
+        "type": "string",
+        "enum": [
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_operator",
+          "workspace_auditor",
+          "workspace_viewer"
+        ]
+      },
+      "TenantMembership": {
+        "type": "object",
+        "required": [
+          "tenantId",
+          "role"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TenantRole"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkspaceMembership": {
+        "type": "object",
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "role"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "role": {
+            "$ref": "#/components/schemas/WorkspaceRole"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformUser": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "userId",
+          "username",
+          "displayName",
+          "primaryEmail",
+          "identitySubject",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "platform_user"
+          },
+          "userId": {
+            "type": "string",
+            "pattern": "^usr_[0-9a-z]+$"
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "primaryEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "identitySubject": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "platformRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformRole"
+            }
+          },
+          "tenantMemberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantMembership"
+            }
+          },
+          "workspaceMemberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceMembership"
+            }
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformUserWriteRequest": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "username",
+          "displayName",
+          "primaryEmail",
+          "identitySubject",
+          "desiredState",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "platform_user"
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "primaryEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "identitySubject": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "platformRoles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformRole"
+            }
+          },
+          "tenantMemberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantMembership"
+            }
+          },
+          "workspaceMemberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceMembership"
+            }
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TenantPlacement": {
+        "type": "string",
+        "enum": [
+          "shared_schema",
+          "dedicated_database"
+        ]
+      },
+      "Tenant": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "tenantId",
+          "slug",
+          "displayName",
+          "planId",
+          "placement",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "tenant"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "planId": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "placement": {
+            "$ref": "#/components/schemas/TenantPlacement"
+          },
+          "region": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "workspaceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TenantWriteRequest": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "planId",
+          "placement",
+          "desiredState",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "tenant"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "planId": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "placement": {
+            "$ref": "#/components/schemas/TenantPlacement"
+          },
+          "region": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkspaceEnvironment": {
+        "type": "string",
+        "enum": [
+          "dev",
+          "sandbox",
+          "staging",
+          "prod"
+        ]
+      },
+      "Workspace": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "workspaceId",
+          "tenantId",
+          "slug",
+          "displayName",
+          "environment",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "workspace"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "runtimeNamespace": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "resourceCounts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkspaceWriteRequest": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "environment",
+          "desiredState",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "workspace"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApplicationProtocol": {
+        "type": "string",
+        "enum": [
+          "oidc",
+          "saml",
+          "api_key"
+        ]
+      },
+      "ExternalApplication": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "applicationId",
+          "tenantId",
+          "workspaceId",
+          "slug",
+          "displayName",
+          "protocol",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "external_application"
+          },
+          "applicationId": {
+            "type": "string",
+            "pattern": "^app_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ApplicationProtocol"
+          },
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "serviceAccountIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^svc_[0-9a-z]+$"
+            }
+          },
+          "exposedResourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^res_[0-9a-z]+$"
+            }
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalApplicationWriteRequest": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "protocol",
+          "desiredState",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "external_application"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ApplicationProtocol"
+          },
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "serviceAccountIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^svc_[0-9a-z]+$"
+            }
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ServiceAccount": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "serviceAccountId",
+          "tenantId",
+          "workspaceId",
+          "slug",
+          "displayName",
+          "roleBindings",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "service_account"
+          },
+          "serviceAccountId": {
+            "type": "string",
+            "pattern": "^svc_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "roleBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRole"
+            }
+          },
+          "tokenRotationPolicy": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "externalApplicationIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^app_[0-9a-z]+$"
+            }
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ServiceAccountWriteRequest": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "roleBindings",
+          "desiredState",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "service_account"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "roleBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRole"
+            }
+          },
+          "tokenRotationPolicy": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "externalApplicationIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^app_[0-9a-z]+$"
+            }
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ManagedResourceKind": {
+        "type": "string",
+        "enum": [
+          "database",
+          "bucket",
+          "topic",
+          "function"
+        ]
+      },
+      "ManagedResource": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "slug",
+          "displayName",
+          "kind",
+          "provider",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "managed_resource"
+          },
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ManagedResourceKind"
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "applicationId": {
+            "type": "string",
+            "pattern": "^app_[0-9a-z]+$"
+          },
+          "serviceAccountId": {
+            "type": "string",
+            "pattern": "^svc_[0-9a-z]+$"
+          },
+          "providerRef": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "placementRef": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "specVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ManagedResourceWriteRequest": {
+        "type": "object",
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "kind",
+          "provider",
+          "desiredState",
+          "metadata"
+        ],
+        "properties": {
+          "entityType": {
+            "type": "string",
+            "const": "managed_resource"
+          },
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ManagedResourceKind"
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "applicationId": {
+            "type": "string",
+            "pattern": "^app_[0-9a-z]+$"
+          },
+          "serviceAccountId": {
+            "type": "string",
+            "pattern": "^svc_[0-9a-z]+$"
+          },
+          "specVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MutationAccepted": {
+        "type": "object",
+        "required": [
+          "commandId",
+          "requestId",
+          "entityType",
+          "entityId",
+          "status",
+          "acceptedEventType",
+          "desiredState",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "properties": {
+          "commandId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "requestId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "platform_user",
+              "tenant",
+              "workspace",
+              "external_application",
+              "service_account",
+              "managed_resource"
+            ]
+          },
+          "entityId": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 128
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "queued"
+            ]
+          },
+          "acceptedEventType": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
       }
     }
   }

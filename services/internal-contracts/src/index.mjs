@@ -3,10 +3,12 @@ import { readFileSync } from 'node:fs';
 const INTERNAL_SERVICE_MAP_URL = new URL('./internal-service-map.json', import.meta.url);
 const DEPLOYMENT_TOPOLOGY_URL = new URL('./deployment-topology.json', import.meta.url);
 const AUTHORIZATION_MODEL_URL = new URL('./authorization-model.json', import.meta.url);
+const DOMAIN_MODEL_URL = new URL('./domain-model.json', import.meta.url);
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;
 let cachedAuthorizationModel;
+let cachedDomainModel;
 
 export function readInternalServiceMap() {
   if (!cachedInternalServiceMap) {
@@ -32,9 +34,18 @@ export function readAuthorizationModel() {
   return cachedAuthorizationModel;
 }
 
+export function readDomainModel() {
+  if (!cachedDomainModel) {
+    cachedDomainModel = JSON.parse(readFileSync(DOMAIN_MODEL_URL, 'utf8'));
+  }
+
+  return cachedDomainModel;
+}
+
 export const INTERNAL_CONTRACT_VERSION = readInternalServiceMap().version;
 export const DEPLOYMENT_TOPOLOGY_VERSION = readDeploymentTopology().version;
 export const AUTHORIZATION_MODEL_VERSION = readAuthorizationModel().version;
+export const DOMAIN_MODEL_VERSION = readDomainModel().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
 export const AUDIT_MODULE_SERVICE_ID = 'audit_module';
@@ -165,4 +176,36 @@ export function getContextPropagationTarget(targetId) {
 
 export function listNegativeAuthorizationScenarios() {
   return readAuthorizationModel().negative_scenarios;
+}
+
+export function listDomainContracts() {
+  return Object.entries(readDomainModel().contracts).map(([id, contract]) => ({ id, ...contract }));
+}
+
+export function getDomainContract(contractId) {
+  return readDomainModel().contracts[contractId];
+}
+
+export function listDomainEntities() {
+  return readDomainModel().entities;
+}
+
+export function getDomainEntity(entityId) {
+  return listDomainEntities().find((entity) => entity.id === entityId);
+}
+
+export function listDomainRelationships() {
+  return readDomainModel().relationships;
+}
+
+export function listLifecycleTransitions() {
+  return readDomainModel().lifecycle_transitions;
+}
+
+export function listLifecycleEvents(entityType) {
+  if (!entityType) {
+    return readDomainModel().lifecycle_events;
+  }
+
+  return readDomainModel().lifecycle_events.filter((event) => event.entity_type === entityType);
 }

@@ -9,7 +9,7 @@ This repository establishes the minimal working structure for:
 - `apps/control-plane`: control plane backend surface
 - `apps/web-console`: web console frontend surface
 - `services/gateway-config`: gateway and runtime configuration assets
-- `services/internal-contracts`: internal service-map and contract baseline
+- `services/internal-contracts`: internal service-map, authorization, deployment-topology, and core-domain contract baselines
 - `services/provisioning-orchestrator`: control-plane orchestration workspace
 - `services/audit`: audit/evidence workspace
 - `services/adapters`: external service adapter packages
@@ -63,6 +63,7 @@ The current baseline quality chain covers:
 - internal service-map validation
 - deployment-topology validation for domains, environments, overlays, and smoke parity
 - authorization-model validation for tenant/workspace context, permission matrices, and propagation targets
+- domain-model validation for canonical entities, lifecycle events, OpenAPI mapping, and seed fixtures
 - markdown linting
 - OpenAPI validation for the control-plane contract
 - unit tests for helper logic and strategy consistency

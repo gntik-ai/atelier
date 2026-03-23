@@ -12,6 +12,9 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/adr/0005-contextual-authorization-model.md` records the multi-tenant, multi-workspace authorization decision baseline introduced by `US-ARC-03`.
 - `services/internal-contracts/src/authorization-model.json` is the machine-readable source of truth for security context, role scopes, resource ownership, propagation, and negative authorization coverage.
 - `docs/reference/architecture/contextual-authorization.md` is the human-readable architecture companion for the authorization model.
+- `docs/adr/0006-core-domain-entity-model.md` records the canonical entity, relationship, and lifecycle decision baseline introduced by `US-DOM-01`.
+- `services/internal-contracts/src/domain-model.json` is the machine-readable source of truth for shared identifiers, entity relationships, lifecycle events, and OpenAPI mapping metadata.
+- `docs/reference/architecture/core-domain-model.md` is the human-readable architecture companion for the core domain model.
 
 ## Usage rules
 
@@ -20,4 +23,5 @@ This directory documents architecture baselines that future tasks should extend 
 - Preserve append-only audit semantics.
 - Preserve stable public route prefixes and explicit environment overlays when changing deployment topology.
 - Preserve deny-by-default tenant/workspace authorization, explicit delegation limits, and end-to-end correlation when changing the authorization model.
+- Preserve canonical identifier prefixes, parent-child integrity, and soft-delete semantics when changing the core domain model.
 - Add deliberate versioning notes when changing internal contract shapes.

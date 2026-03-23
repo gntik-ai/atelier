@@ -70,6 +70,13 @@ jobs:
           path: services/internal-contracts/src/deployment-topology.json
           if-no-files-found: error
 
+      - name: Upload domain model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-model-contract
+          path: services/internal-contracts/src/domain-model.json
+          if-no-files-found: error
+
   security:
     runs-on: ubuntu-latest
     steps:

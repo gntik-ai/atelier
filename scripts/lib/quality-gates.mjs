@@ -16,6 +16,27 @@ export function readYaml(filePath) {
   return YAML.parse(readFileSync(filePath, 'utf8'));
 }
 
+export function resolveLocalRef(document, ref) {
+  if (typeof ref !== 'string' || !ref.startsWith('#/')) {
+    return null;
+  }
+
+  return ref
+    .slice(2)
+    .split('/')
+    .reduce((value, segment) => value?.[segment], document);
+}
+
+export function resolveParameters(document, operation = {}) {
+  return (operation.parameters ?? []).map((parameter) => {
+    if (parameter?.$ref) {
+      return resolveLocalRef(document, parameter.$ref) ?? parameter;
+    }
+
+    return parameter;
+  });
+}
+
 export function isSemver(value) {
   return typeof value === 'string' && SEMVER_PATTERN.test(value);
 }
@@ -53,7 +74,7 @@ export function collectContractViolations(document) {
     }
 
     if (path !== '/health') {
-      const parameters = operation.parameters ?? [];
+      const parameters = resolveParameters(document, operation);
       const versionHeader = parameters.find(
         (parameter) =>
           parameter?.in === 'header' && parameter?.name === 'X-API-Version' && parameter?.required === true

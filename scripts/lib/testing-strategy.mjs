@@ -1,4 +1,4 @@
-import { OPENAPI_PATH, listOperations, readJson, readYaml } from './quality-gates.mjs';
+import { OPENAPI_PATH, listOperations, readJson, readYaml, resolveParameters } from './quality-gates.mjs';
 
 export const TESTING_STRATEGY_PATH = 'tests/reference/testing-strategy.yaml';
 export const REFERENCE_DATASET_PATH = 'tests/reference/reference-dataset.json';
@@ -151,7 +151,9 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
       violations.push(`${label} in OpenAPI must align with strategy uri prefix ${String(uriPrefix)}.`);
     }
 
-    const versionHeader = (operation?.parameters ?? []).find(
+    const parameters = resolveParameters(openapiDocument, operation);
+
+    const versionHeader = parameters.find(
       (parameter) => parameter?.in === 'header' && parameter?.name === headerName && parameter?.required === true
     );
 
@@ -160,7 +162,7 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
       continue;
     }
 
-    const correlationHeader = (operation?.parameters ?? []).find(
+    const correlationHeader = parameters.find(
       (parameter) => parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id' && parameter?.required === true
     );
 

@@ -1,0 +1,563 @@
+{
+  "version": "2026-03-23",
+  "scope": "US-DOM-01",
+  "system": "in-atelier-core-domain-model",
+  "contracts": {
+    "entity_read_model": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "entity_type",
+        "id",
+        "slug",
+        "display_name",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "versioning": "Read models evolve additively while preserving stable identifiers, lifecycle state semantics, parent bindings, and metadata envelope rules.",
+      "error_classes": [
+        "not_found",
+        "scope_mismatch",
+        "soft_deleted",
+        "version_conflict"
+      ]
+    },
+    "entity_write_model": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "entity_type",
+        "slug",
+        "display_name",
+        "desired_state",
+        "metadata"
+      ],
+      "versioning": "Write models preserve slug, parent-binding, and desired-state semantics so future handlers can add optional fields without redefining the canonical mutation envelope.",
+      "error_classes": [
+        "validation_error",
+        "integrity_violation",
+        "parent_state_violation",
+        "authorization_error"
+      ]
+    },
+    "lifecycle_event": {
+      "owner": "services/internal-contracts",
+      "version": "2026-03-23",
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "entity_type",
+        "entity_id",
+        "tenant_id",
+        "workspace_id",
+        "transition",
+        "state_before",
+        "state_after",
+        "occurred_at",
+        "correlation_id",
+        "actor"
+      ],
+      "versioning": "Lifecycle events keep stable transition vocabulary and correlation semantics so audit, orchestration, and future event consumers can react without entity-specific parsing hacks.",
+      "error_classes": [
+        "invalid_transition",
+        "duplicate_event",
+        "projection_failure",
+        "correlation_missing"
+      ]
+    }
+  },
+  "shared_baseline": {
+    "identifier_strategy": {
+      "format": "<prefix>_<ulid>",
+      "id_prefixes": {
+        "platform_user": "usr",
+        "tenant": "ten",
+        "workspace": "wrk",
+        "external_application": "app",
+        "service_account": "svc",
+        "managed_resource": "res"
+      },
+      "slug_pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+      "slug_rules": [
+        "Slugs are lowercase, URL-safe, and immutable after activation unless an explicit migration workflow is recorded.",
+        "Tenant slugs are globally unique.",
+        "Workspace, external application, service account, and managed resource slugs are unique within their parent boundary."
+      ]
+    },
+    "supported_states": [
+      "draft",
+      "provisioning",
+      "active",
+      "suspended",
+      "soft_deleted"
+    ],
+    "timestamps": {
+      "required": [
+        "created_at",
+        "updated_at"
+      ],
+      "optional": [
+        "activated_at",
+        "suspended_at",
+        "deleted_at"
+      ],
+      "soft_delete_field": "deleted_at"
+    },
+    "metadata": {
+      "max_keys": 32,
+      "max_key_length": 64,
+      "max_value_length": 1024,
+      "reserved_prefixes": [
+        "system:",
+        "provider:"
+      ]
+    },
+    "integrity_rules": [
+      "Parent bindings are immutable after creation unless a dedicated migration workflow is recorded.",
+      "Descendant entities cannot remain active when an ancestor is suspended or soft_deleted.",
+      "Soft delete is logical first: external identifiers stay reserved until an explicit purge workflow exists.",
+      "Metadata is additive and non-secret; credentials, tokens, and private keys live outside the canonical entity model.",
+      "Write models express desired state while lifecycle events capture the realized state transition."
+    ]
+  },
+  "entities": [
+    {
+      "id": "platform_user",
+      "scope": "platform",
+      "description": "Human operator identity known by the platform and bound to tenant/workspace memberships.",
+      "parent_entity_type": null,
+      "id_prefix": "usr",
+      "primary_id_field": "userId",
+      "slug_field": "username",
+      "state_field": "state",
+      "supported_states": [
+        "draft",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "required_fields": [
+        "userId",
+        "username",
+        "displayName",
+        "primaryEmail",
+        "identitySubject",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "tenantMemberships",
+        "workspaceMemberships"
+      ],
+      "business_rules": [
+        "identitySubject is globally unique across credential sources.",
+        "Workspace memberships must point to workspaces inside one of the user's tenant memberships unless the actor holds a platform role.",
+        "Suspended or soft-deleted users cannot receive new membership grants."
+      ],
+      "openapi": {
+        "read_schema": "PlatformUser",
+        "write_schema": "PlatformUserWriteRequest",
+        "read_path": "/v1/platform-users/{userId}",
+        "write_path": "/v1/platform-users"
+      }
+    },
+    {
+      "id": "tenant",
+      "scope": "platform",
+      "description": "Commercial and operational boundary for one customer account, plan, placement, and quota surface.",
+      "parent_entity_type": null,
+      "id_prefix": "ten",
+      "primary_id_field": "tenantId",
+      "slug_field": "slug",
+      "state_field": "state",
+      "supported_states": [
+        "draft",
+        "provisioning",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "required_fields": [
+        "tenantId",
+        "slug",
+        "displayName",
+        "planId",
+        "placement",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "billingAccountRef",
+        "region",
+        "workspaceCount"
+      ],
+      "business_rules": [
+        "placement must follow the hybrid PostgreSQL tenant placement policy from ADR 0002.",
+        "Tenant slug is globally unique and remains reserved after soft delete until a purge workflow exists.",
+        "A tenant cannot be activated until at least one ownership-capable platform or tenant administrator binding exists."
+      ],
+      "openapi": {
+        "read_schema": "Tenant",
+        "write_schema": "TenantWriteRequest",
+        "read_path": "/v1/tenants/{tenantId}",
+        "write_path": "/v1/tenants"
+      }
+    },
+    {
+      "id": "workspace",
+      "scope": "tenant",
+      "description": "Tenant-owned delivery boundary for one runtime environment, resource portfolio, and delegated collaborators.",
+      "parent_entity_type": "tenant",
+      "id_prefix": "wrk",
+      "primary_id_field": "workspaceId",
+      "slug_field": "slug",
+      "state_field": "state",
+      "supported_states": [
+        "draft",
+        "provisioning",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "required_fields": [
+        "workspaceId",
+        "tenantId",
+        "slug",
+        "displayName",
+        "environment",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "description",
+        "runtimeNamespace",
+        "resourceCounts"
+      ],
+      "business_rules": [
+        "Each workspace belongs to exactly one tenant and its tenantId is immutable after creation.",
+        "Workspace slug is unique within the tenant boundary.",
+        "Workspace environment must align with the deployment topology environment catalog.",
+        "A workspace cannot move to active when its parent tenant is not active."
+      ],
+      "openapi": {
+        "read_schema": "Workspace",
+        "write_schema": "WorkspaceWriteRequest",
+        "read_path": "/v1/tenants/{tenantId}/workspaces/{workspaceId}",
+        "write_path": "/v1/tenants/{tenantId}/workspaces"
+      }
+    },
+    {
+      "id": "external_application",
+      "scope": "workspace",
+      "description": "Application registration owned by one workspace, exposing client metadata, redirect policy, and workload identity attachments.",
+      "parent_entity_type": "workspace",
+      "id_prefix": "app",
+      "primary_id_field": "applicationId",
+      "slug_field": "slug",
+      "state_field": "state",
+      "supported_states": [
+        "draft",
+        "provisioning",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "required_fields": [
+        "applicationId",
+        "tenantId",
+        "workspaceId",
+        "slug",
+        "displayName",
+        "protocol",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "redirectUris",
+        "serviceAccountIds",
+        "exposedResourceIds"
+      ],
+      "business_rules": [
+        "Each external application belongs to exactly one workspace and inherits its tenant boundary.",
+        "Redirect URIs must use approved workspace or public-domain patterns.",
+        "An external application cannot attach service accounts or managed resources from another workspace."
+      ],
+      "openapi": {
+        "read_schema": "ExternalApplication",
+        "write_schema": "ExternalApplicationWriteRequest",
+        "read_path": "/v1/workspaces/{workspaceId}/external-applications/{applicationId}",
+        "write_path": "/v1/workspaces/{workspaceId}/external-applications"
+      }
+    },
+    {
+      "id": "service_account",
+      "scope": "workspace",
+      "description": "Non-human workload identity used by one workspace for automation and least-privilege access to managed resources.",
+      "parent_entity_type": "workspace",
+      "id_prefix": "svc",
+      "primary_id_field": "serviceAccountId",
+      "slug_field": "slug",
+      "state_field": "state",
+      "supported_states": [
+        "draft",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "required_fields": [
+        "serviceAccountId",
+        "tenantId",
+        "workspaceId",
+        "slug",
+        "displayName",
+        "roleBindings",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "tokenRotationPolicy",
+        "expiresAt",
+        "externalApplicationIds"
+      ],
+      "business_rules": [
+        "Role bindings must be a subset of permissions delegable inside the parent workspace.",
+        "Credentials rotate outside the canonical model; the entity stores only rotation policy and references.",
+        "A service account cannot outlive its parent workspace activation window."
+      ],
+      "openapi": {
+        "read_schema": "ServiceAccount",
+        "write_schema": "ServiceAccountWriteRequest",
+        "read_path": "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}",
+        "write_path": "/v1/workspaces/{workspaceId}/service-accounts"
+      }
+    },
+    {
+      "id": "managed_resource",
+      "scope": "workspace",
+      "description": "Canonical registry entry for a provisioned workspace-owned backing resource such as a database, bucket, topic, or function.",
+      "parent_entity_type": "workspace",
+      "id_prefix": "res",
+      "primary_id_field": "resourceId",
+      "slug_field": "slug",
+      "state_field": "state",
+      "supported_states": [
+        "draft",
+        "provisioning",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "required_fields": [
+        "resourceId",
+        "tenantId",
+        "workspaceId",
+        "slug",
+        "displayName",
+        "kind",
+        "provider",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "applicationId",
+        "serviceAccountId",
+        "providerRef",
+        "placementRef",
+        "specVersion"
+      ],
+      "business_rules": [
+        "kind is immutable after activation and must map to an authorization resource type.",
+        "applicationId and serviceAccountId, when present, must point to entities inside the same workspace.",
+        "A managed resource cannot become active until its parent workspace is active and provider placement metadata is assigned."
+      ],
+      "supported_kinds": [
+        "database",
+        "bucket",
+        "topic",
+        "function"
+      ],
+      "openapi": {
+        "read_schema": "ManagedResource",
+        "write_schema": "ManagedResourceWriteRequest",
+        "read_path": "/v1/workspaces/{workspaceId}/managed-resources/{resourceId}",
+        "write_path": "/v1/workspaces/{workspaceId}/managed-resources"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "platform_user_tenant_membership",
+      "source_entity": "platform_user",
+      "target_entity": "tenant",
+      "cardinality": "many_to_many",
+      "required": false,
+      "ownership": "membership",
+      "integrity_rules": [
+        "Membership grants are explicit and auditable.",
+        "Tenant membership may exist without workspace membership, but not the inverse unless a platform role applies."
+      ]
+    },
+    {
+      "id": "platform_user_workspace_membership",
+      "source_entity": "platform_user",
+      "target_entity": "workspace",
+      "cardinality": "many_to_many",
+      "required": false,
+      "ownership": "membership",
+      "integrity_rules": [
+        "Workspace membership must remain inside the user's resolved tenant boundary.",
+        "Workspace membership never implies platform-level authority."
+      ]
+    },
+    {
+      "id": "tenant_workspaces",
+      "source_entity": "tenant",
+      "target_entity": "workspace",
+      "cardinality": "one_to_many",
+      "required": true,
+      "ownership": "parent_child",
+      "integrity_rules": [
+        "Workspace tenantId must equal the parent tenant id.",
+        "Tenant suspension or soft delete blocks descendant activation."
+      ]
+    },
+    {
+      "id": "workspace_external_applications",
+      "source_entity": "workspace",
+      "target_entity": "external_application",
+      "cardinality": "one_to_many",
+      "required": false,
+      "ownership": "parent_child",
+      "integrity_rules": [
+        "External applications inherit tenantId from the parent workspace.",
+        "Workspace soft delete hides descendant applications before physical purge."
+      ]
+    },
+    {
+      "id": "workspace_service_accounts",
+      "source_entity": "workspace",
+      "target_entity": "service_account",
+      "cardinality": "one_to_many",
+      "required": false,
+      "ownership": "parent_child",
+      "integrity_rules": [
+        "Service accounts inherit tenantId from the parent workspace.",
+        "Least-privilege role bindings are constrained by the workspace boundary."
+      ]
+    },
+    {
+      "id": "workspace_managed_resources",
+      "source_entity": "workspace",
+      "target_entity": "managed_resource",
+      "cardinality": "one_to_many",
+      "required": false,
+      "ownership": "parent_child",
+      "integrity_rules": [
+        "Managed resources inherit tenantId from the parent workspace.",
+        "A managed resource may reference only same-workspace applications or service accounts."
+      ]
+    },
+    {
+      "id": "external_application_service_accounts",
+      "source_entity": "external_application",
+      "target_entity": "service_account",
+      "cardinality": "many_to_many",
+      "required": false,
+      "ownership": "attachment",
+      "integrity_rules": [
+        "Attachments stay inside one workspace.",
+        "Application automation identities remain explicit rather than inferred from resource ownership."
+      ]
+    },
+    {
+      "id": "external_application_managed_resources",
+      "source_entity": "external_application",
+      "target_entity": "managed_resource",
+      "cardinality": "many_to_many",
+      "required": false,
+      "ownership": "attachment",
+      "integrity_rules": [
+        "Application-to-resource links are explicit and workspace-scoped.",
+        "Soft-deleted applications cannot gain new managed-resource bindings."
+      ]
+    }
+  ],
+  "lifecycle_transitions": [
+    {
+      "id": "create",
+      "from": [
+        "draft"
+      ],
+      "to": "draft",
+      "summary": "Allocate canonical identifiers and persist the entity before downstream provisioning side effects."
+    },
+    {
+      "id": "activate",
+      "from": [
+        "draft",
+        "provisioning",
+        "suspended"
+      ],
+      "to": "active",
+      "summary": "Make the entity operational after integrity, authorization, and parent-state checks pass."
+    },
+    {
+      "id": "suspend",
+      "from": [
+        "active"
+      ],
+      "to": "suspended",
+      "summary": "Retain identifiers and ownership while preventing active use or new descendant activation."
+    },
+    {
+      "id": "soft_delete",
+      "from": [
+        "draft",
+        "suspended",
+        "active"
+      ],
+      "to": "soft_deleted",
+      "summary": "Remove the entity from active listings while preserving auditability and identifier reservation."
+    }
+  ],
+  "lifecycle_events": [
+    { "event_type": "platform_user.created", "entity_type": "platform_user", "transition": "create" },
+    { "event_type": "platform_user.activated", "entity_type": "platform_user", "transition": "activate" },
+    { "event_type": "platform_user.suspended", "entity_type": "platform_user", "transition": "suspend" },
+    { "event_type": "platform_user.soft_deleted", "entity_type": "platform_user", "transition": "soft_delete" },
+    { "event_type": "tenant.created", "entity_type": "tenant", "transition": "create" },
+    { "event_type": "tenant.activated", "entity_type": "tenant", "transition": "activate" },
+    { "event_type": "tenant.suspended", "entity_type": "tenant", "transition": "suspend" },
+    { "event_type": "tenant.soft_deleted", "entity_type": "tenant", "transition": "soft_delete" },
+    { "event_type": "workspace.created", "entity_type": "workspace", "transition": "create" },
+    { "event_type": "workspace.activated", "entity_type": "workspace", "transition": "activate" },
+    { "event_type": "workspace.suspended", "entity_type": "workspace", "transition": "suspend" },
+    { "event_type": "workspace.soft_deleted", "entity_type": "workspace", "transition": "soft_delete" },
+    { "event_type": "external_application.created", "entity_type": "external_application", "transition": "create" },
+    { "event_type": "external_application.activated", "entity_type": "external_application", "transition": "activate" },
+    { "event_type": "external_application.suspended", "entity_type": "external_application", "transition": "suspend" },
+    { "event_type": "external_application.soft_deleted", "entity_type": "external_application", "transition": "soft_delete" },
+    { "event_type": "service_account.created", "entity_type": "service_account", "transition": "create" },
+    { "event_type": "service_account.activated", "entity_type": "service_account", "transition": "activate" },
+    { "event_type": "service_account.suspended", "entity_type": "service_account", "transition": "suspend" },
+    { "event_type": "service_account.soft_deleted", "entity_type": "service_account", "transition": "soft_delete" },
+    { "event_type": "managed_resource.created", "entity_type": "managed_resource", "transition": "create" },
+    { "event_type": "managed_resource.activated", "entity_type": "managed_resource", "transition": "activate" },
+    { "event_type": "managed_resource.suspended", "entity_type": "managed_resource", "transition": "suspend" },
+    { "event_type": "managed_resource.soft_deleted", "entity_type": "managed_resource", "transition": "soft_delete" }
+  ],
+  "business_invariants": [
+    "tenant_id is the root business boundary for every non-platform entity.",
+    "workspace_id is required for external_application, service_account, and managed_resource lifecycle events.",
+    "Cross-tenant or cross-workspace references are invalid even if raw identifiers exist.",
+    "Platform users are the only human entity type; service accounts represent workload automation only.",
+    "Managed resource kinds map to authorization resource types and stay provider-agnostic at the canonical layer."
+  ]
+}
