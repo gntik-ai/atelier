@@ -1,0 +1,403 @@
+{
+  "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "pattern": "^2026-03-23$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "GatewayMutationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "status",
+          "family",
+          "resourceType",
+          "resourceId",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "WebSocketSession": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "handshakeUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "sessionId": {
+            "pattern": "^wss_[0-9a-z]+$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "active",
+              "closed"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId",
+          "tenantId",
+          "workspaceId",
+          "channel",
+          "handshakeUrl",
+          "expiresAt",
+          "status"
+        ],
+        "type": "object"
+      },
+      "WebSocketSessionWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "protocol": {
+            "enum": [
+              "ws",
+              "wss"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "channel"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients. Generated from the unified public API contract for v1.",
+    "summary": "Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients.",
+    "title": "In Atelier WebSockets API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/websockets/sessions": {
+      "post": {
+        "operationId": "createWebSocketSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebSocketSessionWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Websocket session accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected realtime negotiation error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Negotiate one websocket session through the unified realtime family",
+        "tags": [
+          "WebSockets"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-family": "websockets",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "realtime",
+        "x-resource-type": "websocket_session",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/websockets/sessions/{sessionId}": {
+      "get": {
+        "operationId": "getWebSocketSession",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "pattern": "^wss_[0-9a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebSocketSession"
+                }
+              }
+            },
+            "description": "Websocket session returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested session was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected realtime lookup error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one negotiated websocket session descriptor",
+        "tags": [
+          "WebSockets"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-family": "websockets",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "realtime",
+        "x-resource-type": "websocket_session",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "WebSockets"
+    }
+  ]
+}

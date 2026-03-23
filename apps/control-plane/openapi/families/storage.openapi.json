@@ -1,0 +1,450 @@
+{
+  "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
+      "ResourceId": {
+        "description": "Stable managed resource identifier.",
+        "in": "path",
+        "name": "resourceId",
+        "required": true,
+        "schema": {
+          "pattern": "^res_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "pattern": "^2026-03-23$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "GatewayMutationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "status",
+          "family",
+          "resourceType",
+          "resourceId",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "LifecycleTimestamps": {
+        "additionalProperties": false,
+        "properties": {
+          "activatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "suspendedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "StorageBucket": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "resourceId": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "provisioning",
+              "active",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "bucketName",
+          "region",
+          "status",
+          "timestamps"
+        ],
+        "type": "object"
+      },
+      "StorageBucketWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "objectLockMode": {
+            "enum": [
+              "disabled",
+              "governance",
+              "compliance"
+            ],
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "bucketName",
+          "region"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Workspace-scoped object storage discovery, bucket control, and presign-safe surfaces. Generated from the unified public API contract for v1.",
+    "summary": "Workspace-scoped object storage discovery, bucket control, and presign-safe surfaces.",
+    "title": "In Atelier Storage API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/storage/buckets": {
+      "post": {
+        "operationId": "createStorage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageBucketWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Storage bucket provisioning request accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a workspace-scoped storage bucket provisioning request through the unified storage family",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "bucket",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/buckets/{resourceId}": {
+      "get": {
+        "operationId": "getStorage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageBucket"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one workspace-scoped storage bucket contract under the storage family",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "bucket",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Storage"
+    }
+  ]
+}

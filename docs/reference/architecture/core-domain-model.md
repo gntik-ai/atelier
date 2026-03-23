@@ -89,10 +89,10 @@ The control-plane contract provides a canonical read path and write path for eac
 
 | Entity | Read path | Write path |
 | --- | --- | --- |
-| `platform_user` | `GET /v1/platform-users/{userId}` | `POST /v1/platform-users` |
+| `platform_user` | `GET /v1/platform/users/{userId}` | `POST /v1/platform/users` |
 | `tenant` | `GET /v1/tenants/{tenantId}` | `POST /v1/tenants` |
-| `workspace` | `GET /v1/tenants/{tenantId}/workspaces/{workspaceId}` | `POST /v1/tenants/{tenantId}/workspaces` |
-| `external_application` | `GET /v1/workspaces/{workspaceId}/external-applications/{applicationId}` | `POST /v1/workspaces/{workspaceId}/external-applications` |
+| `workspace` | `GET /v1/workspaces/{workspaceId}` | `POST /v1/workspaces` |
+| `external_application` | `GET /v1/workspaces/{workspaceId}/applications/{applicationId}` | `POST /v1/workspaces/{workspaceId}/applications` |
 | `service_account` | `GET /v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}` | `POST /v1/workspaces/{workspaceId}/service-accounts` |
 | `managed_resource` | `GET /v1/workspaces/{workspaceId}/managed-resources/{resourceId}` | `POST /v1/workspaces/{workspaceId}/managed-resources` |
 

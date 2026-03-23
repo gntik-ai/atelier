@@ -1,0 +1,435 @@
+{
+  "version": "2026-03-23",
+  "scope": "US-GW-01",
+  "system": "in-atelier-public-api",
+  "release": {
+    "path_version": "v1",
+    "header_version": "2026-03-23",
+    "openapi_semver": "1.0.0"
+  },
+  "versioning": {
+    "uri_prefix": "/v1",
+    "discovery_route": "/v1/platform/route-catalog",
+    "non_breaking_evolution": [
+      "The URI major version remains pinned at /v1 while additive evolution is announced through the X-API-Version header.",
+      "New optional fields, response metadata, and additive routes may ship within v1 when they preserve current semantics and authorization boundaries.",
+      "Generated family contracts and the route catalog must be refreshed from the unified contract on every published change."
+    ],
+    "breaking_change_policy": [
+      "Breaking request/response, authentication, or authorization changes require a new URI family such as /v2 and an explicit coexistence window.",
+      "Deprecated routes remain cataloged with a sunset marker until the replacement family is published and documented.",
+      "Gateway routing, family contracts, and published docs must all advertise the same deprecation and removal dates."
+    ]
+  },
+  "shared_http": {
+    "headers": {
+      "api_version": {
+        "name": "X-API-Version",
+        "required": true,
+        "current_value": "2026-03-23",
+        "purpose": "Pins the non-breaking contract generation inside /v1."
+      },
+      "correlation_id": {
+        "name": "X-Correlation-Id",
+        "required": true,
+        "purpose": "Carries one stable trace, audit, and orchestration identifier across gateway and internal services."
+      },
+      "idempotency_key": {
+        "name": "Idempotency-Key",
+        "required_for_methods": [
+          "post",
+          "put",
+          "patch",
+          "delete"
+        ],
+        "purpose": "Coalesces safe retries for mutating requests accepted by the gateway."
+      }
+    },
+    "pagination": {
+      "style": "cursor",
+      "limit_param": "page[size]",
+      "cursor_param": "page[after]",
+      "default_limit": 25,
+      "max_limit": 200,
+      "sort_param": "sort"
+    },
+    "filtering": {
+      "search_param": "search",
+      "filter_prefix": "filter[",
+      "catalog_filters": [
+        "family",
+        "scope",
+        "resourceType",
+        "method",
+        "audience",
+        "visibility"
+      ]
+    },
+    "errors": {
+      "schema": "ErrorResponse",
+      "required_fields": [
+        "code",
+        "message",
+        "requestId",
+        "correlationId"
+      ],
+      "code_prefix": "GW_"
+    },
+    "security": {
+      "default_scheme": "bearerAuth",
+      "default_authn": "Keycloak OIDC bearer token",
+      "default_authz": "deny_by_default contextual authorization",
+      "audit_mode": "accept_and_reject"
+    }
+  },
+  "families": [
+    {
+      "id": "platform",
+      "title": "Platform",
+      "prefix": "/v1/platform",
+      "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "platform"
+      ],
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "tenants",
+      "title": "Tenants",
+      "prefix": "/v1/tenants",
+      "summary": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "provisioning_request",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "tenant"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "workspaces",
+      "title": "Workspaces",
+      "prefix": "/v1/workspaces",
+      "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "provisioning_request",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "workspace"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "auth",
+      "title": "Auth",
+      "prefix": "/v1/auth",
+      "summary": "Contextual authorization checks, scope resolution, and token-safe gateway decisions.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_admin",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "postgres",
+      "title": "Postgres",
+      "prefix": "/v1/postgres",
+      "summary": "Workspace-scoped relational data control and discovery routes exposed through the public gateway.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "postgresql"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "database"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "data-control"
+    },
+    {
+      "id": "mongo",
+      "title": "Mongo",
+      "prefix": "/v1/mongo",
+      "summary": "Workspace-scoped document database control and discovery routes exposed through the public gateway.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "mongodb"
+      ],
+      "resource_scopes": [
+        "workspace"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "data-control"
+    },
+    {
+      "id": "events",
+      "title": "Events",
+      "prefix": "/v1/events",
+      "summary": "Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "kafka"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "topic"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "event"
+    },
+    {
+      "id": "functions",
+      "title": "Functions",
+      "prefix": "/v1/functions",
+      "summary": "Workspace-scoped serverless function management and invocation contracts routed by the gateway.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "openwhisk"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "function"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "functions"
+    },
+    {
+      "id": "storage",
+      "title": "Storage",
+      "prefix": "/v1/storage",
+      "summary": "Workspace-scoped object storage discovery, bucket control, and presign-safe surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "storage"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "bucket"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "data-control"
+    },
+    {
+      "id": "metrics",
+      "title": "Metrics",
+      "prefix": "/v1/metrics",
+      "summary": "Workspace-scoped usage, quota, and observability series exposed through the unified gateway.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "observability"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_operator",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "observability"
+    },
+    {
+      "id": "websockets",
+      "title": "WebSockets",
+      "prefix": "/v1/websockets",
+      "summary": "Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "realtime"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "realtime"
+    }
+  ],
+  "resource_taxonomy": [
+    {
+      "resource_type": "platform_user",
+      "family": "platform",
+      "scope": "platform",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "tenant",
+      "family": "tenants",
+      "scope": "tenant",
+      "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "workspace",
+      "family": "workspaces",
+      "scope": "workspace",
+      "authorization_resource": "workspace"
+    },
+    {
+      "resource_type": "application",
+      "family": "workspaces",
+      "scope": "workspace",
+      "authorization_resource": "app"
+    },
+    {
+      "resource_type": "service_account",
+      "family": "workspaces",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "managed_resource",
+      "family": "workspaces",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "database",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "document_database",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "topic",
+      "family": "events",
+      "scope": "workspace",
+      "authorization_resource": "topic"
+    },
+    {
+      "resource_type": "function",
+      "family": "functions",
+      "scope": "workspace",
+      "authorization_resource": "function"
+    },
+    {
+      "resource_type": "bucket",
+      "family": "storage",
+      "scope": "workspace",
+      "authorization_resource": "bucket"
+    },
+    {
+      "resource_type": "metric_series",
+      "family": "metrics",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "websocket_session",
+      "family": "websockets",
+      "scope": "workspace",
+      "authorization_resource": null
+    }
+  ]
+}

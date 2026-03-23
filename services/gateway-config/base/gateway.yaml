@@ -10,6 +10,8 @@ data:
   GATEWAY_PORT: "8080"
   PUBLIC_DOMAIN_ROOT: "in-atelier.example.com"
   CONTROL_PLANE_BASE_PATH: "/control-plane"
+  PUBLIC_API_BASE_PATH: "/v1"
+  PUBLIC_API_ROUTE_CATALOG_PATH: "/v1/platform/route-catalog"
   IDENTITY_BASE_PATH: "/auth"
   REALTIME_BASE_PATH: "/realtime"
   OPTIONAL_WORKSPACE_SUBDOMAIN_TEMPLATE: "{workspaceSlug}.apps.{environment}.in-atelier.example.com"

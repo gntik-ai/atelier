@@ -4,11 +4,15 @@ const INTERNAL_SERVICE_MAP_URL = new URL('./internal-service-map.json', import.m
 const DEPLOYMENT_TOPOLOGY_URL = new URL('./deployment-topology.json', import.meta.url);
 const AUTHORIZATION_MODEL_URL = new URL('./authorization-model.json', import.meta.url);
 const DOMAIN_MODEL_URL = new URL('./domain-model.json', import.meta.url);
+const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
+const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;
 let cachedAuthorizationModel;
 let cachedDomainModel;
+let cachedPublicApiTaxonomy;
+let cachedPublicRouteCatalog;
 
 export function readInternalServiceMap() {
   if (!cachedInternalServiceMap) {
@@ -42,10 +46,27 @@ export function readDomainModel() {
   return cachedDomainModel;
 }
 
+export function readPublicApiTaxonomy() {
+  if (!cachedPublicApiTaxonomy) {
+    cachedPublicApiTaxonomy = JSON.parse(readFileSync(PUBLIC_API_TAXONOMY_URL, 'utf8'));
+  }
+
+  return cachedPublicApiTaxonomy;
+}
+
+export function readPublicRouteCatalog() {
+  if (!cachedPublicRouteCatalog) {
+    cachedPublicRouteCatalog = JSON.parse(readFileSync(PUBLIC_ROUTE_CATALOG_URL, 'utf8'));
+  }
+
+  return cachedPublicRouteCatalog;
+}
+
 export const INTERNAL_CONTRACT_VERSION = readInternalServiceMap().version;
 export const DEPLOYMENT_TOPOLOGY_VERSION = readDeploymentTopology().version;
 export const AUTHORIZATION_MODEL_VERSION = readAuthorizationModel().version;
 export const DOMAIN_MODEL_VERSION = readDomainModel().version;
+export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
 export const AUDIT_MODULE_SERVICE_ID = 'audit_module';
@@ -176,6 +197,50 @@ export function getContextPropagationTarget(targetId) {
 
 export function listNegativeAuthorizationScenarios() {
   return readAuthorizationModel().negative_scenarios;
+}
+
+export function getPublicApiRelease() {
+  return readPublicApiTaxonomy().release;
+}
+
+export function listApiFamilies() {
+  return readPublicApiTaxonomy().families;
+}
+
+export function getApiFamily(familyId) {
+  return listApiFamilies().find((family) => family.id === familyId);
+}
+
+export function listPublicRoutes() {
+  return readPublicRouteCatalog().routes ?? [];
+}
+
+export function getPublicRoute(operationId) {
+  return listPublicRoutes().find((route) => route.operationId === operationId);
+}
+
+export function filterPublicRoutes(filters = {}) {
+  const predicateEntries = Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== '');
+
+  return listPublicRoutes().filter((route) =>
+    predicateEntries.every(([field, value]) => {
+      const routeValue = route[field];
+
+      if (Array.isArray(routeValue)) {
+        return routeValue.includes(value);
+      }
+
+      return routeValue === value;
+    })
+  );
+}
+
+export function listResourceTaxonomy() {
+  return readPublicApiTaxonomy().resource_taxonomy ?? [];
+}
+
+export function getResourceTaxonomy(resourceType) {
+  return listResourceTaxonomy().find((resource) => resource.resource_type === resourceType);
 }
 
 export function listDomainContracts() {

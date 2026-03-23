@@ -1,0 +1,260 @@
+{
+  "components": {
+    "parameters": {
+      "WorkspaceId": {
+        "description": "Stable workspace identifier.",
+        "in": "path",
+        "name": "workspaceId",
+        "required": true,
+        "schema": {
+          "minLength": 3,
+          "pattern": "^wrk_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "pattern": "^2026-03-23$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "MetricSeriesResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "metricKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "timestamp": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "timestamp",
+                "value"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "window": {
+            "enum": [
+              "5m",
+              "1h",
+              "24h",
+              "7d",
+              "30d"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "metricKey",
+          "window",
+          "points"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Workspace-scoped usage, quota, and observability series exposed through the unified gateway. Generated from the unified public API contract for v1.",
+    "summary": "Workspace-scoped usage, quota, and observability series exposed through the unified gateway.",
+    "title": "In Atelier Metrics API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/metrics/workspaces/{workspaceId}/series": {
+      "get": {
+        "operationId": "getWorkspaceMetricSeries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "query",
+            "name": "metricKey",
+            "required": true,
+            "schema": {
+              "maxLength": 120,
+              "minLength": 3,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": true,
+            "schema": {
+              "enum": [
+                "5m",
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricSeriesResponse"
+                }
+              }
+            },
+            "description": "Metric series returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected metrics error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one workspace metric series window through the unified metrics family",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_operator",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "metric_series",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Metrics"
+    }
+  ]
+}

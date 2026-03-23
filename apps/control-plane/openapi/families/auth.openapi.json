@@ -1,0 +1,415 @@
+{
+  "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "pattern": "^2026-03-23$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "AccessCheckDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "context": {
+            "$ref": "#/components/schemas/AuthorizationContext"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "allow",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "decisionId": {
+            "type": "string"
+          },
+          "matchedPolicies": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "ownership": {
+            "$ref": "#/components/schemas/OwnershipContext"
+          },
+          "quota": {
+            "$ref": "#/components/schemas/QuotaContext"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "decisionId",
+          "decision",
+          "reason",
+          "correlationId",
+          "context",
+          "matchedPolicies"
+        ],
+        "type": "object"
+      },
+      "AccessCheckRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Canonical action identifier such as workspace.update or bucket.write.",
+            "minLength": 3,
+            "type": "string"
+          },
+          "delegationId": {
+            "type": "string"
+          },
+          "resourceId": {
+            "minLength": 3,
+            "type": "string"
+          },
+          "resourceType": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "database",
+              "bucket",
+              "topic",
+              "function",
+              "app"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "resourceType",
+          "resourceId",
+          "action"
+        ],
+        "type": "object"
+      },
+      "ActorContext": {
+        "additionalProperties": false,
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "actorType": {
+            "enum": [
+              "human_user",
+              "service_workload",
+              "platform_break_glass"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "actorId",
+          "actorType"
+        ],
+        "type": "object"
+      },
+      "AuthorizationContext": {
+        "additionalProperties": false,
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/ActorContext"
+          },
+          "delegationChain": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "effectiveRoles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "planId": {
+            "enum": [
+              "starter",
+              "growth",
+              "regulated",
+              "enterprise"
+            ],
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "actor",
+          "tenantId",
+          "workspaceId",
+          "planId",
+          "scopes",
+          "effectiveRoles"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "OwnershipContext": {
+        "additionalProperties": false,
+        "properties": {
+          "parentScope": {
+            "enum": [
+              "platform",
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "resourceType": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "database",
+              "bucket",
+              "topic",
+              "function",
+              "app"
+            ],
+            "type": "string"
+          },
+          "workspaceScoped": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resourceType",
+          "parentScope"
+        ],
+        "type": "object"
+      },
+      "QuotaContext": {
+        "additionalProperties": false,
+        "properties": {
+          "enforced": {
+            "type": "boolean"
+          },
+          "planId": {
+            "pattern": "^pln_[0-9a-z]+$",
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId",
+          "enforced"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Contextual authorization checks, scope resolution, and token-safe gateway decisions. Generated from the unified public API contract for v1.",
+    "summary": "Contextual authorization checks, scope resolution, and token-safe gateway decisions.",
+    "title": "In Atelier Auth API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/auth/access-checks": {
+      "post": {
+        "operationId": "resolveWorkspaceAccessCheck",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessCheckDecision"
+                }
+              }
+            },
+            "description": "Authorization decision resolved."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The decision request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for the requested tenant/workspace action."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The tenant, workspace, or target resource was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Resolve a contextual authorization decision under the auth family",
+        "tags": [
+          "Auth",
+          "Authorization"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "auth",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "authorization_decision",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Authorization"
+    }
+  ]
+}

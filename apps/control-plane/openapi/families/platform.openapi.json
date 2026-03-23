@@ -1,0 +1,2509 @@
+{
+  "components": {
+    "parameters": {
+      "DeploymentProfileId": {
+        "description": "Stable deployment profile identifier.",
+        "in": "path",
+        "name": "deploymentProfileId",
+        "required": true,
+        "schema": {
+          "pattern": "^dpf_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "FilterAudience": {
+        "description": "Filter the route catalog by intended consumer audience.",
+        "in": "query",
+        "name": "audience",
+        "required": false,
+        "schema": {
+          "maxLength": 80,
+          "minLength": 2,
+          "type": "string"
+        }
+      },
+      "FilterFamily": {
+        "description": "Filter the route catalog by public API family.",
+        "in": "query",
+        "name": "family",
+        "required": false,
+        "schema": {
+          "enum": [
+            "platform",
+            "tenants",
+            "workspaces",
+            "auth",
+            "postgres",
+            "mongo",
+            "events",
+            "functions",
+            "storage",
+            "metrics",
+            "websockets"
+          ],
+          "type": "string"
+        }
+      },
+      "FilterMethod": {
+        "description": "Filter the route catalog by HTTP method.",
+        "in": "query",
+        "name": "method",
+        "required": false,
+        "schema": {
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ],
+          "type": "string"
+        }
+      },
+      "FilterResourceType": {
+        "description": "Filter the route catalog by canonical resource type.",
+        "in": "query",
+        "name": "resourceType",
+        "required": false,
+        "schema": {
+          "maxLength": 80,
+          "minLength": 2,
+          "type": "string"
+        }
+      },
+      "FilterScope": {
+        "description": "Filter the route catalog by control scope.",
+        "in": "query",
+        "name": "scope",
+        "required": false,
+        "schema": {
+          "enum": [
+            "platform",
+            "tenant",
+            "workspace"
+          ],
+          "type": "string"
+        }
+      },
+      "FilterVisibility": {
+        "description": "Filter the route catalog by visibility mode.",
+        "in": "query",
+        "name": "visibility",
+        "required": false,
+        "schema": {
+          "enum": [
+            "public",
+            "private_preview",
+            "deprecated"
+          ],
+          "type": "string"
+        }
+      },
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
+      "PageAfter": {
+        "description": "Opaque cursor for the next page window.",
+        "in": "query",
+        "name": "page[after]",
+        "required": false,
+        "schema": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "PageSize": {
+        "description": "Maximum number of items to return for list and catalog routes.",
+        "in": "query",
+        "name": "page[size]",
+        "required": false,
+        "schema": {
+          "default": 25,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "PlanId": {
+        "description": "Stable commercial plan identifier.",
+        "in": "path",
+        "name": "planId",
+        "required": true,
+        "schema": {
+          "pattern": "^pln_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "ProviderCapabilityId": {
+        "description": "Stable provider capability identifier.",
+        "in": "path",
+        "name": "providerCapabilityId",
+        "required": true,
+        "schema": {
+          "pattern": "^pvc_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "QuotaPolicyId": {
+        "description": "Stable quota policy identifier.",
+        "in": "path",
+        "name": "quotaPolicyId",
+        "required": true,
+        "schema": {
+          "pattern": "^qta_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "Search": {
+        "description": "Free-text search across human-facing route metadata.",
+        "in": "query",
+        "name": "search",
+        "required": false,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "Sort": {
+        "description": "Stable sort field for catalog and collection routes.",
+        "in": "query",
+        "name": "sort",
+        "required": false,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "UserId": {
+        "description": "Stable platform user identifier.",
+        "in": "path",
+        "name": "userId",
+        "required": true,
+        "schema": {
+          "pattern": "^usr_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned contract generation date for non-breaking evolution inside v1.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "pattern": "^2026-03-23$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, and audit flows.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "CapabilityPlane": {
+        "enum": [
+          "control",
+          "data",
+          "identity",
+          "observability"
+        ],
+        "type": "string"
+      },
+      "CommercialPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "billingInterval": {
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "type": "string"
+          },
+          "capabilityKeys": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 3,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "deploymentProfileId": {
+            "pattern": "^dpf_[0-9a-z]+$",
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "plan",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "planFamily": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "planId": {
+            "pattern": "^pln_[0-9a-z]+$",
+            "type": "string"
+          },
+          "planStatus": {
+            "$ref": "#/components/schemas/PlanStatus"
+          },
+          "quotaPolicyId": {
+            "pattern": "^qta_[0-9a-z]+$",
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        },
+        "required": [
+          "entityType",
+          "planId",
+          "slug",
+          "displayName",
+          "planFamily",
+          "planStatus",
+          "deploymentProfileId",
+          "quotaPolicyId",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "CommercialPlanWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "billingInterval": {
+            "enum": [
+              "monthly",
+              "annual"
+            ],
+            "type": "string"
+          },
+          "capabilityKeys": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 3,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "deploymentProfileId": {
+            "pattern": "^dpf_[0-9a-z]+$",
+            "type": "string"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "plan",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "planFamily": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "planStatus": {
+            "$ref": "#/components/schemas/PlanStatus"
+          },
+          "quotaPolicyId": {
+            "pattern": "^qta_[0-9a-z]+$",
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "planFamily",
+          "planStatus",
+          "deploymentProfileId",
+          "quotaPolicyId",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "DeploymentProfileClass": {
+        "enum": [
+          "shared",
+          "dedicated",
+          "federated"
+        ],
+        "type": "string"
+      },
+      "DeploymentProfileRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "deploymentProfileId": {
+            "pattern": "^dpf_[0-9a-z]+$",
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "deployment_profile",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "planeBindings": {
+            "$ref": "#/components/schemas/PlaneBindings"
+          },
+          "profileClass": {
+            "$ref": "#/components/schemas/DeploymentProfileClass"
+          },
+          "providerCapabilityIds": {
+            "items": {
+              "pattern": "^pvc_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "supportedEnvironments": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceEnvironment"
+            },
+            "type": "array"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        },
+        "required": [
+          "entityType",
+          "deploymentProfileId",
+          "slug",
+          "displayName",
+          "profileClass",
+          "supportedEnvironments",
+          "planeBindings",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "DeploymentProfileRecordWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "deployment_profile",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "planeBindings": {
+            "$ref": "#/components/schemas/PlaneBindings"
+          },
+          "profileClass": {
+            "$ref": "#/components/schemas/DeploymentProfileClass"
+          },
+          "providerCapabilityIds": {
+            "items": {
+              "pattern": "^pvc_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "supportedEnvironments": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceEnvironment"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "profileClass",
+          "supportedEnvironments",
+          "planeBindings",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "EntityMetadata": {
+        "additionalProperties": {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "description": "Non-secret additive metadata for canonical entities.",
+        "type": "object"
+      },
+      "EntityState": {
+        "enum": [
+          "draft",
+          "provisioning",
+          "active",
+          "suspended",
+          "soft_deleted"
+        ],
+        "type": "string"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "requestId",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "LifecycleTimestamps": {
+        "additionalProperties": false,
+        "properties": {
+          "activatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "suspendedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MembershipStatus": {
+        "enum": [
+          "pending_activation",
+          "active",
+          "suspended",
+          "revoked"
+        ],
+        "type": "string"
+      },
+      "MutationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "acceptedEventType": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "commandId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "entityId": {
+            "maxLength": 128,
+            "minLength": 4,
+            "type": "string"
+          },
+          "entityType": {
+            "enum": [
+              "platform_user",
+              "tenant",
+              "workspace",
+              "external_application",
+              "service_account",
+              "managed_resource"
+            ],
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "requestId",
+          "entityType",
+          "entityId",
+          "status",
+          "acceptedEventType",
+          "desiredState",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "PageInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "size": {
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size"
+        ],
+        "type": "object"
+      },
+      "PlanStatus": {
+        "enum": [
+          "draft",
+          "active",
+          "grandfathered",
+          "retired"
+        ],
+        "type": "string"
+      },
+      "PlaneBindings": {
+        "additionalProperties": false,
+        "properties": {
+          "control": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "data": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "identity": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "observability": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "control",
+          "data",
+          "identity",
+          "observability"
+        ],
+        "type": "object"
+      },
+      "PlatformRole": {
+        "enum": [
+          "platform_admin",
+          "platform_operator",
+          "platform_auditor"
+        ],
+        "type": "string"
+      },
+      "PlatformUser": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "platform_user",
+            "type": "string"
+          },
+          "identitySubject": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "platformRoles": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformRole"
+            },
+            "type": "array"
+          },
+          "primaryEmail": {
+            "format": "email",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantMemberships": {
+            "items": {
+              "$ref": "#/components/schemas/TenantMembership"
+            },
+            "type": "array"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "username": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "workspaceMemberships": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceMembership"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entityType",
+          "userId",
+          "username",
+          "displayName",
+          "primaryEmail",
+          "identitySubject",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "PlatformUserWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "platform_user",
+            "type": "string"
+          },
+          "identitySubject": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "platformRoles": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformRole"
+            },
+            "type": "array"
+          },
+          "primaryEmail": {
+            "format": "email",
+            "type": "string"
+          },
+          "tenantMemberships": {
+            "items": {
+              "$ref": "#/components/schemas/TenantMembership"
+            },
+            "type": "array"
+          },
+          "username": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "workspaceMemberships": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceMembership"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entityType",
+          "username",
+          "displayName",
+          "primaryEmail",
+          "identitySubject",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "ProviderCapabilityRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedEnvironments": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceEnvironment"
+            },
+            "type": "array"
+          },
+          "capabilityKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "capabilityStatus": {
+            "$ref": "#/components/schemas/ProviderCapabilityStatus"
+          },
+          "entityType": {
+            "const": "provider_capability",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "plane": {
+            "$ref": "#/components/schemas/CapabilityPlane"
+          },
+          "provider": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "providerCapabilityId": {
+            "pattern": "^pvc_[0-9a-z]+$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "supportLevel": {
+            "enum": [
+              "preview",
+              "ga",
+              "deprecated"
+            ],
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        },
+        "required": [
+          "entityType",
+          "providerCapabilityId",
+          "provider",
+          "capabilityKey",
+          "plane",
+          "capabilityStatus",
+          "allowedEnvironments",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "ProviderCapabilityRecordWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedEnvironments": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceEnvironment"
+            },
+            "type": "array"
+          },
+          "capabilityKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "capabilityStatus": {
+            "$ref": "#/components/schemas/ProviderCapabilityStatus"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "entityType": {
+            "const": "provider_capability",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "plane": {
+            "$ref": "#/components/schemas/CapabilityPlane"
+          },
+          "provider": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "supportLevel": {
+            "enum": [
+              "preview",
+              "ga",
+              "deprecated"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "provider",
+          "capabilityKey",
+          "plane",
+          "capabilityStatus",
+          "allowedEnvironments",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "ProviderCapabilityStatus": {
+        "enum": [
+          "available",
+          "limited",
+          "disabled"
+        ],
+        "type": "string"
+      },
+      "QuotaEnforcementMode": {
+        "enum": [
+          "hard_stop",
+          "throttle",
+          "advisory"
+        ],
+        "type": "string"
+      },
+      "QuotaLimit": {
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "metricKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "metricKey",
+          "scope",
+          "unit",
+          "limit"
+        ],
+        "type": "object"
+      },
+      "QuotaPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultLimits": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaLimit"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "entityType": {
+            "const": "quota_policy",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "quotaPolicyId": {
+            "pattern": "^qta_[0-9a-z]+$",
+            "type": "string"
+          },
+          "quotaScope": {
+            "$ref": "#/components/schemas/QuotaScope"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "warningThresholdPercent": {
+            "maximum": 99,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entityType",
+          "quotaPolicyId",
+          "slug",
+          "displayName",
+          "quotaScope",
+          "enforcementMode",
+          "defaultLimits",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "QuotaPolicyWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultLimits": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaLimit"
+            },
+            "type": "array"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "entityType": {
+            "const": "quota_policy",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "quotaScope": {
+            "$ref": "#/components/schemas/QuotaScope"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "warningThresholdPercent": {
+            "maximum": 99,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "quotaScope",
+          "enforcementMode",
+          "defaultLimits",
+          "desiredState",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "QuotaScope": {
+        "enum": [
+          "tenant",
+          "workspace",
+          "tenant_and_workspace"
+        ],
+        "type": "string"
+      },
+      "RouteCatalogEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "audiences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "authRequired": {
+            "type": "boolean"
+          },
+          "deprecated": {
+            "type": "boolean"
+          },
+          "discoveryRoute": {
+            "type": "string"
+          },
+          "downstreamAdapters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "downstreamService": {
+            "type": "string"
+          },
+          "family": {
+            "type": "string"
+          },
+          "familyTitle": {
+            "type": "string"
+          },
+          "method": {
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "type": "string"
+          },
+          "operationId": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "rateLimitClass": {
+            "type": "string"
+          },
+          "requiredHeaders": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "supportsIdempotencyKey": {
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "visibility": {
+            "enum": [
+              "public",
+              "private_preview",
+              "deprecated"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "family",
+          "method",
+          "path",
+          "operationId",
+          "summary",
+          "scope",
+          "visibility",
+          "audiences",
+          "authRequired",
+          "requiredHeaders",
+          "downstreamService"
+        ],
+        "type": "object"
+      },
+      "RouteCatalogResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "generatedFrom": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RouteCatalogEntry"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "generatedFrom",
+          "page",
+          "items"
+        ],
+        "type": "object"
+      },
+      "TenantMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "entityType": {
+            "const": "tenant_membership",
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "membershipStatus": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TenantRole"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "tenantMembershipId": {
+            "pattern": "^tmb_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "tenantMembershipId",
+          "tenantId",
+          "userId",
+          "role",
+          "membershipStatus",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TenantRole": {
+        "enum": [
+          "tenant_admin",
+          "tenant_operator",
+          "tenant_billing_admin",
+          "auditor"
+        ],
+        "type": "string"
+      },
+      "WorkspaceEnvironment": {
+        "enum": [
+          "dev",
+          "sandbox",
+          "staging",
+          "prod"
+        ],
+        "type": "string"
+      },
+      "WorkspaceMembership": {
+        "additionalProperties": false,
+        "properties": {
+          "entityType": {
+            "const": "workspace_membership",
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "membershipStatus": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "role": {
+            "$ref": "#/components/schemas/WorkspaceRole"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceMembershipId": {
+            "pattern": "^wmb_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "workspaceMembershipId",
+          "tenantId",
+          "workspaceId",
+          "userId",
+          "role",
+          "membershipStatus",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "WorkspaceRole": {
+        "enum": [
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_operator",
+          "workspace_auditor",
+          "workspace_viewer"
+        ],
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "description": "Cross-tenant platform governance, catalog, and operator discovery surfaces. Generated from the unified public API contract for v1.",
+    "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
+    "title": "In Atelier Platform API",
+    "version": "1.0.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/platform/deployment-profiles": {
+      "post": {
+        "operationId": "createDeploymentProfileRecord",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeploymentProfileRecordWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a deployment profile write request",
+        "tags": [
+          "Platform",
+          "DeploymentProfiles"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "deployment_profile",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/deployment-profiles/{deploymentProfileId}": {
+      "get": {
+        "operationId": "getDeploymentProfileRecord",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DeploymentProfileId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeploymentProfileRecord"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one deployment profile",
+        "tags": [
+          "Platform",
+          "DeploymentProfiles"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "deployment_profile",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/plans": {
+      "post": {
+        "operationId": "createCommercialPlan",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommercialPlanWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a commercial plan write request",
+        "tags": [
+          "Platform",
+          "Plans"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "plan",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/plans/{planId}": {
+      "get": {
+        "operationId": "getCommercialPlan",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PlanId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialPlan"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one commercial plan",
+        "tags": [
+          "Platform",
+          "Plans"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "plan",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/plans/{planId}/quota-policies": {
+      "post": {
+        "operationId": "createQuotaPolicy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PlanId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuotaPolicyWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a quota policy write request",
+        "tags": [
+          "Platform",
+          "Quotas"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "plan",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}": {
+      "get": {
+        "operationId": "getQuotaPolicy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PlanId"
+          },
+          {
+            "$ref": "#/components/parameters/QuotaPolicyId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuotaPolicy"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one quota policy",
+        "tags": [
+          "Platform",
+          "Quotas"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "plan",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/provider-capabilities": {
+      "post": {
+        "operationId": "createProviderCapabilityRecord",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderCapabilityRecordWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a provider capability write request",
+        "tags": [
+          "Platform",
+          "ProviderCapabilities"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "provider_capability",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/provider-capabilities/{providerCapabilityId}": {
+      "get": {
+        "operationId": "getProviderCapabilityRecord",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ProviderCapabilityId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderCapabilityRecord"
+                }
+              }
+            },
+            "description": "Entity returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one provider capability record",
+        "tags": [
+          "Platform",
+          "ProviderCapabilities"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "provider_capability",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/route-catalog": {
+      "get": {
+        "operationId": "getRouteCatalog",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterFamily"
+          },
+          {
+            "$ref": "#/components/parameters/FilterScope"
+          },
+          {
+            "$ref": "#/components/parameters/FilterResourceType"
+          },
+          {
+            "$ref": "#/components/parameters/FilterMethod"
+          },
+          {
+            "$ref": "#/components/parameters/FilterAudience"
+          },
+          {
+            "$ref": "#/components/parameters/FilterVisibility"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteCatalogResponse"
+                }
+              }
+            },
+            "description": "Route catalog page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The route-catalog request is malformed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for platform route discovery."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway discovery error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility",
+        "tags": [
+          "Catalog",
+          "Platform"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "route_catalog",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/users": {
+      "post": {
+        "operationId": "createPlatformUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformUserWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Platform user mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit a canonical platform user write request under the platform family",
+        "tags": [
+          "Platform",
+          "PlatformUsers"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "platform_user",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/users/{userId}": {
+      "get": {
+        "operationId": "getPlatformUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/UserId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformUser"
+                }
+              }
+            },
+            "description": "Platform user returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one canonical platform user entity under the platform family",
+        "tags": [
+          "Platform",
+          "PlatformUsers"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "platform_user",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Platform"
+    },
+    {
+      "name": "Catalog"
+    },
+    {
+      "name": "PlatformUsers"
+    },
+    {
+      "name": "Plans"
+    },
+    {
+      "name": "Quotas"
+    },
+    {
+      "name": "DeploymentProfiles"
+    },
+    {
+      "name": "ProviderCapabilities"
+    }
+  ]
+}
