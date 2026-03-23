@@ -48,6 +48,8 @@ test('resolveValues applies environment and platform overlays deterministically'
   assert.equal(resolved.platform.target, 'openshift');
   assert.equal(resolved.platform.network.exposureKind, 'Route');
   assert.equal(resolved.publicSurface.hostnames.api, 'api.in-atelier.example.com');
+  assert.equal(resolved.bootstrap.enabled, true);
+  assert.equal(resolved.bootstrap.reconcile.apisix.routes.length, 4);
 });
 
 test('collectDeploymentTopologyViolations flags route-prefix drift and missing smoke coverage', () => {
@@ -69,4 +71,17 @@ test('collectDeploymentTopologyViolations flags route-prefix drift and missing s
 
   assert.ok(violations.some((violation) => violation.includes('route prefix control_plane')));
   assert.ok(violations.some((violation) => violation.includes('must cover prod/openshift')));
+});
+
+test('collectDeploymentTopologyViolations flags bootstrap policy drift', () => {
+  const brokenTopology = structuredClone(readDeploymentTopology());
+  brokenTopology.bootstrap_policy.supported_secret_strategies = ['kubernetesSecret'];
+
+  const violations = collectDeploymentTopologyViolations(
+    brokenTopology,
+    readDeploymentSmokeMatrix(),
+    readJson(OPENAPI_PATH)
+  );
+
+  assert.ok(violations.some((violation) => violation.includes('bootstrap_policy.supported_secret_strategies')));
 });

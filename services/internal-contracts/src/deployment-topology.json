@@ -272,7 +272,8 @@
     ],
     "secret_rules": [
       "Repository-tracked values files may reference existingSecret names only and must not store raw credentials.",
-      "TLS material is injected out-of-band via secret references per environment and platform."
+      "TLS material is injected out-of-band via secret references per environment and platform.",
+      "Bootstrap credentials resolve from Kubernetes Secrets, pre-injected env vars, or documented external secret references; repository-tracked values store metadata only."
     ],
     "openshift_compatibility": [
       "Use Route instead of Ingress when platform target is openshift.",
@@ -347,6 +348,31 @@
       "observability",
       "controlPlane",
       "webConsole"
+    ]
+  },
+  "bootstrap_policy": {
+    "controller_kind": "post_install_upgrade_job",
+    "lock_resource_kind": "ConfigMap",
+    "marker_resource_kind": "ConfigMap",
+    "supported_secret_strategies": [
+      "kubernetesSecret",
+      "env",
+      "externalRef"
+    ],
+    "one_shot_resources": [
+      "superadmin",
+      "platform_realm",
+      "governance_catalog",
+      "internal_namespaces"
+    ],
+    "reconcile_each_upgrade": [
+      "apisix_routes",
+      "bootstrap_payload_config"
+    ],
+    "restore_behaviour": [
+      "recreate missing one-shot resources only",
+      "preserve existing realm, user, catalog, and prefix identifiers",
+      "fail fast when a bootstrap lock already exists"
     ]
   }
 }

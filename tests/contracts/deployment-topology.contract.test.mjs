@@ -47,6 +47,29 @@ test('resolved environment overlays preserve the same public route semantics acr
   assert.deepEqual(kubernetesValues.publicSurface.hostnames, openshiftValues.publicSurface.hostnames);
   assert.equal(kubernetesValues.platform.network.exposureKind, 'Ingress');
   assert.equal(openshiftValues.platform.network.exposureKind, 'Route');
+  assert.equal(kubernetesValues.bootstrap.enabled, true);
+  assert.equal(openshiftValues.bootstrap.enabled, true);
+});
+
+test('deployment topology bootstrap policy documents secret resolution and restore guardrails', () => {
+  const topology = readDeploymentTopology();
+
+  assert.equal(topology.bootstrap_policy.controller_kind, 'post_install_upgrade_job');
+  assert.equal(topology.bootstrap_policy.lock_resource_kind, 'ConfigMap');
+  assert.equal(topology.bootstrap_policy.marker_resource_kind, 'ConfigMap');
+  assert.deepEqual(topology.bootstrap_policy.supported_secret_strategies, ['kubernetesSecret', 'env', 'externalRef']);
+  assert.deepEqual(topology.bootstrap_policy.one_shot_resources, [
+    'superadmin',
+    'platform_realm',
+    'governance_catalog',
+    'internal_namespaces'
+  ]);
+  assert.deepEqual(topology.bootstrap_policy.reconcile_each_upgrade, ['apisix_routes', 'bootstrap_payload_config']);
+  assert.equal(topology.bootstrap_policy.restore_behaviour.length >= 3, true);
+  assert.equal(
+    topology.configuration_policy.secret_rules.some((rule) => rule.includes('Bootstrap credentials resolve')),
+    true
+  );
 });
 
 test('deployment smoke matrix matches the contract version and scenario expectations', () => {
