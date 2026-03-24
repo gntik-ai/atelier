@@ -32711,6 +32711,12 @@
               "tenant_shared",
               "read_replica_only"
             ]
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -39854,6 +39860,9 @@
           },
           "templateBinding": {
             "$ref": "#/components/schemas/PostgresTemplateBinding"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -39983,6 +39992,9 @@
           },
           "templateBinding": {
             "$ref": "#/components/schemas/PostgresTemplateBinding"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -40020,6 +40032,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -40064,6 +40082,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -40138,6 +40162,12 @@
           "templateVariables": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -40205,6 +40235,12 @@
           "templateVariables": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -40294,7 +40330,8 @@
           "targetRef",
           "placementMode",
           "correlationId",
-          "acceptedAt"
+          "acceptedAt",
+          "executionMode"
         ],
         "properties": {
           "requestId": {
@@ -40357,6 +40394,24 @@
           "acceptedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "ddlPreview": {
+            "$ref": "#/components/schemas/PostgresDdlPreview"
+          },
+          "preExecutionWarnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresPreExecutionWarning"
+            }
+          },
+          "riskProfile": {
+            "$ref": "#/components/schemas/PostgresMutationRiskProfile"
+          },
+          "auditSummary": {
+            "$ref": "#/components/schemas/PostgresAuditSummary"
           }
         }
       },
@@ -40372,7 +40427,8 @@
           "quotas",
           "minimumEnginePolicy",
           "observedAt",
-          "providerCompatibility"
+          "providerCompatibility",
+          "tenantIsolation"
         ],
         "properties": {
           "snapshotId": {
@@ -40623,6 +40679,9 @@
             "items": {
               "$ref": "#/components/schemas/PostgresDocumentationRef"
             }
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -40954,6 +41013,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -41036,6 +41101,9 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -41101,6 +41169,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -41622,6 +41696,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -41904,6 +41984,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -42092,6 +42178,12 @@
           },
           "dependencies": {
             "$ref": "#/components/schemas/PostgresDependencySummary"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -42315,6 +42407,12 @@
           },
           "dependencies": {
             "$ref": "#/components/schemas/PostgresDependencySummary"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -42600,6 +42698,12 @@
           },
           "exposedToTenantRuntime": {
             "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -42796,6 +42900,12 @@
           },
           "exposedToTenantRuntime": {
             "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -42894,6 +43004,9 @@
           },
           "providerCompatibility": {
             "$ref": "#/components/schemas/PostgresProviderCompatibility"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -42957,6 +43070,12 @@
                 "maxLength": 512
               }
             }
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -43075,6 +43194,9 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -43196,6 +43318,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -43312,6 +43440,9 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           }
         }
       },
@@ -43392,6 +43523,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -43542,6 +43679,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -43770,6 +43913,12 @@
           "metadata": {
             "type": "object",
             "additionalProperties": true
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "dryRun": {
+            "type": "boolean"
           }
         }
       },
@@ -44055,6 +44204,362 @@
           },
           "commentPresent": {
             "type": "boolean"
+          }
+        }
+      },
+      "PostgresExecutionMode": {
+        "type": "string",
+        "enum": [
+          "execute",
+          "preview"
+        ]
+      },
+      "PostgresTenantIsolationProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "placementMode",
+          "isolationBoundary",
+          "rowAccessModel"
+        ],
+        "properties": {
+          "placementMode": {
+            "type": "string",
+            "enum": [
+              "schema_per_tenant",
+              "database_per_tenant",
+              "unknown"
+            ]
+          },
+          "isolationBoundary": {
+            "type": "string",
+            "enum": [
+              "schema",
+              "database"
+            ]
+          },
+          "rowAccessModel": {
+            "type": "string",
+            "enum": [
+              "rls_for_shared_tables",
+              "boundary_first"
+            ]
+          },
+          "policyEnforcement": {
+            "type": "string"
+          },
+          "isolationSurface": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "tenantDatabaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "sharedTableClassification": {
+            "type": "string",
+            "enum": [
+              "tenant_scoped",
+              "workspace_local",
+              "reference_data"
+            ]
+          },
+          "workspaceBindings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^wrk_[0-9a-z]+$"
+            }
+          },
+          "defaultPrivileges": {
+            "type": "string"
+          }
+        }
+      },
+      "PostgresDdlStatement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ordinal",
+          "category",
+          "destructive",
+          "sql"
+        ],
+        "properties": {
+          "ordinal": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "create",
+              "alter",
+              "drop",
+              "comment",
+              "grant",
+              "revoke",
+              "other"
+            ]
+          },
+          "destructive": {
+            "type": "boolean"
+          },
+          "sql": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          }
+        }
+      },
+      "PostgresDdlPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "executionMode",
+          "statementCount",
+          "statementFingerprint",
+          "transactionMode",
+          "statements"
+        ],
+        "properties": {
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "statementCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "statementFingerprint": {
+            "type": "string",
+            "minLength": 24,
+            "maxLength": 24
+          },
+          "transactionMode": {
+            "type": "string",
+            "enum": [
+              "transactional_ddl",
+              "non_transactional_ddl"
+            ]
+          },
+          "lockTargets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          },
+          "safeGuards": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "statements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresDdlStatement"
+            }
+          }
+        }
+      },
+      "PostgresPreExecutionWarning": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "warningCode",
+          "severity",
+          "category",
+          "summary",
+          "impactLevel",
+          "requiresAcknowledgement"
+        ],
+        "properties": {
+          "warningCode": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9_]+$"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 64
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "impactLevel": {
+            "type": "string",
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "requiresAcknowledgement": {
+            "type": "boolean"
+          },
+          "lockTargets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            }
+          }
+        }
+      },
+      "PostgresMutationRiskProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "executionMode",
+          "riskLevel",
+          "statementCount",
+          "lockTargetCount",
+          "blockingLikely",
+          "destructive",
+          "acknowledgementRequired"
+        ],
+        "properties": {
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "statementCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lockTargetCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "blockingLikely": {
+            "type": "boolean"
+          },
+          "destructive": {
+            "type": "boolean"
+          },
+          "acknowledgementRequired": {
+            "type": "boolean"
+          },
+          "transactionMode": {
+            "type": "string",
+            "enum": [
+              "transactional_ddl",
+              "non_transactional_ddl"
+            ]
+          }
+        }
+      },
+      "PostgresAuditEvidenceSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lockTargetCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rowAccessModel": {
+            "type": "string"
+          }
+        }
+      },
+      "PostgresAuditSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationClass",
+          "action",
+          "executionMode",
+          "capturesSqlText",
+          "capturesStatementFingerprint",
+          "capturesWarnings",
+          "capturesTenantIsolation",
+          "warningCount"
+        ],
+        "properties": {
+          "operationClass": {
+            "type": "string",
+            "enum": [
+              "administrative_ddl",
+              "structural_ddl",
+              "governance_ddl"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "delete"
+            ]
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "capturesSqlText": {
+            "type": "boolean"
+          },
+          "capturesStatementFingerprint": {
+            "type": "boolean"
+          },
+          "capturesWarnings": {
+            "type": "boolean"
+          },
+          "capturesTenantIsolation": {
+            "type": "boolean"
+          },
+          "warningCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "statementFingerprint": {
+            "type": "string",
+            "minLength": 24,
+            "maxLength": 24
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/PostgresAuditEvidenceSummary"
           }
         }
       }

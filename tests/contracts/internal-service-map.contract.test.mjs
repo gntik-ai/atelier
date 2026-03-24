@@ -76,8 +76,12 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(eventGatewayPublishResultContract.required_fields.includes('audit_record_id'));
   assert.ok(eventGatewaySubscriptionStatusContract.required_fields.includes('lag_snapshot'));
   assert.ok(getContract('postgres_admin_request').required_fields.includes('placement_mode'));
+  assert.ok(getContract('postgres_admin_request').required_fields.includes('execution_mode'));
   assert.ok(getContract('postgres_admin_result').required_fields.includes('inventory_projection'));
+  assert.ok(getContract('postgres_admin_result').required_fields.includes('ddl_preview'));
+  assert.ok(getContract('postgres_admin_result').required_fields.includes('pre_execution_warnings'));
   assert.ok(getContract('postgres_inventory_snapshot').required_fields.includes('minimum_engine_policy'));
+  assert.ok(getContract('postgres_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.equal(auditRecordContract.write_mode, 'append_only');
   assert.ok(auditRecordContract.required_fields.includes('evidence_pointer'));
   assert.ok(auditRecordContract.required_fields.includes('authorization_decision_id'));

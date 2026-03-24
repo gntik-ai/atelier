@@ -584,8 +584,14 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.PostgresRole.properties.providerCompatibility);
   assert.ok(document.components.schemas.PostgresUser.properties.credentialBinding);
   assert.ok(document.components.schemas.PostgresDatabase.properties.placementMode);
+  assert.ok(document.components.schemas.PostgresDatabase.properties.tenantIsolation);
   assert.ok(document.components.schemas.PostgresSchema.properties.accessPolicy);
+  assert.ok(document.components.schemas.PostgresSchema.properties.tenantIsolation);
   assert.ok(document.components.schemas.PostgresAdminInventory.properties.minimumEnginePolicy);
+  assert.ok(document.components.schemas.PostgresAdminInventory.properties.tenantIsolation);
+  assert.ok(document.components.schemas.PostgresAdminMutationAccepted.properties.ddlPreview);
+  assert.ok(document.components.schemas.PostgresAdminMutationAccepted.properties.preExecutionWarnings);
+  assert.ok(document.components.schemas.PostgresAdminMutationAccepted.properties.auditSummary);
   assert.ok(document.components.schemas.MongoDatabase.properties.provisioning);
   assert.ok(document.components.schemas.EventTopic.properties.provisioning);
   assert.ok(document.components.schemas.FunctionAction.properties.provisioning);

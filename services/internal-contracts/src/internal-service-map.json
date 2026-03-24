@@ -851,7 +851,8 @@
         "actor_type",
         "origin_surface",
         "target_tenant_id",
-        "target_workspace_id"
+        "target_workspace_id",
+        "execution_mode"
       ],
       "idempotency": "PostgreSQL admin mutations coalesce by target_ref, placement_mode, action, and idempotency_key so safe retries do not duplicate structural engine changes or inventory writes.",
       "versioning": "The BaaS PostgreSQL administrative request envelope stays stable while provider payloads and supported engine versions evolve inside the compatibility matrix.",
@@ -879,7 +880,11 @@
         "correlation_id",
         "contract_version",
         "observed_at",
-        "audit_record_id"
+        "audit_record_id",
+        "ddl_preview",
+        "pre_execution_warnings",
+        "risk_profile",
+        "audit_summary"
       ],
       "idempotency": "Repeated reads of the same PostgreSQL admin result describe one logical structural change and one inventory projection update.",
       "versioning": "Result contracts expose normalized, secret-free PostgreSQL resource shapes while inventory and provider compatibility metadata expand additively.",
@@ -905,7 +910,8 @@
         "quotas",
         "minimum_engine_policy",
         "observed_at",
-        "contract_version"
+        "contract_version",
+        "tenant_isolation"
       ],
       "idempotency": "Inventory refreshes for the same tenant/workspace/placement combination replace the previous durable projection instead of multiplying console-visible records.",
       "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand without exposing unsafe engine metadata.",
