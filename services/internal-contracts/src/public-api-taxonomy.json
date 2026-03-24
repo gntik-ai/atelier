@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-24",
-    "openapi_semver": "1.14.0"
+    "openapi_semver": "1.15.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -241,7 +241,7 @@
       "id": "postgres",
       "title": "Postgres",
       "prefix": "/v1/postgres",
-      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, and inventory routes exposed through safe BaaS contracts.",
+      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "provisioning_request",
@@ -249,7 +249,9 @@
         "postgres_admin_request",
         "postgres_admin_result",
         "postgres_inventory_snapshot",
-        "audit_record"
+        "audit_record",
+        "postgres_data_request",
+        "postgres_data_result"
       ],
       "downstream_adapters": [
         "postgresql"
@@ -721,6 +723,18 @@
     },
     {
       "resource_type": "postgres_template",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_rows",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_row",
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": "database"

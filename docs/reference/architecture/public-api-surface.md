@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.14.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.15.0)
 
 ## Product API vs native passthrough
 
@@ -188,7 +188,7 @@ Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, an
 
 ## Postgres
 
-Workspace- and tenant-aware PostgreSQL control, structural administration, and inventory routes exposed through safe BaaS contracts.
+Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
@@ -266,6 +266,11 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Delete one workspace-scoped PostgreSQL user through the bounded administrative surface |
 | GET | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Fetch one workspace-scoped PostgreSQL user contract |
 | PUT | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Update one workspace-scoped PostgreSQL user through the bounded administrative surface |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows` | workspace | postgres_data_rows | List rows from one workspace-scoped PostgreSQL table with filters, projection, ordering, pagination, and controlled one-hop relations |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows` | workspace | postgres_data_rows | Insert one row into one workspace-scoped PostgreSQL table while preserving effective-role, grants, and RLS guardrails |
+| DELETE | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key` | workspace | postgres_data_row | Delete one PostgreSQL row by primary-key selector while preserving effective-role, grants, and RLS guardrails |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key` | workspace | postgres_data_row | Fetch one PostgreSQL row by primary-key selector with optional projection and controlled one-hop relations |
+| PATCH | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key` | workspace | postgres_data_row | Update one PostgreSQL row by primary-key selector while preserving effective-role, grants, and RLS guardrails |
 | GET | `/v1/postgres/workspaces/{workspaceId}/grants` | workspace | postgres_grant | List effective PostgreSQL grants for one workspace inventory projection |
 | POST | `/v1/postgres/workspaces/{workspaceId}/grants` | workspace | postgres_grant | Create one declarative PostgreSQL privilege grant for a workspace-managed object |
 | DELETE | `/v1/postgres/workspaces/{workspaceId}/grants/{grantId}` | workspace | postgres_grant | Delete one declarative PostgreSQL privilege grant for a workspace-managed object |
