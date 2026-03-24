@@ -368,7 +368,7 @@ function buildCapabilityResolution({ scope, tenantId, workspaceId, plan, deploym
   };
 }
 
-export function resolveTenantEffectiveCapabilities({ tenantId = null, planId, resolvedAt = '2026-03-23T00:00:00Z' }) {
+export function resolveTenantEffectiveCapabilities({ tenantId = null, planId, resolvedAt = '2026-03-24T00:00:00Z' }) {
   const plan = getCommercialPlan(planId);
   if (!plan) {
     throw new Error(`Unknown plan ${planId}.`);
@@ -409,7 +409,7 @@ export function resolveWorkspaceEffectiveCapabilities({
   workspaceId,
   workspaceEnvironment,
   planId,
-  resolvedAt = '2026-03-23T00:00:00Z'
+  resolvedAt = '2026-03-24T00:00:00Z'
 }) {
   const tenantResolution = resolveTenantEffectiveCapabilities({ tenantId, planId, resolvedAt });
   const capabilities = tenantResolution.capabilities.filter((capability) =>
@@ -424,7 +424,7 @@ export function resolveWorkspaceEffectiveCapabilities({
   };
 }
 
-export function evaluatePlanChange({ fromPlanId, toPlanId, currentUsage = {}, resolvedAt = '2026-03-23T00:00:00Z' }) {
+export function evaluatePlanChange({ fromPlanId, toPlanId, currentUsage = {}, resolvedAt = '2026-03-24T00:00:00Z' }) {
   const fromResolution = resolveTenantEffectiveCapabilities({ planId: fromPlanId, resolvedAt });
   const toResolution = resolveTenantEffectiveCapabilities({ planId: toPlanId, resolvedAt });
   const fromCapabilities = new Set(fromResolution.capabilities.map((capability) => capability.capabilityKey));

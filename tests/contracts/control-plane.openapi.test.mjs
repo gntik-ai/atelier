@@ -108,6 +108,14 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.Invitation);
   assert.ok(document.components.schemas.CommercialPlan);
   assert.ok(document.components.schemas.ProviderCapabilityRecord);
+  assert.ok(document.components.schemas.TenantIdentityContext);
+  assert.ok(document.components.schemas.WorkspaceIamBoundary);
+  assert.ok(document.components.schemas.ExternalApplicationIamClient);
+  assert.ok(document.components.schemas.ServiceAccountIamBinding);
+  assert.ok(document.components.schemas.KeycloakProtocolMapper);
+  assert.ok(document.components.schemas.Tenant.properties.identityContext);
+  assert.ok(document.components.schemas.ExternalApplication.properties.iamClient);
+  assert.ok(document.components.schemas.ServiceAccount.properties.iamBinding);
 
   assert.equal(getRouteCatalog['x-family'], 'platform');
   assert.equal(routeCatalogParameters.some((parameter) => parameter.name === 'family'), true);

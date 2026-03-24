@@ -308,6 +308,9 @@
             },
             "type": "array"
           },
+          "iamClient": {
+            "$ref": "#/components/schemas/ExternalApplicationIamClient"
+          },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
           },
@@ -361,6 +364,63 @@
         ],
         "type": "object"
       },
+      "ExternalApplicationIamClient": {
+        "additionalProperties": false,
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "clientType": {
+            "enum": [
+              "public",
+              "confidential",
+              "bearer_only"
+            ],
+            "type": "string"
+          },
+          "defaultClientScopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "optionalClientScopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocolMappers": {
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            },
+            "type": "array"
+          },
+          "realm": {
+            "type": "string"
+          },
+          "redirectUris": {
+            "items": {
+              "format": "uri-reference",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "webOrigins": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "realm",
+          "clientId",
+          "clientType",
+          "defaultClientScopes"
+        ],
+        "type": "object"
+      },
       "ExternalApplicationWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -375,6 +435,9 @@
           "entityType": {
             "const": "external_application",
             "type": "string"
+          },
+          "iamClient": {
+            "$ref": "#/components/schemas/ExternalApplicationIamClient"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
@@ -408,6 +471,49 @@
           "protocol",
           "desiredState",
           "metadata"
+        ],
+        "type": "object"
+      },
+      "KeycloakProtocolMapper": {
+        "additionalProperties": false,
+        "properties": {
+          "claimName": {
+            "type": "string"
+          },
+          "mapperType": {
+            "enum": [
+              "user_attribute",
+              "hardcoded_claim",
+              "audience",
+              "script"
+            ],
+            "type": "string"
+          },
+          "multivalued": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sourceAttribute": {
+            "type": "string"
+          },
+          "tokenTargets": {
+            "items": {
+              "enum": [
+                "access_token",
+                "id_token",
+                "userinfo"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "mapperType",
+          "claimName"
         ],
         "type": "object"
       },
@@ -801,6 +907,9 @@
             },
             "type": "array"
           },
+          "iamBinding": {
+            "$ref": "#/components/schemas/ServiceAccountIamBinding"
+          },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
           },
@@ -852,6 +961,39 @@
         ],
         "type": "object"
       },
+      "ServiceAccountIamBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "clientId": {
+            "type": "string"
+          },
+          "credentialRef": {
+            "type": "string"
+          },
+          "linkedApplicationIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "realm": {
+            "type": "string"
+          },
+          "rotationPolicy": {
+            "type": "string"
+          },
+          "serviceAccountUser": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "realm",
+          "clientId",
+          "credentialRef",
+          "rotationPolicy"
+        ],
+        "type": "object"
+      },
       "ServiceAccountWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -877,6 +1019,9 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "iamBinding": {
+            "$ref": "#/components/schemas/ServiceAccountIamBinding"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
@@ -925,6 +1070,9 @@
           },
           "environment": {
             "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "iamBoundary": {
+            "$ref": "#/components/schemas/WorkspaceIamBoundary"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
@@ -981,6 +1129,35 @@
           "prod"
         ],
         "type": "string"
+      },
+      "WorkspaceIamBoundary": {
+        "additionalProperties": false,
+        "properties": {
+          "clientNamespace": {
+            "type": "string"
+          },
+          "defaultClientScopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocolMappers": {
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            },
+            "type": "array"
+          },
+          "realm": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "realm",
+          "clientNamespace",
+          "defaultClientScopes"
+        ],
+        "type": "object"
       },
       "WorkspaceMembershipRecord": {
         "additionalProperties": false,
@@ -1117,6 +1294,9 @@
           },
           "environment": {
             "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "iamBoundary": {
+            "$ref": "#/components/schemas/WorkspaceIamBoundary"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"

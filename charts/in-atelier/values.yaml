@@ -261,6 +261,180 @@ bootstrap:
         realm: in-atelier-platform
         displayName: In Atelier Platform
         enabled: true
+        attributes:
+          in-atelier.realm-type: platform
+          in-atelier.console-client: in-atelier-console
+          in-atelier.gateway-client: in-atelier-gateway
+      realmRoles:
+      - superadmin
+      - platform_admin
+      - platform_operator
+      - platform_auditor
+      - tenant_admin
+      - tenant_operator
+      - tenant_billing_admin
+      - auditor
+      - workspace_admin
+      - workspace_developer
+      - workspace_operator
+      - workspace_auditor
+      - workspace_viewer
+      clientScopes:
+      - name: tenant-context
+        protocol: openid-connect
+        attributes:
+          include.in.token.scope: 'false'
+          display.on.consent.screen: 'false'
+        protocolMappers:
+        - name: tenant_id
+          protocol: openid-connect
+          protocolMapper: oidc-usermodel-attribute-mapper
+          consentRequired: false
+          config:
+            user.attribute: tenant_id
+            claim.name: tenant_id
+            jsonType.label: String
+            access.token.claim: 'true'
+            id.token.claim: 'true'
+            userinfo.token.claim: 'true'
+      - name: workspace-context
+        protocol: openid-connect
+        attributes:
+          include.in.token.scope: 'false'
+          display.on.consent.screen: 'false'
+        protocolMappers:
+        - name: workspace_id
+          protocol: openid-connect
+          protocolMapper: oidc-usermodel-attribute-mapper
+          consentRequired: false
+          config:
+            user.attribute: workspace_id
+            claim.name: workspace_id
+            jsonType.label: String
+            access.token.claim: 'true'
+            id.token.claim: 'true'
+            userinfo.token.claim: 'true'
+      - name: plan-context
+        protocol: openid-connect
+        attributes:
+          include.in.token.scope: 'false'
+          display.on.consent.screen: 'false'
+        protocolMappers:
+        - name: plan_id
+          protocol: openid-connect
+          protocolMapper: oidc-usermodel-attribute-mapper
+          consentRequired: false
+          config:
+            user.attribute: plan_id
+            claim.name: plan_id
+            jsonType.label: String
+            access.token.claim: 'true'
+            id.token.claim: 'true'
+            userinfo.token.claim: 'true'
+      - name: workspace-roles
+        protocol: openid-connect
+        attributes:
+          include.in.token.scope: 'false'
+          display.on.consent.screen: 'false'
+        protocolMappers:
+        - name: workspace_roles
+          protocol: openid-connect
+          protocolMapper: oidc-usermodel-attribute-mapper
+          consentRequired: false
+          config:
+            user.attribute: workspace_roles
+            claim.name: workspace_roles
+            jsonType.label: String
+            multivalued: 'true'
+            access.token.claim: 'true'
+            id.token.claim: 'true'
+            userinfo.token.claim: 'true'
+      clients:
+      - clientId: in-atelier-gateway
+        name: In Atelier Gateway
+        protocol: openid-connect
+        enabled: true
+        bearerOnly: true
+        publicClient: false
+        serviceAccountsEnabled: false
+        standardFlowEnabled: false
+        directAccessGrantsEnabled: false
+        defaultClientScopes:
+        - tenant-context
+        - workspace-context
+        - plan-context
+        - workspace-roles
+      - clientId: in-atelier-console
+        name: In Atelier Console
+        protocol: openid-connect
+        enabled: true
+        publicClient: true
+        bearerOnly: false
+        standardFlowEnabled: true
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        redirectUris:
+        - https://console.dev.in-atelier.example.com/*
+        - https://console.sandbox.in-atelier.example.com/*
+        - https://console.staging.in-atelier.example.com/*
+        - https://console.in-atelier.example.com/*
+        webOrigins:
+        - https://console.dev.in-atelier.example.com
+        - https://console.sandbox.in-atelier.example.com
+        - https://console.staging.in-atelier.example.com
+        - https://console.in-atelier.example.com
+        defaultClientScopes:
+        - tenant-context
+        - workspace-context
+        - plan-context
+        - workspace-roles
+      tenantRealmTemplate:
+        realmIdPattern: tenant-{tenantSlug}
+        displayNamePattern: Tenant {tenantDisplayName}
+        strategyDefaults:
+          shared: realm_per_tenant
+          dedicated: realm_per_tenant
+          federated: brokered_tenant_realm
+        realmAttributes:
+          in-atelier.realm-type: tenant
+          in-atelier.control-plane.platform-realm: in-atelier-platform
+        requiredRealmRoles:
+        - tenant_admin
+        - tenant_operator
+        - tenant_billing_admin
+        - auditor
+        - workspace_admin
+        - workspace_developer
+        - workspace_operator
+        - workspace_auditor
+        - workspace_viewer
+        requiredClientScopes:
+        - tenant-context
+        - workspace-context
+        - plan-context
+        - workspace-roles
+        workspaceClientTemplate:
+          clientIdPattern: '{workspaceSlug}-{applicationSlug}'
+          defaultClientScopes:
+          - tenant-context
+          - workspace-context
+          - plan-context
+          - workspace-roles
+          metadataAttributes:
+            tenant_id: '{tenantId}'
+            workspace_id: '{workspaceId}'
+            workspace_slug: '{workspaceSlug}'
+        serviceAccountTemplate:
+          clientIdPattern: '{workspaceSlug}-svc-{serviceAccountSlug}'
+          credentialRefPattern: secret://iam/{tenantId}/{workspaceId}/service-accounts/{serviceAccountId}
+          defaultClientScopes:
+          - tenant-context
+          - workspace-context
+          - plan-context
+          metadataAttributes:
+            tenant_id: '{tenantId}'
+            workspace_id: '{workspaceId}'
+            service_account_id: '{serviceAccountId}'
       superadmin:
         username: superadmin
         email: platform-admin@in-atelier.example.com
@@ -476,6 +650,14 @@ bootstrap:
         - pvc_01pgshared
         - pvc_01storagebucket
         - pvc_01metricsbasic
+        identityTopology:
+          platformRealm: in-atelier-platform
+          tenantRealmMode: realm_per_tenant
+          realmClusterModel: shared_keycloak_cluster
+          workspaceClientNamespacePattern: '{workspaceSlug}-{applicationSlug}'
+          serviceAccountClientPattern: '{workspaceSlug}-svc-{serviceAccountSlug}'
+          consoleUsersRealm: in-atelier-platform
+          endUsersRealmBoundary: tenant_realm
       - deploymentProfileId: dpf_01sharedgrowth
         slug: shared-growth
         displayName: Shared growth profile
@@ -498,6 +680,14 @@ bootstrap:
         - pvc_01openwhiskactions
         - pvc_01metricsbasic
         - pvc_01logsextended
+        identityTopology:
+          platformRealm: in-atelier-platform
+          tenantRealmMode: realm_per_tenant
+          realmClusterModel: shared_keycloak_cluster
+          workspaceClientNamespacePattern: '{workspaceSlug}-{applicationSlug}'
+          serviceAccountClientPattern: '{workspaceSlug}-svc-{serviceAccountSlug}'
+          consoleUsersRealm: in-atelier-platform
+          endUsersRealmBoundary: tenant_realm
       - deploymentProfileId: dpf_01regulateddedicated
         slug: regulated-dedicated
         displayName: Regulated dedicated profile
@@ -517,6 +707,14 @@ bootstrap:
         - pvc_01kafkatopics
         - pvc_01metricsbasic
         - pvc_01auditexport
+        identityTopology:
+          platformRealm: in-atelier-platform
+          tenantRealmMode: realm_per_tenant
+          realmClusterModel: dedicated_keycloak_cluster
+          workspaceClientNamespacePattern: '{workspaceSlug}-{applicationSlug}'
+          serviceAccountClientPattern: '{workspaceSlug}-svc-{serviceAccountSlug}'
+          consoleUsersRealm: in-atelier-platform
+          endUsersRealmBoundary: tenant_realm
       - deploymentProfileId: dpf_01enterprisefederated
         slug: enterprise-federated
         displayName: Enterprise federated profile
@@ -542,6 +740,14 @@ bootstrap:
         - pvc_01tracesretention
         - pvc_01federatedclusters
         - pvc_01auditexport
+        identityTopology:
+          platformRealm: in-atelier-platform
+          tenantRealmMode: brokered_tenant_realm
+          realmClusterModel: federated_keycloak_cluster
+          workspaceClientNamespacePattern: '{workspaceSlug}-{applicationSlug}'
+          serviceAccountClientPattern: '{workspaceSlug}-svc-{serviceAccountSlug}'
+          consoleUsersRealm: in-atelier-platform
+          endUsersRealmBoundary: federated_external_directory
     internalNamespaces:
       openwhisk:
       - namespace: platform-system

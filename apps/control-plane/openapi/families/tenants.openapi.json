@@ -628,6 +628,9 @@
             "const": "tenant",
             "type": "string"
           },
+          "identityContext": {
+            "$ref": "#/components/schemas/TenantIdentityContext"
+          },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
           },
@@ -673,6 +676,79 @@
           "state",
           "timestamps",
           "metadata"
+        ],
+        "type": "object"
+      },
+      "TenantIdentityContext": {
+        "additionalProperties": false,
+        "properties": {
+          "consoleUserRealm": {
+            "type": "string"
+          },
+          "endUserRealm": {
+            "type": "string"
+          },
+          "platformRealm": {
+            "type": "string"
+          },
+          "realmAttributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "realmStrategy": {
+            "enum": [
+              "realm_per_tenant",
+              "shared_realm_partition",
+              "brokered_tenant_realm"
+            ],
+            "type": "string"
+          },
+          "requiredClaims": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenantRealm": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platformRealm",
+          "tenantRealm",
+          "realmStrategy",
+          "consoleUserRealm",
+          "endUserRealm"
+        ],
+        "type": "object"
+      },
+      "TenantIdentityProvisioningRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "brokerMode": {
+            "enum": [
+              "native",
+              "external"
+            ],
+            "type": "string"
+          },
+          "realmStrategy": {
+            "enum": [
+              "plan_default",
+              "realm_per_tenant",
+              "shared_realm_partition",
+              "brokered_tenant_realm"
+            ],
+            "type": "string"
+          },
+          "requestedRealm": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "realmStrategy"
         ],
         "type": "object"
       },
@@ -800,6 +876,9 @@
           "entityType": {
             "const": "tenant",
             "type": "string"
+          },
+          "identityProvisioning": {
+            "$ref": "#/components/schemas/TenantIdentityProvisioningRequest"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"

@@ -16,6 +16,20 @@ data:
 {{ toPrettyJson .Values.bootstrap.oneShot.keycloak.realm | nindent 4 }}
   superadmin.json: |
 {{ toPrettyJson .Values.bootstrap.oneShot.keycloak.superadmin | nindent 4 }}
+  tenant-realm-template.json: |
+{{ toPrettyJson .Values.bootstrap.oneShot.keycloak.tenantRealmTemplate | nindent 4 }}
+{{- range .Values.bootstrap.oneShot.keycloak.realmRoles }}
+  role-{{ . }}.json: |
+{{ toPrettyJson (dict "name" .) | nindent 4 }}
+{{- end }}
+{{- range .Values.bootstrap.oneShot.keycloak.clientScopes }}
+  client-scope-{{ .name }}.json: |
+{{ toPrettyJson . | nindent 4 }}
+{{- end }}
+{{- range .Values.bootstrap.oneShot.keycloak.clients }}
+  client-{{ .clientId }}.json: |
+{{ toPrettyJson . | nindent 4 }}
+{{- end }}
   governance-plans.json: |
 {{ toPrettyJson .Values.bootstrap.oneShot.governanceCatalog.plans | nindent 4 }}
   governance-quota-policies.json: |
@@ -24,8 +38,6 @@ data:
 {{ toPrettyJson .Values.bootstrap.oneShot.governanceCatalog.deploymentProfiles | nindent 4 }}
   internal-namespaces.json: |
 {{ toPrettyJson .Values.bootstrap.oneShot.internalNamespaces | nindent 4 }}
-  role-superadmin.json: |
-{{ toPrettyJson (dict "name" "superadmin") | nindent 4 }}
 {{- $mode := .Values.gatewayPolicy.passthrough.mode -}}
 {{- range .Values.bootstrap.reconcile.apisix.routes }}
 {{- if or (not (hasKey . "enabledInModes")) (has $mode .enabledInModes) }}

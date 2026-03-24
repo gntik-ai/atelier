@@ -28,7 +28,7 @@ test('domain model remains internally consistent', () => {
   const violations = collectDomainModelViolations(domainModel, seedFixtures);
 
   assert.deepEqual(violations, []);
-  assert.equal(DOMAIN_MODEL_VERSION, '2026-03-23');
+  assert.equal(DOMAIN_MODEL_VERSION, '2026-03-24');
   assert.deepEqual(
     listDomainEntities().map((entity) => entity.id),
     [
@@ -56,20 +56,20 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   const invitationStateMachine = getBusinessStateMachine('invitation_status');
   const seedFixtures = readDomainSeedFixtures();
   const profileIds = seedFixtures.profiles.map((profile) => profile.id);
+  const growthProfile = seedFixtures.profiles.find((profile) => profile.id === 'growth-multi-workspace');
 
   assert.deepEqual(managedResource.supported_kinds, ['database', 'bucket', 'topic', 'function']);
   assert.deepEqual(profileIds, ['starter-single-workspace', 'growth-multi-workspace', 'enterprise-dedicated']);
   assert.equal(seedFixtures.profiles.find((profile) => profile.id === 'starter-single-workspace').workspace_count, 1);
   assert.equal(seedFixtures.profiles.find((profile) => profile.id === 'enterprise-dedicated').tenant.placement, 'dedicated_database');
-  assert.equal(
-    seedFixtures.profiles.find((profile) => profile.id === 'growth-multi-workspace').managedResources.some(
-      (resource) => resource.kind === 'function'
-    ),
-    true
-  );
+  assert.equal(growthProfile.managedResources.some((resource) => resource.kind === 'function'), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenantMemberships.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaceMemberships.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.invitations.length >= 1), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.identityContext.platformRealm === 'in-atelier-platform'), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.iamBoundary.clientNamespace)), true);
+  assert.equal(growthProfile.externalApplications.filter((application) => application.workspaceId === 'wrk_01betaprod').length >= 2, true);
+  assert.equal(growthProfile.serviceAccounts.some((account) => account.iamBinding.clientId === 'beta-prod-svc-mobile-api'), true);
   assert.deepEqual(invitationStateMachine.states, ['pending', 'accepted', 'revoked', 'expired']);
   assert.deepEqual(
     listCommercialPlans().map((plan) => plan.slug),

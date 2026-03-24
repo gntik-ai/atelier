@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-23",
+  "version": "2026-03-24",
   "profiles": [
     {
       "id": "starter-single-workspace",
@@ -12,23 +12,46 @@
         "displayName": "Starter Alpha",
         "planId": "pln_01starter",
         "placement": "shared_schema",
-        "state": "active"
+        "state": "active",
+        "identityContext": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealm": "tenant-starter-alpha",
+          "realmStrategy": "realm_per_tenant",
+          "consoleUserRealm": "in-atelier-platform",
+          "endUserRealm": "tenant-starter-alpha",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}"
+        }
       },
       "platformUsers": [
         {
           "userId": "usr_01platformadmin",
           "username": "paula-admin",
-          "role": "platform_admin"
+          "role": "platform_admin",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "paula-admin"
+          }
         },
         {
           "userId": "usr_01tenantadmin",
           "username": "alice-tenant",
-          "role": "tenant_admin"
+          "role": "tenant_admin",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "alice-tenant"
+          }
         },
         {
           "userId": "usr_01workspaceadmin",
           "username": "diego-workspace",
-          "role": "workspace_admin"
+          "role": "workspace_admin",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "diego-workspace"
+          }
         }
       ],
       "workspaces": [
@@ -38,7 +61,22 @@
           "slug": "alpha-dev",
           "displayName": "Alpha Dev",
           "environment": "dev",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-starter-alpha",
+            "clientNamespace": "alpha-dev",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01starteralpha",
+              "workspace_id": "wrk_01starterdev",
+              "workspace_slug": "alpha-dev"
+            }
+          }
         }
       ],
       "externalApplications": [
@@ -47,7 +85,21 @@
           "workspaceId": "wrk_01starterdev",
           "slug": "customer-portal",
           "protocol": "oidc",
-          "state": "active"
+          "state": "active",
+          "iamClient": {
+            "realm": "tenant-starter-alpha",
+            "clientId": "alpha-dev-customer-portal",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "redirectUris": [
+              "https://customer-portal.alpha-dev.apps.in-atelier.example.com/*"
+            ]
+          }
         }
       ],
       "serviceAccounts": [
@@ -58,7 +110,13 @@
           "roleBindings": [
             "workspace_developer"
           ],
-          "state": "active"
+          "state": "active",
+          "iamBinding": {
+            "realm": "tenant-starter-alpha",
+            "clientId": "alpha-dev-svc-ci-bot",
+            "credentialRef": "secret://iam/ten_01starteralpha/wrk_01starterdev/service-accounts/svc_01starterci",
+            "rotationPolicy": "manual-30d"
+          }
         }
       ],
       "managedResources": [
@@ -127,23 +185,46 @@
         "displayName": "Growth Beta",
         "planId": "pln_01growth",
         "placement": "shared_schema",
-        "state": "active"
+        "state": "active",
+        "identityContext": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealm": "tenant-growth-beta",
+          "realmStrategy": "realm_per_tenant",
+          "consoleUserRealm": "in-atelier-platform",
+          "endUserRealm": "tenant-growth-beta",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}"
+        }
       },
       "platformUsers": [
         {
           "userId": "usr_01betatenantadmin",
           "username": "bea-tenant",
-          "role": "tenant_admin"
+          "role": "tenant_admin",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "bea-tenant"
+          }
         },
         {
           "userId": "usr_01betadeveloper",
           "username": "bruno-dev",
-          "role": "workspace_developer"
+          "role": "workspace_developer",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "bruno-dev"
+          }
         },
         {
           "userId": "usr_01betaauditor",
           "username": "bianca-audit",
-          "role": "auditor"
+          "role": "auditor",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "bianca-audit"
+          }
         }
       ],
       "workspaces": [
@@ -153,7 +234,22 @@
           "slug": "beta-dev",
           "displayName": "Beta Dev",
           "environment": "dev",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-growth-beta",
+            "clientNamespace": "beta-dev",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01growthbeta",
+              "workspace_id": "wrk_01betadev",
+              "workspace_slug": "beta-dev"
+            }
+          }
         },
         {
           "workspaceId": "wrk_01betastaging",
@@ -161,7 +257,22 @@
           "slug": "beta-staging",
           "displayName": "Beta Staging",
           "environment": "staging",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-growth-beta",
+            "clientNamespace": "beta-staging",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01growthbeta",
+              "workspace_id": "wrk_01betastaging",
+              "workspace_slug": "beta-staging"
+            }
+          }
         },
         {
           "workspaceId": "wrk_01betaprod",
@@ -169,7 +280,22 @@
           "slug": "beta-prod",
           "displayName": "Beta Production",
           "environment": "prod",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-growth-beta",
+            "clientNamespace": "beta-prod",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01growthbeta",
+              "workspace_id": "wrk_01betaprod",
+              "workspace_slug": "beta-prod"
+            }
+          }
         }
       ],
       "externalApplications": [
@@ -178,14 +304,70 @@
           "workspaceId": "wrk_01betastaging",
           "slug": "ops-console",
           "protocol": "oidc",
-          "state": "active"
+          "state": "active",
+          "iamClient": {
+            "realm": "tenant-growth-beta",
+            "clientId": "beta-staging-ops-console",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "redirectUris": [
+              "https://ops-console.beta-staging.apps.in-atelier.example.com/*"
+            ]
+          }
         },
         {
           "applicationId": "app_01betashop",
           "workspaceId": "wrk_01betaprod",
           "slug": "shop-web",
           "protocol": "oidc",
-          "state": "active"
+          "state": "active",
+          "iamClient": {
+            "realm": "tenant-growth-beta",
+            "clientId": "beta-prod-shop-web",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "redirectUris": [
+              "https://shop-web.beta-prod.apps.in-atelier.example.com/*"
+            ]
+          }
+        },
+        {
+          "applicationId": "app_01betamobile",
+          "workspaceId": "wrk_01betaprod",
+          "slug": "shop-mobile",
+          "displayName": "Shop Mobile",
+          "protocol": "oidc",
+          "redirectUris": [
+            "https://mobile.growth-beta.example.com/callback"
+          ],
+          "serviceAccountIds": [
+            "svc_01betamobileapi"
+          ],
+          "state": "active",
+          "iamClient": {
+            "realm": "tenant-growth-beta",
+            "clientId": "beta-prod-shop-mobile",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "redirectUris": [
+              "https://mobile.growth-beta.example.com/callback"
+            ]
+          }
         }
       ],
       "serviceAccounts": [
@@ -196,7 +378,13 @@
           "roleBindings": [
             "workspace_operator"
           ],
-          "state": "active"
+          "state": "active",
+          "iamBinding": {
+            "realm": "tenant-growth-beta",
+            "clientId": "beta-staging-svc-deploy-bot",
+            "credentialRef": "secret://iam/ten_01growthbeta/wrk_01betastaging/service-accounts/svc_01betadeploy",
+            "rotationPolicy": "manual-30d"
+          }
         },
         {
           "serviceAccountId": "svc_01betaanalytics",
@@ -205,7 +393,32 @@
           "roleBindings": [
             "workspace_viewer"
           ],
-          "state": "suspended"
+          "state": "suspended",
+          "iamBinding": {
+            "realm": "tenant-growth-beta",
+            "clientId": "beta-prod-svc-analytics-bot",
+            "credentialRef": "secret://iam/ten_01growthbeta/wrk_01betaprod/service-accounts/svc_01betaanalytics",
+            "rotationPolicy": "manual-30d"
+          }
+        },
+        {
+          "serviceAccountId": "svc_01betamobileapi",
+          "workspaceId": "wrk_01betaprod",
+          "slug": "mobile-api",
+          "displayName": "Mobile API Client",
+          "roleBindings": [
+            "workspace_operator"
+          ],
+          "externalApplicationIds": [
+            "app_01betamobile"
+          ],
+          "state": "active",
+          "iamBinding": {
+            "realm": "tenant-growth-beta",
+            "clientId": "beta-prod-svc-mobile-api",
+            "credentialRef": "secret://iam/ten_01growthbeta/wrk_01betaprod/service-accounts/svc_01betamobileapi",
+            "rotationPolicy": "manual-30d"
+          }
         }
       ],
       "managedResources": [
@@ -302,28 +515,56 @@
         "displayName": "Enterprise Delta",
         "planId": "pln_01enterprise",
         "placement": "dedicated_database",
-        "state": "active"
+        "state": "active",
+        "identityContext": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealm": "tenant-enterprise-delta",
+          "realmStrategy": "realm_per_tenant",
+          "consoleUserRealm": "in-atelier-platform",
+          "endUserRealm": "tenant-enterprise-delta",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}"
+        }
       },
       "platformUsers": [
         {
           "userId": "usr_01deltaplatformoperator",
           "username": "olivia-platform",
-          "role": "platform_operator"
+          "role": "platform_operator",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "olivia-platform"
+          }
         },
         {
           "userId": "usr_01deltatenantadmin",
           "username": "emma-tenant",
-          "role": "tenant_admin"
+          "role": "tenant_admin",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "emma-tenant"
+          }
         },
         {
           "userId": "usr_01deltaworkspaceoperator",
           "username": "noah-workspace",
-          "role": "workspace_operator"
+          "role": "workspace_operator",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "noah-workspace"
+          }
         },
         {
           "userId": "usr_01deltaauditor",
           "username": "liam-auditor",
-          "role": "workspace_auditor"
+          "role": "workspace_auditor",
+          "iamBinding": {
+            "realm": "in-atelier-platform",
+            "subjectType": "console_user",
+            "preferredUsername": "liam-auditor"
+          }
         }
       ],
       "workspaces": [
@@ -333,7 +574,22 @@
           "slug": "delta-dev",
           "displayName": "Delta Dev",
           "environment": "dev",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-enterprise-delta",
+            "clientNamespace": "delta-dev",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01enterprisedelta",
+              "workspace_id": "wrk_01deltadev",
+              "workspace_slug": "delta-dev"
+            }
+          }
         },
         {
           "workspaceId": "wrk_01deltasandbox",
@@ -341,7 +597,22 @@
           "slug": "delta-sandbox",
           "displayName": "Delta Sandbox",
           "environment": "sandbox",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-enterprise-delta",
+            "clientNamespace": "delta-sandbox",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01enterprisedelta",
+              "workspace_id": "wrk_01deltasandbox",
+              "workspace_slug": "delta-sandbox"
+            }
+          }
         },
         {
           "workspaceId": "wrk_01deltastaging",
@@ -349,7 +620,22 @@
           "slug": "delta-staging",
           "displayName": "Delta Staging",
           "environment": "staging",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-enterprise-delta",
+            "clientNamespace": "delta-staging",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01enterprisedelta",
+              "workspace_id": "wrk_01deltastaging",
+              "workspace_slug": "delta-staging"
+            }
+          }
         },
         {
           "workspaceId": "wrk_01deltaprod",
@@ -357,7 +643,22 @@
           "slug": "delta-prod",
           "displayName": "Delta Production",
           "environment": "prod",
-          "state": "active"
+          "state": "active",
+          "iamBoundary": {
+            "realm": "tenant-enterprise-delta",
+            "clientNamespace": "delta-prod",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "controlPlaneAttributes": {
+              "tenant_id": "ten_01enterprisedelta",
+              "workspace_id": "wrk_01deltaprod",
+              "workspace_slug": "delta-prod"
+            }
+          }
         }
       ],
       "externalApplications": [
@@ -366,14 +667,42 @@
           "workspaceId": "wrk_01deltaprod",
           "slug": "customer-gateway",
           "protocol": "oidc",
-          "state": "active"
+          "state": "active",
+          "iamClient": {
+            "realm": "tenant-enterprise-delta",
+            "clientId": "delta-prod-customer-gateway",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "redirectUris": [
+              "https://customer-gateway.delta-prod.apps.in-atelier.example.com/*"
+            ]
+          }
         },
         {
           "applicationId": "app_01deltaops",
           "workspaceId": "wrk_01deltastaging",
           "slug": "ops-portal",
           "protocol": "oidc",
-          "state": "active"
+          "state": "active",
+          "iamClient": {
+            "realm": "tenant-enterprise-delta",
+            "clientId": "delta-staging-ops-portal",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "tenant-context",
+              "workspace-context",
+              "plan-context",
+              "workspace-roles"
+            ],
+            "redirectUris": [
+              "https://ops-portal.delta-staging.apps.in-atelier.example.com/*"
+            ]
+          }
         }
       ],
       "serviceAccounts": [
@@ -384,7 +713,13 @@
           "roleBindings": [
             "workspace_admin"
           ],
-          "state": "active"
+          "state": "active",
+          "iamBinding": {
+            "realm": "tenant-enterprise-delta",
+            "clientId": "delta-prod-svc-provisioner",
+            "credentialRef": "secret://iam/ten_01enterprisedelta/wrk_01deltaprod/service-accounts/svc_01deltaprovisioner",
+            "rotationPolicy": "manual-30d"
+          }
         },
         {
           "serviceAccountId": "svc_01deltareporter",
@@ -393,7 +728,13 @@
           "roleBindings": [
             "workspace_auditor"
           ],
-          "state": "active"
+          "state": "active",
+          "iamBinding": {
+            "realm": "tenant-enterprise-delta",
+            "clientId": "delta-staging-svc-reporter",
+            "credentialRef": "secret://iam/ten_01enterprisedelta/wrk_01deltastaging/service-accounts/svc_01deltareporter",
+            "rotationPolicy": "manual-30d"
+          }
         }
       ],
       "managedResources": [

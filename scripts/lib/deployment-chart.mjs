@@ -272,6 +272,38 @@ function collectBootstrapValueViolations(values, topology, domainModel, violatio
     violations.push('bootstrap.oneShot.internalNamespaces.storage.buckets must define at least one bucket prefix set.');
   }
 
+  const keycloakBootstrap = bootstrap?.oneShot?.keycloak ?? {};
+  if (!Array.isArray(keycloakBootstrap?.realmRoles) || keycloakBootstrap.realmRoles.length < 4) {
+    violations.push('bootstrap.oneShot.keycloak.realmRoles must define the platform and tenant/workspace role baseline.');
+  }
+
+  const keycloakClientScopes = keycloakBootstrap?.clientScopes ?? [];
+  const requiredClientScopeNames = ['tenant-context', 'workspace-context', 'plan-context', 'workspace-roles'];
+  for (const scopeName of requiredClientScopeNames) {
+    if (!keycloakClientScopes.some((scope) => scope?.name === scopeName)) {
+      violations.push(`bootstrap.oneShot.keycloak.clientScopes must include ${scopeName}.`);
+    }
+  }
+
+  const keycloakClients = keycloakBootstrap?.clients ?? [];
+  for (const clientId of ['in-atelier-gateway', 'in-atelier-console']) {
+    if (!keycloakClients.some((client) => client?.clientId === clientId)) {
+      violations.push(`bootstrap.oneShot.keycloak.clients must include ${clientId}.`);
+    }
+  }
+
+  if (!keycloakBootstrap?.tenantRealmTemplate?.realmIdPattern) {
+    violations.push('bootstrap.oneShot.keycloak.tenantRealmTemplate.realmIdPattern must be defined.');
+  }
+
+  if (!keycloakBootstrap?.tenantRealmTemplate?.workspaceClientTemplate?.clientIdPattern) {
+    violations.push('bootstrap.oneShot.keycloak.tenantRealmTemplate.workspaceClientTemplate.clientIdPattern must be defined.');
+  }
+
+  if (!keycloakBootstrap?.tenantRealmTemplate?.serviceAccountTemplate?.credentialRefPattern) {
+    violations.push('bootstrap.oneShot.keycloak.tenantRealmTemplate.serviceAccountTemplate.credentialRefPattern must be defined.');
+  }
+
   if (!values?.gatewayPolicy?.oidc?.enabled) {
     violations.push('gatewayPolicy.oidc.enabled must remain true in root values.');
   }
@@ -350,13 +382,28 @@ function collectBootstrapTemplateViolations(violations) {
     }
   }
 
-  for (const marker of ['ensure_keycloak_realm', 'ensure_keycloak_superadmin', 'ensure_apisix_route', 'acquire_lock']) {
+  for (const marker of [
+    'ensure_keycloak_realm',
+    'ensure_keycloak_role_from_file',
+    'ensure_keycloak_client_scope',
+    'ensure_keycloak_client',
+    'ensure_keycloak_superadmin',
+    'ensure_apisix_route',
+    'acquire_lock'
+  ]) {
     if (!scriptTemplate.includes(marker)) {
       violations.push(`bootstrap script template must implement ${marker}.`);
     }
   }
 
-  for (const marker of ['governance-plans.json', 'governance-quota-policies.json', 'internal-namespaces.json']) {
+  for (const marker of [
+    'tenant-realm-template.json',
+    'client-scope-{{ .name }}.json',
+    'client-{{ .clientId }}.json',
+    'governance-plans.json',
+    'governance-quota-policies.json',
+    'internal-namespaces.json'
+  ]) {
     if (!payloadTemplate.includes(marker)) {
       violations.push(`bootstrap payload template must include ${marker}.`);
     }

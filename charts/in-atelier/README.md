@@ -42,7 +42,8 @@ The base chart defaults to `deployment.profile=standard`. Select another profile
 `US-DEP-02` adds a post-install/post-upgrade bootstrap job that separates:
 
 - **create-only / one-shot bootstrap**
-  - platform Keycloak realm
+  - platform Keycloak realm baseline (realm roles, gateway/console clients, and required client scopes)
+  - tenant realm template metadata for later tenant activation provisioning
   - superadmin user + realm role assignment
   - governance catalog seed (`plans`, `quota-policies`, `deployment-profiles`)
   - internal namespace/prefix catalog for OpenWhisk and storage
@@ -55,6 +56,11 @@ The job uses:
 - a **ConfigMap lock** to refuse concurrent executions
 - a **ConfigMap marker** with the one-shot payload hash to skip duplicate create-only work on reinstall/upgrade/restore
 - idempotent provider calls (`GET if exists`, `PUT for APISIX routes`, `create only if missing` for one-shot catalogs)
+
+The bootstrap payload now models two IAM layers explicitly:
+
+- the **platform realm** for console operators, APISIX OIDC, and control-plane claim projection
+- the **tenant realm template** for tenant/workspace application clients and service-account credentials
 
 ### Secret-resolution strategy
 

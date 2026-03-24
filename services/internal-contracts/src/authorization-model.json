@@ -1,11 +1,11 @@
 {
-  "version": "2026-03-23",
+  "version": "2026-03-24",
   "scope": "US-ARC-03",
   "system": "in-atelier-contextual-authorization",
   "contracts": {
     "security_context": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "actor",
         "tenant_id",
@@ -25,7 +25,7 @@
     },
     "authorization_decision": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "decision_id",
         "resource_type",
@@ -48,7 +48,7 @@
     },
     "context_projection": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "target",
         "tenant_id",
@@ -67,7 +67,7 @@
     },
     "negative_authorization_case": {
       "owner": "tests/reference",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "id",
         "surface",
@@ -177,7 +177,12 @@
           "email",
           "name",
           "tenant_memberships",
-          "workspace_memberships"
+          "workspace_memberships",
+          "tenant_id",
+          "workspace_id",
+          "plan_id",
+          "tenant_realm",
+          "workspace_roles"
         ]
       },
       {
@@ -192,7 +197,12 @@
         ],
         "optional_claims": [
           "tenant_bindings",
-          "delegation_chain"
+          "delegation_chain",
+          "tenant_id",
+          "workspace_id",
+          "plan_id",
+          "service_account_id",
+          "tenant_realm"
         ]
       },
       {
@@ -224,7 +234,9 @@
       "quota_snapshot",
       "resource_ownership",
       "request_id",
-      "idempotency_key"
+      "idempotency_key",
+      "identity_realm",
+      "client_id"
     ],
     "resolution_order": [
       "Authenticate the actor and classify the credential source.",
@@ -232,7 +244,9 @@
       "Resolve the requested workspace and verify the workspace belongs to the resolved tenant before any resource lookup proceeds.",
       "Merge platform, tenant, and workspace role bindings into one effective role set limited to the resolved tenant/workspace boundary.",
       "Intersect effective roles with granted scopes and tenant-plan guardrails before making an allow decision.",
-      "Emit one correlation_id reused by control-plane handlers, internal contracts, provider adapters, events, and audit records."
+      "Emit one correlation_id reused by control-plane handlers, internal contracts, provider adapters, events, and audit records.",
+      "Separate platform-realm console identities from tenant-realm or federated tenant identities before computing effective roles or downstream projections.",
+      "Project tenant_id, workspace_id, plan_id, and tenant_realm through Keycloak protocol mappers so gateway and downstream services can verify scope without rehydrating raw provider state."
     ],
     "default_denials": [
       "deny_missing_tenant_binding",
@@ -443,7 +457,14 @@
     "app": [
       "app.read",
       "app.deploy",
-      "app.admin"
+      "app.admin",
+      "app.credentials.rotate",
+      "app.redirect_uris.manage"
+    ],
+    "service_account": [
+      "service_account.read",
+      "service_account.rotate",
+      "service_account.admin"
     ]
   },
   "resource_semantics": [
@@ -554,19 +575,39 @@
     },
     {
       "resource_type": "app",
-      "parent_scope": "workspace",
-      "workspace_scoped": true,
-      "ownership_model": "workspace-owned application metadata",
-      "membership_bindings": [
-        "workspace_roles"
-      ],
+      "ownership_scope": "workspace",
       "delegable_actions": [
         "app.read",
-        "app.deploy"
+        "app.deploy",
+        "app.credentials.rotate"
       ],
       "forbidden_actions": [
-        "app.admin_without_workspace_admin",
-        "cross_workspace_slug_claim"
+        "app.admin_without_workspace_scope",
+        "app.client_secret.read_without_workspace_admin"
+      ],
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned application client registration",
+      "membership_bindings": [
+        "workspace_roles"
+      ]
+    },
+    {
+      "resource_type": "service_account",
+      "ownership_scope": "workspace",
+      "delegable_actions": [
+        "service_account.read",
+        "service_account.rotate"
+      ],
+      "forbidden_actions": [
+        "service_account.admin_without_workspace_scope",
+        "service_account.rotate_cross_workspace"
+      ],
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-owned machine identity",
+      "membership_bindings": [
+        "workspace_roles"
       ]
     }
   ],
@@ -585,7 +626,11 @@
           "workspace.read",
           "workspace.update",
           "workspace.members.manage",
-          "workspace.delete"
+          "workspace.delete",
+          "app.admin",
+          "app.credentials.rotate",
+          "service_account.admin",
+          "service_account.rotate"
         ],
         "denied_actions": []
       },
@@ -594,7 +639,9 @@
         "allowed_actions": [
           "tenant.read",
           "tenant.usage.read",
-          "workspace.read"
+          "workspace.read",
+          "app.read",
+          "service_account.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -607,7 +654,9 @@
         "allowed_actions": [
           "tenant.audit.read",
           "tenant.read",
-          "workspace.read"
+          "workspace.read",
+          "app.read",
+          "service_account.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -633,7 +682,10 @@
           "bucket.admin",
           "topic.admin",
           "function.admin",
-          "app.admin"
+          "app.admin",
+          "app.credentials.rotate",
+          "service_account.admin",
+          "service_account.rotate"
         ],
         "denied_actions": [
           "tenant.suspend"
@@ -652,7 +704,8 @@
           "topic.publish",
           "topic.consume",
           "function.invoke",
-          "app.read"
+          "app.read",
+          "service_account.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -661,7 +714,8 @@
           "bucket.admin",
           "topic.admin",
           "function.admin",
-          "app.admin"
+          "app.admin",
+          "service_account.admin"
         ]
       },
       {
@@ -676,7 +730,9 @@
           "bucket.admin",
           "topic.admin",
           "function.admin",
-          "app.admin"
+          "app.admin",
+          "service_account.admin",
+          "app.credentials.rotate"
         ]
       },
       {
@@ -687,7 +743,8 @@
           "workspace.read",
           "database.read",
           "bucket.read",
-          "app.read"
+          "app.read",
+          "service_account.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -696,7 +753,8 @@
           "bucket.write",
           "topic.publish",
           "function.deploy",
-          "app.deploy"
+          "app.deploy",
+          "service_account.rotate"
         ]
       }
     ],
@@ -711,7 +769,12 @@
           "bucket.admin",
           "topic.admin",
           "function.admin",
-          "app.admin"
+          "app.admin",
+          "app.credentials.rotate",
+          "app.redirect_uris.manage",
+          "service_account.read",
+          "service_account.rotate",
+          "service_account.admin"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -731,7 +794,9 @@
           "function.invoke",
           "function.deploy",
           "app.read",
-          "app.deploy"
+          "app.deploy",
+          "app.redirect_uris.manage",
+          "service_account.read"
         ],
         "denied_actions": [
           "workspace.members.manage",
@@ -739,7 +804,9 @@
           "bucket.admin",
           "topic.admin",
           "function.admin",
-          "app.admin"
+          "app.admin",
+          "service_account.rotate",
+          "service_account.admin"
         ]
       },
       {
@@ -750,7 +817,9 @@
           "bucket.read",
           "topic.consume",
           "function.invoke",
-          "app.read"
+          "app.read",
+          "service_account.read",
+          "service_account.rotate"
         ],
         "denied_actions": [
           "workspace.update",
@@ -758,7 +827,8 @@
           "bucket.write",
           "topic.admin",
           "function.deploy",
-          "app.deploy"
+          "app.deploy",
+          "service_account.admin"
         ]
       },
       {
@@ -767,7 +837,8 @@
           "workspace.read",
           "database.read",
           "bucket.read",
-          "app.read"
+          "app.read",
+          "service_account.read"
         ],
         "denied_actions": [
           "workspace.update",
@@ -775,7 +846,9 @@
           "bucket.write",
           "topic.publish",
           "function.deploy",
-          "app.deploy"
+          "app.deploy",
+          "service_account.rotate",
+          "service_account.admin"
         ]
       },
       {
@@ -790,7 +863,9 @@
           "bucket.write",
           "topic.publish",
           "function.deploy",
-          "app.deploy"
+          "app.deploy",
+          "service_account.rotate",
+          "service_account.admin"
         ]
       }
     ]
@@ -949,6 +1024,13 @@
       "category": "plan_guardrail",
       "expected_effect": "deny",
       "summary": "Actions outside the tenant plan, such as restricted workspace capacity, are denied even when the actor has a role grant."
+    },
+    {
+      "id": "AUTHZ-IAM-007",
+      "category": "identity_boundary",
+      "surface": "control_api",
+      "expected_effect": "deny",
+      "summary": "Tenant-realm tokens cannot impersonate platform-realm console users or rotate service-account credentials outside their workspace namespace."
     }
   ]
 }

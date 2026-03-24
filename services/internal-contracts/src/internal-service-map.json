@@ -149,11 +149,15 @@
         "ensure_realm",
         "ensure_client",
         "ensure_roles",
-        "suspend_access"
+        "suspend_access",
+        "ensure_client_scopes",
+        "ensure_protocol_mappers",
+        "ensure_service_account",
+        "rotate_client_secret"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
-      "idempotency_key": "tenant_id + capability + target_ref",
+      "idempotency_key": "tenant_id + workspace_id + capability + target_ref + identity_blueprint_ref",
       "error_classes": [
         "retryable_dependency_failure",
         "terminal_dependency_failure"
@@ -314,10 +318,12 @@
         "plan_id",
         "scopes",
         "effective_roles",
-        "authorization_decision_id"
+        "authorization_decision_id",
+        "identity_blueprint_ref",
+        "lifecycle_trigger"
       ],
-      "idempotency": "The orchestrator must create or resume one logical provisioning run per idempotency_key.",
-      "versioning": "Breaking changes require a new contract version and an explicit migration note.",
+      "idempotency": "The orchestrator must create or resume one logical provisioning run per idempotency_key, including tenant IAM realm baseline reconciliation.",
+      "versioning": "Breaking changes require a new contract version and an explicit migration note; tenant IAM blueprint references must stay additive.",
       "error_classes": [
         "invalid_request",
         "conflict",
@@ -363,10 +369,11 @@
         "plan_id",
         "scopes",
         "effective_roles",
-        "authorization_decision_id"
+        "authorization_decision_id",
+        "identity_blueprint_ref"
       ],
       "idempotency": "Each adapter call must be safe to retry with the same idempotency_key when the underlying provider supports idempotent upsert semantics.",
-      "versioning": "Provider-specific data lives inside payload while the shared envelope stays stable across adapters.",
+      "versioning": "Provider-specific data lives inside payload while the shared envelope stays stable across adapters; identity_blueprint_ref pins the Keycloak baseline used for each call.",
       "error_classes": [
         "retryable_dependency_failure",
         "terminal_dependency_failure",
@@ -523,6 +530,28 @@
         "authorization_error",
         "dependency_failure"
       ]
+    },
+    "identity_blueprint": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-24",
+      "required_fields": [
+        "identity_blueprint_ref",
+        "platform_realm_id",
+        "tenant_realm_strategy",
+        "tenant_realm_id_pattern",
+        "realm_attributes",
+        "realm_roles",
+        "client_scopes",
+        "protocol_mappers",
+        "workspace_client_template",
+        "service_account_template"
+      ],
+      "idempotency": "Identity blueprints are immutable snapshots referenced by provisioning runs and may be reused safely across retries.",
+      "versioning": "Blueprints evolve additively; incompatible tenant realm semantics require a new identity_blueprint_ref.",
+      "error_classes": [
+        "invalid_blueprint",
+        "unsupported_identity_strategy"
+      ]
     }
   },
   "interaction_flows": [
@@ -530,10 +559,11 @@
       "id": "tenant_provisioning",
       "entry_service": "control_api",
       "steps": [
-        "control_api validates the request, resolves contextual authorization for actor/tenant/workspace scope, and emits control_api_command and provisioning_request envelopes with one correlation_id.",
-        "provisioning_orchestrator creates or reloads a provisioning run by idempotency_key while preserving plan, role, and workspace constraints.",
-        "provisioning_orchestrator invokes adapter ports for identity, relational, document, event, functions, and storage setup using propagated authorization metadata.",
-        "audit_module appends evidence for the decision context, step transitions, and the terminal outcome."
+        "control_api validates the request, resolves contextual authorization for actor/tenant/workspace scope, and emits control_api_command plus provisioning_request envelopes with one correlation_id.",
+        "provisioning_orchestrator creates or reloads a provisioning run by idempotency_key while preserving plan, role, workspace, and identity_blueprint_ref constraints.",
+        "provisioning_orchestrator invokes Keycloak capabilities to ensure the tenant realm strategy, required realm roles, client scopes, protocol mappers, and baseline workspace client templates before data-plane setup continues.",
+        "provisioning_orchestrator invokes adapter ports for relational, document, event, functions, and storage setup using the same propagated authorization and tenant IAM metadata.",
+        "audit_module appends evidence for the decision context, identity blueprint, step transitions, and the terminal outcome."
       ]
     },
     {
@@ -561,6 +591,16 @@
         "event_gateway negotiates SSE or WebSocket subscriptions through gateway-managed headers and tenant/workspace authorization context.",
         "event_gateway establishes a transport-scoped consumer lease against Kafka-safe topics and tracks replay cursor, max_in_flight, and lag telemetry for the session.",
         "audit_module records subscription lifecycle changes and APISIX/stream metrics expose active connections, lag, denials, and backpressure outcomes for observability."
+      ]
+    },
+    {
+      "id": "workspace_identity_registration",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api accepts workspace application or service-account mutations only after tenant/workspace authorization is resolved and correlated.",
+        "provisioning_orchestrator expands the workspace client namespace into one or more Keycloak clients tied to the tenant realm and the canonical application/service-account records.",
+        "services/adapters Keycloak calls ensure protocol mappers, redirect policy, service-account users, and credential rotation hooks without crossing tenant or workspace scope.",
+        "audit_module records the actor, workspace namespace, resulting client identifiers, and any deferred credential rotation evidence."
       ]
     }
   ]

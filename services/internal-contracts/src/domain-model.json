@@ -1,11 +1,11 @@
 {
-  "version": "2026-03-23",
+  "version": "2026-03-24",
   "scope": "US-DOM-01, US-DOM-02",
   "system": "in-atelier-core-domain-model",
   "contracts": {
     "entity_read_model": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "entity_type",
         "id",
@@ -25,7 +25,7 @@
     },
     "entity_write_model": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "entity_type",
         "slug",
@@ -43,7 +43,7 @@
     },
     "lifecycle_event": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "event_id",
         "event_type",
@@ -68,7 +68,7 @@
     },
     "effective_capability_resolution": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "scope",
         "tenant_id",
@@ -178,12 +178,14 @@
       ],
       "optional_fields": [
         "tenantMemberships",
-        "workspaceMemberships"
+        "workspaceMemberships",
+        "iamBinding"
       ],
       "business_rules": [
         "identitySubject is globally unique across credential sources.",
         "Workspace memberships must point to workspaces inside one of the user's tenant memberships unless the actor holds a platform role.",
-        "Suspended or soft-deleted users cannot receive new membership grants."
+        "Suspended or soft-deleted users cannot receive new membership grants.",
+        "platform_user.iamBinding.realm must stay bound to the platform realm and cannot be reused as a tenant end-user identity."
       ],
       "openapi": {
         "read_schema": "PlatformUser",
@@ -221,12 +223,15 @@
       "optional_fields": [
         "billingAccountRef",
         "region",
-        "workspaceCount"
+        "workspaceCount",
+        "identityContext"
       ],
       "business_rules": [
         "placement must follow the hybrid PostgreSQL tenant placement policy from ADR 0002.",
         "Tenant slug is globally unique and remains reserved after soft delete until a purge workflow exists.",
-        "A tenant cannot be activated until at least one ownership-capable platform or tenant administrator binding exists."
+        "A tenant cannot be activated until at least one ownership-capable platform or tenant administrator binding exists.",
+        "tenant.identityContext must declare the platform realm, tenant realm identifier, and realmStrategy before the tenant can transition to active.",
+        "tenant activation must provision or attach the configured Keycloak tenant realm context before workspace or end-user access is enabled."
       ],
       "openapi": {
         "read_schema": "Tenant",
@@ -264,13 +269,15 @@
       "optional_fields": [
         "description",
         "runtimeNamespace",
-        "resourceCounts"
+        "resourceCounts",
+        "iamBoundary"
       ],
       "business_rules": [
         "Each workspace belongs to exactly one tenant and its tenantId is immutable after creation.",
         "Workspace slug is unique within the tenant boundary.",
         "Workspace environment must align with the deployment topology environment catalog.",
-        "A workspace cannot move to active when its parent tenant is not active."
+        "A workspace cannot move to active when its parent tenant is not active.",
+        "workspace.iamBoundary.clientNamespace must be unique within the tenant realm and namespaced from workspace slug metadata."
       ],
       "openapi": {
         "read_schema": "Workspace",
@@ -309,12 +316,15 @@
       "optional_fields": [
         "redirectUris",
         "serviceAccountIds",
-        "exposedResourceIds"
+        "exposedResourceIds",
+        "iamClient"
       ],
       "business_rules": [
         "Each external application belongs to exactly one workspace and inherits its tenant boundary.",
         "Redirect URIs must use approved workspace or public-domain patterns.",
-        "An external application cannot attach service accounts or managed resources from another workspace."
+        "An external application cannot attach service accounts or managed resources from another workspace.",
+        "external_application.iamClient.clientId must be unique within the tenant realm and inherit the workspace client namespace.",
+        "external applications may register multiple Keycloak clients per tenant as long as every client stays bound to one workspace and one canonical application record."
       ],
       "openapi": {
         "read_schema": "ExternalApplication",
@@ -352,12 +362,15 @@
       "optional_fields": [
         "tokenRotationPolicy",
         "expiresAt",
-        "externalApplicationIds"
+        "externalApplicationIds",
+        "iamBinding"
       ],
       "business_rules": [
         "Role bindings must be a subset of permissions delegable inside the parent workspace.",
         "Credentials rotate outside the canonical model; the entity stores only rotation policy and references.",
-        "A service account cannot outlive its parent workspace activation window."
+        "A service account cannot outlive its parent workspace activation window.",
+        "service_account.iamBinding must resolve to a confidential Keycloak client or native service-account user inside the same tenant realm and workspace boundary.",
+        "service account credential references must point to secret metadata only; raw machine credentials remain outside the canonical domain entity."
       ],
       "openapi": {
         "read_schema": "ServiceAccount",
@@ -1208,7 +1221,10 @@
     "Membership and invitation records are first-class auditable entities and never rely on implicit role propagation.",
     "Commercial plan entitlements must resolve through deployment profiles and provider capabilities before surfacing to tenants or workspaces.",
     "Quota enforcement is safe-by-default: downgrades cannot silently strand live tenant usage without an explicit remediation path.",
-    "Capability-resolution outputs preserve plane labels so operators can distinguish control, data, identity, and observability effects."
+    "Capability-resolution outputs preserve plane labels so operators can distinguish control, data, identity, and observability effects.",
+    "Console operators authenticate in the platform realm while tenant end users, workspace clients, and machine identities resolve through tenant IAM contexts.",
+    "Tenant activation is not complete until the Keycloak realm/client-scope/mapper baseline required by the control plane has been reconciled.",
+    "Workspace application clients and service accounts are namespaced per workspace even when multiple workspaces share one tenant realm cluster."
   ],
   "business_state_machines": [
     {
@@ -1700,7 +1716,16 @@
           "pvc_01pgshared",
           "pvc_01storagebucket",
           "pvc_01metricsbasic"
-        ]
+        ],
+        "identityTopology": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealmMode": "realm_per_tenant",
+          "realmClusterModel": "shared_keycloak_cluster",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
+          "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
+          "consoleUsersRealm": "in-atelier-platform",
+          "endUsersRealmBoundary": "tenant_realm"
+        }
       },
       {
         "deploymentProfileId": "dpf_01sharedgrowth",
@@ -1727,7 +1752,16 @@
           "pvc_01openwhiskactions",
           "pvc_01metricsbasic",
           "pvc_01logsextended"
-        ]
+        ],
+        "identityTopology": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealmMode": "realm_per_tenant",
+          "realmClusterModel": "shared_keycloak_cluster",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
+          "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
+          "consoleUsersRealm": "in-atelier-platform",
+          "endUsersRealmBoundary": "tenant_realm"
+        }
       },
       {
         "deploymentProfileId": "dpf_01regulateddedicated",
@@ -1751,7 +1785,16 @@
           "pvc_01kafkatopics",
           "pvc_01metricsbasic",
           "pvc_01auditexport"
-        ]
+        ],
+        "identityTopology": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealmMode": "realm_per_tenant",
+          "realmClusterModel": "dedicated_keycloak_cluster",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
+          "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
+          "consoleUsersRealm": "in-atelier-platform",
+          "endUsersRealmBoundary": "tenant_realm"
+        }
       },
       {
         "deploymentProfileId": "dpf_01enterprisefederated",
@@ -1781,7 +1824,16 @@
           "pvc_01tracesretention",
           "pvc_01federatedclusters",
           "pvc_01auditexport"
-        ]
+        ],
+        "identityTopology": {
+          "platformRealm": "in-atelier-platform",
+          "tenantRealmMode": "brokered_tenant_realm",
+          "realmClusterModel": "federated_keycloak_cluster",
+          "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
+          "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
+          "consoleUsersRealm": "in-atelier-platform",
+          "endUsersRealmBoundary": "federated_external_directory"
+        }
       }
     ],
     "provider_capabilities": [

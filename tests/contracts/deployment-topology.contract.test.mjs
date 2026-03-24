@@ -10,7 +10,7 @@ import {
 test('deployment topology contract exposes the required descriptors and promotion flow', () => {
   const topology = readDeploymentTopology();
 
-  assert.equal(topology.version, '2026-03-23');
+  assert.equal(topology.version, '2026-03-24');
   assert.deepEqual(topology.promotion_strategy.canonical_path, ['dev', 'staging', 'prod']);
   assert.equal(topology.promotion_strategy.sandbox_source, 'prod');
   assert.ok(topology.contracts.deployment_profile_descriptor.required_fields.includes('hostnames'));
@@ -68,9 +68,17 @@ test('deployment topology bootstrap policy documents secret resolution and resto
     'internal_namespaces'
   ]);
   assert.deepEqual(topology.bootstrap_policy.reconcile_each_upgrade, ['apisix_routes', 'bootstrap_payload_config']);
-  assert.equal(topology.bootstrap_policy.restore_behaviour.length >= 3, true);
+  assert.equal(topology.bootstrap_policy.restore_behaviour.length >= 4, true);
+  assert.equal(
+    topology.bootstrap_policy.restore_behaviour.some((rule) => rule.includes('client, client-scope, and tenant realm template identifiers')),
+    true
+  );
   assert.equal(
     topology.configuration_policy.secret_rules.some((rule) => rule.includes('Bootstrap credentials resolve')),
+    true
+  );
+  assert.equal(
+    topology.configuration_policy.secret_rules.some((rule) => rule.includes('tenant realm template')),
     true
   );
 });

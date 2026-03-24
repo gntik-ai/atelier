@@ -25,6 +25,12 @@ This note is the human-readable companion to `services/internal-contracts/src/de
   - console: `/`
 - Optional workspace/application subdomains are allowed only for `dev` and `sandbox`, using `{workspaceSlug}.apps.{environment}.in-atelier.example.com`.
 
+The identity surface now separates:
+
+- one platform realm used for console operators and gateway-integrated control-plane access
+- tenant IAM contexts used for end users, workspace application clients, and service accounts
+- deterministic tenant realm and workspace client naming so restore/replay flows remain auditable
+
 ## Certificate naming and TLS modes
 
 - Issuer reference: `ClusterIssuer/letsencrypt-public`
@@ -84,7 +90,8 @@ The deployment contract now distinguishes:
 
 These are created only when missing and are protected by a marker hash:
 
-- platform Keycloak realm
+- platform Keycloak realm baseline, including realm roles, client scopes, and platform clients
+- tenant realm template metadata used by later tenant activation flows
 - superadmin user and realm-role assignment
 - governance catalog seed (`plans`, `quota policies`, `deployment profiles`)
 - internal namespace/prefix catalog for OpenWhisk and storage

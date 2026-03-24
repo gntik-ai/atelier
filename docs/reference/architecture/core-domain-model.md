@@ -64,6 +64,18 @@ erDiagram
 - Provider credentials, secrets, and private keys are not stored in canonical entity metadata.
 - `managed_resource.kind` remains provider-agnostic and maps to authorization resource types.
 
+## IAM mapping baseline
+
+The canonical model now carries explicit Keycloak-facing IAM descriptors:
+
+- `platform_user.iamBinding` keeps console operators in the platform realm only.
+- `tenant.identityContext` declares the tenant realm identifier, realm strategy, and console-vs-end-user boundary.
+- `workspace.iamBoundary` defines the workspace client namespace and default client-scope projection.
+- `external_application.iamClient` maps one canonical application to one Keycloak client registration.
+- `service_account.iamBinding` maps non-human actors to confidential clients / service-account users plus secret references.
+
+This keeps console access, tenant end-user access, and machine credentials separate while still letting the control plane reason about all of them through one shared domain vocabulary.
+
 ## Lifecycle events
 
 Each core entity publishes four baseline lifecycle events:
@@ -103,5 +115,11 @@ The baseline seed package in `tests/reference/domain-seed-fixtures.json` intenti
 1. `starter-single-workspace` — one shared-schema tenant and one active dev workspace
 2. `growth-multi-workspace` — one shared-schema tenant with dev/staging/prod workspaces
 3. `enterprise-dedicated` — one dedicated-database tenant with four workspaces and stricter operational shape
+
+The fixture set now also proves the IAM baseline:
+
+- every tenant exposes a platform-to-tenant identity context
+- every workspace exposes a client namespace and default Keycloak scope projection
+- the growth profile includes multiple workspaces and multiple application/service-account clients inside one tenant
 
 Use those profiles for contract tests, demo data planning, and future fixture builders before inventing new canonical examples.

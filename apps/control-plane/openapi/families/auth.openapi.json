@@ -107,7 +107,8 @@
               "bucket",
               "topic",
               "function",
-              "app"
+              "app",
+              "service_account"
             ],
             "type": "string"
           },

@@ -65,6 +65,24 @@ test('deployment chart validation detects bootstrap catalog drift and invalid se
   assert.ok(violations.some((violation) => violation.includes('governanceCatalog.plans')));
 });
 
+
+test('deployment chart keeps the Keycloak platform and tenant IAM bootstrap baseline', () => {
+  const values = readRootValues();
+  const keycloakBootstrap = values.bootstrap.oneShot.keycloak;
+
+  assert.ok(keycloakBootstrap.realmRoles.includes('platform_admin'));
+  assert.ok(keycloakBootstrap.realmRoles.includes('workspace_admin'));
+  assert.ok(keycloakBootstrap.clientScopes.some((scope) => scope.name === 'tenant-context'));
+  assert.ok(keycloakBootstrap.clientScopes.some((scope) => scope.name === 'workspace-context'));
+  assert.ok(keycloakBootstrap.clients.some((client) => client.clientId === 'in-atelier-gateway'));
+  assert.ok(keycloakBootstrap.clients.some((client) => client.clientId === 'in-atelier-console'));
+  assert.equal(keycloakBootstrap.tenantRealmTemplate.realmIdPattern, 'tenant-{tenantSlug}');
+  assert.equal(
+    keycloakBootstrap.tenantRealmTemplate.serviceAccountTemplate.credentialRefPattern,
+    'secret://iam/{tenantId}/{workspaceId}/service-accounts/{serviceAccountId}'
+  );
+});
+
 test('all expected component aliases are present in the root chart dependencies', () => {
   const aliases = readRootChart().dependencies.map((entry) => entry.alias);
   assert.deepEqual(aliases, REQUIRED_COMPONENT_ALIASES);

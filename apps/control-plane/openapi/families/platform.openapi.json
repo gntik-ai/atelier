@@ -796,6 +796,9 @@
             "const": "platform_user",
             "type": "string"
           },
+          "iamBinding": {
+            "$ref": "#/components/schemas/PlatformUserIamBinding"
+          },
           "identitySubject": {
             "maxLength": 255,
             "minLength": 3,
@@ -854,6 +857,32 @@
         ],
         "type": "object"
       },
+      "PlatformUserIamBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "preferredUsername": {
+            "type": "string"
+          },
+          "realm": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "subjectType": {
+            "enum": [
+              "console_user",
+              "break_glass_operator"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "realm",
+          "subjectType"
+        ],
+        "type": "object"
+      },
       "PlatformUserWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -868,6 +897,9 @@
           "entityType": {
             "const": "platform_user",
             "type": "string"
+          },
+          "iamBinding": {
+            "$ref": "#/components/schemas/PlatformUserIamBinding"
           },
           "identitySubject": {
             "maxLength": 255,

@@ -152,9 +152,10 @@ data:
       log "ensured Keycloak realm $KEYCLOAK_REALM_DISPLAY_NAME"
     }
 
-    ensure_keycloak_role() {
+    ensure_keycloak_role_from_file() {
       local token="$1"
       local role_name="$2"
+      local role_file="$3"
       local status
       status="$(curl -sS -o /tmp/keycloak-role-check -w '%{http_code}' \
         -H "Authorization: Bearer $token" \
@@ -175,7 +176,7 @@ data:
         -X POST \
         -H "Authorization: Bearer $token" \
         -H 'Content-Type: application/json' \
-        --data @"$PAYLOAD_DIR/role-superadmin.json" \
+        --data @"$role_file" \
         "$KEYCLOAK_BASE_URL/admin/realms/$KEYCLOAK_REALM_ID/roles")"
 
       if [ "$status" != "201" ] && [ "$status" != "204" ] && [ "$status" != "409" ]; then
@@ -185,6 +186,70 @@ data:
       fi
 
       log "ensured Keycloak role $role_name"
+    }
+
+    ensure_keycloak_client_scope() {
+      local token="$1"
+      local scope_name="$2"
+      local scope_file="$3"
+      local response
+      local status
+
+      response="$(curl -fsS \
+        -H "Authorization: Bearer $token" \
+        "$KEYCLOAK_BASE_URL/admin/realms/$KEYCLOAK_REALM_ID/client-scopes")"
+
+      if echo "$response" | grep -q '"name":"'$scope_name'"'; then
+        log "Keycloak client scope $scope_name already exists"
+        return 0
+      fi
+
+      status="$(curl -sS -o /tmp/keycloak-client-scope-create -w '%{http_code}' \
+        -X POST \
+        -H "Authorization: Bearer $token" \
+        -H 'Content-Type: application/json' \
+        --data @"$scope_file" \
+        "$KEYCLOAK_BASE_URL/admin/realms/$KEYCLOAK_REALM_ID/client-scopes")"
+
+      if [ "$status" != "201" ] && [ "$status" != "409" ]; then
+        cat /tmp/keycloak-client-scope-create >&2 || true
+        echo "[bootstrap] failed to create Keycloak client scope $scope_name; status=$status" >&2
+        exit 1
+      fi
+
+      log "ensured Keycloak client scope $scope_name"
+    }
+
+    ensure_keycloak_client() {
+      local token="$1"
+      local client_id="$2"
+      local client_file="$3"
+      local response
+      local status
+
+      response="$(curl -fsS \
+        -H "Authorization: Bearer $token" \
+        "$KEYCLOAK_BASE_URL/admin/realms/$KEYCLOAK_REALM_ID/clients?clientId=$client_id")"
+
+      if echo "$response" | grep -q '"clientId":"'$client_id'"'; then
+        log "Keycloak client $client_id already exists"
+        return 0
+      fi
+
+      status="$(curl -sS -o /tmp/keycloak-client-create -w '%{http_code}' \
+        -X POST \
+        -H "Authorization: Bearer $token" \
+        -H 'Content-Type: application/json' \
+        --data @"$client_file" \
+        "$KEYCLOAK_BASE_URL/admin/realms/$KEYCLOAK_REALM_ID/clients")"
+
+      if [ "$status" != "201" ] && [ "$status" != "409" ]; then
+        cat /tmp/keycloak-client-create >&2 || true
+        echo "[bootstrap] failed to create Keycloak client $client_id; status=$status" >&2
+        exit 1
+      fi
+
+      log "ensured Keycloak client $client_id"
     }
 
     lookup_keycloak_user_id() {
@@ -299,7 +364,31 @@ data:
         --from-file=internal-namespaces.json="$PAYLOAD_DIR/internal-namespaces.json"
 
       ensure_keycloak_realm "$token"
-      ensure_keycloak_role "$token" superadmin
+
+      for role_file in "$PAYLOAD_DIR"/role-*.json; do
+        [ -e "$role_file" ] || continue
+        local role_name
+        role_name="$(basename "$role_file" .json)"
+        role_name="${role_name#role-}"
+        ensure_keycloak_role_from_file "$token" "$role_name" "$role_file"
+      done
+
+      for scope_file in "$PAYLOAD_DIR"/client-scope-*.json; do
+        [ -e "$scope_file" ] || continue
+        local scope_name
+        scope_name="$(basename "$scope_file" .json)"
+        scope_name="${scope_name#client-scope-}"
+        ensure_keycloak_client_scope "$token" "$scope_name" "$scope_file"
+      done
+
+      for client_file in "$PAYLOAD_DIR"/client-*.json; do
+        [ -e "$client_file" ] || continue
+        local client_id
+        client_id="$(basename "$client_file" .json)"
+        client_id="${client_id#client-}"
+        ensure_keycloak_client "$token" "$client_id" "$client_file"
+      done
+
       ensure_keycloak_superadmin "$token"
     }
 

@@ -6483,7 +6483,8 @@
               "bucket",
               "topic",
               "function",
-              "app"
+              "app",
+              "service_account"
             ]
           },
           "resourceId": {
@@ -6991,6 +6992,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamBinding": {
+            "$ref": "#/components/schemas/PlatformUserIamBinding"
           }
         },
         "additionalProperties": false
@@ -7052,6 +7056,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamBinding": {
+            "$ref": "#/components/schemas/PlatformUserIamBinding"
           }
         },
         "additionalProperties": false
@@ -7119,6 +7126,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "identityContext": {
+            "$ref": "#/components/schemas/TenantIdentityContext"
           }
         },
         "additionalProperties": false
@@ -7166,6 +7176,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "identityProvisioning": {
+            "$ref": "#/components/schemas/TenantIdentityProvisioningRequest"
           }
         },
         "additionalProperties": false
@@ -7241,6 +7254,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamBoundary": {
+            "$ref": "#/components/schemas/WorkspaceIamBoundary"
           }
         },
         "additionalProperties": false
@@ -7287,6 +7303,9 @@
             "type": "string",
             "pattern": "^ten_[0-9a-z]+$",
             "description": "Stable tenant identifier for the parent tenant that will own the workspace."
+          },
+          "iamBoundary": {
+            "$ref": "#/components/schemas/WorkspaceIamBoundary"
           }
         },
         "additionalProperties": false
@@ -7371,6 +7390,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamClient": {
+            "$ref": "#/components/schemas/ExternalApplicationIamClient"
           }
         },
         "additionalProperties": false
@@ -7421,6 +7443,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamClient": {
+            "$ref": "#/components/schemas/ExternalApplicationIamClient"
           }
         },
         "additionalProperties": false
@@ -7495,6 +7520,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamBinding": {
+            "$ref": "#/components/schemas/ServiceAccountIamBinding"
           }
         },
         "additionalProperties": false
@@ -7550,6 +7578,9 @@
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "iamBinding": {
+            "$ref": "#/components/schemas/ServiceAccountIamBinding"
           }
         },
         "additionalProperties": false
@@ -10343,6 +10374,267 @@
             }
           }
         }
+      },
+      "KeycloakProtocolMapper": {
+        "type": "object",
+        "required": [
+          "name",
+          "mapperType",
+          "claimName"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "mapperType": {
+            "type": "string",
+            "enum": [
+              "user_attribute",
+              "hardcoded_claim",
+              "audience",
+              "script"
+            ]
+          },
+          "claimName": {
+            "type": "string"
+          },
+          "sourceAttribute": {
+            "type": "string"
+          },
+          "tokenTargets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "access_token",
+                "id_token",
+                "userinfo"
+              ]
+            }
+          },
+          "multivalued": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlatformUserIamBinding": {
+        "type": "object",
+        "required": [
+          "realm",
+          "subjectType"
+        ],
+        "properties": {
+          "realm": {
+            "type": "string"
+          },
+          "subjectType": {
+            "type": "string",
+            "enum": [
+              "console_user",
+              "break_glass_operator"
+            ]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "preferredUsername": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TenantIdentityContext": {
+        "type": "object",
+        "required": [
+          "platformRealm",
+          "tenantRealm",
+          "realmStrategy",
+          "consoleUserRealm",
+          "endUserRealm"
+        ],
+        "properties": {
+          "platformRealm": {
+            "type": "string"
+          },
+          "tenantRealm": {
+            "type": "string"
+          },
+          "realmStrategy": {
+            "type": "string",
+            "enum": [
+              "realm_per_tenant",
+              "shared_realm_partition",
+              "brokered_tenant_realm"
+            ]
+          },
+          "consoleUserRealm": {
+            "type": "string"
+          },
+          "endUserRealm": {
+            "type": "string"
+          },
+          "requiredClaims": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "realmAttributes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TenantIdentityProvisioningRequest": {
+        "type": "object",
+        "required": [
+          "realmStrategy"
+        ],
+        "properties": {
+          "realmStrategy": {
+            "type": "string",
+            "enum": [
+              "plan_default",
+              "realm_per_tenant",
+              "shared_realm_partition",
+              "brokered_tenant_realm"
+            ]
+          },
+          "requestedRealm": {
+            "type": "string"
+          },
+          "brokerMode": {
+            "type": "string",
+            "enum": [
+              "native",
+              "external"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorkspaceIamBoundary": {
+        "type": "object",
+        "required": [
+          "realm",
+          "clientNamespace",
+          "defaultClientScopes"
+        ],
+        "properties": {
+          "realm": {
+            "type": "string"
+          },
+          "clientNamespace": {
+            "type": "string"
+          },
+          "defaultClientScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "protocolMappers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExternalApplicationIamClient": {
+        "type": "object",
+        "required": [
+          "realm",
+          "clientId",
+          "clientType",
+          "defaultClientScopes"
+        ],
+        "properties": {
+          "realm": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "clientType": {
+            "type": "string",
+            "enum": [
+              "public",
+              "confidential",
+              "bearer_only"
+            ]
+          },
+          "defaultClientScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "optionalClientScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "redirectUris": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uri-reference"
+            }
+          },
+          "webOrigins": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "protocolMappers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "ServiceAccountIamBinding": {
+        "type": "object",
+        "required": [
+          "realm",
+          "clientId",
+          "credentialRef",
+          "rotationPolicy"
+        ],
+        "properties": {
+          "realm": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "serviceAccountUser": {
+            "type": "string"
+          },
+          "credentialRef": {
+            "type": "string"
+          },
+          "rotationPolicy": {
+            "type": "string"
+          },
+          "linkedApplicationIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
       }
     }
   }

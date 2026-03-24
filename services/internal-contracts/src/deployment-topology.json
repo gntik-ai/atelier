@@ -1,11 +1,11 @@
 {
-  "version": "2026-03-23",
+  "version": "2026-03-24",
   "scope": "US-ARC-02",
   "system": "in-atelier-public-domain-topology",
   "contracts": {
     "deployment_profile_descriptor": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "id",
         "hostnames",
@@ -21,7 +21,7 @@
     },
     "public_endpoint_descriptor": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "surface",
         "hostname",
@@ -36,7 +36,7 @@
     },
     "promotion_plan_descriptor": {
       "owner": "services/internal-contracts",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "source_environment",
         "target_environment",
@@ -52,7 +52,7 @@
     },
     "smoke_assertion_descriptor": {
       "owner": "tests/reference",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "environment",
         "platform",
@@ -273,7 +273,8 @@
     "secret_rules": [
       "Repository-tracked values files may reference existingSecret names only and must not store raw credentials.",
       "TLS material is injected out-of-band via secret references per environment and platform.",
-      "Bootstrap credentials resolve from Kubernetes Secrets, pre-injected env vars, or documented external secret references; repository-tracked values store metadata only."
+      "Bootstrap credentials resolve from Kubernetes Secrets, pre-injected env vars, or documented external secret references; repository-tracked values store metadata only.",
+      "Bootstrap payload may describe Keycloak client scopes, protocol mappers, and tenant realm template metadata, but secret material stays in runtime secret sources only."
     ],
     "openshift_compatibility": [
       "Use Route instead of Ingress when platform target is openshift.",
@@ -433,7 +434,8 @@
     "restore_behaviour": [
       "recreate missing one-shot resources only",
       "preserve existing realm, user, catalog, and prefix identifiers",
-      "fail fast when a bootstrap lock already exists"
+      "fail fast when a bootstrap lock already exists",
+      "preserve established Keycloak client, client-scope, and tenant realm template identifiers during restore unless resources are missing"
     ]
   }
 }

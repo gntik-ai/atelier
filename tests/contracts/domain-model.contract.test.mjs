@@ -37,12 +37,18 @@ test('domain model aligns with public OpenAPI schemas and paths', () => {
 
   const resolutionDescriptor = getEffectiveCapabilityResolutionDescriptor();
   assert.ok(openapi.components.schemas.EffectiveCapabilityResolution);
+  assert.ok(openapi.components.schemas.TenantIdentityContext);
+  assert.ok(openapi.components.schemas.ExternalApplicationIamClient);
+  assert.ok(openapi.components.schemas.ServiceAccountIamBinding);
   assert.ok(openapi.paths[resolutionDescriptor.paths.tenant]);
   assert.ok(openapi.paths[resolutionDescriptor.paths.workspace]);
 });
 
 test('domain model preserves deployment, authorization, and governance alignment', () => {
   const workspaceEntity = getDomainEntity('workspace');
+  const tenantEntity = getDomainEntity('tenant');
+  const applicationEntity = getDomainEntity('external_application');
+  const serviceAccountEntity = getDomainEntity('service_account');
   const managedResourceEntity = getDomainEntity('managed_resource');
   const deploymentProfileEntity = getDomainEntity('deployment_profile');
   const providerCapabilityEntity = getDomainEntity('provider_capability');
@@ -55,6 +61,9 @@ test('domain model preserves deployment, authorization, and governance alignment
   }
 
   assert.equal(workspaceEntity.business_rules.some((rule) => rule.includes('deployment topology environment catalog')), true);
+  assert.equal(tenantEntity.business_rules.some((rule) => rule.includes('identityContext')), true);
+  assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('iamClient.clientId')), true);
+  assert.equal(serviceAccountEntity.business_rules.some((rule) => rule.includes('confidential Keycloak client')), true);
   assert.equal(
     deploymentProfileEntity.business_rules.some((rule) => rule.includes('control, data, identity, and observability plane separation')),
     true
@@ -64,6 +73,8 @@ test('domain model preserves deployment, authorization, and governance alignment
   for (const kind of managedResourceEntity.supported_kinds) {
     assert.equal(authorizationResourceTypes.has(kind), true, `managed resource kind ${kind} must align with authorization model`);
   }
+
+  assert.equal(authorizationResourceTypes.has('service_account'), true);
 
   for (const entityId of controlPlaneDomainEntities.map((entity) => entity.id)) {
     for (const transitionId of ['create', 'activate', 'suspend', 'soft_delete']) {

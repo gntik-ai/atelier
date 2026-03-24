@@ -40,7 +40,7 @@ import {
 
 test('internal contract baseline preserves versioning and dependency expectations', () => {
   assert.equal(INTERNAL_CONTRACT_VERSION, '2026-03-24');
-  assert.equal(AUTHORIZATION_MODEL_VERSION, '2026-03-23');
+  assert.equal(AUTHORIZATION_MODEL_VERSION, '2026-03-24');
   assert.ok(controlApiBoundary.service_dependencies.includes('provisioning_orchestrator'));
   assert.ok(controlApiBoundary.service_dependencies.includes('audit_module'));
   assert.ok(provisioningOrchestratorBoundary.service_dependencies.includes('audit_module'));
@@ -54,6 +54,7 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(controlApiCommandContract.required_fields.includes('correlation_id'));
   assert.ok(provisioningRequestContract.required_fields.includes('requested_resources'));
   assert.ok(provisioningRequestContract.required_fields.includes('authorization_decision_id'));
+  assert.ok(provisioningRequestContract.required_fields.includes('identity_blueprint_ref'));
   assert.ok(provisioningResultContract.error_classes.includes('recovery_required'));
   assert.ok(eventGatewayPublishRequestContract.required_fields.includes('idempotency_key'));
   assert.ok(eventGatewayPublishRequestContract.required_fields.includes('authorization_decision_id'));
@@ -81,11 +82,17 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
     assert.ok(provisioningProviderIds.has(providerId), `missing provisioning adapter ${providerId}`);
   }
 
+  const keycloakAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'keycloak');
+
   assert.deepEqual([...auditProviderIds].sort(), ['postgresql', 'storage']);
+  assert.ok(keycloakAdapter.capabilities.includes('ensure_protocol_mappers'));
+  assert.ok(keycloakAdapter.capabilities.includes('ensure_service_account'));
   assert.ok(interactionFlowIds.has('tenant_provisioning'));
   assert.ok(interactionFlowIds.has('tenant_suspension'));
+  assert.ok(interactionFlowIds.has('workspace_identity_registration'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));
   assert.ok(interactionFlowIds.has('realtime_subscription_gateway'));
   assert.equal(getService('event_gateway').package, 'services/event-gateway');
   assert.equal(getContract('adapter_call').owner, 'services/adapters');
+  assert.equal(getContract('identity_blueprint').owner, 'provisioning_orchestrator');
 });
