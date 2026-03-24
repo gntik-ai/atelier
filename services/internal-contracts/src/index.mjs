@@ -583,6 +583,309 @@ export function buildWorkspaceCloneDraft({ sourceWorkspace, targetWorkspace = {}
   };
 }
 
+function getAllowedBusinessTransitions(machineId, currentState) {
+  const machine = getBusinessStateMachine(machineId);
+  return (machine?.allowed_transitions ?? []).filter((transition) => transition.from === currentState).map((transition) => transition.to);
+}
+
+function countBy(items, resolver) {
+  return items.reduce((counts, item) => {
+    const key = resolver(item);
+    if (!key) return counts;
+    counts[key] = (counts[key] ?? 0) + 1;
+    return counts;
+  }, {});
+}
+
+function sumQuotaUsage(workspaceSubquotas = [], metricKey) {
+  return workspaceSubquotas.filter((subquota) => subquota.metricKey === metricKey).reduce((total, subquota) => total + (subquota.used ?? 0), 0);
+}
+
+export function buildTenantResourceInventory({
+  tenant,
+  workspaces = [],
+  externalApplications = [],
+  serviceAccounts = [],
+  managedResources = [],
+  generatedAt = '2026-03-24T00:00:00Z'
+}) {
+  const resourcesByKind = countBy(managedResources, (resource) => resource.kind);
+  const resourcesByState = countBy(managedResources, (resource) => resource.state);
+
+  return {
+    tenantId: tenant?.tenantId,
+    generatedAt,
+    lastConsistentAt: generatedAt,
+    workspaceCount: workspaces.length,
+    applicationCount: externalApplications.length,
+    serviceAccountCount: serviceAccounts.length,
+    managedResourceCount: managedResources.length,
+    sharedResourceCount: managedResources.filter((resource) => resource.sharingScope === 'tenant_shared').length,
+    resourcesByKind,
+    resourcesByState,
+    workspaces: workspaces.map((workspace) => {
+      const workspaceResources = managedResources.filter((resource) => resource.workspaceId === workspace.workspaceId);
+      const workspaceApplications = externalApplications.filter((application) => application.workspaceId === workspace.workspaceId);
+      const workspaceServiceAccounts = serviceAccounts.filter((serviceAccount) => serviceAccount.workspaceId === workspace.workspaceId);
+
+      return {
+        workspaceId: workspace.workspaceId,
+        workspaceSlug: workspace.slug,
+        environment: workspace.environment,
+        state: workspace.state,
+        applicationCount: workspaceApplications.length,
+        serviceAccountCount: workspaceServiceAccounts.length,
+        managedResourceCount: workspaceResources.length,
+        resourceKinds: countBy(workspaceResources, (resource) => resource.kind),
+        resourceStates: countBy(workspaceResources, (resource) => resource.state)
+      };
+    })
+  };
+}
+
+export function buildTenantFunctionalConfigurationExport({
+  tenant,
+  workspaces = [],
+  externalApplications = [],
+  serviceAccounts = [],
+  managedResources = [],
+  generatedAt = '2026-03-24T00:00:00Z'
+}) {
+  const inventory = buildTenantResourceInventory({
+    tenant,
+    workspaces,
+    externalApplications,
+    serviceAccounts,
+    managedResources,
+    generatedAt
+  });
+
+  return {
+    exportId: tenant?.exportProfile?.lastExportId ?? `exp_${tenant?.tenantId?.slice(4) ?? 'tenant'}_snapshot`,
+    tenantId: tenant?.tenantId,
+    generatedAt,
+    consistencyCheckpoint: tenant?.exportProfile?.lastConsistencyCheckpoint ?? `chk_${tenant?.tenantId?.slice(4) ?? 'tenant'}_snapshot`,
+    status: tenant?.exportProfile?.lastStatus ?? 'completed',
+    redactionMode: tenant?.exportProfile?.redactionMode ?? 'secret_references_only',
+    includedSections: [
+      'tenant',
+      'tenant_labels',
+      'tenant_quotas',
+      'tenant_governance',
+      'workspace_inventory',
+      'application_inventory',
+      'service_account_inventory',
+      'managed_resource_inventory'
+    ],
+    recoveryArtifacts: [
+      {
+        type: 'consistency_checkpoint',
+        reference: tenant?.exportProfile?.lastConsistencyCheckpoint ?? `chk_${tenant?.tenantId?.slice(4) ?? 'tenant'}_snapshot`
+      },
+      {
+        type: 'inventory_summary',
+        reference: inventory
+      }
+    ],
+    inventory
+  };
+}
+
+export function summarizeTenantGovernanceDashboard({
+  tenant,
+  workspaces = [],
+  externalApplications = [],
+  serviceAccounts = [],
+  managedResources = [],
+  generatedAt = '2026-03-24T00:00:00Z'
+}) {
+  const inventory = buildTenantResourceInventory({
+    tenant,
+    workspaces,
+    externalApplications,
+    serviceAccounts,
+    managedResources,
+    generatedAt
+  });
+  const quotaProfile = tenant?.quotaProfile ?? { limits: [], workspaceSubquotas: [], governanceStatus: 'nominal' };
+  const quotaAlerts = (quotaProfile.limits ?? [])
+    .map((limit) => {
+      const reservedWorkspaceUsage = limit.scope === 'workspace' ? sumQuotaUsage(quotaProfile.workspaceSubquotas, limit.metricKey) : 0;
+      const effectiveUsed = Math.max(limit.used ?? 0, reservedWorkspaceUsage);
+      const remaining = Math.max((limit.limit ?? 0) - effectiveUsed, 0);
+      const utilization = limit.limit > 0 ? Number(((effectiveUsed / limit.limit) * 100).toFixed(1)) : 0;
+      return {
+        metricKey: limit.metricKey,
+        scope: limit.scope,
+        limit: limit.limit,
+        used: effectiveUsed,
+        remaining,
+        utilizationPercent: utilization,
+        severity: utilization >= 100 ? 'blocked' : utilization >= 80 ? 'warning' : 'nominal'
+      };
+    })
+    .filter((alert) => alert.severity !== 'nominal');
+
+  return {
+    tenantId: tenant?.tenantId,
+    state: tenant?.state,
+    labels: tenant?.labels ?? [],
+    provisioningStatus: tenant?.provisioning?.status ?? 'unknown',
+    governanceStatus: tenant?.governance?.governanceStatus ?? quotaProfile.governanceStatus ?? 'nominal',
+    inventory,
+    quotaAlerts,
+    allowedActions: getAllowedBusinessTransitions('tenant_lifecycle', tenant?.state),
+    deleteProtection: tenant?.governance?.deleteProtection === true,
+    retentionDays: tenant?.governance?.retentionPolicy?.retentionDays ?? null,
+    lastExportId: tenant?.exportProfile?.lastExportId ?? null
+  };
+}
+
+export function buildTenantPurgeDraft({ tenant, actorUserId = null, approvalTicket = '', confirmationText = '' }) {
+  return {
+    tenantId: tenant?.tenantId,
+    actorUserId,
+    approvalTicket,
+    confirmationText: confirmationText || `PURGE ${tenant?.tenantId ?? 'tenant'} ${tenant?.slug ?? ''}`.trim(),
+    expectedState: 'deleted',
+    redactionMode: tenant?.exportProfile?.redactionMode ?? 'secret_references_only',
+    consistencyCheckpoint: tenant?.exportProfile?.lastConsistencyCheckpoint ?? null,
+    requiresElevatedAccess: tenant?.governance?.retentionPolicy?.purgeRequiresElevatedAccess !== false,
+    requiresDualConfirmation: tenant?.governance?.retentionPolicy?.purgeRequiresDualConfirmation !== false
+  };
+}
+
+export function evaluateTenantLifecycleMutation({
+  tenant,
+  action,
+  workspaces = [],
+  managedResources = [],
+  now = '2026-03-24T00:00:00Z',
+  hasElevatedAccess = false,
+  hasSecondConfirmation = false
+}) {
+  if (!tenant?.tenantId) {
+    throw new Error('tenant.tenantId is required to evaluate lifecycle mutations.');
+  }
+
+  const actions = {
+    activate: { currentState: 'pending_activation', transition: 'active' },
+    suspend: { currentState: 'active', transition: 'suspended' },
+    reactivate: { currentState: 'suspended', transition: 'active' },
+    soft_delete: { currentState: tenant.state, transition: 'deleted' },
+    purge: { currentState: 'deleted', transition: 'purged' }
+  };
+  const requested = actions[action];
+
+  if (!requested) {
+    throw new Error(`Unknown tenant lifecycle action ${action}.`);
+  }
+
+  if (action !== 'soft_delete' && tenant.state !== requested.currentState) {
+    return {
+      action,
+      allowed: false,
+      nextState: tenant.state,
+      blocker: `tenant must be ${requested.currentState} before ${action}`,
+      descendantImpacts: []
+    };
+  }
+
+  if (action === 'soft_delete') {
+    const allowedStates = new Set(['pending_activation', 'active', 'suspended']);
+    if (!allowedStates.has(tenant.state)) {
+      return {
+        action,
+        allowed: false,
+        nextState: tenant.state,
+        blocker: 'tenant must be pending_activation, active, or suspended before logical deletion',
+        descendantImpacts: []
+      };
+    }
+  }
+
+  if (action === 'purge') {
+    const purgeEligibleAt = tenant?.governance?.retentionPolicy?.purgeEligibleAt;
+    const exportCheckpoint = tenant?.exportProfile?.lastConsistencyCheckpoint;
+    const retentionReady = !purgeEligibleAt || new Date(purgeEligibleAt).getTime() <= new Date(now).getTime();
+
+    if (!retentionReady) {
+      return {
+        action,
+        allowed: false,
+        nextState: tenant.state,
+        blocker: 'tenant retention window has not elapsed',
+        descendantImpacts: []
+      };
+    }
+
+    if (!exportCheckpoint) {
+      return {
+        action,
+        allowed: false,
+        nextState: tenant.state,
+        blocker: 'tenant export checkpoint is required before purge',
+        descendantImpacts: []
+      };
+    }
+
+    if (!hasElevatedAccess || !hasSecondConfirmation) {
+      return {
+        action,
+        allowed: false,
+        nextState: tenant.state,
+        blocker: 'purge requires elevated access and reinforced confirmation',
+        descendantImpacts: []
+      };
+    }
+  }
+
+  const descendantImpacts = [];
+  if (action === 'suspend') {
+    descendantImpacts.push(
+      ...workspaces.map((workspace) => ({ entityType: 'workspace', entityId: workspace.workspaceId, targetState: 'suspended' })),
+      ...managedResources.map((resource) => ({ entityType: 'managed_resource', entityId: resource.resourceId, targetState: 'suspended' })),
+      { entityType: 'tenant_iam_access', entityId: tenant.tenantId, targetState: 'suspended' }
+    );
+  }
+
+  if (action === 'reactivate') {
+    descendantImpacts.push(
+      ...workspaces.map((workspace) => ({ entityType: 'workspace', entityId: workspace.workspaceId, targetState: workspace.state === 'suspended' ? 'active' : workspace.state })),
+      { entityType: 'tenant_iam_access', entityId: tenant.tenantId, targetState: 'active' }
+    );
+  }
+
+  if (action === 'soft_delete') {
+    descendantImpacts.push(
+      ...workspaces.map((workspace) => ({ entityType: 'workspace', entityId: workspace.workspaceId, targetState: 'soft_deleted' })),
+      ...managedResources.map((resource) => ({ entityType: 'managed_resource', entityId: resource.resourceId, targetState: 'soft_deleted' })),
+      { entityType: 'tenant_iam_access', entityId: tenant.tenantId, targetState: 'suspended' }
+    );
+  }
+
+  if (action === 'purge') {
+    descendantImpacts.push(
+      ...workspaces.map((workspace) => ({ entityType: 'workspace', entityId: workspace.workspaceId, targetState: 'purged' })),
+      ...managedResources.map((resource) => ({ entityType: 'managed_resource', entityId: resource.resourceId, targetState: 'purged' }))
+    );
+  }
+
+  return {
+    action,
+    allowed: true,
+    nextState: requested.transition,
+    blocker: null,
+    descendantImpacts,
+    requiredControls:
+      action === 'purge'
+        ? ['elevated_access', 'dual_confirmation', 'retention_elapsed', 'export_checkpoint']
+        : action === 'soft_delete'
+          ? ['audit_retention', 'logical_delete_first']
+          : ['tenant_scope_audit']
+  };
+}
+
 export function listInitialTenantBootstrapTemplates() {
   return readDomainModel().governance_catalogs?.initial_tenant_bootstrap_templates ?? [];
 }

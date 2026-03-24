@@ -852,7 +852,8 @@
           "pending_activation",
           "active",
           "suspended",
-          "soft_deleted"
+          "soft_deleted",
+          "deleted"
         ],
         "type": "string"
       },
@@ -1596,6 +1597,14 @@
         ],
         "type": "object"
       },
+      "QuotaEnforcementMode": {
+        "enum": [
+          "hard_stop",
+          "throttle",
+          "advisory"
+        ],
+        "type": "string"
+      },
       "RoleMappingStatus": {
         "enum": [
           "pending_sync",
@@ -1624,11 +1633,26 @@
             "const": "tenant",
             "type": "string"
           },
+          "exportProfile": {
+            "$ref": "#/components/schemas/TenantExportProfile"
+          },
+          "governance": {
+            "$ref": "#/components/schemas/TenantGovernanceProfile"
+          },
           "identityAccessPolicy": {
             "$ref": "#/components/schemas/TenantIdentityAccessPolicy"
           },
           "identityContext": {
             "$ref": "#/components/schemas/TenantIdentityContext"
+          },
+          "inventorySummary": {
+            "$ref": "#/components/schemas/TenantInventoryResponse"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/TenantLabel"
+            },
+            "type": "array"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
@@ -1644,6 +1668,9 @@
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningSummary"
           },
+          "quotaProfile": {
+            "$ref": "#/components/schemas/TenantQuotaProfile"
+          },
           "region": {
             "maxLength": 80,
             "minLength": 2,
@@ -1654,7 +1681,7 @@
             "type": "string"
           },
           "state": {
-            "$ref": "#/components/schemas/EntityState"
+            "$ref": "#/components/schemas/TenantLifecycleState"
           },
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
@@ -1677,9 +1704,106 @@
           "placement",
           "state",
           "timestamps",
-          "metadata"
+          "metadata",
+          "labels",
+          "quotaProfile",
+          "governance"
         ],
         "type": "object"
+      },
+      "TenantExportProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "lastConsistencyCheckpoint": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "lastExportId": {
+            "pattern": "^exp_[0-9a-z]+$",
+            "type": "string"
+          },
+          "lastExportedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastStatus": {
+            "enum": [
+              "completed",
+              "queued",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "recoveryArtifactTtlHours": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "redactionMode": {
+            "enum": [
+              "secret_references_only",
+              "metadata_only"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "lastExportId",
+          "lastExportedAt",
+          "lastConsistencyCheckpoint",
+          "redactionMode",
+          "lastStatus",
+          "recoveryArtifactTtlHours"
+        ],
+        "type": "object"
+      },
+      "TenantGovernanceProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "deleteProtection": {
+            "type": "boolean"
+          },
+          "governanceStatus": {
+            "$ref": "#/components/schemas/TenantGovernanceStatus"
+          },
+          "lastLifecycleEventId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "lastLifecycleReason": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "operatorVisibility": {
+            "enum": [
+              "tenant_governance_dashboard",
+              "platform_governance_dashboard"
+            ],
+            "type": "string"
+          },
+          "retentionPolicy": {
+            "$ref": "#/components/schemas/TenantRetentionPolicy"
+          }
+        },
+        "required": [
+          "governanceStatus",
+          "retentionPolicy",
+          "operatorVisibility",
+          "deleteProtection"
+        ],
+        "type": "object"
+      },
+      "TenantGovernanceStatus": {
+        "enum": [
+          "nominal",
+          "warning",
+          "suspended",
+          "retention",
+          "purge_pending"
+        ],
+        "type": "string"
       },
       "TenantIdentityAccessPolicy": {
         "additionalProperties": false,
@@ -1777,6 +1901,177 @@
         ],
         "type": "object"
       },
+      "TenantInventoryResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastConsistentAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "managedResourceCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resourcesByKind": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "resourcesByState": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "serviceAccountCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sharedResourceCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/TenantInventoryWorkspaceSummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "tenantId",
+          "generatedAt",
+          "lastConsistentAt",
+          "workspaceCount",
+          "applicationCount",
+          "serviceAccountCount",
+          "managedResourceCount",
+          "sharedResourceCount",
+          "resourcesByKind",
+          "resourcesByState",
+          "workspaces"
+        ],
+        "type": "object"
+      },
+      "TenantInventoryWorkspaceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "managedResourceCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resourceKinds": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "resourceStates": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "serviceAccountCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceSlug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "workspaceSlug",
+          "environment",
+          "state",
+          "applicationCount",
+          "serviceAccountCount",
+          "managedResourceCount",
+          "resourceKinds",
+          "resourceStates"
+        ],
+        "type": "object"
+      },
+      "TenantLabel": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "scope": {
+            "enum": [
+              "billing",
+              "policy",
+              "placement",
+              "reporting"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "scope",
+          "locked"
+        ],
+        "type": "object"
+      },
+      "TenantLifecycleState": {
+        "enum": [
+          "pending_activation",
+          "active",
+          "suspended",
+          "deleted"
+        ],
+        "type": "string"
+      },
       "TenantMembershipRecord": {
         "additionalProperties": false,
         "properties": {
@@ -1865,6 +2160,123 @@
         ],
         "type": "string"
       },
+      "TenantQuotaLimit": {
+        "additionalProperties": false,
+        "properties": {
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "limit": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "metricKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "remaining": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "used": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "metricKey",
+          "scope",
+          "unit",
+          "limit",
+          "used",
+          "remaining",
+          "enforcementMode"
+        ],
+        "type": "object"
+      },
+      "TenantQuotaProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "governanceStatus": {
+            "$ref": "#/components/schemas/TenantGovernanceStatus"
+          },
+          "lastEvaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/TenantQuotaLimit"
+            },
+            "type": "array"
+          },
+          "quotaPolicyId": {
+            "pattern": "^qta_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceSubquotas": {
+            "items": {
+              "$ref": "#/components/schemas/TenantWorkspaceSubquota"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "quotaPolicyId",
+          "enforcementMode",
+          "governanceStatus",
+          "lastEvaluatedAt",
+          "limits",
+          "workspaceSubquotas"
+        ],
+        "type": "object"
+      },
+      "TenantRetentionPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "legalHold": {
+            "type": "boolean"
+          },
+          "purgeEligibleAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "purgeRequiresDualConfirmation": {
+            "type": "boolean"
+          },
+          "purgeRequiresElevatedAccess": {
+            "type": "boolean"
+          },
+          "retentionDays": {
+            "maximum": 3650,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "retentionDays",
+          "legalHold",
+          "purgeRequiresElevatedAccess",
+          "purgeRequiresDualConfirmation"
+        ],
+        "type": "object"
+      },
       "TenantRole": {
         "enum": [
           "tenant_owner",
@@ -1873,6 +2285,55 @@
           "tenant_viewer"
         ],
         "type": "string"
+      },
+      "TenantWorkspaceSubquota": {
+        "additionalProperties": false,
+        "properties": {
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "limit": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "metricKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "remaining": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unit": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "used": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceSlug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "workspaceSlug",
+          "metricKey",
+          "unit",
+          "limit",
+          "used",
+          "remaining",
+          "enforcementMode"
+        ],
+        "type": "object"
       },
       "Workspace": {
         "additionalProperties": false,
@@ -2413,7 +2874,7 @@
     "description": "Console login, signup, activation, password recovery, and contextual authorization decisions. Generated from the unified public API contract for v1.",
     "summary": "Console login, signup, activation, password recovery, and contextual authorization decisions.",
     "title": "In Atelier Auth API",
-    "version": "1.10.0"
+    "version": "1.11.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

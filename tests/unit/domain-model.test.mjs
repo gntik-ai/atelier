@@ -15,6 +15,7 @@ import {
   getExternalApplicationPlanLimit,
   getExternalApplicationTemplate,
   getQuotaPolicy,
+  summarizeTenantGovernanceDashboard,
   listCommercialPlans,
   listDomainEntities,
   listExternalApplicationSupportedFlows,
@@ -62,10 +63,18 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   const invitationStateMachine = getBusinessStateMachine('invitation_status');
   const serviceAccountCredentialStateMachine = getBusinessStateMachine('service_account_credential_status');
   const platformUserStateMachine = getBusinessStateMachine('platform_user_access_status');
+  const tenantStateMachine = getBusinessStateMachine('tenant_lifecycle');
   const workspaceStateMachine = getBusinessStateMachine('workspace_lifecycle');
   const seedFixtures = readDomainSeedFixtures();
   const profileIds = seedFixtures.profiles.map((profile) => profile.id);
   const growthProfile = seedFixtures.profiles.find((profile) => profile.id === 'growth-multi-workspace');
+  const growthDashboard = summarizeTenantGovernanceDashboard({
+    tenant: growthProfile.tenant,
+    workspaces: growthProfile.workspaces,
+    externalApplications: growthProfile.externalApplications,
+    serviceAccounts: growthProfile.serviceAccounts,
+    managedResources: growthProfile.managedResources
+  });
 
   assert.deepEqual(managedResource.supported_kinds, ['database', 'bucket', 'topic', 'function']);
   assert.equal(managedResource.required_fields.includes('accessPolicy'), true);
@@ -82,6 +91,10 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaceMemberships.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.invitations.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.identityContext.platformRealm === 'in-atelier-platform'), true);
+  assert.equal(seedFixtures.profiles.every((profile) => Array.isArray(profile.tenant.labels) && profile.tenant.labels.length >= 2), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.quotaProfile?.workspaceSubquotas?.length >= 1), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.governance?.retentionPolicy?.purgeRequiresElevatedAccess === true), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.exportProfile?.redactionMode === 'secret_references_only'), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.iamBoundary.clientNamespace)), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.iamBoundary.keyPolicy?.secretPathPrefix)), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => Array.isArray(workspace.resourceInheritance?.logicalResources))), true);
@@ -100,6 +113,8 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   assert.deepEqual(serviceAccountCredentialStateMachine.states, ['active', 'rotation_due', 'revoked', 'expired']);
   assert.ok(platformUserStateMachine);
   assert.deepEqual(platformUserStateMachine.states, ['pending_activation', 'active', 'suspended', 'soft_deleted']);
+  assert.ok(tenantStateMachine);
+  assert.deepEqual(tenantStateMachine.states, ['pending_activation', 'active', 'suspended', 'deleted']);
   assert.ok(workspaceStateMachine);
   assert.deepEqual(workspaceStateMachine.states, ['draft', 'provisioning', 'pending_activation', 'active', 'suspended', 'soft_deleted']);
   assert.deepEqual(
@@ -108,6 +123,9 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   );
   assert.equal(getCommercialPlan('pln_01enterprise').deploymentProfileId, 'dpf_01enterprisefederated');
   assert.equal(getQuotaPolicy('qta_01regulated').defaultLimits.some((limit) => limit.metricKey === 'tenant.audit_retention_days.max'), true);
+  assert.equal(growthDashboard.governanceStatus, 'nominal');
+  assert.equal(growthDashboard.inventory.workspaceCount, 3);
+  assert.equal(growthDashboard.allowedActions.includes('suspended'), true);
   assert.equal(listExternalApplicationSupportedFlows().length, 5);
   assert.equal(listExternalApplicationTemplates().map((template) => template.templateId).includes('tpl_b2b_saml'), true);
   assert.deepEqual(getExternalApplicationTemplate('tpl_spa_oidc_pkce').supportedAuthenticationFlows, ['oidc_authorization_code_pkce']);

@@ -513,7 +513,8 @@
           "pending_activation",
           "active",
           "suspended",
-          "soft_deleted"
+          "soft_deleted",
+          "deleted"
         ],
         "type": "string"
       },
@@ -1849,7 +1850,7 @@
     "description": "Cross-tenant platform governance, catalog, and operator discovery surfaces. Generated from the unified public API contract for v1.",
     "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
     "title": "In Atelier Platform API",
-    "version": "1.10.0"
+    "version": "1.11.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

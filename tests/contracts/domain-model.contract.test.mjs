@@ -7,6 +7,7 @@ import {
   controlApiEntityWriteContract,
   controlApiLifecycleEventContract,
   controlPlaneDomainEntities,
+  controlPlaneTenantStateMachine,
   controlPlaneWorkspaceStateMachine
 } from '../../apps/control-plane/src/domain-model.mjs';
 import { OPENAPI_PATH, readJson } from '../../scripts/lib/quality-gates.mjs';
@@ -37,6 +38,7 @@ test('domain model aligns with public OpenAPI schemas and paths', () => {
   }
 
   const resolutionDescriptor = getEffectiveCapabilityResolutionDescriptor();
+  const tenantEntity = getDomainEntity('tenant');
   const workspaceEntity = getDomainEntity('workspace');
   assert.ok(openapi.components.schemas.EffectiveCapabilityResolution);
   assert.ok(openapi.components.schemas.TenantIdentityContext);
@@ -47,10 +49,24 @@ test('domain model aligns with public OpenAPI schemas and paths', () => {
   assert.ok(openapi.components.schemas.WorkspaceCloneAccepted);
   assert.ok(openapi.paths[resolutionDescriptor.paths.tenant]);
   assert.ok(openapi.paths[resolutionDescriptor.paths.workspace]);
+  assert.ok(openapi.paths[tenantEntity.openapi.collection_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.update_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.delete_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.dashboard_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.inventory_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.export_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.reactivation_path]);
+  assert.ok(openapi.paths[tenantEntity.openapi.purge_path]);
   assert.ok(openapi.paths[workspaceEntity.openapi.collection_path]);
   assert.ok(openapi.paths[workspaceEntity.openapi.update_path]);
   assert.ok(openapi.paths[workspaceEntity.openapi.clone_path]);
   assert.ok(openapi.paths[workspaceEntity.openapi.api_surface_path]);
+  assert.ok(openapi.components.schemas.TenantQuotaProfile);
+  assert.ok(openapi.components.schemas.TenantGovernanceProfile);
+  assert.ok(openapi.components.schemas.TenantInventoryResponse);
+  assert.ok(openapi.components.schemas.TenantFunctionalConfigurationExportAccepted);
+  assert.ok(openapi.components.schemas.TenantPurgeAccepted);
+  assert.deepEqual(controlPlaneTenantStateMachine.states, ['pending_activation', 'active', 'suspended', 'deleted']);
   assert.deepEqual(controlPlaneWorkspaceStateMachine.states, ['draft', 'provisioning', 'pending_activation', 'active', 'suspended', 'soft_deleted']);
 });
 
@@ -75,6 +91,10 @@ test('domain model preserves deployment, authorization, and governance alignment
   assert.equal(workspaceEntity.business_rules.some((rule) => rule.includes('apiSurface')), true);
   assert.equal(workspaceEntity.required_fields.includes('resourceInheritance'), true);
   assert.equal(tenantEntity.business_rules.some((rule) => rule.includes('identityContext')), true);
+  assert.equal(tenantEntity.business_rules.some((rule) => rule.includes('elevated approval')), true);
+  assert.equal(tenantEntity.required_fields.includes('labels'), true);
+  assert.equal(tenantEntity.required_fields.includes('quotaProfile'), true);
+  assert.equal(tenantEntity.required_fields.includes('governance'), true);
   assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('iamClient.clientId')), true);
   assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('authenticationFlows')), true);
   assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('federated provider alias')), true);

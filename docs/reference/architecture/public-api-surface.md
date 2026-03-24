@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.10.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.11.0)
 
 ## Product API vs native passthrough
 
@@ -73,10 +73,16 @@ Tenant lifecycle, membership, invitation, quota, and tenant-level capability sur
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/tenants` | tenant | tenant | Submit a canonical tenant write request |
-| GET | `/v1/tenants/{tenantId}` | tenant | tenant | Fetch one canonical tenant entity |
+| GET | `/v1/tenants` | platform | tenant_collection | List tenants with lifecycle, quota, label, placement, and governance filters |
+| POST | `/v1/tenants` | tenant | tenant | Submit a canonical tenant write request with governance labels, quotas, and lifecycle controls |
+| DELETE | `/v1/tenants/{tenantId}` | tenant | tenant | Logically delete one tenant while preserving retention, auditability, and purge preconditions |
+| GET | `/v1/tenants/{tenantId}` | tenant | tenant | Fetch one canonical tenant with governance labels, quotas, retention posture, and export metadata |
+| PUT | `/v1/tenants/{tenantId}` | tenant | tenant | Update one canonical tenant including lifecycle, quota, label, and retention governance settings |
+| GET | `/v1/tenants/{tenantId}/dashboard` | tenant | tenant_dashboard | Fetch tenant governance dashboard data including quotas, labels, provisioning state, and allowed actions |
 | GET | `/v1/tenants/{tenantId}/effective-capabilities` | tenant | tenant_capabilities | Resolve effective capabilities for one tenant |
+| POST | `/v1/tenants/{tenantId}/exports` | tenant | tenant_export | Create a recovery-oriented functional configuration export for one tenant |
 | PATCH | `/v1/tenants/{tenantId}/iam-access` | tenant | tenant | Suspend or reactivate all tenant-managed IAM access for users and service accounts. |
+| GET | `/v1/tenants/{tenantId}/inventory` | tenant | tenant_inventory | Fetch one tenant inventory snapshot covering workspaces, applications, service accounts, and managed resources |
 | POST | `/v1/tenants/{tenantId}/invitations` | tenant | invitation | Submit an invitation write request |
 | GET | `/v1/tenants/{tenantId}/invitations/{invitationId}` | tenant | invitation | Fetch one invitation record |
 | POST | `/v1/tenants/{tenantId}/invitations/{invitationId}/acceptance` | tenant | invitation | Accept a tenant or workspace invitation while it is still pending. |
@@ -87,6 +93,8 @@ Tenant lifecycle, membership, invitation, quota, and tenant-level capability sur
 | GET | `/v1/tenants/{tenantId}/ownership-transfers/{ownershipTransferId}` | tenant | tenant | Fetch one tenant ownership transfer record. |
 | POST | `/v1/tenants/{tenantId}/ownership-transfers/{ownershipTransferId}/acceptance` | tenant | tenant | Accept a pending tenant ownership transfer before it expires. |
 | GET | `/v1/tenants/{tenantId}/permission-recalculations/{permissionRecalculationId}` | tenant | tenant | Fetch one tenant-scoped effective-permission recalculation record. |
+| POST | `/v1/tenants/{tenantId}/purge` | tenant | tenant_purge | Definitively purge one logically deleted tenant after retention and elevated confirmation checks |
+| POST | `/v1/tenants/{tenantId}/reactivation` | tenant | tenant | Reactivate one suspended tenant and restore descendant access controls under audit |
 
 ## Workspaces
 

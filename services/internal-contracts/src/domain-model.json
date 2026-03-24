@@ -120,7 +120,8 @@
       "pending_activation",
       "active",
       "suspended",
-      "soft_deleted"
+      "soft_deleted",
+      "deleted"
     ],
     "timestamps": {
       "required": [
@@ -145,7 +146,7 @@
     },
     "integrity_rules": [
       "Parent bindings are immutable after creation unless a dedicated migration workflow is recorded.",
-      "Descendant entities cannot remain active when an ancestor is suspended or soft_deleted.",
+      "Descendant entities cannot remain active when an ancestor is suspended, deleted, or soft_deleted.",
       "Soft delete is logical first: external identifiers stay reserved until an explicit purge workflow exists.",
       "Metadata is additive and non-secret; credentials, tokens, and private keys live outside the canonical entity model.",
       "Write models express desired state while lifecycle events capture the realized state transition."
@@ -210,11 +211,10 @@
       "slug_field": "slug",
       "state_field": "state",
       "supported_states": [
-        "draft",
-        "provisioning",
+        "pending_activation",
         "active",
         "suspended",
-        "soft_deleted"
+        "deleted"
       ],
       "required_fields": [
         "tenantId",
@@ -224,14 +224,19 @@
         "placement",
         "state",
         "timestamps",
-        "metadata"
+        "metadata",
+        "labels",
+        "quotaProfile",
+        "governance"
       ],
       "optional_fields": [
         "billingAccountRef",
         "region",
         "workspaceCount",
         "identityContext",
-        "provisioning"
+        "provisioning",
+        "inventorySummary",
+        "exportProfile"
       ],
       "business_rules": [
         "placement must follow the hybrid PostgreSQL tenant placement policy from ADR 0002.",
@@ -239,13 +244,26 @@
         "A tenant cannot be activated until at least one ownership-capable platform or tenant administrator binding exists.",
         "tenant.identityContext must declare the platform realm, tenant realm identifier, and realmStrategy before the tenant can transition to active.",
         "tenant activation must provision or attach the configured Keycloak tenant realm context before workspace or end-user access is enabled.",
-        "Tenant activation triggered from signup approval must create the initial workspace, owner memberships, tenant IAM context, and baseline bootstrap resources inside one traceable provisioning run."
+        "Tenant activation triggered from signup approval must create the initial workspace, owner memberships, tenant IAM context, and baseline bootstrap resources inside one traceable provisioning run.",
+        "Tenant labels and tags are non-secret governance metadata; reserved namespaces remain operator-controlled and filters must stay scoped to the tenant boundary.",
+        "tenant.quotaProfile must expose tenant ceilings plus workspace subquotas; workspace subquotas may only narrow, never widen, the tenant-level effective limits.",
+        "Tenant deletion is logical first: descendant workspaces, memberships, identities, and managed resources must be suspended or marked deleted before a definitive purge can proceed.",
+        "Tenant purge requires elevated approval, reinforced confirmation, elapsed retention eligibility, and one recovery-oriented configuration export checkpoint recorded for audit.",
+        "Tenant inventory and functional-configuration export must stay secret-free, consistent, and recoverable enough to support operator reconciliation after suspension, deletion, or purge preparation."
       ],
       "openapi": {
         "read_schema": "Tenant",
         "write_schema": "TenantWriteRequest",
         "read_path": "/v1/tenants/{tenantId}",
-        "write_path": "/v1/tenants"
+        "write_path": "/v1/tenants",
+        "collection_path": "/v1/tenants",
+        "update_path": "/v1/tenants/{tenantId}",
+        "delete_path": "/v1/tenants/{tenantId}",
+        "dashboard_path": "/v1/tenants/{tenantId}/dashboard",
+        "inventory_path": "/v1/tenants/{tenantId}/inventory",
+        "export_path": "/v1/tenants/{tenantId}/exports",
+        "reactivation_path": "/v1/tenants/{tenantId}/reactivation",
+        "purge_path": "/v1/tenants/{tenantId}/purge"
       }
     },
     {
@@ -1297,7 +1315,9 @@
     "Auto-signup behavior is policy-driven by global, environment, and plan overrides; rejection or approval decisions must be explainable to the operator.",
     "Tenant ownership transfer requires a current tenant_owner to initiate the handoff, a designated target user to accept it before expiration, and no automatic superadmin escalation during the routine path.",
     "Membership grants at tenant scope and workspace scope are evaluated independently; mixed-role access must be resolved by combining both scopes without leaking permissions across tenants or workspaces.",
-    "Any accepted invitation, membership mutation, revocation, suspension, or ownership transfer must enqueue effective-permission recalculation for already-provisioned resources in the affected scope."
+    "Any accepted invitation, membership mutation, revocation, suspension, or ownership transfer must enqueue effective-permission recalculation for already-provisioned resources in the affected scope.",
+    "Tenant labels, quotas, inventories, and export checkpoints remain tenant-scoped and must never leak cross-tenant identifiers or policy state.",
+    "Tenant deletion is logical first; definitive purge requires a retained audit trail, a recovery-oriented export checkpoint, elapsed retention, and elevated dual confirmation."
   ],
   "business_state_machines": [
     {
@@ -1597,6 +1617,52 @@
         "CredentialStatus becomes rotation_due before hard expiry so a replacement credential can be issued and audited.",
         "Revoked or expired credentials cannot be reactivated in place; issuance creates a new credential reference.",
         "Rotation windows must respect workspace isolation and the configured credential policy."
+      ]
+    },
+    {
+      "id": "tenant_lifecycle",
+      "entity_type": "tenant",
+      "field": "state",
+      "initial_state": "pending_activation",
+      "states": [
+        "pending_activation",
+        "active",
+        "suspended",
+        "deleted"
+      ],
+      "terminal_states": [
+        "deleted"
+      ],
+      "allowed_transitions": [
+        {
+          "from": "pending_activation",
+          "to": "active"
+        },
+        {
+          "from": "active",
+          "to": "suspended"
+        },
+        {
+          "from": "suspended",
+          "to": "active"
+        },
+        {
+          "from": "pending_activation",
+          "to": "deleted"
+        },
+        {
+          "from": "active",
+          "to": "deleted"
+        },
+        {
+          "from": "suspended",
+          "to": "deleted"
+        }
+      ],
+      "rules": [
+        "Activation requires one ownership-capable binding, tenant identity context readiness, and one traceable provisioning baseline.",
+        "Suspension must propagate access controls to descendant workspaces, human identities, and service accounts without violating audit readability.",
+        "Deleted tenants keep slug reservations, quota evidence, and purge preconditions until an elevated purge workflow finalizes removal."
       ]
     },
     {
@@ -2933,7 +2999,14 @@
         "retryClassification": "reconcile",
         "description": "Provision an optional OpenWhisk action stub so the tenant can execute backend logic without manual first-run setup."
       }
-    ]
+    ],
+    "tenant_governance_defaults": {
+      "retentionDays": 30,
+      "purgeRequiresElevatedAccess": true,
+      "purgeRequiresDualConfirmation": true,
+      "exportRedactionMode": "secret_references_only",
+      "operatorVisibility": "tenant_governance_dashboard"
+    }
   },
   "effective_capability_resolution": {
     "layers": [
@@ -2978,7 +3051,8 @@
       "A capability is effectively enabled only when it is granted by the plan, present in the deployment profile, and available in the provider capability catalog.",
       "Workspace capability resolution inherits the tenant plan and may only narrow capabilities or quotas based on environment or provider availability.",
       "Quota downgrades that would violate current usage must return a remediation-required outcome instead of silently applying destructive limits.",
-      "Control, data, identity, and observability planes remain explicit in the serialized result for operator inspection and audit trails."
+      "Control, data, identity, and observability planes remain explicit in the serialized result for operator inspection and audit trails.",
+      "Tenant quota serialization must keep tenant-level ceilings and workspace subquota reservations visible so operators can explain throttling, suspension, and downgrade blockers."
     ],
     "observable_dimensions": [
       "tenant_id",

@@ -129,6 +129,152 @@
             "attemptCount": 1,
             "idempotencyKey": "signup-activation-ten_01starteralpha"
           }
+        },
+        "labels": [
+          {
+            "key": "segment",
+            "value": "starter",
+            "scope": "billing",
+            "locked": false
+          },
+          {
+            "key": "region",
+            "value": "eu-west",
+            "scope": "placement",
+            "locked": true
+          }
+        ],
+        "quotaProfile": {
+          "quotaPolicyId": "qta_01starter",
+          "enforcementMode": "hard_stop",
+          "governanceStatus": "nominal",
+          "lastEvaluatedAt": "2026-03-24T00:00:00Z",
+          "limits": [
+            {
+              "metricKey": "tenant.workspaces.max",
+              "scope": "tenant",
+              "unit": "count",
+              "limit": 1,
+              "used": 1,
+              "remaining": 0,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "tenant.members.max",
+              "scope": "tenant",
+              "unit": "count",
+              "limit": 10,
+              "used": 1,
+              "remaining": 9,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.managed_resources.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 8,
+              "used": 0,
+              "remaining": 8,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.kafka_topics.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 0,
+              "used": 0,
+              "remaining": 0,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 100000,
+              "used": 0,
+              "remaining": 100000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "tenant.audit_retention_days.max",
+              "scope": "tenant",
+              "unit": "days",
+              "limit": 30,
+              "used": 30,
+              "remaining": 0,
+              "enforcementMode": "hard_stop"
+            }
+          ],
+          "workspaceSubquotas": [
+            {
+              "workspaceId": "wrk_01starterdev",
+              "workspaceSlug": "alpha-dev",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 8,
+              "used": 2,
+              "remaining": 6,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01starterdev",
+              "workspaceSlug": "alpha-dev",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 0,
+              "used": 0,
+              "remaining": 0,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01starterdev",
+              "workspaceSlug": "alpha-dev",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 100000,
+              "used": 0,
+              "remaining": 100000,
+              "enforcementMode": "hard_stop"
+            }
+          ]
+        },
+        "governance": {
+          "governanceStatus": "nominal",
+          "lastLifecycleEventId": "evt_01starteralphagovernance",
+          "lastLifecycleReason": "tenant bootstrap verified and quota posture nominal",
+          "operatorVisibility": "tenant_governance_dashboard",
+          "deleteProtection": true,
+          "retentionPolicy": {
+            "retentionDays": 30,
+            "legalHold": false,
+            "purgeRequiresElevatedAccess": true,
+            "purgeRequiresDualConfirmation": true,
+            "purgeEligibleAt": null
+          }
+        },
+        "inventorySummary": {
+          "generatedAt": "2026-03-24T00:00:00Z",
+          "lastConsistentAt": "2026-03-24T00:00:00Z",
+          "workspaceCount": 1,
+          "applicationCount": 1,
+          "serviceAccountCount": 1,
+          "managedResourceCount": 2,
+          "sharedResourceCount": 0,
+          "resourcesByKind": {
+            "database": 1,
+            "bucket": 1
+          },
+          "resourcesByState": {
+            "active": 2
+          }
+        },
+        "exportProfile": {
+          "lastExportId": "exp_01starteralphabaseline",
+          "lastExportedAt": "2026-03-24T00:00:00Z",
+          "lastConsistencyCheckpoint": "chk_01starteralpha0001",
+          "redactionMode": "secret_references_only",
+          "lastStatus": "completed",
+          "recoveryArtifactTtlHours": 168
         }
       },
       "platformUsers": [
@@ -983,6 +1129,221 @@
             "attemptCount": 1,
             "idempotencyKey": "signup-activation-ten_01growthbeta"
           }
+        },
+        "labels": [
+          {
+            "key": "segment",
+            "value": "growth",
+            "scope": "billing",
+            "locked": false
+          },
+          {
+            "key": "compliance",
+            "value": "standard",
+            "scope": "policy",
+            "locked": false
+          },
+          {
+            "key": "region",
+            "value": "eu-west",
+            "scope": "placement",
+            "locked": true
+          }
+        ],
+        "quotaProfile": {
+          "quotaPolicyId": "qta_01growth",
+          "enforcementMode": "hard_stop",
+          "governanceStatus": "nominal",
+          "lastEvaluatedAt": "2026-03-24T00:00:00Z",
+          "limits": [
+            {
+              "metricKey": "tenant.workspaces.max",
+              "scope": "tenant",
+              "unit": "count",
+              "limit": 3,
+              "used": 3,
+              "remaining": 0,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "tenant.members.max",
+              "scope": "tenant",
+              "unit": "count",
+              "limit": 50,
+              "used": 1,
+              "remaining": 49,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.managed_resources.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 24,
+              "used": 0,
+              "remaining": 24,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.kafka_topics.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 20,
+              "used": 0,
+              "remaining": 20,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 1000000,
+              "used": 0,
+              "remaining": 1000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "tenant.audit_retention_days.max",
+              "scope": "tenant",
+              "unit": "days",
+              "limit": 90,
+              "used": 90,
+              "remaining": 0,
+              "enforcementMode": "hard_stop"
+            }
+          ],
+          "workspaceSubquotas": [
+            {
+              "workspaceId": "wrk_01betadev",
+              "workspaceSlug": "beta-dev",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 24,
+              "used": 1,
+              "remaining": 23,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betadev",
+              "workspaceSlug": "beta-dev",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 20,
+              "used": 0,
+              "remaining": 20,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betadev",
+              "workspaceSlug": "beta-dev",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 1000000,
+              "used": 0,
+              "remaining": 1000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betastaging",
+              "workspaceSlug": "beta-staging",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 24,
+              "used": 1,
+              "remaining": 23,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betastaging",
+              "workspaceSlug": "beta-staging",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 20,
+              "used": 1,
+              "remaining": 19,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betastaging",
+              "workspaceSlug": "beta-staging",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 1000000,
+              "used": 0,
+              "remaining": 1000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betaprod",
+              "workspaceSlug": "beta-prod",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 24,
+              "used": 2,
+              "remaining": 22,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betaprod",
+              "workspaceSlug": "beta-prod",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 20,
+              "used": 0,
+              "remaining": 20,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01betaprod",
+              "workspaceSlug": "beta-prod",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 1000000,
+              "used": 0,
+              "remaining": 1000000,
+              "enforcementMode": "hard_stop"
+            }
+          ]
+        },
+        "governance": {
+          "governanceStatus": "nominal",
+          "lastLifecycleEventId": "evt_01growthbetagovernance",
+          "lastLifecycleReason": "tenant bootstrap verified and quota posture nominal",
+          "operatorVisibility": "tenant_governance_dashboard",
+          "deleteProtection": true,
+          "retentionPolicy": {
+            "retentionDays": 90,
+            "legalHold": false,
+            "purgeRequiresElevatedAccess": true,
+            "purgeRequiresDualConfirmation": true,
+            "purgeEligibleAt": null
+          }
+        },
+        "inventorySummary": {
+          "generatedAt": "2026-03-24T00:00:00Z",
+          "lastConsistentAt": "2026-03-24T00:00:00Z",
+          "workspaceCount": 3,
+          "applicationCount": 3,
+          "serviceAccountCount": 3,
+          "managedResourceCount": 4,
+          "sharedResourceCount": 3,
+          "resourcesByKind": {
+            "database": 1,
+            "topic": 1,
+            "bucket": 1,
+            "function": 1
+          },
+          "resourcesByState": {
+            "active": 3,
+            "provisioning": 1
+          }
+        },
+        "exportProfile": {
+          "lastExportId": "exp_01growthbetabaseline",
+          "lastExportedAt": "2026-03-24T00:00:00Z",
+          "lastConsistencyCheckpoint": "chk_01growthbeta0001",
+          "redactionMode": "secret_references_only",
+          "lastStatus": "completed",
+          "recoveryArtifactTtlHours": 168
         }
       },
       "platformUsers": [
@@ -2490,6 +2851,251 @@
             "attemptCount": 1,
             "idempotencyKey": "signup-activation-ten_01enterprisedelta"
           }
+        },
+        "labels": [
+          {
+            "key": "segment",
+            "value": "enterprise",
+            "scope": "billing",
+            "locked": false
+          },
+          {
+            "key": "compliance",
+            "value": "regulated",
+            "scope": "policy",
+            "locked": true
+          },
+          {
+            "key": "placement",
+            "value": "dedicated-database",
+            "scope": "placement",
+            "locked": true
+          }
+        ],
+        "quotaProfile": {
+          "quotaPolicyId": "qta_01enterprise",
+          "enforcementMode": "hard_stop",
+          "governanceStatus": "nominal",
+          "lastEvaluatedAt": "2026-03-24T00:00:00Z",
+          "limits": [
+            {
+              "metricKey": "tenant.workspaces.max",
+              "scope": "tenant",
+              "unit": "count",
+              "limit": 10,
+              "used": 4,
+              "remaining": 6,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "tenant.members.max",
+              "scope": "tenant",
+              "unit": "count",
+              "limit": 250,
+              "used": 1,
+              "remaining": 249,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.managed_resources.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 100,
+              "used": 0,
+              "remaining": 100,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.kafka_topics.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 200,
+              "used": 0,
+              "remaining": 200,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "scope": "workspace",
+              "unit": "count",
+              "limit": 5000000,
+              "used": 0,
+              "remaining": 5000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "metricKey": "tenant.audit_retention_days.max",
+              "scope": "tenant",
+              "unit": "days",
+              "limit": 730,
+              "used": 365,
+              "remaining": 365,
+              "enforcementMode": "hard_stop"
+            }
+          ],
+          "workspaceSubquotas": [
+            {
+              "workspaceId": "wrk_01deltadev",
+              "workspaceSlug": "delta-dev",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 100,
+              "used": 0,
+              "remaining": 100,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltadev",
+              "workspaceSlug": "delta-dev",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 200,
+              "used": 0,
+              "remaining": 200,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltadev",
+              "workspaceSlug": "delta-dev",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 5000000,
+              "used": 0,
+              "remaining": 5000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltasandbox",
+              "workspaceSlug": "delta-sandbox",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 100,
+              "used": 1,
+              "remaining": 99,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltasandbox",
+              "workspaceSlug": "delta-sandbox",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 200,
+              "used": 0,
+              "remaining": 200,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltasandbox",
+              "workspaceSlug": "delta-sandbox",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 5000000,
+              "used": 0,
+              "remaining": 5000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltastaging",
+              "workspaceSlug": "delta-staging",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 100,
+              "used": 1,
+              "remaining": 99,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltastaging",
+              "workspaceSlug": "delta-staging",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 200,
+              "used": 0,
+              "remaining": 200,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltastaging",
+              "workspaceSlug": "delta-staging",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 5000000,
+              "used": 0,
+              "remaining": 5000000,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltaprod",
+              "workspaceSlug": "delta-prod",
+              "metricKey": "workspace.managed_resources.max",
+              "unit": "count",
+              "limit": 100,
+              "used": 3,
+              "remaining": 97,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltaprod",
+              "workspaceSlug": "delta-prod",
+              "metricKey": "workspace.kafka_topics.max",
+              "unit": "count",
+              "limit": 200,
+              "used": 1,
+              "remaining": 199,
+              "enforcementMode": "hard_stop"
+            },
+            {
+              "workspaceId": "wrk_01deltaprod",
+              "workspaceSlug": "delta-prod",
+              "metricKey": "workspace.monthly_function_invocations.max",
+              "unit": "count",
+              "limit": 5000000,
+              "used": 0,
+              "remaining": 5000000,
+              "enforcementMode": "hard_stop"
+            }
+          ]
+        },
+        "governance": {
+          "governanceStatus": "nominal",
+          "lastLifecycleEventId": "evt_01enterprisedeltagovernance",
+          "lastLifecycleReason": "tenant bootstrap verified and quota posture nominal",
+          "operatorVisibility": "tenant_governance_dashboard",
+          "deleteProtection": true,
+          "retentionPolicy": {
+            "retentionDays": 730,
+            "legalHold": false,
+            "purgeRequiresElevatedAccess": true,
+            "purgeRequiresDualConfirmation": true,
+            "purgeEligibleAt": null
+          }
+        },
+        "inventorySummary": {
+          "generatedAt": "2026-03-24T00:00:00Z",
+          "lastConsistentAt": "2026-03-24T00:00:00Z",
+          "workspaceCount": 4,
+          "applicationCount": 3,
+          "serviceAccountCount": 2,
+          "managedResourceCount": 5,
+          "sharedResourceCount": 3,
+          "resourcesByKind": {
+            "database": 2,
+            "bucket": 1,
+            "topic": 1,
+            "function": 1
+          },
+          "resourcesByState": {
+            "active": 4,
+            "provisioning": 1
+          }
+        },
+        "exportProfile": {
+          "lastExportId": "exp_01enterprisedeltabaseline",
+          "lastExportedAt": "2026-03-24T00:00:00Z",
+          "lastConsistencyCheckpoint": "chk_01enterprisedelta0001",
+          "redactionMode": "secret_references_only",
+          "lastStatus": "completed",
+          "recoveryArtifactTtlHours": 168
         }
       },
       "platformUsers": [

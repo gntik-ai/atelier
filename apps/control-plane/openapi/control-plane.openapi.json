@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.10.0",
+    "version": "1.11.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, data, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -7580,7 +7580,7 @@
     "/v1/tenants": {
       "post": {
         "operationId": "createTenant",
-        "summary": "Submit a canonical tenant write request",
+        "summary": "Submit a canonical tenant write request with governance labels, quotas, and lifecycle controls",
         "tags": [
           "Tenants"
         ],
@@ -7713,12 +7713,159 @@
         "x-visibility": "public",
         "x-rate-limit-class": "control-write",
         "x-owning-service": "control_api"
+      },
+      "get": {
+        "operationId": "listTenants",
+        "summary": "List tenants with lifecycle, quota, label, placement, and governance filters",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantSlug"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantDisplayName"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantPlanId"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantPlacement"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantState"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantLabel"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantGovernanceStatus"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant governance read returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantCollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "platform",
+        "x-resource-type": "tenant_collection",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-read",
+        "x-owning-service": "control_api"
       }
     },
     "/v1/tenants/{tenantId}": {
       "get": {
         "operationId": "getTenant",
-        "summary": "Fetch one canonical tenant entity",
+        "summary": "Fetch one canonical tenant with governance labels, quotas, retention posture, and export metadata",
         "tags": [
           "Tenants"
         ],
@@ -7829,6 +7976,284 @@
           "tenant_admin",
           "tenant_developer",
           "tenant_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      },
+      "put": {
+        "operationId": "updateTenant",
+        "summary": "Update one canonical tenant including lifecycle, quota, label, and retention governance settings",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      },
+      "delete": {
+        "operationId": "deleteTenant",
+        "summary": "Logically delete one tenant while preserving retention, auditability, and purge preconditions",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantDeletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
           "platform_team"
         ],
         "x-visibility": "public",
@@ -15196,6 +15621,665 @@
         "x-rate-limit-class": "control-write",
         "x-owning-service": "control_api"
       }
+    },
+    "/v1/tenants/{tenantId}/dashboard": {
+      "get": {
+        "operationId": "getTenantGovernanceDashboard",
+        "summary": "Fetch tenant governance dashboard data including quotas, labels, provisioning state, and allowed actions",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant governance read returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantGovernanceDashboard"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_dashboard",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-read",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/tenants/{tenantId}/inventory": {
+      "get": {
+        "operationId": "getTenantInventory",
+        "summary": "Fetch one tenant inventory snapshot covering workspaces, applications, service accounts, and managed resources",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant governance read returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantInventoryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_inventory",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-read",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/tenants/{tenantId}/exports": {
+      "post": {
+        "operationId": "exportTenantConfiguration",
+        "summary": "Create a recovery-oriented functional configuration export for one tenant",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantFunctionalConfigurationExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantFunctionalConfigurationExportAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_export",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/tenants/{tenantId}/reactivation": {
+      "post": {
+        "operationId": "reactivateTenant",
+        "summary": "Reactivate one suspended tenant and restore descendant access controls under audit",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantReactivationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/tenants/{tenantId}/purge": {
+      "post": {
+        "operationId": "purgeTenant",
+        "summary": "Definitively purge one logically deleted tenant after retention and elevated confirmation checks",
+        "tags": [
+          "Tenants"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantPurgeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant mutation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantPurgeAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_purge",
+        "x-audiences": [
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      }
     }
   },
   "components": {
@@ -15704,6 +16788,75 @@
           "type": "string",
           "pattern": "^epr_[0-9a-z]+$"
         }
+      },
+      "FilterTenantSlug": {
+        "name": "filter[slug]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by exact slug.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+        }
+      },
+      "FilterTenantDisplayName": {
+        "name": "filter[displayName]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by display name.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        }
+      },
+      "FilterTenantPlanId": {
+        "name": "filter[planId]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by assigned commercial plan.",
+        "schema": {
+          "type": "string",
+          "pattern": "^pln_[0-9a-z]+$"
+        }
+      },
+      "FilterTenantPlacement": {
+        "name": "filter[placement]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by placement strategy.",
+        "schema": {
+          "$ref": "#/components/schemas/TenantPlacement"
+        }
+      },
+      "FilterTenantState": {
+        "name": "filter[state]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by lifecycle state.",
+        "schema": {
+          "$ref": "#/components/schemas/TenantLifecycleState"
+        }
+      },
+      "FilterTenantLabel": {
+        "name": "filter[label]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by one governance label expression such as segment:growth.",
+        "schema": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255
+        }
+      },
+      "FilterTenantGovernanceStatus": {
+        "name": "filter[governanceStatus]",
+        "in": "query",
+        "required": false,
+        "description": "Filter tenants by governance posture.",
+        "schema": {
+          "$ref": "#/components/schemas/TenantGovernanceStatus"
+        }
       }
     },
     "schemas": {
@@ -16010,7 +17163,8 @@
           "pending_activation",
           "active",
           "suspended",
-          "soft_deleted"
+          "soft_deleted",
+          "deleted"
         ]
       },
       "EntityMetadata": {
@@ -16355,7 +17509,10 @@
           "placement",
           "state",
           "timestamps",
-          "metadata"
+          "metadata",
+          "labels",
+          "quotaProfile",
+          "governance"
         ],
         "properties": {
           "entityType": {
@@ -16393,7 +17550,7 @@
             "minimum": 0
           },
           "state": {
-            "$ref": "#/components/schemas/EntityState"
+            "$ref": "#/components/schemas/TenantLifecycleState"
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"
@@ -16409,6 +17566,24 @@
           },
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningSummary"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantLabel"
+            }
+          },
+          "quotaProfile": {
+            "$ref": "#/components/schemas/TenantQuotaProfile"
+          },
+          "governance": {
+            "$ref": "#/components/schemas/TenantGovernanceProfile"
+          },
+          "inventorySummary": {
+            "$ref": "#/components/schemas/TenantInventoryResponse"
+          },
+          "exportProfile": {
+            "$ref": "#/components/schemas/TenantExportProfile"
           }
         },
         "additionalProperties": false
@@ -16452,13 +17627,25 @@
             "maxLength": 80
           },
           "desiredState": {
-            "$ref": "#/components/schemas/EntityState"
+            "$ref": "#/components/schemas/TenantLifecycleState"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
           },
           "identityProvisioning": {
             "$ref": "#/components/schemas/TenantIdentityProvisioningRequest"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantLabel"
+            }
+          },
+          "quotaProfile": {
+            "$ref": "#/components/schemas/TenantQuotaProfile"
+          },
+          "governance": {
+            "$ref": "#/components/schemas/TenantGovernanceProfile"
           }
         },
         "additionalProperties": false
@@ -24536,6 +25723,804 @@
           "actorUserId": {
             "type": "string",
             "pattern": "^usr_[0-9a-z]+$"
+          }
+        }
+      },
+      "TenantLifecycleState": {
+        "type": "string",
+        "enum": [
+          "pending_activation",
+          "active",
+          "suspended",
+          "deleted"
+        ]
+      },
+      "TenantGovernanceStatus": {
+        "type": "string",
+        "enum": [
+          "nominal",
+          "warning",
+          "suspended",
+          "retention",
+          "purge_pending"
+        ]
+      },
+      "TenantLabel": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "value",
+          "scope",
+          "locked"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "billing",
+              "policy",
+              "placement",
+              "reporting"
+            ]
+          },
+          "locked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TenantQuotaLimit": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metricKey",
+          "scope",
+          "unit",
+          "limit",
+          "used",
+          "remaining",
+          "enforcementMode"
+        ],
+        "properties": {
+          "metricKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace"
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "used": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          }
+        }
+      },
+      "TenantWorkspaceSubquota": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceId",
+          "workspaceSlug",
+          "metricKey",
+          "unit",
+          "limit",
+          "used",
+          "remaining",
+          "enforcementMode"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "workspaceSlug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "metricKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "used": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          }
+        }
+      },
+      "TenantQuotaProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "quotaPolicyId",
+          "enforcementMode",
+          "governanceStatus",
+          "lastEvaluatedAt",
+          "limits",
+          "workspaceSubquotas"
+        ],
+        "properties": {
+          "quotaPolicyId": {
+            "type": "string",
+            "pattern": "^qta_[0-9a-z]+$"
+          },
+          "enforcementMode": {
+            "$ref": "#/components/schemas/QuotaEnforcementMode"
+          },
+          "governanceStatus": {
+            "$ref": "#/components/schemas/TenantGovernanceStatus"
+          },
+          "lastEvaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantQuotaLimit"
+            }
+          },
+          "workspaceSubquotas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantWorkspaceSubquota"
+            }
+          }
+        }
+      },
+      "TenantRetentionPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "retentionDays",
+          "legalHold",
+          "purgeRequiresElevatedAccess",
+          "purgeRequiresDualConfirmation"
+        ],
+        "properties": {
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3650
+          },
+          "legalHold": {
+            "type": "boolean"
+          },
+          "purgeRequiresElevatedAccess": {
+            "type": "boolean"
+          },
+          "purgeRequiresDualConfirmation": {
+            "type": "boolean"
+          },
+          "purgeEligibleAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TenantGovernanceProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "governanceStatus",
+          "retentionPolicy",
+          "operatorVisibility",
+          "deleteProtection"
+        ],
+        "properties": {
+          "governanceStatus": {
+            "$ref": "#/components/schemas/TenantGovernanceStatus"
+          },
+          "retentionPolicy": {
+            "$ref": "#/components/schemas/TenantRetentionPolicy"
+          },
+          "lastLifecycleEventId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "lastLifecycleReason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "operatorVisibility": {
+            "type": "string",
+            "enum": [
+              "tenant_governance_dashboard",
+              "platform_governance_dashboard"
+            ]
+          },
+          "deleteProtection": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TenantInventoryWorkspaceSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceId",
+          "workspaceSlug",
+          "environment",
+          "state",
+          "applicationCount",
+          "serviceAccountCount",
+          "managedResourceCount",
+          "resourceKinds",
+          "resourceStates"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "workspaceSlug": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "applicationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "serviceAccountCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "managedResourceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "resourceKinds": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "resourceStates": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "TenantInventoryResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "generatedAt",
+          "lastConsistentAt",
+          "workspaceCount",
+          "applicationCount",
+          "serviceAccountCount",
+          "managedResourceCount",
+          "sharedResourceCount",
+          "resourcesByKind",
+          "resourcesByState",
+          "workspaces"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastConsistentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspaceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "applicationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "serviceAccountCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "managedResourceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sharedResourceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "resourcesByKind": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "resourcesByState": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantInventoryWorkspaceSummary"
+            }
+          }
+        }
+      },
+      "TenantExportProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "lastExportId",
+          "lastExportedAt",
+          "lastConsistencyCheckpoint",
+          "redactionMode",
+          "lastStatus",
+          "recoveryArtifactTtlHours"
+        ],
+        "properties": {
+          "lastExportId": {
+            "type": "string",
+            "pattern": "^exp_[0-9a-z]+$"
+          },
+          "lastExportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastConsistencyCheckpoint": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "redactionMode": {
+            "type": "string",
+            "enum": [
+              "secret_references_only",
+              "metadata_only"
+            ]
+          },
+          "lastStatus": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "queued",
+              "failed"
+            ]
+          },
+          "recoveryArtifactTtlHours": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "TenantExportRecoveryArtifact": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "reference"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "consistency_checkpoint",
+              "inventory_summary",
+              "audit_bundle"
+            ]
+          },
+          "reference": {}
+        }
+      },
+      "TenantFunctionalConfigurationExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "consistencyMode",
+          "includeInventory"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "consistencyMode": {
+            "type": "string",
+            "enum": [
+              "read_after_write_safe",
+              "best_effort_snapshot"
+            ]
+          },
+          "includeInventory": {
+            "type": "boolean"
+          },
+          "includeAuditReferences": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          }
+        }
+      },
+      "TenantFunctionalConfigurationExportAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "exportId",
+          "tenantId",
+          "generatedAt",
+          "consistencyCheckpoint",
+          "status",
+          "redactionMode",
+          "includedSections",
+          "recoveryArtifacts",
+          "inventory"
+        ],
+        "properties": {
+          "exportId": {
+            "type": "string",
+            "pattern": "^exp_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "consistencyCheckpoint": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "completed"
+            ]
+          },
+          "redactionMode": {
+            "type": "string",
+            "enum": [
+              "secret_references_only",
+              "metadata_only"
+            ]
+          },
+          "includedSections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recoveryArtifacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantExportRecoveryArtifact"
+            }
+          },
+          "inventory": {
+            "$ref": "#/components/schemas/TenantInventoryResponse"
+          }
+        }
+      },
+      "TenantGovernanceDashboard": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "state",
+          "labels",
+          "provisioningStatus",
+          "governanceStatus",
+          "inventory",
+          "quotaAlerts",
+          "allowedActions",
+          "deleteProtection"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TenantLifecycleState"
+          },
+          "labels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantLabel"
+            }
+          },
+          "provisioningStatus": {
+            "$ref": "#/components/schemas/ProvisioningRunStatus"
+          },
+          "governanceStatus": {
+            "$ref": "#/components/schemas/TenantGovernanceStatus"
+          },
+          "inventory": {
+            "$ref": "#/components/schemas/TenantInventoryResponse"
+          },
+          "quotaAlerts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "metricKey",
+                "scope",
+                "limit",
+                "used",
+                "remaining",
+                "utilizationPercent",
+                "severity"
+              ],
+              "properties": {
+                "metricKey": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 120
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": [
+                    "tenant",
+                    "workspace"
+                  ]
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "used": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "remaining": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "utilizationPercent": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "severity": {
+                  "type": "string",
+                  "enum": [
+                    "nominal",
+                    "warning",
+                    "blocked"
+                  ]
+                }
+              }
+            }
+          },
+          "allowedActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deleteProtection": {
+            "type": "boolean"
+          },
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "lastExportId": {
+            "type": "string",
+            "pattern": "^exp_[0-9a-z]+$"
+          }
+        }
+      },
+      "TenantCollectionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "page",
+          "items"
+        ],
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tenant"
+            }
+          }
+        }
+      },
+      "TenantDeletionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason",
+          "confirmationText"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "confirmationText": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 255
+          },
+          "retentionDaysOverride": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3650
+          },
+          "includeRecoveryExport": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TenantReactivationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "restoreWorkspaceAccess": {
+            "type": "boolean"
+          },
+          "restoreServiceAccountAccess": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TenantPurgeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "approvalTicket",
+          "confirmationText"
+        ],
+        "properties": {
+          "approvalTicket": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 128
+          },
+          "confirmationText": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 255
+          },
+          "consistencyCheckpoint": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          }
+        }
+      },
+      "TenantPurgeAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandId",
+          "tenantId",
+          "status",
+          "acceptedAt",
+          "approvalTicket"
+        ],
+        "properties": {
+          "commandId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "queued"
+            ]
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "approvalTicket": {
+            "type": "string",
+            "minLength": 6,
+            "maxLength": 128
+          },
+          "consistencyCheckpoint": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
           }
         }
       }

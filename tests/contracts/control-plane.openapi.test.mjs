@@ -11,7 +11,13 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/health']);
   assert.ok(document.paths['/v1/platform/users/{userId}']);
   assert.ok(document.paths['/v1/platform/route-catalog']);
+  assert.ok(document.paths['/v1/tenants']);
   assert.ok(document.paths['/v1/tenants/{tenantId}']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/dashboard']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/inventory']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/exports']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/reactivation']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/purge']);
   assert.ok(document.paths['/v1/tenants/{tenantId}/iam-access']);
   assert.ok(document.paths['/v1/workspaces']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}']);
@@ -85,6 +91,16 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createPasswordRecoveryRequest = document.paths['/v1/auth/password-recovery-requests'].post;
   const confirmPasswordRecovery = document.paths['/v1/auth/password-recovery-requests/{recoveryRequestId}/confirmations'].post;
   const getConsoleAccountStatusView = document.paths['/v1/auth/status-views/{statusViewId}'].get;
+  const listTenants = document.paths['/v1/tenants'].get;
+  const createTenant = document.paths['/v1/tenants'].post;
+  const getTenant = document.paths['/v1/tenants/{tenantId}'].get;
+  const updateTenant = document.paths['/v1/tenants/{tenantId}'].put;
+  const deleteTenant = document.paths['/v1/tenants/{tenantId}'].delete;
+  const getTenantGovernanceDashboard = document.paths['/v1/tenants/{tenantId}/dashboard'].get;
+  const getTenantInventory = document.paths['/v1/tenants/{tenantId}/inventory'].get;
+  const exportTenantConfiguration = document.paths['/v1/tenants/{tenantId}/exports'].post;
+  const reactivateTenant = document.paths['/v1/tenants/{tenantId}/reactivation'].post;
+  const purgeTenant = document.paths['/v1/tenants/{tenantId}/purge'].post;
   const listWorkspaces = document.paths['/v1/workspaces'].get;
   const createWorkspace = document.paths['/v1/workspaces'].post;
   const updateWorkspace = document.paths['/v1/workspaces/{workspaceId}'].put;
@@ -122,7 +138,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.10.0');
+  assert.equal(document.info.version, '1.11.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -135,6 +151,16 @@ test('control-plane contract enforces versioning, authorization, family metadata
     'resource'
   ]);
 
+  const listTenantParameters = resolveParameters(document, listTenants);
+  const createTenantParameters = resolveParameters(document, createTenant);
+  const getTenantParameters = resolveParameters(document, getTenant);
+  const updateTenantParameters = resolveParameters(document, updateTenant);
+  const deleteTenantParameters = resolveParameters(document, deleteTenant);
+  const tenantDashboardParameters = resolveParameters(document, getTenantGovernanceDashboard);
+  const tenantInventoryParameters = resolveParameters(document, getTenantInventory);
+  const tenantExportParameters = resolveParameters(document, exportTenantConfiguration);
+  const tenantReactivationParameters = resolveParameters(document, reactivateTenant);
+  const tenantPurgeParameters = resolveParameters(document, purgeTenant);
   const listWorkspaceParameters = resolveParameters(document, listWorkspaces);
   const createWorkspaceParameters = resolveParameters(document, createWorkspace);
   const updateWorkspaceParameters = resolveParameters(document, updateWorkspace);
@@ -256,6 +282,43 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.ConsoleAccountStatusView);
   assert.ok(document.components.schemas.ConsoleActionLink);
 
+  assert.equal(listTenants['x-family'], 'tenants');
+  assert.equal(listTenantParameters.some((parameter) => parameter.name === 'filter[planId]'), true);
+  assert.equal(listTenantParameters.some((parameter) => parameter.name === 'filter[label]'), true);
+  assert.equal(listTenantParameters.some((parameter) => parameter.name === 'filter[governanceStatus]'), true);
+  assert.ok(listTenants.responses['200']);
+  assert.equal(createTenant['x-family'], 'tenants');
+  assert.equal(createTenantParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(createTenant.responses['202']);
+  assert.equal(getTenant['x-family'], 'tenants');
+  assert.equal(getTenantParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.ok(getTenant.responses['200']);
+  assert.equal(updateTenant['x-family'], 'tenants');
+  assert.equal(updateTenantParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.equal(updateTenantParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(updateTenant.responses['202']);
+  assert.equal(deleteTenant['x-family'], 'tenants');
+  assert.equal(deleteTenantParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.equal(deleteTenantParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(deleteTenant.responses['202']);
+  assert.equal(getTenantGovernanceDashboard['x-family'], 'tenants');
+  assert.equal(tenantDashboardParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.ok(getTenantGovernanceDashboard.responses['200']);
+  assert.equal(getTenantInventory['x-family'], 'tenants');
+  assert.equal(tenantInventoryParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.ok(getTenantInventory.responses['200']);
+  assert.equal(exportTenantConfiguration['x-family'], 'tenants');
+  assert.equal(tenantExportParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(exportTenantConfiguration.responses['202']);
+  assert.equal(reactivateTenant['x-family'], 'tenants');
+  assert.equal(tenantReactivationParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.equal(tenantReactivationParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(reactivateTenant.responses['202']);
+  assert.equal(purgeTenant['x-family'], 'tenants');
+  assert.equal(tenantPurgeParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.equal(tenantPurgeParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(purgeTenant.responses['202']);
+
   assert.equal(listWorkspaces['x-family'], 'workspaces');
   assert.equal(listWorkspaceParameters.some((parameter) => parameter.name === 'filter[tenantId]'), true);
   assert.equal(listWorkspaceParameters.some((parameter) => parameter.name === 'filter[slug]'), true);
@@ -337,6 +400,20 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.TenantIamAccessStatusUpdateRequest);
   assert.ok(document.components.schemas.TenantIdentityAccessPolicy);
   assert.ok(document.components.schemas.ServiceAccountAccessProjection);
+  assert.ok(document.components.schemas.TenantCollectionResponse);
+  assert.ok(document.components.schemas.TenantLifecycleState);
+  assert.ok(document.components.schemas.TenantLabel);
+  assert.ok(document.components.schemas.TenantQuotaProfile);
+  assert.ok(document.components.schemas.TenantGovernanceProfile);
+  assert.ok(document.components.schemas.TenantInventoryResponse);
+  assert.ok(document.components.schemas.TenantExportProfile);
+  assert.ok(document.components.schemas.TenantFunctionalConfigurationExportRequest);
+  assert.ok(document.components.schemas.TenantFunctionalConfigurationExportAccepted);
+  assert.ok(document.components.schemas.TenantGovernanceDashboard);
+  assert.ok(document.components.schemas.TenantDeletionRequest);
+  assert.ok(document.components.schemas.TenantReactivationRequest);
+  assert.ok(document.components.schemas.TenantPurgeRequest);
+  assert.ok(document.components.schemas.TenantPurgeAccepted);
 
   assert.equal(createInvitation['x-family'], 'tenants');
   assert.equal(invitationParameters.some((parameter) => parameter.name === 'X-API-Version'), true);
@@ -415,6 +492,11 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.ConsoleSessionExpirationPolicy);
   assert.ok(document.components.schemas.KeycloakProtocolMapper);
   assert.ok(document.components.schemas.Tenant.properties.identityContext);
+  assert.ok(document.components.schemas.Tenant.properties.labels);
+  assert.ok(document.components.schemas.Tenant.properties.quotaProfile);
+  assert.ok(document.components.schemas.Tenant.properties.governance);
+  assert.ok(document.components.schemas.Tenant.properties.inventorySummary);
+  assert.ok(document.components.schemas.Tenant.properties.exportProfile);
   assert.ok(document.components.schemas.ExternalApplication.properties.iamClient);
   assert.ok(document.components.schemas.ExternalApplication.properties.federatedProviders);
   assert.ok(document.components.schemas.ExternalApplication.properties.authenticationFlows);
