@@ -25,6 +25,18 @@
           "type": "string"
         }
       },
+      "CredentialId": {
+        "description": "Scoped PostgreSQL credential identifier.",
+        "in": "path",
+        "name": "credentialId",
+        "required": true,
+        "schema": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "type": "string"
+        }
+      },
       "DatabaseName": {
         "description": "Stable PostgreSQL database identifier managed through the BaaS contract.",
         "in": "path",
@@ -34,6 +46,30 @@
           "maxLength": 63,
           "minLength": 3,
           "pattern": "^[a-z][a-z0-9_]{2,62}$",
+          "type": "string"
+        }
+      },
+      "EndpointId": {
+        "description": "Stable PostgreSQL endpoint identifier.",
+        "in": "path",
+        "name": "endpointId",
+        "required": true,
+        "schema": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+          "type": "string"
+        }
+      },
+      "EndpointSlug": {
+        "description": "Stable PostgreSQL endpoint slug published for invocation.",
+        "in": "path",
+        "name": "endpointSlug",
+        "required": true,
+        "schema": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
           "type": "string"
         }
       },
@@ -120,6 +156,21 @@
           "type": "string"
         }
       },
+      "PostgresDataCountMode": {
+        "description": "Optional count mode for row collections and stable query responses.",
+        "in": "query",
+        "name": "count",
+        "required": false,
+        "schema": {
+          "default": "none",
+          "enum": [
+            "none",
+            "exact",
+            "estimated"
+          ],
+          "type": "string"
+        }
+      },
       "PostgresDataFilter": {
         "description": "Deep-object filter contract for eq, neq, gt, gte, lt, lte, in, like, ilike, between, is-null, and JSON-aware operators. Example: filter[status][eq]=open or filter[payload][json_path_eq][priority]=high.",
         "explode": true,
@@ -151,6 +202,20 @@
         "schema": {
           "maxLength": 256,
           "minLength": 1,
+          "type": "string"
+        }
+      },
+      "PostgresDataPaginationMetadataMode": {
+        "description": "Controls whether row collections expose basic or full pagination metadata.",
+        "in": "query",
+        "name": "pageMeta",
+        "required": false,
+        "schema": {
+          "default": "basic",
+          "enum": [
+            "basic",
+            "full"
+          ],
           "type": "string"
         }
       },
@@ -221,6 +286,18 @@
           "maxLength": 63,
           "minLength": 1,
           "pattern": "^[a-z][a-z0-9_]{0,62}$",
+          "type": "string"
+        }
+      },
+      "SavedQueryId": {
+        "description": "Saved PostgreSQL query identifier.",
+        "in": "path",
+        "name": "savedQueryId",
+        "required": true,
+        "schema": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_-]{0,62}$",
           "type": "string"
         }
       },
@@ -325,6 +402,17 @@
           "maxLength": 128,
           "minLength": 8,
           "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      },
+      "XOriginSurface": {
+        "description": "Optional caller-declared origin surface persisted into audit and trace metadata when supplied.",
+        "in": "header",
+        "name": "X-Origin-Surface",
+        "required": false,
+        "schema": {
+          "maxLength": 64,
+          "minLength": 2,
           "type": "string"
         }
       }
@@ -1874,6 +1962,886 @@
         ],
         "type": "object"
       },
+      "PostgresDataBulkDeleteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bulk": {
+            "$ref": "#/components/schemas/PostgresDataBulkLimit"
+          },
+          "primaryKeys": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "primaryKeys"
+        ],
+        "type": "object"
+      },
+      "PostgresDataBulkInsertRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bulk": {
+            "$ref": "#/components/schemas/PostgresDataBulkLimit"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "select": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "type": "object"
+      },
+      "PostgresDataBulkLimit": {
+        "additionalProperties": false,
+        "properties": {
+          "atomic": {
+            "type": "boolean"
+          },
+          "hardLimit": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "limit": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PostgresDataBulkMutationResult": {
+        "additionalProperties": false,
+        "properties": {
+          "atomic": {
+            "type": "boolean"
+          },
+          "effectiveRoleName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "rlsEnforced": {
+            "type": "boolean"
+          },
+          "rowCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          }
+        },
+        "required": [
+          "effectiveRoleName",
+          "rowCount",
+          "limit",
+          "atomic",
+          "rlsEnforced"
+        ],
+        "type": "object"
+      },
+      "PostgresDataBulkUpdateOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "primaryKey": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "primaryKey",
+          "changes"
+        ],
+        "type": "object"
+      },
+      "PostgresDataBulkUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bulk": {
+            "$ref": "#/components/schemas/PostgresDataBulkLimit"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresDataBulkUpdateOperation"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "select": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "operations"
+        ],
+        "type": "object"
+      },
+      "PostgresDataCountSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "estimatedCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "exact",
+              "estimated"
+            ],
+            "type": "string"
+          },
+          "totalCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
+      "PostgresDataCredentialCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresDataCredentialRecord"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PostgresDataCredentialCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "credentialType": {
+            "enum": [
+              "api_key",
+              "token"
+            ],
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresDataCredentialScope"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "ttlSeconds": {
+            "minimum": 60,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "displayName",
+          "credentialType",
+          "scopes"
+        ],
+        "type": "object"
+      },
+      "PostgresDataCredentialRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "credentialId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "credentialType": {
+            "enum": [
+              "api_key",
+              "token"
+            ],
+            "type": "string"
+          },
+          "databaseName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresDataCredentialScope"
+            },
+            "type": "array"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          },
+          "ttlSeconds": {
+            "minimum": 60,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "credentialId",
+          "displayName",
+          "credentialType",
+          "databaseName",
+          "scopes",
+          "ttlSeconds"
+        ],
+        "type": "object"
+      },
+      "PostgresDataCredentialScope": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedOperations": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "databaseName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "endpointIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "routineName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "savedQueryIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "schemaName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tableName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "databaseName",
+          "allowedOperations"
+        ],
+        "type": "object"
+      },
+      "PostgresDataCredentialSecretEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "$ref": "#/components/schemas/PostgresDataCredentialRecord"
+          },
+          "secretDelivery": {
+            "enum": [
+              "one_time"
+            ],
+            "type": "string"
+          },
+          "secretValue": {
+            "maxLength": 512,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "credential",
+          "secretValue",
+          "secretDelivery"
+        ],
+        "type": "object"
+      },
+      "PostgresDataEndpointCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresDataEndpointRecord"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PostgresDataEndpointInvocationEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "$ref": "#/components/schemas/PostgresDataCountSummary"
+          },
+          "effectiveRoleName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "endpoint": {
+            "$ref": "#/components/schemas/PostgresDataEndpointRecord"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "paginationSummary": {
+            "$ref": "#/components/schemas/PostgresDataPaginationSummary"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          },
+          "value": {}
+        },
+        "required": [
+          "endpoint",
+          "effectiveRoleName"
+        ],
+        "type": "object"
+      },
+      "PostgresDataEndpointInvocationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "countMode": {
+            "enum": [
+              "none",
+              "exact",
+              "estimated"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PostgresAdminPage"
+          },
+          "paginationMode": {
+            "enum": [
+              "basic",
+              "full"
+            ],
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "PostgresDataEndpointRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "authModes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "databaseName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "endpointId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "httpMethod": {
+            "enum": [
+              "GET",
+              "POST"
+            ],
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "saved_query",
+              "view",
+              "routine"
+            ],
+            "type": "string"
+          },
+          "stablePath": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          }
+        },
+        "required": [
+          "endpointId",
+          "databaseName",
+          "slug",
+          "stablePath",
+          "sourceType",
+          "httpMethod",
+          "authModes"
+        ],
+        "type": "object"
+      },
+      "PostgresDataEndpointRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authModes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "endpointId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "httpMethod": {
+            "enum": [
+              "GET",
+              "POST"
+            ],
+            "type": "string"
+          },
+          "responseOptions": {
+            "additionalProperties": false,
+            "properties": {
+              "countMode": {
+                "enum": [
+                  "none",
+                  "exact",
+                  "estimated"
+                ],
+                "type": "string"
+              },
+              "paginationMode": {
+                "enum": [
+                  "basic",
+                  "full"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "routineName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "savedQueryId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schemaName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "saved_query",
+              "view",
+              "routine"
+            ],
+            "type": "string"
+          },
+          "viewName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpointId",
+          "slug",
+          "sourceType"
+        ],
+        "type": "object"
+      },
+      "PostgresDataEndpointUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authModes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "endpointId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "httpMethod": {
+            "enum": [
+              "GET",
+              "POST"
+            ],
+            "type": "string"
+          },
+          "responseOptions": {
+            "additionalProperties": false,
+            "properties": {
+              "countMode": {
+                "enum": [
+                  "none",
+                  "exact",
+                  "estimated"
+                ],
+                "type": "string"
+              },
+              "paginationMode": {
+                "enum": [
+                  "basic",
+                  "full"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "routineName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "savedQueryId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schemaName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_-]{0,62}$",
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "saved_query",
+              "view",
+              "routine"
+            ],
+            "type": "string"
+          },
+          "viewName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpointId",
+          "slug",
+          "sourceType"
+        ],
+        "type": "object"
+      },
+      "PostgresDataExportEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "consistency": {
+            "type": "string"
+          },
+          "count": {
+            "$ref": "#/components/schemas/PostgresDataCountSummary"
+          },
+          "effectiveRoleName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          },
+          "validationMode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "effectiveRoleName",
+          "format",
+          "consistency",
+          "validationMode"
+        ],
+        "type": "object"
+      },
+      "PostgresDataExportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "consistency": {
+            "enum": [
+              "transaction_snapshot",
+              "best_effort"
+            ],
+            "type": "string"
+          },
+          "filter": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "type": "string"
+          },
+          "include": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "includeRestoreManifest": {
+            "type": "boolean"
+          },
+          "order": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "select": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "validationMode": {
+            "enum": [
+              "checksum",
+              "row_count",
+              "none"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "format"
+        ],
+        "type": "object"
+      },
+      "PostgresDataImportRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bulk": {
+            "$ref": "#/components/schemas/PostgresDataBulkLimit"
+          },
+          "columns": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "csvText": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "delimiter": {
+            "maxLength": 4,
+            "minLength": 1,
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "type": "string"
+          },
+          "headerRow": {
+            "type": "boolean"
+          },
+          "mode": {
+            "enum": [
+              "insert",
+              "upsert",
+              "replace"
+            ],
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "validateAfterImport": {
+            "type": "boolean"
+          },
+          "validationMode": {
+            "enum": [
+              "row_count_and_schema",
+              "row_count_and_checksum",
+              "none"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "format"
+        ],
+        "type": "object"
+      },
+      "PostgresDataImportResult": {
+        "additionalProperties": false,
+        "properties": {
+          "effectiveRoleName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "insert",
+              "upsert",
+              "replace"
+            ],
+            "type": "string"
+          },
+          "restore": {
+            "additionalProperties": false,
+            "properties": {
+              "compatibility": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "expectedOrder": {
+                "type": "string"
+              },
+              "requiresSecretFreeManifest": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "compatibility",
+              "expectedOrder",
+              "requiresSecretFreeManifest"
+            ],
+            "type": "object"
+          },
+          "rowCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          },
+          "validation": {
+            "additionalProperties": false,
+            "properties": {
+              "requested": {
+                "type": "boolean"
+              },
+              "strategy": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "requested",
+              "strategy"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "effectiveRoleName",
+          "rowCount",
+          "format",
+          "mode",
+          "validation",
+          "restore"
+        ],
+        "type": "object"
+      },
       "PostgresDataInsertRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1919,12 +2887,43 @@
           "rowCount": {
             "minimum": 0,
             "type": "integer"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
           }
         },
         "required": [
           "rowCount",
           "effectiveRoleName",
           "rlsEnforced"
+        ],
+        "type": "object"
+      },
+      "PostgresDataPaginationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "basic",
+              "full"
+            ],
+            "type": "string"
+          },
+          "nextCursor": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "returnedItemCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode"
         ],
         "type": "object"
       },
@@ -2006,6 +3005,9 @@
       "PostgresDataRowCollection": {
         "additionalProperties": false,
         "properties": {
+          "count": {
+            "$ref": "#/components/schemas/PostgresDataCountSummary"
+          },
           "effectiveRoleName": {
             "maxLength": 63,
             "minLength": 1,
@@ -2028,6 +3030,9 @@
           "page": {
             "$ref": "#/components/schemas/PostgresAdminPage"
           },
+          "paginationSummary": {
+            "$ref": "#/components/schemas/PostgresDataPaginationSummary"
+          },
           "projection": {
             "$ref": "#/components/schemas/PostgresDataProjection"
           },
@@ -2039,6 +3044,9 @@
           },
           "rlsEnforced": {
             "type": "boolean"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
           }
         },
         "required": [
@@ -2072,6 +3080,9 @@
           },
           "rlsEnforced": {
             "type": "boolean"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
           }
         },
         "required": [
@@ -2128,6 +3139,9 @@
             "minLength": 24,
             "type": "string"
           },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          },
           "value": {}
         },
         "required": [
@@ -2165,6 +3179,51 @@
         },
         "required": [
           "arguments"
+        ],
+        "type": "object"
+      },
+      "PostgresDataTraceEnvelope": {
+        "additionalProperties": false,
+        "properties": {
+          "actorId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "actorType": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "originSurface": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tenantId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "workspaceId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "originSurface"
         ],
         "type": "object"
       },
@@ -5149,6 +6208,328 @@
         ],
         "type": "object"
       },
+      "PostgresSavedQueryCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresSavedQueryRecord"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "PostgresSavedQueryExecutionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "countMode": {
+            "enum": [
+              "none",
+              "exact",
+              "estimated"
+            ],
+            "type": "string"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PostgresAdminPage"
+          },
+          "paginationMode": {
+            "enum": [
+              "basic",
+              "full"
+            ],
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "PostgresSavedQueryParameter": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultValue": {},
+          "parameterName": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "parameterName",
+          "required"
+        ],
+        "type": "object"
+      },
+      "PostgresSavedQueryRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "databaseName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "responseOptions": {
+            "additionalProperties": false,
+            "properties": {
+              "countMode": {
+                "enum": [
+                  "none",
+                  "exact",
+                  "estimated"
+                ],
+                "type": "string"
+              },
+              "paginationMode": {
+                "enum": [
+                  "basic",
+                  "full"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "routineName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "savedQueryId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schemaName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "table",
+              "view",
+              "routine"
+            ],
+            "type": "string"
+          },
+          "tableName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/PostgresDataTraceEnvelope"
+          },
+          "viewName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "savedQueryId",
+          "databaseName",
+          "sourceType",
+          "schemaName"
+        ],
+        "type": "object"
+      },
+      "PostgresSavedQueryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "filters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "include": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "order": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresSavedQueryParameter"
+            },
+            "type": "array"
+          },
+          "responseOptions": {
+            "additionalProperties": false,
+            "properties": {
+              "countMode": {
+                "enum": [
+                  "none",
+                  "exact",
+                  "estimated"
+                ],
+                "type": "string"
+              },
+              "paginationMode": {
+                "enum": [
+                  "basic",
+                  "full"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "routineName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "savedQueryId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schemaName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "select": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "table",
+              "view",
+              "routine"
+            ],
+            "type": "string"
+          },
+          "tableName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "viewName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "savedQueryId",
+          "sourceType",
+          "schemaName"
+        ],
+        "type": "object"
+      },
+      "PostgresSavedQueryUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "filters": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "include": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "order": {
+            "maxLength": 256,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parameters": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresSavedQueryParameter"
+            },
+            "type": "array"
+          },
+          "responseOptions": {
+            "additionalProperties": false,
+            "properties": {
+              "countMode": {
+                "enum": [
+                  "none",
+                  "exact",
+                  "estimated"
+                ],
+                "type": "string"
+              },
+              "paginationMode": {
+                "enum": [
+                  "basic",
+                  "full"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "routineName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "savedQueryId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "schemaName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "select": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "table",
+              "view",
+              "routine"
+            ],
+            "type": "string"
+          },
+          "tableName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "viewName": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "savedQueryId",
+          "sourceType",
+          "schemaName"
+        ],
+        "type": "object"
+      },
       "PostgresSchema": {
         "additionalProperties": false,
         "properties": {
@@ -6650,10 +8031,10 @@
     }
   },
   "info": {
-    "description": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts. Includes workspace-scoped data RPC routines and a restricted admin SQL channel. Generated from the unified public API contract for v1.",
-    "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts. Includes workspace-scoped data RPC routines and a restricted admin SQL channel.",
+    "description": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel. Generated from the unified public API contract for v1.",
+    "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel.",
     "title": "In Atelier Postgres API",
-    "version": "1.15.0"
+    "version": "1.16.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -17674,6 +19055,9 @@
           },
           {
             "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
           }
         ],
         "requestBody": {
@@ -17820,6 +19204,2334 @@
         "x-visibility": "public"
       }
     },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/credentials": {
+      "get": {
+        "operationId": "listPostgresDataCredentials",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataCredentialCollection"
+                }
+              }
+            },
+            "description": "Credential collection returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect scoped PostgreSQL credentials for this workspace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List scoped PostgreSQL Data API credentials for one logical database",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createPostgresDataCredential",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataCredentialCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataCredentialSecretEnvelope"
+                }
+              }
+            },
+            "description": "Scoped credential created."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The scoped credential request is malformed or declares an invalid resource surface."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to create scoped PostgreSQL credentials for this workspace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database or scoped resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested credential scope conflicts with an existing record."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential scope is structurally valid but violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one scoped PostgreSQL Data API credential limited to declared logical database, schema, table, routine, saved-query, or endpoint scope",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}": {
+      "delete": {
+        "operationId": "revokePostgresDataCredential",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CredentialId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataCredentialRecord"
+                }
+              }
+            },
+            "description": "Credential revoked."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The credential selector is malformed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to revoke this scoped credential."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested scoped credential was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke one scoped PostgreSQL Data API credential",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getPostgresDataCredential",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CredentialId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataCredentialRecord"
+                }
+              }
+            },
+            "description": "Credential returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect this scoped credential."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested scoped credential was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one scoped PostgreSQL Data API credential definition without reissuing the secret value",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints": {
+      "get": {
+        "operationId": "listPostgresDataEndpoints",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataEndpointCollection"
+                }
+              }
+            },
+            "description": "Endpoint collection returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect stable PostgreSQL endpoints for this workspace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List stable PostgreSQL endpoints backed by saved queries, views, or routines",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_endpoint",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createPostgresDataEndpoint",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataEndpointRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataEndpointRecord"
+                }
+              }
+            },
+            "description": "Stable endpoint created."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The stable-endpoint request is malformed or references unsupported resources."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to create stable endpoints for this workspace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database or backing resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested endpoint identifier or slug conflicts with an existing record."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The stable-endpoint definition is structurally valid but violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one stable PostgreSQL endpoint backed by a saved query, view, or routine",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_endpoint",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints/{endpointId}": {
+      "delete": {
+        "operationId": "deletePostgresDataEndpoint",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/EndpointId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataEndpointRecord"
+                }
+              }
+            },
+            "description": "Endpoint deleted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The endpoint selector is malformed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to delete this stable endpoint."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested stable endpoint was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one stable PostgreSQL endpoint definition",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_endpoint",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getPostgresDataEndpoint",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/EndpointId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataEndpointRecord"
+                }
+              }
+            },
+            "description": "Endpoint returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect this stable endpoint."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested stable endpoint was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one stable PostgreSQL endpoint definition",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_endpoint",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "patch": {
+        "operationId": "updatePostgresDataEndpoint",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/EndpointId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataEndpointUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataEndpointRecord"
+                }
+              }
+            },
+            "description": "Endpoint updated."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The endpoint patch is malformed or references unsupported resources."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to update this stable endpoint."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested stable endpoint or backing resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The updated endpoint conflicts with an existing record."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The updated stable-endpoint definition violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one stable PostgreSQL endpoint definition",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_endpoint",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/published/{endpointSlug}": {
+      "post": {
+        "operationId": "invokePostgresDataEndpoint",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/EndpointSlug"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataEndpointInvocationRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataEndpointInvocationEnvelope"
+                }
+              }
+            },
+            "description": "Stable endpoint invoked."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The endpoint invocation payload is malformed or the bound parameters are incomplete."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to invoke this stable endpoint."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested stable endpoint or backing resource was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The endpoint invocation is structurally valid but violates the published contract."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Invoke one stable PostgreSQL endpoint backed by a saved query, view, or routine",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_endpoint",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries": {
+      "get": {
+        "operationId": "listPostgresSavedQueries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresSavedQueryCollection"
+                }
+              }
+            },
+            "description": "Saved-query collection returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect saved queries for this workspace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List reusable PostgreSQL saved queries for one logical database",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_saved_query",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createPostgresSavedQuery",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresSavedQueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresSavedQueryRecord"
+                }
+              }
+            },
+            "description": "Saved query created."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The saved-query request is malformed or references unsupported resources."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to create saved queries for this workspace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database or target relation/routine was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested saved-query identifier conflicts with an existing record."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The saved-query definition is structurally valid but violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one reusable PostgreSQL saved query with stable response options and parameter bindings",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_saved_query",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries/{savedQueryId}": {
+      "delete": {
+        "operationId": "deletePostgresSavedQuery",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SavedQueryId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresSavedQueryRecord"
+                }
+              }
+            },
+            "description": "Saved query deleted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The saved-query selector is malformed."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to delete this saved query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested saved query was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one reusable PostgreSQL saved query definition",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_saved_query",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getPostgresSavedQuery",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SavedQueryId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresSavedQueryRecord"
+                }
+              }
+            },
+            "description": "Saved query returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect this saved query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested saved query was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one reusable PostgreSQL saved query definition",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_saved_query",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "patch": {
+        "operationId": "updatePostgresSavedQuery",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SavedQueryId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresSavedQueryUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresSavedQueryRecord"
+                }
+              }
+            },
+            "description": "Saved query updated."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The saved-query patch is malformed or references unsupported resources."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to update this saved query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested saved query or target resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The updated saved query conflicts with an existing record."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The updated saved-query definition violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one reusable PostgreSQL saved query definition",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_saved_query",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries/{savedQueryId}/execute": {
+      "post": {
+        "operationId": "executePostgresSavedQuery",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SavedQueryId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresSavedQueryExecutionRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataRowCollection"
+                }
+              }
+            },
+            "description": "Saved query executed."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The saved-query execution payload is malformed or the bound parameters are incomplete."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to execute this saved query."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested saved query or target resource was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bound parameters are structurally valid but violate the saved-query contract."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Execute one reusable PostgreSQL saved query with optional count and pagination metadata",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_saved_query",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}": {
       "post": {
         "operationId": "executePostgresDataRpc",
@@ -17844,6 +21556,9 @@
           },
           {
             "$ref": "#/components/parameters/RoutineName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
           }
         ],
         "requestBody": {
@@ -17985,6 +21700,872 @@
         "x-visibility": "public"
       }
     },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/bulk/delete": {
+      "post": {
+        "operationId": "bulkDeletePostgresDataRows",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataBulkMutationResult"
+                }
+              }
+            },
+            "description": "Bulk delete completed."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bulk delete payload is malformed or exceeds the configured limits."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission for one or more rows in the requested batch."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database, schema, table, or row selector was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bulk delete conflicts with existing PostgreSQL state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "One or more deletes violate grants, RLS, or table constraints."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete multiple PostgreSQL rows in one bounded bulk request with configurable limits and shared RLS enforcement",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_bulk",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/bulk/insert": {
+      "post": {
+        "operationId": "bulkInsertPostgresDataRows",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataBulkInsertRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataBulkMutationResult"
+                }
+              }
+            },
+            "description": "Bulk insert completed."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bulk insert payload is malformed or exceeds the configured limits."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission for one or more rows in the requested batch."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database, schema, or table was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bulk insert conflicts with existing PostgreSQL state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "One or more rows violate grants, RLS, or table constraints."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Insert multiple PostgreSQL rows in one bounded bulk request with configurable limits and shared RLS enforcement",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_bulk",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/bulk/update": {
+      "post": {
+        "operationId": "bulkUpdatePostgresDataRows",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataBulkUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataBulkMutationResult"
+                }
+              }
+            },
+            "description": "Bulk update completed."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bulk update payload is malformed or exceeds the configured limits."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission for one or more rows in the requested batch."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database, schema, table, or row selector was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The bulk update conflicts with existing PostgreSQL state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "One or more updates violate grants, RLS, or table constraints."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update multiple PostgreSQL rows in one bounded bulk request with configurable limits and shared RLS enforcement",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_bulk",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/exports": {
+      "post": {
+        "operationId": "exportPostgresDataRows",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataExportEnvelope"
+                }
+              }
+            },
+            "description": "Export rendered."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The export request is malformed or uses unsupported projection, filter, or format semantics."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to export from the requested table."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database, schema, or table was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Export PostgreSQL rows in JSON or CSV with optional count metadata and restore-friendly validation hints",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "postgres_data_transfer",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/imports": {
+      "post": {
+        "operationId": "importPostgresDataRows",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataImportResult"
+                }
+              }
+            },
+            "description": "Import accepted and summarized."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The import request is malformed, uses an unsupported format, or exceeds the configured limits."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to import into the requested table."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested logical database, schema, or table was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The import conflicts with existing PostgreSQL state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The import payload is structurally valid but violates grants, RLS, or validation expectations."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Import PostgreSQL rows in JSON or CSV while preserving validation, restore, and traceability expectations",
+        "tags": [
+          "Postgres"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_transfer",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows": {
       "get": {
         "operationId": "listPostgresDataRows",
@@ -18024,6 +22605,15 @@
           },
           {
             "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/PostgresDataCountMode"
+          },
+          {
+            "$ref": "#/components/parameters/PostgresDataPaginationMetadataMode"
           }
         ],
         "responses": {
@@ -18157,6 +22747,9 @@
           },
           {
             "$ref": "#/components/parameters/TableName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
           }
         ],
         "requestBody": {
@@ -18334,6 +22927,9 @@
           },
           {
             "$ref": "#/components/parameters/PostgresDataPrimaryKey"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
           }
         ],
         "responses": {
@@ -18502,6 +23098,9 @@
           },
           {
             "$ref": "#/components/parameters/PostgresDataInclude"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
           }
         ],
         "responses": {
@@ -18638,6 +23237,9 @@
           },
           {
             "$ref": "#/components/parameters/PostgresDataPrimaryKey"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
           }
         ],
         "requestBody": {

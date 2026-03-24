@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-24",
-    "openapi_semver": "1.15.0"
+    "openapi_semver": "1.16.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -241,7 +241,7 @@
       "id": "postgres",
       "title": "Postgres",
       "prefix": "/v1/postgres",
-      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts. Includes workspace-scoped data RPC routines and a restricted admin SQL channel.",
+      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "provisioning_request",
@@ -747,6 +747,36 @@
     },
     {
       "resource_type": "postgres_admin_sql",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_bulk",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_transfer",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_credential",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_saved_query",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_endpoint",
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": "database"

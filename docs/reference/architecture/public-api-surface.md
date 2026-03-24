@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.15.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.16.0)
 
 ## Product API vs native passthrough
 
@@ -188,7 +188,7 @@ Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, an
 
 ## Postgres
 
-Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts. Includes workspace-scoped data RPC routines and a restricted admin SQL channel.
+Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
@@ -267,7 +267,28 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, inven
 | GET | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Fetch one workspace-scoped PostgreSQL user contract |
 | PUT | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Update one workspace-scoped PostgreSQL user through the bounded administrative surface |
 | POST | `/v1/postgres/workspaces/{workspaceId}/admin/{databaseName}/sql` | workspace | postgres_admin_sql | Preview or execute one restricted administrative PostgreSQL SQL statement outside the public data API channel |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/credentials` | workspace | postgres_data_credential | List scoped PostgreSQL Data API credentials for one logical database |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/credentials` | workspace | postgres_data_credential | Create one scoped PostgreSQL Data API credential limited to declared logical database, schema, table, routine, saved-query, or endpoint scope |
+| DELETE | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}` | workspace | postgres_data_credential | Revoke one scoped PostgreSQL Data API credential |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}` | workspace | postgres_data_credential | Fetch one scoped PostgreSQL Data API credential definition without reissuing the secret value |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints` | workspace | postgres_data_endpoint | List stable PostgreSQL endpoints backed by saved queries, views, or routines |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints` | workspace | postgres_data_endpoint | Create one stable PostgreSQL endpoint backed by a saved query, view, or routine |
+| DELETE | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints/{endpointId}` | workspace | postgres_data_endpoint | Delete one stable PostgreSQL endpoint definition |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints/{endpointId}` | workspace | postgres_data_endpoint | Fetch one stable PostgreSQL endpoint definition |
+| PATCH | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/endpoints/{endpointId}` | workspace | postgres_data_endpoint | Update one stable PostgreSQL endpoint definition |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/published/{endpointSlug}` | workspace | postgres_data_endpoint | Invoke one stable PostgreSQL endpoint backed by a saved query, view, or routine |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries` | workspace | postgres_data_saved_query | List reusable PostgreSQL saved queries for one logical database |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries` | workspace | postgres_data_saved_query | Create one reusable PostgreSQL saved query with stable response options and parameter bindings |
+| DELETE | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries/{savedQueryId}` | workspace | postgres_data_saved_query | Delete one reusable PostgreSQL saved query definition |
+| GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries/{savedQueryId}` | workspace | postgres_data_saved_query | Fetch one reusable PostgreSQL saved query definition |
+| PATCH | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries/{savedQueryId}` | workspace | postgres_data_saved_query | Update one reusable PostgreSQL saved query definition |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/saved-queries/{savedQueryId}/execute` | workspace | postgres_data_saved_query | Execute one reusable PostgreSQL saved query with optional count and pagination metadata |
 | POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}` | workspace | postgres_data_rpc | Execute one reusable PostgreSQL function as an RPC-style data endpoint with parameter binding |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/bulk/delete` | workspace | postgres_data_bulk | Delete multiple PostgreSQL rows in one bounded bulk request with configurable limits and shared RLS enforcement |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/bulk/insert` | workspace | postgres_data_bulk | Insert multiple PostgreSQL rows in one bounded bulk request with configurable limits and shared RLS enforcement |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/bulk/update` | workspace | postgres_data_bulk | Update multiple PostgreSQL rows in one bounded bulk request with configurable limits and shared RLS enforcement |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/exports` | workspace | postgres_data_transfer | Export PostgreSQL rows in JSON or CSV with optional count metadata and restore-friendly validation hints |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/imports` | workspace | postgres_data_transfer | Import PostgreSQL rows in JSON or CSV while preserving validation, restore, and traceability expectations |
 | GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows` | workspace | postgres_data_rows | List rows from one workspace-scoped PostgreSQL table with filters, projection, ordering, pagination, and controlled one-hop relations |
 | POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows` | workspace | postgres_data_rows | Insert one row into one workspace-scoped PostgreSQL table while preserving effective-role, grants, and RLS guardrails |
 | DELETE | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key` | workspace | postgres_data_row | Delete one PostgreSQL row by primary-key selector while preserving effective-role, grants, and RLS guardrails |

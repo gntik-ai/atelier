@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildPostgresDataApiPlan } from '../../../services/adapters/src/postgresql-data-api.mjs';
+import {
+  buildPostgresDataApiPlan,
+  buildPostgresDataStableEndpointInvocationPlan,
+  buildPostgresSavedQueryExecutionPlan
+} from '../../../services/adapters/src/postgresql-data-api.mjs';
 
 function buildWorkspaceFixture(overrides = {}) {
   return {
@@ -138,4 +142,69 @@ test('workspace data API query plan blocks related tables that are outside the e
       }),
     /No effective role satisfies/
   );
+});
+
+test('workspace data API surfaces optional count metadata for external-console exports', () => {
+  const plan = buildPostgresDataApiPlan({
+    operation: 'export',
+    ...buildWorkspaceFixture(),
+    format: 'csv',
+    select: ['id', 'status', 'createdAt'],
+    filters: [{ column: 'status', operator: 'eq', value: 'open' }],
+    order: [{ column: 'createdAt', direction: 'desc' }],
+    responseOptions: { countMode: 'exact', paginationMode: 'basic' },
+    originSurface: 'console'
+  });
+
+  assert.equal(plan.capability, 'postgres_data_export');
+  assert.equal(plan.response.count.mode, 'exact');
+  assert.equal(plan.sql.text.includes('COPY ('), true);
+  assert.equal(plan.trace.originSurface, 'console');
+});
+
+test('workspace data API can execute saved queries and published stable endpoints with shared pagination semantics', () => {
+  const fixture = buildWorkspaceFixture();
+  const savedQuery = {
+    workspaceId: fixture.workspaceId,
+    databaseName: fixture.databaseName,
+    savedQueryId: 'orders_open',
+    sourceType: 'table',
+    schemaName: 'alpha_prod_app',
+    tableName: 'customer_orders',
+    select: ['id', 'status'],
+    filters: [{ column: 'status', operator: 'eq', value: { parameter: 'status' } }],
+    parameters: [{ parameterName: 'status', required: true }],
+    responseOptions: { countMode: 'estimated', paginationMode: 'full' },
+    table: fixture.table
+  };
+
+  const savedQueryPlan = buildPostgresSavedQueryExecutionPlan({
+    savedQuery,
+    parameters: { status: 'open' },
+    table: fixture.table,
+    ...fixture
+  });
+  const endpointPlan = buildPostgresDataStableEndpointInvocationPlan({
+    endpoint: {
+      workspaceId: fixture.workspaceId,
+      databaseName: fixture.databaseName,
+      endpointId: 'orders_public',
+      slug: 'orders-public',
+      sourceType: 'saved_query',
+      authModes: ['workspace_bearer'],
+      responseOptions: { countMode: 'estimated', paginationMode: 'full' },
+      savedQuery
+    },
+    savedQuery,
+    parameters: { status: 'open' },
+    table: fixture.table,
+    ...fixture
+  });
+
+  assert.equal(savedQueryPlan.capability, 'postgres_data_saved_query_execute');
+  assert.equal(savedQueryPlan.response.countMode, 'estimated');
+  assert.equal(savedQueryPlan.page.metadataMode, 'full');
+  assert.equal(endpointPlan.capability, 'postgres_data_stable_endpoint_invoke');
+  assert.equal(endpointPlan.endpoint.stablePath, '/v1/postgres/workspaces/wrk_01alphaprod/data/tenant_alpha_main/published/orders-public');
+  assert.equal(endpointPlan.response.paginationMode, 'full');
 });

@@ -2850,7 +2850,7 @@
     "description": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces. Generated from the unified public API contract for v1.",
     "summary": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.",
     "title": "In Atelier Tenants API",
-    "version": "1.15.0"
+    "version": "1.16.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

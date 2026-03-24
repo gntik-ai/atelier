@@ -145,6 +145,71 @@ test('postgres data API plan builder renders list, insert, update, and delete pl
   assert.equal(deletePlan.sql.text.includes('RETURNING "id"'), true);
 });
 
+test('postgres data API adapter planner renders bulk, import, and export plans with bounded metadata', () => {
+  const access = buildAccessContext({ actorRoleName: 'workspace_writer', effectiveRoles: ['workspace_writer', 'alpha_runtime'] });
+  const bulkInsertPlan = buildPostgresDataApiPlan({
+    operation: 'bulk_insert',
+    workspaceId: 'wrk_01alphaprod',
+    databaseName: 'tenant_alpha_main',
+    table: buildTable(),
+    rows: [
+      {
+        id: 'ord_100',
+        tenantId: 'ten_alpha',
+        customerId: 'cus_100',
+        status: 'open',
+        totalAmount: 110,
+        payload: { source: 'checkout' },
+        createdAt: '2026-03-24T19:00:00.000Z'
+      },
+      {
+        id: 'ord_101',
+        tenantId: 'ten_alpha',
+        customerId: 'cus_101',
+        status: 'paid',
+        totalAmount: 99,
+        payload: { source: 'checkout' },
+        createdAt: '2026-03-24T20:00:00.000Z'
+      }
+    ],
+    bulk: { limit: 20, hardLimit: 50, atomic: true },
+    ...access
+  });
+  const importPlan = buildPostgresDataApiPlan({
+    operation: 'import',
+    workspaceId: 'wrk_01alphaprod',
+    databaseName: 'tenant_alpha_main',
+    table: buildTable(),
+    format: 'csv',
+    columns: ['id', 'tenantId', 'customerId', 'status', 'totalAmount', 'payload', 'createdAt'],
+    csvText: 'id,tenantId,customerId,status,totalAmount,payload,createdAt\nord_102,ten_alpha,cus_102,open,55,{"source":"checkout"},2026-03-24T20:30:00.000Z',
+    validateAfterImport: true,
+    validationMode: 'row_count_and_checksum',
+    ...access
+  });
+  const exportPlan = buildPostgresDataApiPlan({
+    operation: 'export',
+    workspaceId: 'wrk_01alphaprod',
+    databaseName: 'tenant_alpha_main',
+    table: buildTable(),
+    format: 'json',
+    select: ['id', 'status'],
+    filters: [{ column: 'status', operator: 'eq', value: 'open' }],
+    responseOptions: { countMode: 'estimated', paginationMode: 'basic' },
+    ...buildAccessContext()
+  });
+
+  assert.equal(bulkInsertPlan.capability, 'postgres_data_bulk_insert');
+  assert.equal(bulkInsertPlan.bulk.batchSize, 2);
+  assert.equal(bulkInsertPlan.sql.text.includes('VALUES ($1, $2'), true);
+  assert.equal(importPlan.capability, 'postgres_data_import');
+  assert.equal(importPlan.sql.text.includes('COPY "alpha_prod_app"."customer_orders"'), true);
+  assert.equal(importPlan.import.restore.requiresSecretFreeManifest, true);
+  assert.equal(exportPlan.capability, 'postgres_data_export');
+  assert.equal(exportPlan.response.count.mode, 'estimated');
+  assert.equal(exportPlan.trace.sessionSettings.some((entry) => entry.key === 'app.current_workspace_id'), true);
+});
+
 test('postgres data API plan builder refuses inaccessible relations and missing session context for RLS-protected reads', () => {
   const tableWithRestrictedRelation = buildTable({
     relations: [
