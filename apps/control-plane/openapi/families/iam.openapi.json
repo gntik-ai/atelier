@@ -1,0 +1,5608 @@
+{
+  "components": {
+    "parameters": {
+      "ClientId": {
+        "description": "Stable client identifier inside one managed realm.",
+        "in": "path",
+        "name": "clientId",
+        "required": true,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 3,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9:_-]{1,118}[A-Za-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "FilterEnabled": {
+        "description": "Filter IAM collections by enabled status.",
+        "in": "query",
+        "name": "filter[enabled]",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "FilterProtocol": {
+        "description": "Filter client or scope collections by protocol.",
+        "in": "query",
+        "name": "filter[protocol]",
+        "required": false,
+        "schema": {
+          "enum": [
+            "openid-connect",
+            "saml"
+          ],
+          "type": "string"
+        }
+      },
+      "IamUserId": {
+        "description": "Stable Keycloak user identifier inside one managed realm.",
+        "in": "path",
+        "name": "iamUserId",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 3,
+          "type": "string"
+        }
+      },
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway. Replays are retained for 24h and surfaced through X-Idempotency-Replayed.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      },
+      "PageAfter": {
+        "description": "Opaque cursor for the next page window.",
+        "in": "query",
+        "name": "page[after]",
+        "required": false,
+        "schema": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "PageSize": {
+        "description": "Maximum number of items to return for list and catalog routes.",
+        "in": "query",
+        "name": "page[size]",
+        "required": false,
+        "schema": {
+          "default": 25,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "RealmId": {
+        "description": "Stable tenant realm identifier managed through the BaaS IAM surface.",
+        "in": "path",
+        "name": "realmId",
+        "required": true,
+        "schema": {
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "RoleName": {
+        "description": "Stable realm-role name inside one managed realm.",
+        "in": "path",
+        "name": "roleName",
+        "required": true,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 2,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9:_-]{0,118}[A-Za-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "ScopeName": {
+        "description": "Stable client-scope identifier inside one managed realm.",
+        "in": "path",
+        "name": "scopeName",
+        "required": true,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 2,
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9:_-]{0,118}[A-Za-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "Search": {
+        "description": "Free-text search across human-facing route metadata.",
+        "in": "query",
+        "name": "search",
+        "required": false,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "const": "2026-03-24",
+          "pattern": "^2026-03-24$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, audit flows, and backfilled by the gateway when recovery requires it.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "EntityMetadata": {
+        "additionalProperties": {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "description": "Non-secret additive metadata for canonical entities.",
+        "type": "object"
+      },
+      "EntityState": {
+        "enum": [
+          "draft",
+          "provisioning",
+          "active",
+          "suspended",
+          "soft_deleted"
+        ],
+        "type": "string"
+      },
+      "ErrorDetail": {
+        "additionalProperties": true,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "violations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorResource": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^GW_[A-Z0-9_]+$",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+            "type": "string"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ErrorResource"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "status": {
+            "maximum": 599,
+            "minimum": 400,
+            "type": "integer"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "code",
+          "message",
+          "detail",
+          "requestId",
+          "correlationId",
+          "timestamp",
+          "resource"
+        ],
+        "type": "object"
+      },
+      "IamAttributes": {
+        "additionalProperties": {
+          "items": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "description": "Multi-valued IAM attributes normalized from Keycloak user, role, scope, realm, and client metadata.",
+        "type": "object"
+      },
+      "IamClient": {
+        "additionalProperties": false,
+        "properties": {
+          "accessType": {
+            "$ref": "#/components/schemas/IamClientAccessType"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "clientId": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "defaultScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "directAccessGrantsEnabled": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "optionalScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocol": {
+            "enum": [
+              "openid-connect",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "realmId": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "redirectUris": {
+            "items": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "resourceType": {
+            "const": "iam_client",
+            "type": "string"
+          },
+          "serviceAccountsEnabled": {
+            "type": "boolean"
+          },
+          "standardFlowEnabled": {
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "webOrigins": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "resourceType",
+          "realmId",
+          "clientId",
+          "protocol",
+          "accessType",
+          "enabled",
+          "state",
+          "redirectUris",
+          "webOrigins",
+          "defaultScopes",
+          "optionalScopes",
+          "attributes",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "IamClientAccessType": {
+        "enum": [
+          "public",
+          "confidential",
+          "bearer_only"
+        ],
+        "type": "string"
+      },
+      "IamClientCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IamClient"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items",
+          "compatibility"
+        ],
+        "type": "object"
+      },
+      "IamClientCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "accessType": {
+            "$ref": "#/components/schemas/IamClientAccessType"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "clientId": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "defaultScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "directAccessGrantsEnabled": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "optionalScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocol": {
+            "enum": [
+              "openid-connect",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "redirectUris": {
+            "items": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "serviceAccountsEnabled": {
+            "type": "boolean"
+          },
+          "standardFlowEnabled": {
+            "type": "boolean"
+          },
+          "webOrigins": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "clientId",
+          "protocol",
+          "accessType"
+        ],
+        "type": "object"
+      },
+      "IamClientUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "accessType": {
+            "$ref": "#/components/schemas/IamClientAccessType"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "clientId": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "defaultScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "directAccessGrantsEnabled": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "optionalScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocol": {
+            "enum": [
+              "openid-connect",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "redirectUris": {
+            "items": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "serviceAccountsEnabled": {
+            "type": "boolean"
+          },
+          "standardFlowEnabled": {
+            "type": "boolean"
+          },
+          "webOrigins": {
+            "items": {
+              "maxLength": 240,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "IamGroupPath": {
+        "pattern": "^/[A-Za-z0-9._/-]{1,254}$",
+        "type": "string"
+      },
+      "IamMutationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAction": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "commandId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "realmId": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "resourceId": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "resourceType": {
+            "enum": [
+              "iam_realm",
+              "iam_client",
+              "iam_role",
+              "iam_scope",
+              "iam_user"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "commandId",
+          "requestId",
+          "resourceType",
+          "resourceId",
+          "status",
+          "acceptedAction",
+          "correlationId",
+          "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "IamProviderCompatibility": {
+        "additionalProperties": false,
+        "properties": {
+          "adminApiStability": {
+            "enum": [
+              "stable_v1"
+            ],
+            "type": "string"
+          },
+          "contractVersion": {
+            "maxLength": 40,
+            "minLength": 3,
+            "type": "string"
+          },
+          "provider": {
+            "const": "keycloak",
+            "type": "string"
+          },
+          "supportedVersions": {
+            "items": {
+              "maxLength": 20,
+              "minLength": 3,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider",
+          "contractVersion",
+          "supportedVersions",
+          "adminApiStability"
+        ],
+        "type": "object"
+      },
+      "IamRealm": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "defaultScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "login": {
+            "$ref": "#/components/schemas/IamRealmLoginPolicy"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "optionalScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "realmId": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "resourceType": {
+            "const": "iam_realm",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          }
+        },
+        "required": [
+          "resourceType",
+          "realmId",
+          "displayName",
+          "enabled",
+          "state",
+          "attributes",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "IamRealmCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IamRealm"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items",
+          "compatibility"
+        ],
+        "type": "object"
+      },
+      "IamRealmCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "defaultScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "login": {
+            "$ref": "#/components/schemas/IamRealmLoginPolicy"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "optionalScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "realmId": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "realmId",
+          "displayName"
+        ],
+        "type": "object"
+      },
+      "IamRealmLoginPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "loginWithEmailAllowed": {
+            "type": "boolean"
+          },
+          "registrationAllowed": {
+            "type": "boolean"
+          },
+          "rememberMe": {
+            "type": "boolean"
+          },
+          "resetPasswordAllowed": {
+            "type": "boolean"
+          },
+          "verifyEmail": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "IamRealmUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "defaultScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "login": {
+            "$ref": "#/components/schemas/IamRealmLoginPolicy"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "optionalScopes": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "displayName"
+        ],
+        "type": "object"
+      },
+      "IamRequiredAction": {
+        "enum": [
+          "CONFIGURE_TOTP",
+          "UPDATE_PASSWORD",
+          "UPDATE_PROFILE",
+          "VERIFY_EMAIL"
+        ],
+        "type": "string"
+      },
+      "IamRole": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "composite": {
+            "type": "boolean"
+          },
+          "compositeRoles": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "realmId": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "resourceType": {
+            "const": "iam_role",
+            "type": "string"
+          },
+          "roleName": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "realmId",
+          "roleName",
+          "composite",
+          "compositeRoles",
+          "attributes",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "IamRoleCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IamRole"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items",
+          "compatibility"
+        ],
+        "type": "object"
+      },
+      "IamRoleCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "composite": {
+            "type": "boolean"
+          },
+          "compositeRoles": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "roleName": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleName"
+        ],
+        "type": "object"
+      },
+      "IamRoleUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "composite": {
+            "type": "boolean"
+          },
+          "compositeRoles": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "roleName": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IamScope": {
+        "additionalProperties": false,
+        "properties": {
+          "assignedClientIds": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "description": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "includeInTokenScope": {
+            "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "protocol": {
+            "enum": [
+              "openid-connect",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "protocolMappers": {
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            },
+            "type": "array"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "realmId": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "resourceType": {
+            "const": "iam_scope",
+            "type": "string"
+          },
+          "scopeName": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "realmId",
+          "scopeName",
+          "protocol",
+          "includeInTokenScope",
+          "isDefault",
+          "isOptional",
+          "attributes",
+          "protocolMappers",
+          "assignedClientIds",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "IamScopeCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IamScope"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items",
+          "compatibility"
+        ],
+        "type": "object"
+      },
+      "IamScopeCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assignedClientIds": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "description": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "includeInTokenScope": {
+            "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "protocol": {
+            "enum": [
+              "openid-connect",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "protocolMappers": {
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            },
+            "type": "array"
+          },
+          "scopeName": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "required": [
+          "scopeName"
+        ],
+        "type": "object"
+      },
+      "IamScopeUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "assignedClientIds": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "description": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "includeInTokenScope": {
+            "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isOptional": {
+            "type": "boolean"
+          },
+          "protocol": {
+            "enum": [
+              "openid-connect",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "protocolMappers": {
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            },
+            "type": "array"
+          },
+          "scopeName": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IamStatusUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 240,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "IamUser": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "firstName": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/IamGroupPath"
+            },
+            "type": "array"
+          },
+          "lastName": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "realmId": {
+            "maxLength": 128,
+            "minLength": 2,
+            "type": "string"
+          },
+          "realmRoles": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "requiredActions": {
+            "items": {
+              "$ref": "#/components/schemas/IamRequiredAction"
+            },
+            "type": "array"
+          },
+          "resourceType": {
+            "const": "iam_user",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "userId": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "realmId",
+          "userId",
+          "username",
+          "enabled",
+          "state",
+          "emailVerified",
+          "groups",
+          "realmRoles",
+          "requiredActions",
+          "attributes",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "IamUserBootstrapCredentials": {
+        "additionalProperties": false,
+        "properties": {
+          "requiredActions": {
+            "items": {
+              "$ref": "#/components/schemas/IamRequiredAction"
+            },
+            "type": "array"
+          },
+          "sendEmail": {
+            "type": "boolean"
+          },
+          "temporaryPassword": {
+            "maxLength": 256,
+            "minLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "temporaryPassword"
+        ],
+        "type": "object"
+      },
+      "IamUserCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "$ref": "#/components/schemas/IamProviderCompatibility"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IamUser"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items",
+          "compatibility"
+        ],
+        "type": "object"
+      },
+      "IamUserCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "bootstrapCredentials": {
+            "$ref": "#/components/schemas/IamUserBootstrapCredentials"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "firstName": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/IamGroupPath"
+            },
+            "type": "array"
+          },
+          "lastName": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "realmRoles": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "requiredActions": {
+            "items": {
+              "$ref": "#/components/schemas/IamRequiredAction"
+            },
+            "type": "array"
+          },
+          "username": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
+      "IamUserCredentialResetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "requiredActions": {
+            "items": {
+              "$ref": "#/components/schemas/IamRequiredAction"
+            },
+            "type": "array"
+          },
+          "sendEmail": {
+            "type": "boolean"
+          },
+          "temporaryPassword": {
+            "maxLength": 256,
+            "minLength": 12,
+            "type": "string"
+          }
+        },
+        "required": [
+          "temporaryPassword"
+        ],
+        "type": "object"
+      },
+      "IamUserUpdateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/IamAttributes"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "emailVerified": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "firstName": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/IamGroupPath"
+            },
+            "type": "array"
+          },
+          "lastName": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "realmRoles": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 2,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "requiredActions": {
+            "items": {
+              "$ref": "#/components/schemas/IamRequiredAction"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "KeycloakProtocolMapper": {
+        "additionalProperties": false,
+        "properties": {
+          "claimName": {
+            "type": "string"
+          },
+          "mapperType": {
+            "enum": [
+              "user_attribute",
+              "hardcoded_claim",
+              "audience",
+              "script"
+            ],
+            "type": "string"
+          },
+          "multivalued": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sourceAttribute": {
+            "type": "string"
+          },
+          "tokenTargets": {
+            "items": {
+              "enum": [
+                "access_token",
+                "id_token",
+                "userinfo"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "mapperType",
+          "claimName"
+        ],
+        "type": "object"
+      },
+      "PageInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "size": {
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts. Generated from the unified public API contract for v1.",
+    "summary": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts.",
+    "title": "In Atelier IAM API",
+    "version": "1.3.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/iam/realms": {
+      "get": {
+        "operationId": "listIamRealms",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterEnabled"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamRealmCollectionResponse"
+                }
+              }
+            },
+            "description": "IAM realm page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List managed IAM realms through the normalized BaaS surface",
+        "tags": [
+          "IAM",
+          "IAMRealms"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_realm",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createIamRealm",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamRealmCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM realm creation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one managed IAM realm with normalized validation and audit semantics",
+        "tags": [
+          "IAM",
+          "IAMRealms"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_realm",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}": {
+      "delete": {
+        "operationId": "deleteIamRealm",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM realm deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one managed IAM realm through the asynchronous control-plane surface",
+        "tags": [
+          "IAM",
+          "IAMRealms"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_realm",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getIamRealm",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamRealm"
+                }
+              }
+            },
+            "description": "IAM realm returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one managed IAM realm",
+        "tags": [
+          "IAM",
+          "IAMRealms"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_realm",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateIamRealm",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamRealmUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM realm update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace the mutable IAM realm settings exposed by the BaaS contract",
+        "tags": [
+          "IAM",
+          "IAMRealms"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_realm",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/clients": {
+      "get": {
+        "operationId": "listIamClients",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterEnabled"
+          },
+          {
+            "$ref": "#/components/parameters/FilterProtocol"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamClientCollectionResponse"
+                }
+              }
+            },
+            "description": "IAM client page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List managed clients inside one IAM realm",
+        "tags": [
+          "IAM",
+          "IAMClients"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_client",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createIamClient",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamClientCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM client creation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one managed client inside a tenant realm",
+        "tags": [
+          "IAM",
+          "IAMClients"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_client",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/clients/{clientId}": {
+      "delete": {
+        "operationId": "deleteIamClient",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ClientId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM client deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one managed IAM client",
+        "tags": [
+          "IAM",
+          "IAMClients"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_client",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getIamClient",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ClientId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamClient"
+                }
+              }
+            },
+            "description": "IAM client returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one managed IAM client",
+        "tags": [
+          "IAM",
+          "IAMClients"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_client",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateIamClient",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ClientId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamClientUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM client update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace the mutable settings of one managed IAM client",
+        "tags": [
+          "IAM",
+          "IAMClients"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_client",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/clients/{clientId}/status": {
+      "patch": {
+        "operationId": "setIamClientStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ClientId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamStatusUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM client status change accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Activate or deactivate one managed IAM client",
+        "tags": [
+          "IAM",
+          "IAMClients"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_client",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/roles": {
+      "get": {
+        "operationId": "listIamRoles",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamRoleCollectionResponse"
+                }
+              }
+            },
+            "description": "IAM role page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List managed realm roles",
+        "tags": [
+          "IAM",
+          "IAMRoles"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_role",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createIamRole",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamRoleCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM role creation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one managed realm role",
+        "tags": [
+          "IAM",
+          "IAMRoles"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_role",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/roles/{roleName}": {
+      "delete": {
+        "operationId": "deleteIamRole",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM role deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one managed realm role",
+        "tags": [
+          "IAM",
+          "IAMRoles"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_role",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getIamRole",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamRole"
+                }
+              }
+            },
+            "description": "IAM role returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one managed realm role",
+        "tags": [
+          "IAM",
+          "IAMRoles"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_role",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateIamRole",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/RoleName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamRoleUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM role update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace the mutable settings of one managed realm role",
+        "tags": [
+          "IAM",
+          "IAMRoles"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_role",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/scopes": {
+      "get": {
+        "operationId": "listIamScopes",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterProtocol"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamScopeCollectionResponse"
+                }
+              }
+            },
+            "description": "IAM scope page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List managed client scopes inside one realm",
+        "tags": [
+          "IAM",
+          "IAMScopes"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_scope",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createIamScope",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamScopeCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM scope creation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one managed client scope",
+        "tags": [
+          "IAM",
+          "IAMScopes"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_scope",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/scopes/{scopeName}": {
+      "delete": {
+        "operationId": "deleteIamScope",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ScopeName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM scope deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one managed client scope",
+        "tags": [
+          "IAM",
+          "IAMScopes"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_scope",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getIamScope",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ScopeName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamScope"
+                }
+              }
+            },
+            "description": "IAM scope returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one managed client scope",
+        "tags": [
+          "IAM",
+          "IAMScopes"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_scope",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateIamScope",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/ScopeName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamScopeUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM scope update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace the mutable settings of one managed client scope",
+        "tags": [
+          "IAM",
+          "IAMScopes"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_scope",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/status": {
+      "patch": {
+        "operationId": "setIamRealmStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamStatusUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM realm status change accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Activate or deactivate one managed IAM realm",
+        "tags": [
+          "IAM",
+          "IAMRealms"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_realm",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/users": {
+      "get": {
+        "operationId": "listIamUsers",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterEnabled"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamUserCollectionResponse"
+                }
+              }
+            },
+            "description": "IAM user page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List managed IAM users inside one realm",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createIamUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamUserCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM user creation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one managed IAM user with optional bootstrap credentials, attributes, roles, and groups",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/users/{iamUserId}": {
+      "delete": {
+        "operationId": "deleteIamUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IamUserId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM user deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one managed IAM user",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getIamUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IamUserId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamUser"
+                }
+              }
+            },
+            "description": "IAM user returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one managed IAM user",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateIamUser",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IamUserId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamUserUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM user update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Replace the mutable settings of one managed IAM user",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets": {
+      "post": {
+        "operationId": "resetIamUserCredentials",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IamUserId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamUserCredentialResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM user credential reset accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Reset one managed IAM user password or required actions without exposing provider-native payloads",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/iam/realms/{realmId}/users/{iamUserId}/status": {
+      "patch": {
+        "operationId": "setIamUserStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/RealmId"
+          },
+          {
+            "$ref": "#/components/parameters/IamUserId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IamStatusUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamMutationAccepted"
+                }
+              }
+            },
+            "description": "IAM user status change accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this IAM scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested IAM resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The IAM request conflicts with current provider or business validation state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected IAM control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Activate or deactivate one managed IAM user",
+        "tags": [
+          "IAM",
+          "IAMUsers"
+        ],
+        "x-audiences": [
+          "tenant_admin",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "iam",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "iam_user",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "description": "Normalized IAM administration across Keycloak-backed realms, clients, roles, scopes, and users.",
+      "name": "IAM"
+    },
+    {
+      "description": "Tenant realm management and status operations.",
+      "name": "IAMRealms"
+    },
+    {
+      "description": "Workspace and tenant client administration.",
+      "name": "IAMClients"
+    },
+    {
+      "description": "Realm role administration.",
+      "name": "IAMRoles"
+    },
+    {
+      "description": "Client scope administration.",
+      "name": "IAMScopes"
+    },
+    {
+      "description": "Realm user lifecycle, groups, attributes, and credential reset operations.",
+      "name": "IAMUsers"
+    }
+  ]
+}

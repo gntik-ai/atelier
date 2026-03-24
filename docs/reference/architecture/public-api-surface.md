@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.2.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.3.0)
 
 ## Product API vs native passthrough
 
@@ -38,6 +38,7 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 | tenants | tenant_control | tenant_control | 262144 | control_plane | mutations |
 | workspaces | workspace_control | workspace_control | 262144 | control_plane | mutations |
 | auth | auth_control | auth_control | 131072 | control_plane | mutations |
+| iam | tenant_control | tenant_control | 262144 | control_plane | mutations |
 | postgres | provisioning | provisioning | 1048576 | provisioning | mutations |
 | mongo | provisioning | provisioning | 1048576 | provisioning | mutations |
 | events | event_gateway | event_gateway | 262144 | event_gateway | mutations |
@@ -105,6 +106,42 @@ Contextual authorization checks, scope resolution, and token-safe gateway decisi
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
 | POST | `/v1/auth/access-checks` | workspace | authorization_decision | Resolve a contextual authorization decision under the auth family |
+
+## IAM
+
+Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/iam/realms` | tenant | iam_realm | List managed IAM realms through the normalized BaaS surface |
+| POST | `/v1/iam/realms` | tenant | iam_realm | Create one managed IAM realm with normalized validation and audit semantics |
+| DELETE | `/v1/iam/realms/{realmId}` | tenant | iam_realm | Delete one managed IAM realm through the asynchronous control-plane surface |
+| GET | `/v1/iam/realms/{realmId}` | tenant | iam_realm | Fetch one managed IAM realm |
+| PUT | `/v1/iam/realms/{realmId}` | tenant | iam_realm | Replace the mutable IAM realm settings exposed by the BaaS contract |
+| GET | `/v1/iam/realms/{realmId}/clients` | workspace | iam_client | List managed clients inside one IAM realm |
+| POST | `/v1/iam/realms/{realmId}/clients` | workspace | iam_client | Create one managed client inside a tenant realm |
+| DELETE | `/v1/iam/realms/{realmId}/clients/{clientId}` | workspace | iam_client | Delete one managed IAM client |
+| GET | `/v1/iam/realms/{realmId}/clients/{clientId}` | workspace | iam_client | Fetch one managed IAM client |
+| PUT | `/v1/iam/realms/{realmId}/clients/{clientId}` | workspace | iam_client | Replace the mutable settings of one managed IAM client |
+| PATCH | `/v1/iam/realms/{realmId}/clients/{clientId}/status` | workspace | iam_client | Activate or deactivate one managed IAM client |
+| GET | `/v1/iam/realms/{realmId}/roles` | tenant | iam_role | List managed realm roles |
+| POST | `/v1/iam/realms/{realmId}/roles` | tenant | iam_role | Create one managed realm role |
+| DELETE | `/v1/iam/realms/{realmId}/roles/{roleName}` | tenant | iam_role | Delete one managed realm role |
+| GET | `/v1/iam/realms/{realmId}/roles/{roleName}` | tenant | iam_role | Fetch one managed realm role |
+| PUT | `/v1/iam/realms/{realmId}/roles/{roleName}` | tenant | iam_role | Replace the mutable settings of one managed realm role |
+| GET | `/v1/iam/realms/{realmId}/scopes` | tenant | iam_scope | List managed client scopes inside one realm |
+| POST | `/v1/iam/realms/{realmId}/scopes` | tenant | iam_scope | Create one managed client scope |
+| DELETE | `/v1/iam/realms/{realmId}/scopes/{scopeName}` | tenant | iam_scope | Delete one managed client scope |
+| GET | `/v1/iam/realms/{realmId}/scopes/{scopeName}` | tenant | iam_scope | Fetch one managed client scope |
+| PUT | `/v1/iam/realms/{realmId}/scopes/{scopeName}` | tenant | iam_scope | Replace the mutable settings of one managed client scope |
+| PATCH | `/v1/iam/realms/{realmId}/status` | tenant | iam_realm | Activate or deactivate one managed IAM realm |
+| GET | `/v1/iam/realms/{realmId}/users` | tenant | iam_user | List managed IAM users inside one realm |
+| POST | `/v1/iam/realms/{realmId}/users` | tenant | iam_user | Create one managed IAM user with optional bootstrap credentials, attributes, roles, and groups |
+| DELETE | `/v1/iam/realms/{realmId}/users/{iamUserId}` | tenant | iam_user | Delete one managed IAM user |
+| GET | `/v1/iam/realms/{realmId}/users/{iamUserId}` | tenant | iam_user | Fetch one managed IAM user |
+| PUT | `/v1/iam/realms/{realmId}/users/{iamUserId}` | tenant | iam_user | Replace the mutable settings of one managed IAM user |
+| POST | `/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets` | tenant | iam_user | Reset one managed IAM user password or required actions without exposing provider-native payloads |
+| PATCH | `/v1/iam/realms/{realmId}/users/{iamUserId}/status` | tenant | iam_user | Activate or deactivate one managed IAM user |
 
 ## Postgres
 

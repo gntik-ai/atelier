@@ -1,11 +1,11 @@
 {
   "version": "2026-03-24",
-  "scope": "US-GW-03",
+  "scope": "US-IAM-02",
   "system": "in-atelier-public-api",
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-24",
-    "openapi_semver": "1.2.0"
+    "openapi_semver": "1.3.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -193,6 +193,32 @@
       ],
       "audiences": [
         "developer_external",
+        "tenant_admin",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "iam",
+      "title": "IAM",
+      "prefix": "/v1/iam",
+      "summary": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "iam_admin_request",
+        "iam_admin_result",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "keycloak"
+      ],
+      "resource_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "audiences": [
         "tenant_admin",
         "workspace_admin",
         "platform_team"
@@ -481,6 +507,36 @@
       "resource_type": "gateway_stream_metrics",
       "family": "metrics",
       "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "iam_realm",
+      "family": "iam",
+      "scope": "tenant",
+      "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "iam_client",
+      "family": "iam",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "iam_role",
+      "family": "iam",
+      "scope": "tenant",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "iam_scope",
+      "family": "iam",
+      "scope": "tenant",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "iam_user",
+      "family": "iam",
+      "scope": "tenant",
       "authorization_resource": null
     }
   ]

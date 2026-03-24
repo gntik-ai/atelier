@@ -19,13 +19,15 @@
         "Validate request shape, tenant context, and API version headers.",
         "Resolve contextual authorization with actor, tenant, workspace, plan, scopes, effective roles, and correlation metadata.",
         "Translate accepted operations into internal command envelopes.",
+        "Accept BaaS-native IAM administrative operations for realms, clients, roles, scopes, and users while keeping provider payload normalization stable.",
         "Emit audit evidence for request acceptance and synchronous rejection where required."
       ],
       "owned_resources": [
         "public route contract",
         "authorization context",
         "request validation policy",
-        "authorization decision"
+        "authorization decision",
+        "iam administrative request envelope"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -36,7 +38,8 @@
       "outbound_contracts": [
         "control_api_command",
         "provisioning_request",
-        "audit_record"
+        "audit_record",
+        "iam_admin_request"
       ]
     },
     {
@@ -46,6 +49,7 @@
       "responsibilities": [
         "Create or reload provisioning runs using stable idempotency keys.",
         "Sequence provider-facing provisioning steps.",
+        "Coordinate Keycloak admin operations for realms, clients, roles, scopes, and users without letting control_api call adapters directly.",
         "Aggregate provider outcomes into a shared provisioning result envelope.",
         "Preserve workspace-safe authorization context and plan guardrails across provider-facing adapter calls.",
         "Emit audit evidence for step transitions and final outcomes."
@@ -54,7 +58,8 @@
         "provisioning run state",
         "step plan",
         "retry classification",
-        "propagated authorization context"
+        "propagated authorization context",
+        "iam admin orchestration result"
       ],
       "service_dependencies": [
         "audit_module"
@@ -68,12 +73,14 @@
         "storage"
       ],
       "inbound_contracts": [
-        "provisioning_request"
+        "provisioning_request",
+        "iam_admin_request"
       ],
       "outbound_contracts": [
         "provisioning_result",
         "adapter_call",
-        "audit_record"
+        "audit_record",
+        "iam_admin_result"
       ]
     },
     {
@@ -153,11 +160,44 @@
         "ensure_client_scopes",
         "ensure_protocol_mappers",
         "ensure_service_account",
-        "rotate_client_secret"
+        "rotate_client_secret",
+        "iam_realm_list",
+        "iam_realm_get",
+        "iam_realm_create",
+        "iam_realm_update",
+        "iam_realm_delete",
+        "iam_realm_activate",
+        "iam_realm_deactivate",
+        "iam_client_list",
+        "iam_client_get",
+        "iam_client_create",
+        "iam_client_update",
+        "iam_client_delete",
+        "iam_client_activate",
+        "iam_client_deactivate",
+        "iam_role_list",
+        "iam_role_get",
+        "iam_role_create",
+        "iam_role_update",
+        "iam_role_delete",
+        "iam_scope_list",
+        "iam_scope_get",
+        "iam_scope_create",
+        "iam_scope_update",
+        "iam_scope_delete",
+        "iam_user_list",
+        "iam_user_get",
+        "iam_user_create",
+        "iam_user_update",
+        "iam_user_delete",
+        "iam_user_activate",
+        "iam_user_deactivate",
+        "iam_user_reset_credentials",
+        "iam_user_reconcile_groups"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
-      "idempotency_key": "tenant_id + workspace_id + capability + target_ref + identity_blueprint_ref",
+      "idempotency_key": "tenant_id + workspace_id + capability + target_ref + resource_version + identity_blueprint_ref",
       "error_classes": [
         "retryable_dependency_failure",
         "terminal_dependency_failure"
@@ -552,6 +592,62 @@
         "invalid_blueprint",
         "unsupported_identity_strategy"
       ]
+    },
+    "iam_admin_request": {
+      "owner": "control_api",
+      "version": "2026-03-24",
+      "required_fields": [
+        "command_id",
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "resource_kind",
+        "action",
+        "target_ref",
+        "payload",
+        "provider_version",
+        "idempotency_key",
+        "correlation_id",
+        "authorization_decision_id",
+        "identity_blueprint_ref",
+        "effective_roles",
+        "scopes",
+        "contract_version",
+        "requested_at"
+      ],
+      "idempotency": "IAM admin mutations must coalesce by target_ref, action, and idempotency_key so safe retries do not duplicate provider-side changes.",
+      "versioning": "The BaaS request envelope stays stable even when Keycloak payload details evolve or provider versions roll forward inside the supported compatibility matrix.",
+      "error_classes": [
+        "validation_error",
+        "conflict",
+        "dependency_failure",
+        "unsupported_provider_version"
+      ]
+    },
+    "iam_admin_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "resource_kind",
+        "action",
+        "status",
+        "provider_reference",
+        "normalized_resource",
+        "correlation_id",
+        "contract_version",
+        "observed_at"
+      ],
+      "idempotency": "Repeated reads of the same IAM admin result must describe one logical provider outcome and one normalized resource projection.",
+      "versioning": "Result contracts expose normalized BaaS-native resource shapes while preserving provider references and supported-version metadata additively.",
+      "error_classes": [
+        "not_found",
+        "conflict",
+        "retryable_dependency_failure",
+        "terminal_dependency_failure",
+        "unsupported_provider_version"
+      ]
     }
   },
   "interaction_flows": [
@@ -601,6 +697,16 @@
         "provisioning_orchestrator expands the workspace client namespace into one or more Keycloak clients tied to the tenant realm and the canonical application/service-account records.",
         "services/adapters Keycloak calls ensure protocol mappers, redirect policy, service-account users, and credential rotation hooks without crossing tenant or workspace scope.",
         "audit_module records the actor, workspace namespace, resulting client identifiers, and any deferred credential rotation evidence."
+      ]
+    },
+    {
+      "id": "iam_administration",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api validates the BaaS-native IAM request, resolves contextual authorization for tenant/workspace scope, and emits one iam_admin_request envelope with correlation and idempotency metadata.",
+        "provisioning_orchestrator validates the requested Keycloak version against the supported compatibility matrix, preserves tenant/workspace boundaries, and translates the normalized resource intent into one keycloak adapter_call.",
+        "services/adapters performs realm, client, role, scope, or user operations through the Keycloak Admin API, then normalizes provider payloads and error classes back into the stable iam_admin_result contract.",
+        "audit_module records the actor, tenant/workspace scope, resource target, resulting provider reference, and any reset/deactivation evidence without storing raw credentials."
       ]
     }
   ]

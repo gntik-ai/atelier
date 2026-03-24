@@ -18,4 +18,5 @@ Scaffolding added by `US-ARC-01-T01`, `US-ARC-03`, and `US-GW-01`:
 - `authorization-model.mjs` exposes the shared security-context and access-decision baseline
 - `domain-model.mjs` exposes the canonical entity, write-envelope, and lifecycle-event baseline
 - `public-api-catalog.mjs` exposes the generated family/route discovery catalog that backs the `/v1/platform/route-catalog` contract
+- `iam-admin.mjs` exposes the normalized `/v1/iam/*` administrative family metadata and compatibility summary for Keycloak-backed IAM resources
 - provider-specific implementation remains out of this workspace

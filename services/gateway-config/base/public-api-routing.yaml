@@ -7,7 +7,7 @@ spec:
   uriPrefix: /v1
   versionHeader:
     name: X-API-Version
-    currentValue: '2026-03-24'
+    currentValue: 2026-03-24
   correlationHeader:
     name: X-Correlation-Id
     required: true
@@ -208,7 +208,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: none
       workspaceBinding: none
-      propagatedHeaders: &propagatedHeaders
+      propagatedHeaders: &a1
         - X-Auth-Subject
         - X-Actor-Username
         - X-Tenant-Id
@@ -228,7 +228,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: none
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       qosProfile: tenant_control
       requestValidationProfile: tenant_control
     - id: workspaces
@@ -241,7 +241,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: optional
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       qosProfile: workspace_control
       requestValidationProfile: workspace_control
     - id: auth
@@ -254,9 +254,24 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       qosProfile: auth_control
       requestValidationProfile: auth_control
+    - id: iam
+      pathPrefix: /v1/iam
+      upstreamService: control_api
+      routeClass: control
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: optional
+      propagatedHeaders: *a1
+      qosProfile: tenant_control
+      requestValidationProfile: tenant_control
+      planCapabilityAnyOf:
+        - identity.sso.oidc
     - id: postgres
       pathPrefix: /v1/postgres
       upstreamService: control_api
@@ -267,7 +282,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       planCapabilityAnyOf:
         - data.postgresql.shared
         - data.postgresql.dedicated
@@ -283,7 +298,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       qosProfile: provisioning
       requestValidationProfile: provisioning
     - id: events
@@ -296,7 +311,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       planCapabilityAnyOf:
         - data.kafka.topics
       qosProfile: event_gateway
@@ -311,7 +326,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       planCapabilityAnyOf:
         - data.openwhisk.actions
       qosProfile: provisioning
@@ -326,7 +341,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       planCapabilityAnyOf:
         - data.storage.bucket
       qosProfile: provisioning
@@ -341,7 +356,7 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       planCapabilityAnyOf:
         - observability.metrics.basic
       qosProfile: observability
@@ -356,19 +371,19 @@ spec:
       allowAnonymousOptions: true
       tenantBinding: required
       workspaceBinding: required
-      propagatedHeaders: *propagatedHeaders
+      propagatedHeaders: *a1
       planCapabilityAnyOf:
         - data.kafka.topics
       qosProfile: realtime
       requestValidationProfile: realtime
-  allowedRequestHeaders: &allowedRequestHeaders
+  allowedRequestHeaders: &a2
     - Authorization
     - Content-Type
     - Idempotency-Key
     - X-API-Version
     - X-Correlation-Id
     - X-Requested-With
-  propagatedHeaders: *propagatedHeaders
+  propagatedHeaders: *a1
   corsProfiles:
     product_api:
       allowOrigins:
@@ -380,7 +395,7 @@ spec:
         - PATCH
         - DELETE
         - OPTIONS
-      allowHeaders: *allowedRequestHeaders
+      allowHeaders: *a2
       exposeHeaders:
         - X-Correlation-Id
         - X-Idempotency-Replayed

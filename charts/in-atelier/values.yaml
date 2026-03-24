@@ -966,6 +966,22 @@ bootstrap:
         upstream:
           component: controlPlane
           port: 8080
+      - routeId: '2004-iam'
+        name: public-api-iam
+        uri: /v1/iam/*
+        methods: *id002
+        priority: 235
+        labels:
+          gateway.in-atelier.io/route-kind: product_api
+          gateway.in-atelier.io/family: iam
+          gateway.in-atelier.io/tenant-binding: required
+          gateway.in-atelier.io/workspace-binding: optional
+          gateway.in-atelier.io/plan-capabilities: identity.sso.oidc
+          gateway.in-atelier.io/audit-required: 'false'
+        plugins: *id003
+        upstream:
+          component: controlPlane
+          port: 8080
       - routeId: '2005'
         name: public-api-postgres
         uri: /v1/postgres/*
@@ -2371,6 +2387,13 @@ gatewayPolicy:
       qosProfile: auth_control
       requestValidationProfile: auth_control
       planCapabilityAnyOf: []
+    iam:
+      tenantBinding: required
+      workspaceBinding: optional
+      qosProfile: tenant_control
+      requestValidationProfile: tenant_control
+      planCapabilityAnyOf:
+      - identity.sso.oidc
     postgres:
       tenantBinding: required
       workspaceBinding: required

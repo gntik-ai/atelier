@@ -87,9 +87,13 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.deepEqual([...auditProviderIds].sort(), ['postgresql', 'storage']);
   assert.ok(keycloakAdapter.capabilities.includes('ensure_protocol_mappers'));
   assert.ok(keycloakAdapter.capabilities.includes('ensure_service_account'));
+  assert.ok(keycloakAdapter.capabilities.includes('iam_realm_create'));
+  assert.ok(keycloakAdapter.capabilities.includes('iam_client_update'));
+  assert.ok(keycloakAdapter.capabilities.includes('iam_user_reset_credentials'));
   assert.ok(interactionFlowIds.has('tenant_provisioning'));
   assert.ok(interactionFlowIds.has('tenant_suspension'));
   assert.ok(interactionFlowIds.has('workspace_identity_registration'));
+  assert.ok(interactionFlowIds.has('iam_administration'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));
   assert.ok(interactionFlowIds.has('realtime_subscription_gateway'));
   assert.equal(getService('event_gateway').package, 'services/event-gateway');

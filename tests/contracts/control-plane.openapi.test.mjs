@@ -17,6 +17,13 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/managed-resources/{resourceId}']);
   assert.ok(document.paths['/v1/auth/access-checks']);
+  assert.ok(document.paths['/v1/iam/realms']);
+  assert.ok(document.paths['/v1/iam/realms/{realmId}']);
+  assert.ok(document.paths['/v1/iam/realms/{realmId}/clients/{clientId}']);
+  assert.ok(document.paths['/v1/iam/realms/{realmId}/roles/{roleName}']);
+  assert.ok(document.paths['/v1/iam/realms/{realmId}/scopes/{scopeName}']);
+  assert.ok(document.paths['/v1/iam/realms/{realmId}/users/{iamUserId}']);
+  assert.ok(document.paths['/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets']);
   assert.ok(document.paths['/v1/platform/plans/{planId}']);
   assert.ok(document.paths['/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}']);
   assert.ok(document.paths['/v1/platform/deployment-profiles/{deploymentProfileId}']);
@@ -41,6 +48,9 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const document = await SwaggerParser.validate(OPENAPI_PATH);
   const accessCheck = document.paths['/v1/auth/access-checks'].post;
   const createManagedResource = document.paths['/v1/workspaces/{workspaceId}/managed-resources'].post;
+  const createIamRealm = document.paths['/v1/iam/realms'].post;
+  const listIamClients = document.paths['/v1/iam/realms/{realmId}/clients'].get;
+  const resetIamUserCredentials = document.paths['/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets'].post;
   const getWorkspaceCapabilities = document.paths['/v1/workspaces/{workspaceId}/effective-capabilities'].get;
   const createInvitation = document.paths['/v1/tenants/{tenantId}/invitations'].post;
   const getRouteCatalog = document.paths['/v1/platform/route-catalog'].get;
@@ -51,7 +61,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.2.0');
+  assert.equal(document.info.version, '1.3.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -66,6 +76,9 @@ test('control-plane contract enforces versioning, authorization, family metadata
 
   const accessCheckParameters = resolveParameters(document, accessCheck);
   const managedResourceParameters = resolveParameters(document, createManagedResource);
+  const iamRealmParameters = resolveParameters(document, createIamRealm);
+  const iamClientListParameters = resolveParameters(document, listIamClients);
+  const iamCredentialResetParameters = resolveParameters(document, resetIamUserCredentials);
   const workspaceCapabilitiesParameters = resolveParameters(document, getWorkspaceCapabilities);
   const invitationParameters = resolveParameters(document, createInvitation);
   const routeCatalogParameters = resolveParameters(document, getRouteCatalog);
@@ -95,6 +108,29 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(createManagedResource.responses['429']);
   assert.ok(createManagedResource.responses['431']);
   assert.ok(createManagedResource.responses['504']);
+
+  assert.equal(createIamRealm['x-family'], 'iam');
+  assert.equal(iamRealmParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(createIamRealm.responses['202']);
+  assert.ok(createIamRealm.responses['409']);
+  assert.ok(document.components.schemas.IamRealm);
+  assert.ok(document.components.schemas.IamProviderCompatibility);
+  assert.ok(document.components.schemas.IamMutationAccepted);
+
+  assert.equal(listIamClients['x-family'], 'iam');
+  assert.equal(iamClientListParameters.some((parameter) => parameter.name === 'realmId'), true);
+  assert.equal(iamClientListParameters.some((parameter) => parameter.name === 'filter[protocol]'), true);
+  assert.ok(document.components.schemas.IamClientCollectionResponse);
+  assert.ok(document.components.schemas.IamClientAccessType);
+
+  assert.equal(resetIamUserCredentials['x-family'], 'iam');
+  assert.equal(iamCredentialResetParameters.some((parameter) => parameter.name === 'iamUserId'), true);
+  assert.equal(iamCredentialResetParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(resetIamUserCredentials.responses['202']);
+  assert.ok(resetIamUserCredentials.responses['404']);
+  assert.ok(document.components.schemas.IamUser);
+  assert.ok(document.components.schemas.IamUserCredentialResetRequest);
+  assert.ok(document.components.schemas.IamStatusUpdateRequest);
 
   assert.equal(getWorkspaceCapabilities['x-family'], 'workspaces');
   assert.equal(workspaceCapabilitiesParameters.some((parameter) => parameter.name === 'workspaceId'), true);
