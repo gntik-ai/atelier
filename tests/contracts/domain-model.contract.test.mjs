@@ -63,6 +63,8 @@ test('domain model preserves deployment, authorization, and governance alignment
   assert.equal(workspaceEntity.business_rules.some((rule) => rule.includes('deployment topology environment catalog')), true);
   assert.equal(tenantEntity.business_rules.some((rule) => rule.includes('identityContext')), true);
   assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('iamClient.clientId')), true);
+  assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('authenticationFlows')), true);
+  assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('federated provider alias')), true);
   assert.equal(serviceAccountEntity.business_rules.some((rule) => rule.includes('confidential Keycloak client')), true);
   assert.equal(serviceAccountEntity.required_fields.includes('credentialPolicy'), true);
   assert.equal(managedResourceEntity.required_fields.includes('accessPolicy'), true);

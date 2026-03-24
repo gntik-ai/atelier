@@ -14,6 +14,9 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/tenants/{tenantId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}']);
+  assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/templates']);
+  assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers']);
+  assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-issuance']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations']);
@@ -82,6 +85,10 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const issueServiceAccountCredential = document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-issuance'].post;
   const rotateServiceAccountCredential = document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations'].post;
   const revokeServiceAccountCredential = document.paths['/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-revocations'].post;
+  const listExternalApplicationTemplates = document.paths['/v1/workspaces/{workspaceId}/applications/templates'].get;
+  const listFederatedProviders = document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers'].get;
+  const createFederatedProvider = document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers'].post;
+  const updateExternalApplication = document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}'].put;
   const getRouteCatalog = document.paths['/v1/platform/route-catalog'].get;
   const createPostgres = document.paths['/v1/postgres/instances'].post;
   const publishEvent = document.paths['/v1/events/topics/{resourceId}/publish'].post;
@@ -90,7 +97,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.5.0');
+  assert.equal(document.info.version, '1.6.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -124,6 +131,10 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const serviceAccountCredentialIssuanceParameters = resolveParameters(document, issueServiceAccountCredential);
   const serviceAccountCredentialRotationParameters = resolveParameters(document, rotateServiceAccountCredential);
   const serviceAccountCredentialRevocationParameters = resolveParameters(document, revokeServiceAccountCredential);
+  const applicationTemplateParameters = resolveParameters(document, listExternalApplicationTemplates);
+  const federatedProviderListParameters = resolveParameters(document, listFederatedProviders);
+  const federatedProviderCreateParameters = resolveParameters(document, createFederatedProvider);
+  const externalApplicationUpdateParameters = resolveParameters(document, updateExternalApplication);
   const routeCatalogParameters = resolveParameters(document, getRouteCatalog);
   const postgresParameters = resolveParameters(document, createPostgres);
   const publishEventParameters = resolveParameters(document, publishEvent);
@@ -260,6 +271,16 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(revokeServiceAccountCredential['x-family'], 'workspaces');
   assert.equal(serviceAccountCredentialRevocationParameters.some((parameter) => parameter.name === 'serviceAccountId'), true);
   assert.ok(revokeServiceAccountCredential.responses['202']);
+  assert.equal(listExternalApplicationTemplates['x-family'], 'workspaces');
+  assert.equal(applicationTemplateParameters.some((parameter) => parameter.name === 'planId'), true);
+  assert.ok(listExternalApplicationTemplates.responses['200']);
+  assert.equal(listFederatedProviders['x-family'], 'workspaces');
+  assert.equal(federatedProviderListParameters.some((parameter) => parameter.name === 'applicationId'), true);
+  assert.equal(createFederatedProvider['x-rate-limit-class'], 'control-write');
+  assert.equal(federatedProviderCreateParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(updateExternalApplication['x-family'], 'workspaces');
+  assert.equal(externalApplicationUpdateParameters.some((parameter) => parameter.name === 'applicationId'), true);
+  assert.ok(updateExternalApplication.responses['202']);
   assert.ok(document.components.schemas.Invitation);
   assert.ok(document.components.schemas.InvitationAcceptanceRequest);
   assert.ok(document.components.schemas.InvitationRevocationRequest);
@@ -269,6 +290,11 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.TenantIdentityContext);
   assert.ok(document.components.schemas.WorkspaceIamBoundary);
   assert.ok(document.components.schemas.ExternalApplicationIamClient);
+  assert.ok(document.components.schemas.ExternalApplicationAuthenticationFlow);
+  assert.ok(document.components.schemas.ExternalApplicationStarterTemplate);
+  assert.ok(document.components.schemas.ExternalApplicationPlanLimit);
+  assert.ok(document.components.schemas.FederatedIdentityProvider);
+  assert.ok(document.components.schemas.ExternalApplicationValidationSummary);
   assert.ok(document.components.schemas.ServiceAccountIamBinding);
   assert.ok(document.components.schemas.ServiceAccountCredentialPolicy);
   assert.ok(document.components.schemas.ServiceAccountCredentialReference);
@@ -276,6 +302,8 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.KeycloakProtocolMapper);
   assert.ok(document.components.schemas.Tenant.properties.identityContext);
   assert.ok(document.components.schemas.ExternalApplication.properties.iamClient);
+  assert.ok(document.components.schemas.ExternalApplication.properties.federatedProviders);
+  assert.ok(document.components.schemas.ExternalApplication.properties.authenticationFlows);
   assert.ok(document.components.schemas.ServiceAccount.properties.iamBinding);
   assert.ok(document.components.schemas.ServiceAccount.properties.credentialPolicy);
   assert.ok(document.components.schemas.ManagedResource.properties.accessPolicy);

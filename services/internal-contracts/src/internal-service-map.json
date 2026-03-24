@@ -197,7 +197,11 @@
         "ensure_group_role_mappings",
         "issue_service_account_credentials",
         "rotate_service_account_credentials",
-        "revoke_service_account_credentials"
+        "revoke_service_account_credentials",
+        "ensure_federated_identity_providers",
+        "ensure_saml_clients",
+        "validate_federation_metadata",
+        "validate_logout_redirects"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -698,8 +702,8 @@
       "entry_service": "control_api",
       "steps": [
         "control_api accepts workspace application or service-account mutations only after tenant/workspace authorization is resolved and correlated.",
-        "provisioning_orchestrator expands the workspace client namespace into one or more Keycloak clients tied to the tenant realm and the canonical application/service-account records.",
-        "services/adapters Keycloak calls ensure protocol mappers, redirect policy, service-account users, and credential rotation hooks without crossing tenant or workspace scope.",
+        "provisioning_orchestrator expands the workspace client namespace into one or more Keycloak clients tied to the tenant realm and the canonical application/service-account records, including OIDC and SAML external-application federation shapes.",
+        "services/adapters Keycloak calls ensure protocol mappers, redirect policy, logout policy, federated identity providers, service-account users, and credential rotation hooks without crossing tenant or workspace scope.",
         "audit_module records the actor, workspace namespace, resulting client identifiers, and any deferred credential rotation evidence."
       ]
     },
@@ -731,6 +735,16 @@
         "provisioning_orchestrator translates the canonical credential intent into idempotent adapter calls while preserving workspace isolation and grace-overlap rules.",
         "services/adapters rotates or revokes Keycloak-backed credentials, updates secret references, and returns secret-free evidence pointers to the orchestrator.",
         "audit_module records the actor, workspace namespace, previous and next credential references, and the revocation evidence without storing raw secrets."
+      ]
+    },
+    {
+      "id": "workspace_application_federation",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api validates external application mutations, starter templates, authentication flows, redirect URIs, and federated provider metadata against workspace scope and plan limits.",
+        "provisioning_orchestrator expands the canonical application contract into Keycloak OIDC clients, SAML clients, and brokered identity-provider resources while preserving tenant and workspace boundaries.",
+        "services/adapters validates metadata URLs, signing certificates, logout callbacks, and attribute-mapper compatibility before performing idempotent provider upserts.",
+        "audit_module records the actor, workspace namespace, provider aliases, validation outcome, and resulting identity references without persisting raw secrets or certificates outside approved evidence pointers."
       ]
     }
   ]

@@ -12,9 +12,13 @@ import {
   getBusinessStateMachine,
   getCommercialPlan,
   getDomainEntity,
+  getExternalApplicationPlanLimit,
+  getExternalApplicationTemplate,
   getQuotaPolicy,
   listCommercialPlans,
   listDomainEntities,
+  listExternalApplicationSupportedFlows,
+  listExternalApplicationTemplates,
   listLifecycleEvents,
   listLifecycleTransitions,
   listPlanChangeScenarios,
@@ -79,6 +83,11 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.identityContext.platformRealm === 'in-atelier-platform'), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.iamBoundary.clientNamespace)), true);
   assert.equal(growthProfile.externalApplications.filter((application) => application.workspaceId === 'wrk_01betaprod').length >= 2, true);
+  assert.equal(growthProfile.externalApplications.some((application) => application.federatedProviders?.some((provider) => provider.protocol === 'oidc')), true);
+  assert.equal(
+    seedFixtures.profiles.find((profile) => profile.id === 'enterprise-dedicated').externalApplications.some((application) => application.protocol === 'saml'),
+    true
+  );
   assert.equal(growthProfile.serviceAccounts.some((account) => account.iamBinding.clientId === 'beta-prod-svc-mobile-api'), true);
   assert.deepEqual(invitationStateMachine.states, ['pending', 'accepted', 'revoked', 'expired']);
   assert.ok(serviceAccountCredentialStateMachine);
@@ -91,6 +100,10 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   );
   assert.equal(getCommercialPlan('pln_01enterprise').deploymentProfileId, 'dpf_01enterprisefederated');
   assert.equal(getQuotaPolicy('qta_01regulated').defaultLimits.some((limit) => limit.metricKey === 'tenant.audit_retention_days.max'), true);
+  assert.equal(listExternalApplicationSupportedFlows().length, 5);
+  assert.equal(listExternalApplicationTemplates().map((template) => template.templateId).includes('tpl_b2b_saml'), true);
+  assert.deepEqual(getExternalApplicationTemplate('tpl_spa_oidc_pkce').supportedAuthenticationFlows, ['oidc_authorization_code_pkce']);
+  assert.deepEqual(getExternalApplicationPlanLimit('pln_01enterprise').supportedProtocols, ['oidc', 'saml']);
 });
 
 test('effective capability resolution intersects plan entitlements, profiles, and environment safety', () => {

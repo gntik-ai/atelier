@@ -30,9 +30,11 @@ test('permission matrix preserves tenant and workspace boundaries', () => {
   assert.equal(workspaceRoles.get('workspace_owner').allowed_actions.includes('workspace.policy.manage'), true);
   assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('workspace.members.manage'), true);
   assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('service_account.credentials.issue'), true);
+  assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('app.federation.manage'), true);
   assert.equal(workspaceRoles.get('workspace_admin').denied_actions.includes('tenant.suspend'), true);
   assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('function.deploy'), true);
   assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('app.redirect_uris.manage'), true);
+  assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('app.templates.read'), true);
   assert.equal(workspaceRoles.get('workspace_developer').denied_actions.includes('workspace.members.manage'), true);
   assert.equal(workspaceRoles.get('workspace_operator').allowed_actions.includes('service_account.rotate'), true);
   assert.equal(workspaceRoles.get('workspace_viewer').allowed_actions.includes('function.read'), true);
@@ -43,9 +45,11 @@ test('permission matrix preserves tenant and workspace boundaries', () => {
   assert.equal(tenantRoles.get('tenant_owner').allowed_actions.includes('tenant.invitations.manage'), true);
   assert.equal(tenantRoles.get('tenant_admin').allowed_actions.includes('database.admin'), true);
   assert.equal(tenantRoles.get('tenant_admin').allowed_actions.includes('app.credentials.rotate'), true);
+  assert.equal(tenantRoles.get('tenant_admin').allowed_actions.includes('app.federation.manage'), true);
   assert.equal(tenantRoles.get('tenant_admin').allowed_actions.includes('tenant.role_mappings.manage'), true);
   assert.equal(tenantRoles.get('tenant_operator').denied_actions.includes('database.admin'), true);
   assert.equal(tenantRoles.get('tenant_operator').allowed_actions.includes('service_account.read'), true);
+  assert.equal(tenantRoles.get('tenant_operator').allowed_actions.includes('app.templates.read'), true);
   assert.equal(tenantRoles.get('auditor').allowed_actions.includes('tenant.audit.read'), true);
   assert.equal(tenantRoles.get('auditor').allowed_actions.includes('service_account.read'), true);
   assert.equal(tenantRoles.get('auditor').denied_actions.includes('bucket.write'), true);

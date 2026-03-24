@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   IAM_ADMIN_CAPABILITY_MATRIX,
   RESERVED_REALM_IDS,
+  SUPPORTED_CLIENT_PROTOCOLS,
   SUPPORTED_KEYCLOAK_VERSION_RANGES,
   buildIamAdminAdapterCall,
   isKeycloakVersionSupported,
@@ -15,6 +16,7 @@ import {
 test('keycloak admin adapter exports the supported compatibility matrix and resource coverage', () => {
   assert.deepEqual(Object.keys(IAM_ADMIN_CAPABILITY_MATRIX), ['realm', 'client', 'role', 'scope', 'user']);
   assert.equal(SUPPORTED_KEYCLOAK_VERSION_RANGES.length, 3);
+  assert.deepEqual(SUPPORTED_CLIENT_PROTOCOLS, ['openid-connect', 'saml']);
   assert.equal(SUPPORTED_KEYCLOAK_VERSION_RANGES.every((entry) => entry.supportedResources.includes('user')), true);
   assert.equal(isKeycloakVersionSupported('24.0.6'), true);
   assert.equal(isKeycloakVersionSupported('25.3.1'), true);
@@ -86,6 +88,24 @@ test('keycloak admin adapter validates conflicting IAM configurations before bui
       optionalScopes: ['profile']
     }
   });
+  const invalidSamlClient = validateIamAdminRequest({
+    resourceKind: 'client',
+    action: 'update',
+    context: {
+      scope: 'workspace',
+      realmId: 'tenant-starter-alpha',
+      workspaceClientNamespace: 'starter-dev'
+    },
+    payload: {
+      clientId: 'starter-dev-partner-hub',
+      protocol: 'saml',
+      accessType: 'bearer_only',
+      serviceAccountsEnabled: true,
+      directAccessGrantsEnabled: true,
+      logoutBinding: 'redirect',
+      redirectUris: []
+    }
+  });
   const invalidUser = validateIamAdminRequest({
     resourceKind: 'user',
     action: 'reset_credentials',
@@ -107,6 +127,16 @@ test('keycloak admin adapter validates conflicting IAM configurations before bui
   assert.equal(invalidClient.violations.some((violation) => violation.includes('must enable at least one authentication flow')), true);
   assert.equal(invalidClient.violations.some((violation) => violation.includes('Wildcard redirect URIs')), true);
   assert.equal(invalidClient.violations.some((violation) => violation.includes('must start with namespace starter-dev')), true);
+
+  assert.equal(invalidSamlClient.ok, false);
+  assert.equal(invalidSamlClient.violations.some((violation) => violation.includes('SAML clients cannot use bearer_only')), true);
+  assert.equal(invalidSamlClient.violations.some((violation) => violation.includes('SAML clients cannot enable service accounts')), true);
+  assert.equal(invalidSamlClient.violations.some((violation) => violation.includes('SAML clients cannot enable direct access grants')), true);
+  assert.equal(
+    invalidSamlClient.violations.some((violation) => violation.includes('assertion consumer service URL or equivalent redirect URI')),
+    true
+  );
+  assert.equal(invalidSamlClient.violations.some((violation) => violation.includes('require a signing certificate reference')), true);
 
   assert.equal(invalidUser.ok, false);
   assert.equal(invalidUser.violations.some((violation) => violation.includes('groups must be unique')), true);

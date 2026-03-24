@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.5.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.6.0)
 
 ## Product API vs native passthrough
 
@@ -91,8 +91,15 @@ Workspace lifecycle, application inventory, workload identities, and managed-res
 | --- | --- | --- | --- | --- |
 | POST | `/v1/workspaces` | workspace | workspace | Submit a canonical workspace write request under the workspaces family |
 | GET | `/v1/workspaces/{workspaceId}` | workspace | workspace | Fetch one canonical workspace entity under the workspaces family |
+| GET | `/v1/workspaces/{workspaceId}/applications` | workspace | application | List canonical external applications, authentication flows, and validation status for one workspace |
 | POST | `/v1/workspaces/{workspaceId}/applications` | workspace | application | Submit a canonical external application write request under the workspaces family |
 | GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Fetch one canonical external application entity under the workspaces family |
+| PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Update one canonical external application including federation, logout, scope, and role settings |
+| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers` | workspace | application | List federated OIDC and SAML identity providers attached to one external application |
+| POST | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers` | workspace | application | Create one federated identity provider for an external application |
+| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Fetch one federated identity provider attached to an external application |
+| PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Update one federated identity provider including metadata, certificates, and mapper bindings |
+| GET | `/v1/workspaces/{workspaceId}/applications/templates` | workspace | application | List starter templates for SPA, confidential backend, and B2B SAML external applications |
 | GET | `/v1/workspaces/{workspaceId}/effective-capabilities` | workspace | workspace_capabilities | Resolve effective capabilities for one workspace |
 | POST | `/v1/workspaces/{workspaceId}/managed-resources` | workspace | managed_resource | Submit a canonical managed resource write request |
 | GET | `/v1/workspaces/{workspaceId}/managed-resources/{resourceId}` | workspace | managed_resource | Fetch one canonical managed resource entity |

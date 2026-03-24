@@ -481,7 +481,12 @@
       "app.deploy",
       "app.admin",
       "app.credentials.rotate",
-      "app.redirect_uris.manage"
+      "app.redirect_uris.manage",
+      "app.federation.read",
+      "app.federation.manage",
+      "app.attribute_mappers.manage",
+      "app.logout.manage",
+      "app.templates.read"
     ],
     "service_account": [
       "service_account.read",
@@ -610,7 +615,11 @@
       "delegable_actions": [
         "app.read",
         "app.deploy",
-        "app.credentials.rotate"
+        "app.credentials.rotate",
+        "app.federation.read",
+        "app.federation.manage",
+        "app.attribute_mappers.manage",
+        "app.logout.manage"
       ],
       "forbidden_actions": [
         "app.admin_without_workspace_scope",
@@ -728,7 +737,12 @@
           "service_account.admin",
           "service_account.rotate",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.read",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage",
+          "app.templates.read"
         ],
         "denied_actions": []
       },
@@ -760,7 +774,12 @@
           "service_account.admin",
           "service_account.rotate",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.read",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage",
+          "app.templates.read"
         ],
         "denied_actions": [
           "tenant.suspend"
@@ -782,7 +801,9 @@
           "function.read",
           "function.invoke",
           "app.read",
-          "service_account.read"
+          "service_account.read",
+          "app.federation.read",
+          "app.templates.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -799,7 +820,10 @@
           "app.admin",
           "service_account.admin",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage"
         ]
       },
       {
@@ -832,7 +856,9 @@
           "topic.read",
           "function.read",
           "app.read",
-          "service_account.read"
+          "service_account.read",
+          "app.federation.read",
+          "app.templates.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -845,7 +871,10 @@
           "app.deploy",
           "service_account.rotate",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage"
         ]
       }
     ],
@@ -872,7 +901,12 @@
           "service_account.rotate",
           "service_account.admin",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.read",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage",
+          "app.templates.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -901,7 +935,12 @@
           "service_account.rotate",
           "service_account.admin",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.read",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage",
+          "app.templates.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -925,7 +964,10 @@
           "app.read",
           "app.deploy",
           "app.redirect_uris.manage",
-          "service_account.read"
+          "service_account.read",
+          "app.federation.read",
+          "app.attribute_mappers.manage",
+          "app.templates.read"
         ],
         "denied_actions": [
           "workspace.members.manage",
@@ -940,7 +982,9 @@
           "service_account.rotate",
           "service_account.admin",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.manage",
+          "app.logout.manage"
         ]
       },
       {
@@ -1005,7 +1049,9 @@
           "topic.read",
           "function.read",
           "app.read",
-          "service_account.read"
+          "service_account.read",
+          "app.federation.read",
+          "app.templates.read"
         ],
         "denied_actions": [
           "workspace.update",
@@ -1019,7 +1065,10 @@
           "service_account.rotate",
           "service_account.admin",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "app.federation.manage",
+          "app.attribute_mappers.manage",
+          "app.logout.manage"
         ]
       },
       {

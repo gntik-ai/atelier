@@ -97,9 +97,88 @@
               "workspace-roles"
             ],
             "redirectUris": [
-              "https://customer-portal.alpha-dev.apps.in-atelier.example.com/*"
+              "https://customer-portal.alpha-dev.apps.in-atelier.example.com/auth/callback"
+            ],
+            "postLogoutRedirectUris": [
+              "https://customer-portal.alpha-dev.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://customer-portal.alpha-dev.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "displayName": "Customer Portal",
+          "templateId": "tpl_spa_oidc_pkce",
+          "authenticationFlows": [
+            "oidc_authorization_code_pkce"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://customer-portal.alpha-dev.apps.in-atelier.example.com/auth/callback"
+            ],
+            "defaultRedirectUri": "https://customer-portal.alpha-dev.apps.in-atelier.example.com/auth/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://customer-portal.alpha-dev.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://customer-portal.alpha-dev.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "scopes": [
+            {
+              "scopeName": "openid"
+            },
+            {
+              "scopeName": "profile"
+            },
+            {
+              "scopeName": "email"
+            }
+          ],
+          "roles": [
+            {
+              "roleName": "workspace_viewer"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_customer_workspace",
+              "name": "workspace-context",
+              "source": "workspaceId",
+              "target": "workspace_id",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token",
+                "id_token"
+              ]
+            }
+          ],
+          "planLimits": {
+            "planId": "pln_01starter",
+            "supportedProtocols": [
+              "oidc"
+            ],
+            "supportedAuthenticationFlows": [
+              "oidc_authorization_code_pkce"
+            ],
+            "templateIds": [
+              "tpl_spa_oidc_pkce"
+            ],
+            "limits": [
+              {
+                "metricKey": "identity.federated_providers.per_application",
+                "limit": 2
+              }
+            ],
+            "notes": [
+              "Starter supports OIDC PKCE only."
             ]
-          }
+          },
+          "validation": {
+            "status": "valid",
+            "checks": []
+          },
+          "redirectUris": [
+            "https://customer-portal.alpha-dev.apps.in-atelier.example.com/auth/callback"
+          ]
         }
       ],
       "serviceAccounts": [
@@ -433,9 +512,12 @@
               "workspace-roles"
             ],
             "redirectUris": [
-              "https://ops-console.beta-staging.apps.in-atelier.example.com/*"
+              "https://ops-console.beta-staging.apps.in-atelier.example.com/auth/callback"
             ]
-          }
+          },
+          "redirectUris": [
+            "https://ops-console.beta-staging.apps.in-atelier.example.com/auth/callback"
+          ]
         },
         {
           "applicationId": "app_01betashop",
@@ -454,9 +536,110 @@
               "workspace-roles"
             ],
             "redirectUris": [
-              "https://shop-web.beta-prod.apps.in-atelier.example.com/*"
+              "https://shop-web.beta-prod.apps.in-atelier.example.com/auth/callback"
+            ],
+            "postLogoutRedirectUris": [
+              "https://shop-web.beta-prod.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://shop-web.beta-prod.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "displayName": "Shop Web",
+          "templateId": "tpl_spa_oidc_pkce",
+          "authenticationFlows": [
+            "oidc_authorization_code_pkce"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://shop-web.beta-prod.apps.in-atelier.example.com/auth/callback"
+            ],
+            "defaultRedirectUri": "https://shop-web.beta-prod.apps.in-atelier.example.com/auth/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://shop-web.beta-prod.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://shop-web.beta-prod.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "scopes": [
+            {
+              "scopeName": "openid"
+            },
+            {
+              "scopeName": "profile"
+            },
+            {
+              "scopeName": "email"
+            }
+          ],
+          "roles": [
+            {
+              "roleName": "workspace_admin"
+            },
+            {
+              "roleName": "workspace_viewer"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_beta_roles",
+              "name": "workspace-roles",
+              "source": "roles",
+              "target": "workspace_roles",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token",
+                "id_token"
+              ]
+            }
+          ],
+          "federatedProviders": [
+            {
+              "providerId": "google-workspace",
+              "alias": "google-workspace",
+              "displayName": "Google Workspace",
+              "protocol": "oidc",
+              "providerMode": "metadata_url",
+              "issuer": "https://accounts.google.com",
+              "metadataUrl": "https://accounts.google.com/.well-known/openid-configuration",
+              "requestedScopes": [
+                "openid",
+                "profile",
+                "email"
+              ]
+            }
+          ],
+          "planLimits": {
+            "planId": "pln_01growth",
+            "supportedProtocols": [
+              "oidc"
+            ],
+            "supportedAuthenticationFlows": [
+              "oidc_authorization_code_pkce",
+              "oidc_authorization_code_client_secret",
+              "oidc_client_credentials"
+            ],
+            "templateIds": [
+              "tpl_spa_oidc_pkce",
+              "tpl_backend_oidc_confidential"
+            ],
+            "limits": [
+              {
+                "metricKey": "identity.federated_providers.per_application",
+                "limit": 5
+              }
+            ],
+            "notes": [
+              "Growth adds confidential OIDC backends."
             ]
-          }
+          },
+          "validation": {
+            "status": "valid",
+            "checks": []
+          },
+          "redirectUris": [
+            "https://shop-web.beta-prod.apps.in-atelier.example.com/auth/callback"
+          ]
         },
         {
           "applicationId": "app_01betamobile",
@@ -474,7 +657,7 @@
           "iamClient": {
             "realm": "tenant-growth-beta",
             "clientId": "beta-prod-shop-mobile",
-            "clientType": "public",
+            "clientType": "confidential",
             "defaultClientScopes": [
               "tenant-context",
               "workspace-context",
@@ -483,7 +666,45 @@
             ],
             "redirectUris": [
               "https://mobile.growth-beta.example.com/callback"
-            ]
+            ],
+            "postLogoutRedirectUris": [
+              "https://mobile.growth-beta.example.com/logout/callback"
+            ],
+            "backChannelLogoutUri": "https://mobile.growth-beta.example.com/logout/back-channel"
+          },
+          "templateId": "tpl_backend_oidc_confidential",
+          "authenticationFlows": [
+            "oidc_authorization_code_client_secret",
+            "oidc_client_credentials"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://mobile.growth-beta.example.com/callback"
+            ],
+            "defaultRedirectUri": "https://mobile.growth-beta.example.com/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://mobile.growth-beta.example.com/logout/callback"
+            ],
+            "backChannelLogoutUri": "https://mobile.growth-beta.example.com/logout/back-channel"
+          },
+          "attributeMappers": [
+            {
+              "mapperId": "map_mobile_plan",
+              "name": "plan-context",
+              "source": "planId",
+              "target": "plan_id",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token"
+              ]
+            }
+          ],
+          "validation": {
+            "status": "valid",
+            "checks": []
           }
         }
       ],
@@ -1016,8 +1237,66 @@
               "workspace-roles"
             ],
             "redirectUris": [
-              "https://customer-gateway.delta-prod.apps.in-atelier.example.com/*"
-            ]
+              "https://customer-gateway.delta-prod.apps.in-atelier.example.com/auth/callback"
+            ],
+            "postLogoutRedirectUris": [
+              "https://customer-gateway.delta-prod.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://customer-gateway.delta-prod.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "displayName": "Customer Gateway",
+          "templateId": "tpl_spa_oidc_pkce",
+          "authenticationFlows": [
+            "oidc_authorization_code_pkce"
+          ],
+          "redirectUris": [
+            "https://customer-gateway.delta-prod.apps.in-atelier.example.com/auth/callback"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://customer-gateway.delta-prod.apps.in-atelier.example.com/auth/callback"
+            ],
+            "defaultRedirectUri": "https://customer-gateway.delta-prod.apps.in-atelier.example.com/auth/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://customer-gateway.delta-prod.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://customer-gateway.delta-prod.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "scopes": [
+            {
+              "scopeName": "openid"
+            },
+            {
+              "scopeName": "profile"
+            },
+            {
+              "scopeName": "email"
+            }
+          ],
+          "roles": [
+            {
+              "roleName": "workspace_admin"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_app_01deltagateway_workspace",
+              "name": "workspace-context",
+              "source": "workspaceId",
+              "target": "workspace_id",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token",
+                "id_token"
+              ]
+            }
+          ],
+          "validation": {
+            "status": "valid",
+            "checks": []
           }
         },
         {
@@ -1037,8 +1316,167 @@
               "workspace-roles"
             ],
             "redirectUris": [
-              "https://ops-portal.delta-staging.apps.in-atelier.example.com/*"
+              "https://ops-portal.delta-staging.apps.in-atelier.example.com/auth/callback"
+            ],
+            "postLogoutRedirectUris": [
+              "https://ops-portal.delta-staging.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://ops-portal.delta-staging.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "displayName": "Ops Portal",
+          "templateId": "tpl_spa_oidc_pkce",
+          "authenticationFlows": [
+            "oidc_authorization_code_pkce"
+          ],
+          "redirectUris": [
+            "https://ops-portal.delta-staging.apps.in-atelier.example.com/auth/callback"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://ops-portal.delta-staging.apps.in-atelier.example.com/auth/callback"
+            ],
+            "defaultRedirectUri": "https://ops-portal.delta-staging.apps.in-atelier.example.com/auth/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://ops-portal.delta-staging.apps.in-atelier.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://ops-portal.delta-staging.apps.in-atelier.example.com/logout/front-channel"
+          },
+          "scopes": [
+            {
+              "scopeName": "openid"
+            },
+            {
+              "scopeName": "profile"
+            },
+            {
+              "scopeName": "email"
+            }
+          ],
+          "roles": [
+            {
+              "roleName": "workspace_admin"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_app_01deltaops_workspace",
+              "name": "workspace-context",
+              "source": "workspaceId",
+              "target": "workspace_id",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token",
+                "id_token"
+              ]
+            }
+          ],
+          "validation": {
+            "status": "valid",
+            "checks": []
+          }
+        },
+        {
+          "applicationId": "app_01deltapartner",
+          "workspaceId": "wrk_01deltaprod",
+          "slug": "partner-hub",
+          "displayName": "Partner Hub",
+          "templateId": "tpl_b2b_saml",
+          "protocol": "saml",
+          "state": "active",
+          "authenticationFlows": [
+            "saml_sp_initiated",
+            "saml_idp_initiated"
+          ],
+          "login": {
+            "defaultRedirectUri": "https://partner-hub.delta-prod.example.com/saml/acs",
+            "allowIdpInitiated": true
+          },
+          "logout": {
+            "frontChannelLogoutUri": "https://partner-hub.delta-prod.example.com/saml/slo",
+            "signedRequestsRequired": true
+          },
+          "roles": [
+            {
+              "roleName": "partner_admin"
+            },
+            {
+              "roleName": "partner_viewer"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_partner_email",
+              "providerId": "corp-directory",
+              "name": "partner-email",
+              "source": "email",
+              "target": "email",
+              "mapperType": "attribute",
+              "tokenTargets": [
+                "saml_assertion"
+              ]
+            }
+          ],
+          "federatedProviders": [
+            {
+              "providerId": "corp-directory",
+              "alias": "corp-directory",
+              "displayName": "Corporate Directory",
+              "protocol": "saml",
+              "providerMode": "metadata_url",
+              "metadataUrl": "https://partner.delta.example.com/saml/metadata",
+              "certificates": [
+                {
+                  "certificateId": "cert_delta_partner",
+                  "usage": "signing",
+                  "format": "pem",
+                  "pem": "-----BEGIN CERTIFICATE-----\nMIIBdeltaexample\n-----END CERTIFICATE-----"
+                }
+              ]
+            }
+          ],
+          "planLimits": {
+            "planId": "pln_01enterprise",
+            "supportedProtocols": [
+              "oidc",
+              "saml"
+            ],
+            "supportedAuthenticationFlows": [
+              "oidc_authorization_code_pkce",
+              "oidc_authorization_code_client_secret",
+              "oidc_client_credentials",
+              "saml_sp_initiated",
+              "saml_idp_initiated"
+            ],
+            "templateIds": [
+              "tpl_spa_oidc_pkce",
+              "tpl_backend_oidc_confidential",
+              "tpl_b2b_saml"
+            ],
+            "limits": [
+              {
+                "metricKey": "identity.federated_providers.per_application",
+                "limit": 16
+              }
+            ],
+            "notes": [
+              "Enterprise enables full SAML federation."
             ]
+          },
+          "validation": {
+            "status": "valid",
+            "checks": []
+          },
+          "iamClient": {
+            "realm": "tenant-enterprise-delta",
+            "clientId": "delta-prod-partner-hub",
+            "clientType": "confidential",
+            "defaultClientScopes": [
+              "workspace-context"
+            ],
+            "frontChannelLogoutUri": "https://partner-hub.delta-prod.example.com/saml/slo"
           }
         }
       ],

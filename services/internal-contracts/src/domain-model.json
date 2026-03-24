@@ -321,14 +321,29 @@
         "redirectUris",
         "serviceAccountIds",
         "exposedResourceIds",
-        "iamClient"
+        "iamClient",
+        "templateId",
+        "authenticationFlows",
+        "login",
+        "logout",
+        "scopes",
+        "roles",
+        "attributeMappers",
+        "federatedProviders",
+        "planLimits",
+        "validation"
       ],
       "business_rules": [
         "Each external application belongs to exactly one workspace and inherits its tenant boundary.",
         "Redirect URIs must use approved workspace or public-domain patterns.",
         "An external application cannot attach service accounts or managed resources from another workspace.",
         "external_application.iamClient.clientId must be unique within the tenant realm and inherit the workspace client namespace.",
-        "external applications may register multiple Keycloak clients per tenant as long as every client stays bound to one workspace and one canonical application record."
+        "external applications may register multiple Keycloak clients per tenant as long as every client stays bound to one workspace and one canonical application record.",
+        "external applications must declare supported authenticationFlows that remain compatible with protocol, client type, and tenant plan limits.",
+        "OIDC applications may only use approved login/logout redirect URIs and must keep post-logout redirects separate from interactive login callbacks.",
+        "SAML federation requires validated metadata or explicit single sign-on endpoints plus at least one signing certificate before activation.",
+        "Each federated provider alias must be unique within one external application and may only project approved attribute mappings into scopes, roles, or claims.",
+        "Starter templates for SPA, confidential backend, and B2B SAML patterns stay additive defaults and never bypass per-workspace validation or plan limits."
       ],
       "openapi": {
         "read_schema": "ExternalApplication",
@@ -2103,6 +2118,523 @@
         "allowedEnvironments": [
           "staging",
           "prod"
+        ]
+      }
+    ],
+    "external_application_supported_flows": [
+      {
+        "flowId": "oidc_authorization_code_pkce",
+        "protocol": "oidc",
+        "clientTypes": [
+          "public"
+        ],
+        "summary": "Interactive browser and mobile login using authorization code + PKCE without a client secret.",
+        "requiresRedirectUris": true,
+        "requiresClientSecret": false,
+        "supportsLogout": true,
+        "requiresSignedRequests": false
+      },
+      {
+        "flowId": "oidc_authorization_code_client_secret",
+        "protocol": "oidc",
+        "clientTypes": [
+          "confidential"
+        ],
+        "summary": "Confidential backend or web application using authorization code and a client secret.",
+        "requiresRedirectUris": true,
+        "requiresClientSecret": true,
+        "supportsLogout": true,
+        "requiresSignedRequests": false
+      },
+      {
+        "flowId": "oidc_client_credentials",
+        "protocol": "oidc",
+        "clientTypes": [
+          "confidential"
+        ],
+        "summary": "Machine-to-machine access for backend automation without browser redirects.",
+        "requiresRedirectUris": false,
+        "requiresClientSecret": true,
+        "supportsLogout": false,
+        "requiresSignedRequests": false
+      },
+      {
+        "flowId": "saml_sp_initiated",
+        "protocol": "saml",
+        "clientTypes": [
+          "confidential"
+        ],
+        "summary": "Browser login initiated by the service provider and completed against a SAML identity provider.",
+        "requiresRedirectUris": false,
+        "requiresClientSecret": false,
+        "supportsLogout": true,
+        "requiresSignedRequests": true
+      },
+      {
+        "flowId": "saml_idp_initiated",
+        "protocol": "saml",
+        "clientTypes": [
+          "confidential"
+        ],
+        "summary": "Partner-initiated SAML login with RelayState handling and signed assertions.",
+        "requiresRedirectUris": false,
+        "requiresClientSecret": false,
+        "supportsLogout": true,
+        "requiresSignedRequests": true
+      }
+    ],
+    "external_application_templates": [
+      {
+        "templateId": "tpl_spa_oidc_pkce",
+        "pattern": "spa",
+        "protocol": "oidc",
+        "name": "SPA + OIDC PKCE starter",
+        "summary": "Starter shape for browser or mobile-first applications that rely on PKCE and front-channel logout.",
+        "recommendedPlanIds": [
+          "pln_01starter",
+          "pln_01growth",
+          "pln_01regulated",
+          "pln_01enterprise"
+        ],
+        "supportedAuthenticationFlows": [
+          "oidc_authorization_code_pkce"
+        ],
+        "consoleViews": [
+          "workspace-applications-list",
+          "workspace-application-editor",
+          "workspace-federation-providers"
+        ],
+        "exampleRequest": {
+          "entityType": "external_application",
+          "slug": "atelier-spa",
+          "displayName": "Atelier SPA",
+          "templateId": "tpl_spa_oidc_pkce",
+          "protocol": "oidc",
+          "desiredState": "active",
+          "metadata": {
+            "owner": "workspace-web-team",
+            "pattern": "spa"
+          },
+          "authenticationFlows": [
+            "oidc_authorization_code_pkce"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://spa.example.com/auth/callback"
+            ],
+            "defaultRedirectUri": "https://spa.example.com/auth/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://spa.example.com/logout/callback"
+            ],
+            "frontChannelLogoutUri": "https://spa.example.com/logout/front-channel"
+          },
+          "scopes": [
+            {
+              "scopeName": "openid"
+            },
+            {
+              "scopeName": "profile"
+            },
+            {
+              "scopeName": "email"
+            }
+          ],
+          "roles": [
+            {
+              "roleName": "workspace_admin"
+            },
+            {
+              "roleName": "workspace_viewer"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_workspace_context",
+              "name": "workspace-context",
+              "source": "workspaceId",
+              "target": "workspace_id",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token",
+                "id_token"
+              ]
+            }
+          ],
+          "iamClient": {
+            "realm": "tenant-example",
+            "clientId": "workspace-spa",
+            "clientType": "public",
+            "defaultClientScopes": [
+              "openid",
+              "profile",
+              "email",
+              "workspace-context"
+            ],
+            "redirectUris": [
+              "https://spa.example.com/auth/callback"
+            ],
+            "webOrigins": [
+              "https://spa.example.com"
+            ]
+          }
+        }
+      },
+      {
+        "templateId": "tpl_backend_oidc_confidential",
+        "pattern": "confidential_backend",
+        "protocol": "oidc",
+        "name": "Confidential backend + OIDC starter",
+        "summary": "Starter shape for server-side applications that use client-secret backed authorization code and client-credentials flows.",
+        "recommendedPlanIds": [
+          "pln_01growth",
+          "pln_01regulated",
+          "pln_01enterprise"
+        ],
+        "supportedAuthenticationFlows": [
+          "oidc_authorization_code_client_secret",
+          "oidc_client_credentials"
+        ],
+        "consoleViews": [
+          "workspace-applications-list",
+          "workspace-application-editor",
+          "workspace-application-templates"
+        ],
+        "exampleRequest": {
+          "entityType": "external_application",
+          "slug": "atelier-api",
+          "displayName": "Atelier API",
+          "templateId": "tpl_backend_oidc_confidential",
+          "protocol": "oidc",
+          "desiredState": "active",
+          "metadata": {
+            "owner": "workspace-platform-team",
+            "pattern": "confidential_backend"
+          },
+          "authenticationFlows": [
+            "oidc_authorization_code_client_secret",
+            "oidc_client_credentials"
+          ],
+          "login": {
+            "redirectUris": [
+              "https://api.example.com/oauth/callback"
+            ],
+            "defaultRedirectUri": "https://api.example.com/oauth/callback",
+            "allowIdpInitiated": false
+          },
+          "logout": {
+            "postLogoutRedirectUris": [
+              "https://api.example.com/logout/callback"
+            ],
+            "backChannelLogoutUri": "https://api.example.com/logout/back-channel"
+          },
+          "scopes": [
+            {
+              "scopeName": "openid"
+            },
+            {
+              "scopeName": "profile"
+            },
+            {
+              "scopeName": "offline_access"
+            }
+          ],
+          "roles": [
+            {
+              "roleName": "workspace_operator"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_plan_context",
+              "name": "plan-context",
+              "source": "planId",
+              "target": "plan_id",
+              "mapperType": "claim",
+              "tokenTargets": [
+                "access_token"
+              ]
+            }
+          ],
+          "iamClient": {
+            "realm": "tenant-example",
+            "clientId": "workspace-api",
+            "clientType": "confidential",
+            "defaultClientScopes": [
+              "openid",
+              "profile",
+              "workspace-context"
+            ],
+            "optionalClientScopes": [
+              "offline_access"
+            ],
+            "redirectUris": [
+              "https://api.example.com/oauth/callback"
+            ],
+            "webOrigins": []
+          }
+        }
+      },
+      {
+        "templateId": "tpl_b2b_saml",
+        "pattern": "b2b_saml",
+        "protocol": "saml",
+        "name": "B2B SAML federation starter",
+        "summary": "Starter shape for enterprise partner federation with metadata validation, signed assertions, and workspace-role mapping.",
+        "recommendedPlanIds": [
+          "pln_01regulated",
+          "pln_01enterprise"
+        ],
+        "supportedAuthenticationFlows": [
+          "saml_sp_initiated",
+          "saml_idp_initiated"
+        ],
+        "consoleViews": [
+          "workspace-applications-list",
+          "workspace-federation-providers",
+          "workspace-application-validation"
+        ],
+        "exampleRequest": {
+          "entityType": "external_application",
+          "slug": "partner-portal",
+          "displayName": "Partner Portal",
+          "templateId": "tpl_b2b_saml",
+          "protocol": "saml",
+          "desiredState": "active",
+          "metadata": {
+            "owner": "workspace-enterprise-team",
+            "pattern": "b2b_saml"
+          },
+          "authenticationFlows": [
+            "saml_sp_initiated"
+          ],
+          "login": {
+            "defaultRedirectUri": "https://partner.example.com/saml/acs",
+            "allowIdpInitiated": true
+          },
+          "logout": {
+            "frontChannelLogoutUri": "https://partner.example.com/saml/slo",
+            "signedRequestsRequired": true
+          },
+          "roles": [
+            {
+              "roleName": "partner_admin"
+            },
+            {
+              "roleName": "partner_viewer"
+            }
+          ],
+          "attributeMappers": [
+            {
+              "mapperId": "map_partner_email",
+              "name": "partner-email",
+              "source": "email",
+              "target": "email",
+              "mapperType": "attribute",
+              "tokenTargets": [
+                "saml_assertion"
+              ]
+            }
+          ],
+          "federatedProviders": [
+            {
+              "providerId": "corp-directory",
+              "alias": "corp-directory",
+              "displayName": "Corporate Directory",
+              "protocol": "saml",
+              "providerMode": "metadata_url",
+              "metadataUrl": "https://partner.example.com/saml/metadata",
+              "requestedScopes": [],
+              "certificates": [
+                {
+                  "certificateId": "cert_partner_signing",
+                  "usage": "signing",
+                  "format": "pem",
+                  "pem": "-----BEGIN CERTIFICATE-----\\nMIIBexample\\n-----END CERTIFICATE-----"
+                }
+              ]
+            }
+          ],
+          "iamClient": {
+            "realm": "tenant-example",
+            "clientId": "workspace-partner-portal",
+            "clientType": "confidential",
+            "defaultClientScopes": [
+              "workspace-context"
+            ]
+          }
+        }
+      }
+    ],
+    "external_application_plan_limits": [
+      {
+        "planId": "pln_01starter",
+        "supportedProtocols": [
+          "oidc"
+        ],
+        "supportedAuthenticationFlows": [
+          "oidc_authorization_code_pkce"
+        ],
+        "templateIds": [
+          "tpl_spa_oidc_pkce"
+        ],
+        "limits": [
+          {
+            "metricKey": "identity.external_applications.active",
+            "limit": 3
+          },
+          {
+            "metricKey": "identity.federated_providers.per_application",
+            "limit": 2
+          },
+          {
+            "metricKey": "identity.attribute_mappers.per_application",
+            "limit": 10
+          },
+          {
+            "metricKey": "identity.roles.per_application",
+            "limit": 8
+          },
+          {
+            "metricKey": "identity.scopes.per_application",
+            "limit": 8
+          }
+        ],
+        "notes": [
+          "SAML federation is not available on starter.",
+          "Only PKCE-based OIDC browser flows are supported."
+        ]
+      },
+      {
+        "planId": "pln_01growth",
+        "supportedProtocols": [
+          "oidc"
+        ],
+        "supportedAuthenticationFlows": [
+          "oidc_authorization_code_pkce",
+          "oidc_authorization_code_client_secret",
+          "oidc_client_credentials"
+        ],
+        "templateIds": [
+          "tpl_spa_oidc_pkce",
+          "tpl_backend_oidc_confidential"
+        ],
+        "limits": [
+          {
+            "metricKey": "identity.external_applications.active",
+            "limit": 10
+          },
+          {
+            "metricKey": "identity.federated_providers.per_application",
+            "limit": 5
+          },
+          {
+            "metricKey": "identity.attribute_mappers.per_application",
+            "limit": 20
+          },
+          {
+            "metricKey": "identity.roles.per_application",
+            "limit": 16
+          },
+          {
+            "metricKey": "identity.scopes.per_application",
+            "limit": 16
+          }
+        ],
+        "notes": [
+          "Confidential OIDC backends and machine-to-machine flows are enabled.",
+          "SAML federation remains unavailable on growth."
+        ]
+      },
+      {
+        "planId": "pln_01regulated",
+        "supportedProtocols": [
+          "oidc",
+          "saml"
+        ],
+        "supportedAuthenticationFlows": [
+          "oidc_authorization_code_pkce",
+          "oidc_authorization_code_client_secret",
+          "oidc_client_credentials",
+          "saml_sp_initiated"
+        ],
+        "templateIds": [
+          "tpl_spa_oidc_pkce",
+          "tpl_backend_oidc_confidential",
+          "tpl_b2b_saml"
+        ],
+        "limits": [
+          {
+            "metricKey": "identity.external_applications.active",
+            "limit": 20
+          },
+          {
+            "metricKey": "identity.federated_providers.per_application",
+            "limit": 8
+          },
+          {
+            "metricKey": "identity.attribute_mappers.per_application",
+            "limit": 40
+          },
+          {
+            "metricKey": "identity.roles.per_application",
+            "limit": 24
+          },
+          {
+            "metricKey": "identity.scopes.per_application",
+            "limit": 24
+          }
+        ],
+        "notes": [
+          "SAML is available for partner and regulated enterprise scenarios.",
+          "IdP-initiated SAML remains enterprise-only."
+        ]
+      },
+      {
+        "planId": "pln_01enterprise",
+        "supportedProtocols": [
+          "oidc",
+          "saml"
+        ],
+        "supportedAuthenticationFlows": [
+          "oidc_authorization_code_pkce",
+          "oidc_authorization_code_client_secret",
+          "oidc_client_credentials",
+          "saml_sp_initiated",
+          "saml_idp_initiated"
+        ],
+        "templateIds": [
+          "tpl_spa_oidc_pkce",
+          "tpl_backend_oidc_confidential",
+          "tpl_b2b_saml"
+        ],
+        "limits": [
+          {
+            "metricKey": "identity.external_applications.active",
+            "limit": 40
+          },
+          {
+            "metricKey": "identity.federated_providers.per_application",
+            "limit": 16
+          },
+          {
+            "metricKey": "identity.attribute_mappers.per_application",
+            "limit": 80
+          },
+          {
+            "metricKey": "identity.roles.per_application",
+            "limit": 40
+          },
+          {
+            "metricKey": "identity.scopes.per_application",
+            "limit": 40
+          }
+        ],
+        "notes": [
+          "Enterprise enables IdP-initiated SAML and the full starter template catalog.",
+          "Large multi-provider federations are supported within the documented quotas."
         ]
       }
     ]

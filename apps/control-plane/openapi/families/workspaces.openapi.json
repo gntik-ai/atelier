@@ -11,6 +11,16 @@
           "type": "string"
         }
       },
+      "FederatedProviderId": {
+        "description": "Stable federated identity-provider identifier within one external application.",
+        "in": "path",
+        "name": "providerId",
+        "required": true,
+        "schema": {
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+          "type": "string"
+        }
+      },
       "IdempotencyKey": {
         "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway. Replays are retained for 24h and surfaced through X-Idempotency-Replayed.",
         "in": "header",
@@ -298,6 +308,18 @@
             "pattern": "^app_[0-9a-z]+$",
             "type": "string"
           },
+          "attributeMappers": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationAttributeMapper"
+            },
+            "type": "array"
+          },
+          "authenticationFlows": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationAuthenticationFlow"
+            },
+            "type": "array"
+          },
           "displayName": {
             "maxLength": 120,
             "minLength": 1,
@@ -314,11 +336,26 @@
             },
             "type": "array"
           },
+          "federatedProviders": {
+            "items": {
+              "$ref": "#/components/schemas/FederatedIdentityProvider"
+            },
+            "type": "array"
+          },
           "iamClient": {
             "$ref": "#/components/schemas/ExternalApplicationIamClient"
           },
+          "login": {
+            "$ref": "#/components/schemas/ExternalApplicationLoginPolicy"
+          },
+          "logout": {
+            "$ref": "#/components/schemas/ExternalApplicationLogoutPolicy"
+          },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "planLimits": {
+            "$ref": "#/components/schemas/ExternalApplicationPlanLimit"
           },
           "protocol": {
             "$ref": "#/components/schemas/ApplicationProtocol"
@@ -327,6 +364,18 @@
             "items": {
               "format": "uri",
               "type": "string"
+            },
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationRole"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationScope"
             },
             "type": "array"
           },
@@ -344,12 +393,19 @@
           "state": {
             "$ref": "#/components/schemas/EntityState"
           },
+          "templateId": {
+            "pattern": "^tpl_[a-z0-9_]+$",
+            "type": "string"
+          },
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/ExternalApplicationValidationSummary"
           },
           "workspaceId": {
             "pattern": "^wrk_[0-9a-z]+$",
@@ -370,9 +426,107 @@
         ],
         "type": "object"
       },
+      "ExternalApplicationAttributeMapper": {
+        "additionalProperties": false,
+        "properties": {
+          "mapperId": {
+            "pattern": "^[a-z0-9_:-]{3,80}$",
+            "type": "string"
+          },
+          "mapperType": {
+            "enum": [
+              "claim",
+              "attribute",
+              "static",
+              "role",
+              "group"
+            ],
+            "type": "string"
+          },
+          "multivalued": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "providerId": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "source": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "target": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tokenTargets": {
+            "items": {
+              "enum": [
+                "access_token",
+                "id_token",
+                "userinfo",
+                "saml_assertion"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "mapperId",
+          "name",
+          "source",
+          "target",
+          "mapperType",
+          "tokenTargets"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationAuthenticationFlow": {
+        "enum": [
+          "oidc_authorization_code_pkce",
+          "oidc_authorization_code_client_secret",
+          "oidc_client_credentials",
+          "saml_sp_initiated",
+          "saml_idp_initiated"
+        ],
+        "type": "string"
+      },
+      "ExternalApplicationCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplication"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items"
+        ],
+        "type": "object"
+      },
       "ExternalApplicationIamClient": {
         "additionalProperties": false,
         "properties": {
+          "backChannelLogoutUri": {
+            "format": "uri-reference",
+            "type": "string"
+          },
           "clientId": {
             "type": "string"
           },
@@ -390,8 +544,19 @@
             },
             "type": "array"
           },
+          "frontChannelLogoutUri": {
+            "format": "uri-reference",
+            "type": "string"
+          },
           "optionalClientScopes": {
             "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "postLogoutRedirectUris": {
+            "items": {
+              "format": "uri-reference",
               "type": "string"
             },
             "type": "array"
@@ -427,9 +592,326 @@
         ],
         "type": "object"
       },
+      "ExternalApplicationLoginPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "allowIdpInitiated": {
+            "type": "boolean"
+          },
+          "defaultProviderAlias": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "defaultRedirectUri": {
+            "format": "uri",
+            "type": "string"
+          },
+          "initiateLoginUri": {
+            "format": "uri",
+            "type": "string"
+          },
+          "redirectUris": {
+            "items": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ExternalApplicationLogoutPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "backChannelLogoutUri": {
+            "format": "uri",
+            "type": "string"
+          },
+          "frontChannelLogoutUri": {
+            "format": "uri",
+            "type": "string"
+          },
+          "postLogoutRedirectUris": {
+            "items": {
+              "format": "uri",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "signedRequestsRequired": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "ExternalApplicationPlanLimit": {
+        "additionalProperties": false,
+        "properties": {
+          "limits": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "limit": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "metricKey": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "metricKey",
+                "limit"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "planId": {
+            "pattern": "^pln_[0-9a-z]+$",
+            "type": "string"
+          },
+          "supportedAuthenticationFlows": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationAuthenticationFlow"
+            },
+            "type": "array"
+          },
+          "supportedProtocols": {
+            "items": {
+              "enum": [
+                "oidc",
+                "saml"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "templateIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "planId",
+          "supportedProtocols",
+          "supportedAuthenticationFlows",
+          "templateIds",
+          "limits"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationRole": {
+        "additionalProperties": false,
+        "properties": {
+          "compositeRoles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "roleName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleName"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationScope": {
+        "additionalProperties": false,
+        "properties": {
+          "consentRequired": {
+            "type": "boolean"
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string"
+          },
+          "scopeName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "scopeName"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationStarterTemplate": {
+        "additionalProperties": false,
+        "properties": {
+          "consoleViews": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "exampleRequest": {
+            "$ref": "#/components/schemas/ExternalApplicationWriteRequest"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "pattern": {
+            "enum": [
+              "spa",
+              "confidential_backend",
+              "b2b_saml"
+            ],
+            "type": "string"
+          },
+          "protocol": {
+            "enum": [
+              "oidc",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "recommendedPlanIds": {
+            "items": {
+              "pattern": "^pln_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "supportedAuthenticationFlows": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationAuthenticationFlow"
+            },
+            "type": "array"
+          },
+          "templateId": {
+            "pattern": "^tpl_[a-z0-9_]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateId",
+          "pattern",
+          "protocol",
+          "name",
+          "summary",
+          "supportedAuthenticationFlows",
+          "exampleRequest"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationStarterTemplateCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationStarterTemplate"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationValidationCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "fieldPath": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "error"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "severity",
+          "message"
+        ],
+        "type": "object"
+      },
+      "ExternalApplicationValidationSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationValidationCheck"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "valid",
+              "warning",
+              "invalid",
+              "pending"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "type": "object"
+      },
       "ExternalApplicationWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "attributeMappers": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationAttributeMapper"
+            },
+            "type": "array"
+          },
+          "authenticationFlows": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationAuthenticationFlow"
+            },
+            "type": "array"
+          },
           "desiredState": {
             "$ref": "#/components/schemas/EntityState"
           },
@@ -442,8 +924,20 @@
             "const": "external_application",
             "type": "string"
           },
+          "federatedProviders": {
+            "items": {
+              "$ref": "#/components/schemas/FederatedIdentityProvider"
+            },
+            "type": "array"
+          },
           "iamClient": {
             "$ref": "#/components/schemas/ExternalApplicationIamClient"
+          },
+          "login": {
+            "$ref": "#/components/schemas/ExternalApplicationLoginPolicy"
+          },
+          "logout": {
+            "$ref": "#/components/schemas/ExternalApplicationLogoutPolicy"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
@@ -458,6 +952,18 @@
             },
             "type": "array"
           },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationRole"
+            },
+            "type": "array"
+          },
+          "scopes": {
+            "items": {
+              "$ref": "#/components/schemas/ExternalApplicationScope"
+            },
+            "type": "array"
+          },
           "serviceAccountIds": {
             "items": {
               "pattern": "^svc_[0-9a-z]+$",
@@ -468,6 +974,10 @@
           "slug": {
             "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
             "type": "string"
+          },
+          "templateId": {
+            "pattern": "^tpl_[a-z0-9_]+$",
+            "type": "string"
           }
         },
         "required": [
@@ -477,6 +987,162 @@
           "protocol",
           "desiredState",
           "metadata"
+        ],
+        "type": "object"
+      },
+      "FederatedCertificate": {
+        "additionalProperties": false,
+        "properties": {
+          "certificateId": {
+            "pattern": "^[a-zA-Z0-9_:-]{3,120}$",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "fingerprintSha256": {
+            "pattern": "^[A-Fa-f0-9:]{32,}$",
+            "type": "string"
+          },
+          "format": {
+            "enum": [
+              "pem"
+            ],
+            "type": "string"
+          },
+          "pem": {
+            "minLength": 32,
+            "type": "string"
+          },
+          "usage": {
+            "enum": [
+              "signing",
+              "encryption"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "certificateId",
+          "usage",
+          "format",
+          "pem"
+        ],
+        "type": "object"
+      },
+      "FederatedIdentityProvider": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "authorizationUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/FederatedCertificate"
+            },
+            "type": "array"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "entityId": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "issuer": {
+            "maxLength": 240,
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "metadataUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "metadataXml": {
+            "minLength": 32,
+            "type": "string"
+          },
+          "protocol": {
+            "enum": [
+              "oidc",
+              "saml"
+            ],
+            "type": "string"
+          },
+          "providerId": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "providerMode": {
+            "enum": [
+              "metadata_url",
+              "inline_metadata",
+              "manual_endpoints"
+            ],
+            "type": "string"
+          },
+          "requestedScopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sloServiceUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "ssoServiceUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "tokenUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "userInfoUrl": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "providerId",
+          "alias",
+          "displayName",
+          "protocol",
+          "providerMode"
+        ],
+        "type": "object"
+      },
+      "FederatedIdentityProviderCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FederatedIdentityProvider"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items"
         ],
         "type": "object"
       },
@@ -509,7 +1175,8 @@
               "enum": [
                 "access_token",
                 "id_token",
-                "userinfo"
+                "userinfo",
+                "saml_assertion"
               ],
               "type": "string"
             },
@@ -897,6 +1564,13 @@
             ],
             "type": "string"
           },
+          "mutationScope": {
+            "enum": [
+              "entity",
+              "federated_provider"
+            ],
+            "type": "string"
+          },
           "requestId": {
             "maxLength": 128,
             "minLength": 8,
@@ -906,6 +1580,17 @@
             "enum": [
               "accepted",
               "queued"
+            ],
+            "type": "string"
+          },
+          "subresourceId": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          },
+          "subresourceType": {
+            "enum": [
+              "federated_provider"
             ],
             "type": "string"
           },
@@ -928,6 +1613,26 @@
           "desiredState",
           "correlationId",
           "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "PageInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "string"
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "size": {
+            "maximum": 200,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size"
         ],
         "type": "object"
       },
@@ -1718,7 +2423,7 @@
     "description": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
     "title": "In Atelier Workspaces API",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -1987,6 +2692,151 @@
       }
     },
     "/v1/workspaces/{workspaceId}/applications": {
+      "get": {
+        "operationId": "listExternalApplications",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "protocol",
+            "schema": {
+              "enum": [
+                "oidc",
+                "saml"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "$ref": "#/components/schemas/EntityState"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalApplicationCollectionResponse"
+                }
+              }
+            },
+            "description": "External application collection returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List canonical external applications, authentication flows, and validation status for one workspace",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
       "post": {
         "operationId": "createExternalApplication",
         "parameters": [
@@ -2131,6 +2981,154 @@
         "x-visibility": "public"
       }
     },
+    "/v1/workspaces/{workspaceId}/applications/templates": {
+      "get": {
+        "operationId": "listExternalApplicationStarterTemplates",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "protocol",
+            "schema": {
+              "enum": [
+                "oidc",
+                "saml"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "planId",
+            "schema": {
+              "pattern": "^pln_[0-9a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalApplicationStarterTemplateCollectionResponse"
+                }
+              }
+            },
+            "description": "Starter template collection returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List starter templates for SPA, confidential backend, and B2B SAML external applications",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/workspaces/{workspaceId}/applications/{applicationId}": {
       "get": {
         "operationId": "getExternalApplication",
@@ -2247,6 +3245,759 @@
           "workspace_owner",
           "workspace_admin",
           "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateExternalApplication",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ApplicationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalApplicationWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "External application update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one canonical external application including federation, logout, scope, and role settings",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers": {
+      "get": {
+        "operationId": "listExternalApplicationFederatedProviders",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ApplicationId"
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "protocol",
+            "schema": {
+              "enum": [
+                "oidc",
+                "saml"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederatedIdentityProviderCollectionResponse"
+                }
+              }
+            },
+            "description": "Federated provider collection returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List federated OIDC and SAML identity providers attached to one external application",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createExternalApplicationFederatedProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ApplicationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FederatedIdentityProvider"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Federated provider mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one federated identity provider for an external application",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}": {
+      "get": {
+        "operationId": "getExternalApplicationFederatedProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ApplicationId"
+          },
+          {
+            "$ref": "#/components/parameters/FederatedProviderId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FederatedIdentityProvider"
+                }
+              }
+            },
+            "description": "Federated identity provider returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one federated identity provider attached to an external application",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateExternalApplicationFederatedProvider",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ApplicationId"
+          },
+          {
+            "$ref": "#/components/parameters/FederatedProviderId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FederatedIdentityProvider"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Federated provider update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one federated identity provider including metadata, certificates, and mapper bindings",
+        "tags": [
+          "Workspaces",
+          "Applications"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
           "platform_team"
         ],
         "x-family": "workspaces",

@@ -316,6 +316,30 @@ export function getProviderCapabilityCatalogEntry(providerCapabilityId) {
   return listProviderCapabilityCatalog().find((capability) => capability.providerCapabilityId === providerCapabilityId);
 }
 
+export function listExternalApplicationSupportedFlows() {
+  return readDomainModel().governance_catalogs?.external_application_supported_flows ?? [];
+}
+
+export function getExternalApplicationSupportedFlow(flowId) {
+  return listExternalApplicationSupportedFlows().find((flow) => flow.flowId === flowId);
+}
+
+export function listExternalApplicationTemplates() {
+  return readDomainModel().governance_catalogs?.external_application_templates ?? [];
+}
+
+export function getExternalApplicationTemplate(templateId) {
+  return listExternalApplicationTemplates().find((template) => template.templateId === templateId);
+}
+
+export function listExternalApplicationPlanLimits() {
+  return readDomainModel().governance_catalogs?.external_application_plan_limits ?? [];
+}
+
+export function getExternalApplicationPlanLimit(planId) {
+  return listExternalApplicationPlanLimits().find((planLimit) => planLimit.planId === planId);
+}
+
 export function getEffectiveCapabilityResolutionContract() {
   return readDomainModel().contracts?.effective_capability_resolution;
 }

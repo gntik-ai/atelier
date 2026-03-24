@@ -716,6 +716,13 @@
             ],
             "type": "string"
           },
+          "mutationScope": {
+            "enum": [
+              "entity",
+              "federated_provider"
+            ],
+            "type": "string"
+          },
           "requestId": {
             "maxLength": 128,
             "minLength": 8,
@@ -725,6 +732,17 @@
             "enum": [
               "accepted",
               "queued"
+            ],
+            "type": "string"
+          },
+          "subresourceId": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          },
+          "subresourceType": {
+            "enum": [
+              "federated_provider"
             ],
             "type": "string"
           },
@@ -1218,7 +1236,7 @@
     "description": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces. Generated from the unified public API contract for v1.",
     "summary": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.",
     "title": "In Atelier Tenants API",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

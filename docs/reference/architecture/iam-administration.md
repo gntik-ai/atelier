@@ -2,6 +2,8 @@
 
 This document describes the normalized IAM administration surface introduced by `US-IAM-02`.
 
+For workspace-scoped external application federation, see `docs/reference/architecture/external-application-federation.md`.
+
 ## Goals
 
 - expose Keycloak admin operations through BaaS-native contracts

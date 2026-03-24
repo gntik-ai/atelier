@@ -1521,7 +1521,8 @@
               "enum": [
                 "access_token",
                 "id_token",
-                "userinfo"
+                "userinfo",
+                "saml_assertion"
               ],
               "type": "string"
             },
@@ -1561,7 +1562,7 @@
     "description": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts. Generated from the unified public API contract for v1.",
     "summary": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts.",
     "title": "In Atelier IAM API",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

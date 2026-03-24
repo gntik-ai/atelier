@@ -35,6 +35,7 @@ export const RESERVED_ROLE_NAMES = Object.freeze([
   'workspace_viewer'
 ]);
 export const RESERVED_SCOPE_NAMES = Object.freeze(['openid', 'profile', 'email', 'roles', 'web-origins']);
+export const SUPPORTED_CLIENT_PROTOCOLS = Object.freeze(['openid-connect', 'saml']);
 export const SUPPORTED_REQUIRED_ACTIONS = Object.freeze([
   'CONFIGURE_TOTP',
   'UPDATE_PASSWORD',
@@ -190,8 +191,12 @@ export function normalizeKeycloakAdminResource(resourceKind, payload = {}, conte
         serviceAccountsEnabled: payload.serviceAccountsEnabled === true,
         redirectUris: unique(payload.redirectUris ?? []),
         webOrigins: unique(payload.webOrigins ?? []),
+        postLogoutRedirectUris: unique(payload.postLogoutRedirectUris ?? []),
+        frontChannelLogoutUri: payload.frontChannelLogoutUri,
+        backChannelLogoutUri: payload.backChannelLogoutUri,
         defaultScopes: unique(payload.defaultClientScopes ?? payload.defaultScopes ?? []),
         optionalScopes: unique(payload.optionalClientScopes ?? payload.optionalScopes ?? []),
+        protocolMappers: payload.protocolMappers ?? [],
         attributes: normalizeAttributes(payload.attributes ?? {}),
         metadata: payload.metadata ?? {},
         providerCompatibility
@@ -318,14 +323,23 @@ export function validateIamAdminRequest(request = {}) {
     }
     case 'client': {
       const accessType = payload.accessType;
+      const protocol = payload.protocol ?? 'openid-connect';
       const serviceAccountsEnabled = payload.serviceAccountsEnabled === true;
       const standardFlowEnabled = payload.standardFlowEnabled !== false;
       const directAccessGrantsEnabled = payload.directAccessGrantsEnabled === true;
       const effectiveServiceAccountFlow = serviceAccountsEnabled && accessType === 'confidential';
       const redirectUris = payload.redirectUris ?? [];
+      const postLogoutRedirectUris = payload.postLogoutRedirectUris ?? [];
       const defaultScopes = unique(payload.defaultScopes ?? []);
       const optionalScopes = unique(payload.optionalScopes ?? []);
       const workspaceNamespace = context.workspaceClientNamespace;
+      const samlAssertionConsumerUrl =
+        payload.samlAssertionConsumerServicePostUrl ?? payload.attributes?.['saml.assertion.consumer.url.post'];
+      const samlSigningCertificate = payload.signingCertificatePem ?? payload.attributes?.['saml.signing.certificate'];
+
+      if (!SUPPORTED_CLIENT_PROTOCOLS.includes(protocol)) {
+        violations.push(`Client protocol ${protocol} is outside the supported Keycloak federation set.`);
+      }
 
       if (accessType === 'public' && serviceAccountsEnabled) {
         violations.push('Public clients cannot enable service accounts.');
@@ -339,12 +353,16 @@ export function validateIamAdminRequest(request = {}) {
         violations.push('Bearer-only clients must disable the browser standard flow.');
       }
 
-      if (!standardFlowEnabled && !directAccessGrantsEnabled && !effectiveServiceAccountFlow) {
+      if (protocol === 'openid-connect' && !standardFlowEnabled && !directAccessGrantsEnabled && !effectiveServiceAccountFlow) {
         violations.push('Client configuration must enable at least one authentication flow.');
       }
 
       if (redirectUris.some((uri) => uri === '*' || /\*\//.test(uri))) {
         violations.push('Wildcard redirect URIs are not allowed by the BaaS IAM contract.');
+      }
+
+      if (postLogoutRedirectUris.some((uri) => uri === '*' || /\*\//.test(uri))) {
+        violations.push('Wildcard post-logout redirect URIs are not allowed by the BaaS IAM contract.');
       }
 
       if (hasIntersection(defaultScopes, optionalScopes)) {
@@ -353,6 +371,28 @@ export function validateIamAdminRequest(request = {}) {
 
       if (workspaceNamespace && payload.clientId && !payload.clientId.startsWith(workspaceNamespace)) {
         violations.push(`Workspace-bound clientId must start with namespace ${workspaceNamespace}.`);
+      }
+
+      if (protocol === 'saml') {
+        if (accessType === 'bearer_only') {
+          violations.push('SAML clients cannot use bearer_only accessType.');
+        }
+
+        if (serviceAccountsEnabled) {
+          violations.push('SAML clients cannot enable service accounts.');
+        }
+
+        if (directAccessGrantsEnabled) {
+          violations.push('SAML clients cannot enable direct access grants.');
+        }
+
+        if (!samlAssertionConsumerUrl && redirectUris.length === 0) {
+          violations.push('SAML clients must declare an assertion consumer service URL or equivalent redirect URI.');
+        }
+
+        if ((payload.logoutBinding === 'redirect' || payload.attributes?.['saml.single.logout.service.url']) && !samlSigningCertificate) {
+          violations.push('Signed SAML login/logout flows require a signing certificate reference.');
+        }
       }
       break;
     }
