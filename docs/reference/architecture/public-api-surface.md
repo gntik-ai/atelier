@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.13.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.14.0)
 
 ## Product API vs native passthrough
 
@@ -197,6 +197,11 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/databases/{databaseName}` | tenant | postgres_database | Delete one tenant-scoped PostgreSQL database through the bounded administrative surface |
 | GET | `/v1/postgres/databases/{databaseName}` | tenant | postgres_database | Fetch one tenant-scoped PostgreSQL database contract |
 | PUT | `/v1/postgres/databases/{databaseName}` | tenant | postgres_database | Update one tenant-scoped PostgreSQL database through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/extensions` | workspace | postgres_extension | List authorized PostgreSQL extensions for one managed database |
+| POST | `/v1/postgres/databases/{databaseName}/extensions` | workspace | postgres_extension | Enable one authorized PostgreSQL extension for a managed database |
+| DELETE | `/v1/postgres/databases/{databaseName}/extensions/{extensionName}` | workspace | postgres_extension | Disable one authorized PostgreSQL extension for a managed database |
+| GET | `/v1/postgres/databases/{databaseName}/extensions/{extensionName}` | workspace | postgres_extension | Fetch one authorized PostgreSQL extension record for a managed database |
+| PUT | `/v1/postgres/databases/{databaseName}/extensions/{extensionName}` | workspace | postgres_extension | Update one authorized PostgreSQL extension record for a managed database |
 | GET | `/v1/postgres/databases/{databaseName}/schemas` | workspace | postgres_schema | List workspace-scoped PostgreSQL schemas inside one managed database |
 | POST | `/v1/postgres/databases/{databaseName}/schemas` | workspace | postgres_schema | Create one workspace-scoped PostgreSQL schema inside a managed database |
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Delete one workspace-scoped PostgreSQL schema through the bounded administrative surface |
@@ -237,6 +242,13 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes/{indexName}` | workspace | postgres_index | Delete one workspace-scoped PostgreSQL index through the bounded administrative surface |
 | GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes/{indexName}` | workspace | postgres_index | Fetch one workspace-scoped PostgreSQL index contract |
 | PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes/{indexName}` | workspace | postgres_index | Update one workspace-scoped PostgreSQL index through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/policies` | workspace | postgres_policy | List declarative PostgreSQL row-level-security policies for one managed table |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/policies` | workspace | postgres_policy | Create one declarative PostgreSQL row-level-security policy for a managed table |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/policies/{policyName}` | workspace | postgres_policy | Delete one declarative PostgreSQL row-level-security policy for a managed table |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/policies/{policyName}` | workspace | postgres_policy | Fetch one declarative PostgreSQL row-level-security policy for a managed table |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/policies/{policyName}` | workspace | postgres_policy | Update one declarative PostgreSQL row-level-security policy for a managed table |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/security` | workspace | postgres_table_security | Fetch the effective PostgreSQL row-level-security posture for one managed table |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/security` | workspace | postgres_table_security | Update the PostgreSQL row-level-security posture for one managed table |
 | GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views` | workspace | postgres_view | List workspace-scoped PostgreSQL views inside one managed schema |
 | POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views` | workspace | postgres_view | Create one workspace-scoped PostgreSQL view inside a managed schema |
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views/{viewName}` | workspace | postgres_view | Delete one workspace-scoped PostgreSQL view through the bounded administrative surface |
@@ -254,7 +266,17 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Delete one workspace-scoped PostgreSQL user through the bounded administrative surface |
 | GET | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Fetch one workspace-scoped PostgreSQL user contract |
 | PUT | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Update one workspace-scoped PostgreSQL user through the bounded administrative surface |
+| GET | `/v1/postgres/workspaces/{workspaceId}/grants` | workspace | postgres_grant | List effective PostgreSQL grants for one workspace inventory projection |
+| POST | `/v1/postgres/workspaces/{workspaceId}/grants` | workspace | postgres_grant | Create one declarative PostgreSQL privilege grant for a workspace-managed object |
+| DELETE | `/v1/postgres/workspaces/{workspaceId}/grants/{grantId}` | workspace | postgres_grant | Delete one declarative PostgreSQL privilege grant for a workspace-managed object |
+| GET | `/v1/postgres/workspaces/{workspaceId}/grants/{grantId}` | workspace | postgres_grant | Fetch one declarative PostgreSQL privilege grant for a workspace-managed object |
+| PUT | `/v1/postgres/workspaces/{workspaceId}/grants/{grantId}` | workspace | postgres_grant | Update one declarative PostgreSQL privilege grant for a workspace-managed object |
 | GET | `/v1/postgres/workspaces/{workspaceId}/inventory` | workspace | postgres_inventory | Fetch the persisted PostgreSQL administrative inventory projection for one workspace |
+| GET | `/v1/postgres/workspaces/{workspaceId}/templates` | workspace | postgres_template | List PostgreSQL database and schema onboarding templates for one workspace |
+| POST | `/v1/postgres/workspaces/{workspaceId}/templates` | workspace | postgres_template | Create one PostgreSQL database or schema onboarding template for a workspace |
+| DELETE | `/v1/postgres/workspaces/{workspaceId}/templates/{templateId}` | workspace | postgres_template | Delete one PostgreSQL database or schema onboarding template for a workspace |
+| GET | `/v1/postgres/workspaces/{workspaceId}/templates/{templateId}` | workspace | postgres_template | Fetch one PostgreSQL database or schema onboarding template for a workspace |
+| PUT | `/v1/postgres/workspaces/{workspaceId}/templates/{templateId}` | workspace | postgres_template | Update one PostgreSQL database or schema onboarding template for a workspace |
 | GET | `/v1/postgres/workspaces/{workspaceId}/types` | workspace | postgres_type | List PostgreSQL types currently allowed for one workspace and target cluster profile |
 
 ## Mongo

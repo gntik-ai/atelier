@@ -653,6 +653,7 @@ function normalizeColumnSpec(column = {}, catalog = []) {
     identity,
     generated,
     comment: column.comment ? String(column.comment) : undefined,
+    documentation: column.documentation,
     constraints
   });
 }
@@ -1492,6 +1493,7 @@ export function normalizePostgresStructuralResource(resourceKind, payload = {}, 
         ownerRoleName: payload.ownerRoleName,
         state: payload.state ?? 'active',
         comment: payload.comment,
+        documentation: payload.documentation,
         columnCount: payload.columnCount ?? columns.length,
         columns: columns.length > 0 ? columns : undefined,
         providerCompatibility
@@ -1909,11 +1911,16 @@ function renderRoutineIdentity(normalized) {
     .join(', ')})`;
 }
 
+function renderDocumentationComment(documentation = {}, comment) {
+  const rendered = [documentation?.summary, documentation?.description, comment].filter(Boolean).join('\n\n');
+  return rendered || undefined;
+}
+
 function renderRoutineCommentStatement(normalized) {
-  if (!normalized.documentation?.summary && !normalized.comment) {
+  const comment = renderDocumentationComment(normalized.documentation, normalized.comment);
+  if (!comment) {
     return undefined;
   }
-  const comment = [normalized.documentation?.summary, normalized.documentation?.description, normalized.comment].filter(Boolean).join('\n\n');
   const kind = normalized.routineKind === 'function' ? 'FUNCTION' : 'PROCEDURE';
   return `COMMENT ON ${kind} ${renderRoutineIdentity(normalized)} IS ${quoteLiteral(comment)}`;
 }
@@ -1953,13 +1960,15 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
       statements.push(`CREATE TABLE ${qualifiedTableName} (\n  ${definitions.map((entry) => entry.sql).join(',\n  ')}\n)`);
 
       for (const definition of definitions) {
-        if (definition.normalized.comment) {
-          statements.push(`COMMENT ON COLUMN ${qualifiedTableName}.${quoteIdent(definition.normalized.columnName)} IS ${quoteLiteral(definition.normalized.comment)}`);
+        const columnComment = renderDocumentationComment(definition.normalized.documentation, definition.normalized.comment);
+        if (columnComment) {
+          statements.push(`COMMENT ON COLUMN ${qualifiedTableName}.${quoteIdent(definition.normalized.columnName)} IS ${quoteLiteral(columnComment)}`);
         }
       }
 
-      if (payload.comment) {
-        statements.push(`COMMENT ON TABLE ${qualifiedTableName} IS ${quoteLiteral(payload.comment)}`);
+      const tableComment = renderDocumentationComment(payload.documentation, payload.comment);
+      if (tableComment) {
+        statements.push(`COMMENT ON TABLE ${qualifiedTableName} IS ${quoteLiteral(tableComment)}`);
       }
     }
 
@@ -1968,8 +1977,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
         statements.push(`ALTER TABLE ${qualifiedTableName} RENAME TO ${quoteIdent(payload.renameTo)}`);
       }
 
-      if (Object.prototype.hasOwnProperty.call(payload, 'comment')) {
-        statements.push(`COMMENT ON TABLE ${qualifiedTableName} IS ${payload.comment ? quoteLiteral(payload.comment) : 'NULL'}`);
+      if (Object.prototype.hasOwnProperty.call(payload, 'comment') || Object.prototype.hasOwnProperty.call(payload, 'documentation')) {
+        const tableComment = renderDocumentationComment(payload.documentation, payload.comment);
+        statements.push(`COMMENT ON TABLE ${qualifiedTableName} IS ${tableComment ? quoteLiteral(tableComment) : 'NULL'}`);
       }
     }
 
@@ -1987,8 +1997,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
     if (action === 'create') {
       const definition = renderColumnDefinition(payload, catalog);
       statements.push(`ALTER TABLE ${qualifiedTableName} ADD COLUMN ${definition.sql}`);
-      if (normalized.comment) {
-        statements.push(`COMMENT ON COLUMN ${qualifiedColumnName} IS ${quoteLiteral(normalized.comment)}`);
+      const columnComment = renderDocumentationComment(normalized.documentation, normalized.comment);
+      if (columnComment) {
+        statements.push(`COMMENT ON COLUMN ${qualifiedColumnName} IS ${quoteLiteral(columnComment)}`);
       }
     }
 
@@ -2006,8 +2017,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
         statements.push(`ALTER TABLE ${qualifiedTableName} ALTER COLUMN ${quoteIdent(normalized.columnName)} ${normalized.defaultExpression ? `SET DEFAULT ${normalized.defaultExpression}` : 'DROP DEFAULT'}`);
       }
 
-      if (Object.prototype.hasOwnProperty.call(payload, 'comment')) {
-        statements.push(`COMMENT ON COLUMN ${qualifiedColumnName} IS ${normalized.comment ? quoteLiteral(normalized.comment) : 'NULL'}`);
+      if (Object.prototype.hasOwnProperty.call(payload, 'comment') || Object.prototype.hasOwnProperty.call(payload, 'documentation')) {
+        const columnComment = renderDocumentationComment(normalized.documentation, normalized.comment);
+        statements.push(`COMMENT ON COLUMN ${qualifiedColumnName} IS ${columnComment ? quoteLiteral(columnComment) : 'NULL'}`);
       }
     }
 
@@ -2070,8 +2082,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
 
     if (action === 'create') {
       statements.push(renderIndexCreateStatement(normalized));
-      if (normalized.comment) {
-        statements.push(`COMMENT ON INDEX ${qualifiedIndexName} IS ${quoteLiteral(normalized.comment)}`);
+      const indexComment = renderDocumentationComment(normalized.documentation, normalized.comment);
+      if (indexComment) {
+        statements.push(`COMMENT ON INDEX ${qualifiedIndexName} IS ${quoteLiteral(indexComment)}`);
       }
     }
 
@@ -2085,8 +2098,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
         }
         statements.push(renderIndexCreateStatement(normalized));
       }
-      if (Object.prototype.hasOwnProperty.call(payload, 'comment')) {
-        statements.push(`COMMENT ON INDEX ${qualifiedIndexName} IS ${normalized.comment ? quoteLiteral(normalized.comment) : 'NULL'}`);
+      if (Object.prototype.hasOwnProperty.call(payload, 'comment') || Object.prototype.hasOwnProperty.call(payload, 'documentation')) {
+        const indexComment = renderDocumentationComment(normalized.documentation, normalized.comment);
+        statements.push(`COMMENT ON INDEX ${qualifiedIndexName} IS ${indexComment ? quoteLiteral(indexComment) : 'NULL'}`);
       }
     }
 
@@ -2120,8 +2134,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
           statements.push(renderIndexCreateStatement({ ...index, schemaName: normalized.schemaName, tableName: relationName }));
         }
       }
-      if (normalized.comment) {
-        statements.push(`COMMENT ON ${commentKeyword} ${qualifiedViewName} IS ${quoteLiteral(normalized.comment)}`);
+      const viewComment = renderDocumentationComment(normalized.documentation, normalized.comment);
+      if (viewComment) {
+        statements.push(`COMMENT ON ${commentKeyword} ${qualifiedViewName} IS ${quoteLiteral(viewComment)}`);
       }
     }
 
@@ -2137,8 +2152,9 @@ export function buildPostgresStructuralSqlPlan({ resourceKind, action, payload =
           statements.push(renderIndexCreateStatement({ ...index, schemaName: normalized.schemaName, tableName: relationName }));
         }
       }
-      if (Object.prototype.hasOwnProperty.call(payload, 'comment')) {
-        statements.push(`COMMENT ON ${commentKeyword} ${qualifiedViewName} IS ${normalized.comment ? quoteLiteral(normalized.comment) : 'NULL'}`);
+      if (Object.prototype.hasOwnProperty.call(payload, 'comment') || Object.prototype.hasOwnProperty.call(payload, 'documentation')) {
+        const viewComment = renderDocumentationComment(normalized.documentation, normalized.comment);
+        statements.push(`COMMENT ON ${commentKeyword} ${qualifiedViewName} IS ${viewComment ? quoteLiteral(viewComment) : 'NULL'}`);
       }
     }
 

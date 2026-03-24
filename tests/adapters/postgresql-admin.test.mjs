@@ -9,7 +9,10 @@ import {
   buildAllowedPostgresTypeCatalog,
   buildPostgresAdminAdapterCall,
   buildPostgresAdminInventorySnapshot,
+  buildPostgresAdministrativeSqlPlan,
+  buildPostgresGovernanceSqlPlan,
   buildPostgresStructuralSqlPlan,
+  evaluatePostgresDataApiAccess,
   isPostgresVersionSupported,
   normalizePostgresAdminError,
   normalizePostgresAdminResource,
@@ -34,13 +37,23 @@ test('postgres admin adapter exports the expanded capability matrix and profile 
     'view',
     'materialized_view',
     'function',
-    'procedure'
+    'procedure',
+    'table_security',
+    'policy',
+    'grant',
+    'extension',
+    'template'
   ]);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.table, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.column, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.type, ['list', 'get']);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.materialized_view, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.function, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.table_security, ['get', 'update']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.policy, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.grant, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.extension, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.template, ['list', 'get', 'create', 'update', 'delete']);
   assert.equal(SUPPORTED_POSTGRES_VERSION_RANGES.length, 3);
   assert.equal(isPostgresVersionSupported('15.6'), true);
   assert.equal(isPostgresVersionSupported('16.3'), true);
@@ -53,7 +66,13 @@ test('postgres admin adapter exports the expanded capability matrix and profile 
   assert.equal(growthProfile.constraintMutationsSupported, true);
   assert.equal(growthProfile.materializedViewMutationsSupported, true);
   assert.equal(growthProfile.functionMutationsSupported, true);
+  assert.equal(growthProfile.tableSecurityMutationsSupported, true);
+  assert.equal(growthProfile.policyMutationsSupported, true);
+  assert.equal(growthProfile.grantMutationsSupported, true);
+  assert.equal(growthProfile.extensionMutationsSupported, true);
+  assert.equal(growthProfile.templateCatalogSupported, true);
   assert.equal(growthProfile.typeCatalogSupported, true);
+  assert.equal(growthProfile.authorizedExtensions.some((entry) => entry.extensionName === 'pgcrypto'), true);
   assert.equal(enterpriseProfile.placementMode, 'database_per_tenant');
   assert.equal(enterpriseProfile.databaseMutationsSupported, true);
   assert.equal(POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY.database_per_tenant.requiresCreatedb, true);
@@ -134,6 +153,69 @@ test('postgres admin adapter normalizes provider payloads into safe resource sha
       planId: 'pln_01enterprise'
     }
   );
+  const tableSecurity = normalizePostgresAdminResource(
+    'table_security',
+    {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      rlsEnabled: true,
+      forceRls: true,
+      policyCount: 2
+    },
+    {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    }
+  );
+  const grant = normalizePostgresAdminResource(
+    'grant',
+    {
+      granteeRoleName: 'alpha_prod_runtime',
+      target: {
+        databaseName: 'tenant_alpha_main',
+        schemaName: 'alpha_prod_app',
+        objectType: 'table',
+        objectName: 'customer_orders'
+      },
+      privileges: ['select']
+    },
+    {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    }
+  );
+  const extension = normalizePostgresAdminResource(
+    'extension',
+    {
+      databaseName: 'tenant_alpha_main',
+      extensionName: 'pgcrypto',
+      schemaName: 'public',
+      requestedVersion: '1.3'
+    },
+    {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    }
+  );
+  const template = normalizePostgresAdminResource(
+    'template',
+    {
+      templateId: 'pg_schema_shared_v1',
+      templateScope: 'schema',
+      description: 'Shared-schema bootstrap',
+      documentation: { summary: 'Shared-schema tenant bootstrap.' },
+      defaults: { extensions: ['pgcrypto'] }
+    },
+    {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    }
+  );
   const allowedType = normalizePostgresAdminResource(
     'type',
     {
@@ -163,6 +245,18 @@ test('postgres admin adapter normalizes provider payloads into safe resource sha
   assert.equal(fn.resourceType, 'postgres_function');
   assert.equal(fn.signature, 'get_customer_order(uuid)');
   assert.equal(fn.documentation.summary, 'Fetch one order.');
+
+  assert.equal(tableSecurity.resourceType, 'postgres_table_security');
+  assert.equal(tableSecurity.forceRls, true);
+
+  assert.equal(grant.resourceType, 'postgres_grant');
+  assert.equal(grant.privileges[0], 'select');
+
+  assert.equal(extension.resourceType, 'postgres_extension');
+  assert.equal(extension.authorized, true);
+
+  assert.equal(template.resourceType, 'postgres_template');
+  assert.equal(template.templateScope, 'schema');
 
   assert.equal(allowedType.resourceType, 'postgres_type');
   assert.equal(allowedType.typeName, 'jsonb');
@@ -340,6 +434,74 @@ test('postgres admin adapter validates profile guardrails, dependency safety, te
       nullable: true
     }
   });
+  const unsafeRlsDisable = validatePostgresAdminRequest({
+    resourceKind: 'table_security',
+    action: 'update',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      currentPolicies: [{ policyName: 'customer_orders_tenant_isolation' }],
+      currentTable: { sharedTableClassification: 'tenant_scoped' }
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      rlsEnabled: false
+    }
+  });
+  const unsafeGrant = validatePostgresAdminRequest({
+    resourceKind: 'grant',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    },
+    payload: {
+      granteeRoleName: 'postgres',
+      target: {
+        databaseName: 'tenant_alpha_main',
+        schemaName: 'alpha_prod_app',
+        objectType: 'table',
+        objectName: 'customer_orders'
+      },
+      privileges: ['execute']
+    }
+  });
+  const unauthorizedExtension = validatePostgresAdminRequest({
+    resourceKind: 'extension',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      authorizedExtensions: ['pgcrypto']
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      extensionName: 'postgis'
+    }
+  });
+  const missingTemplate = validatePostgresAdminRequest({
+    resourceKind: 'schema',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      tenantDatabaseName: 'tenant_alpha_main',
+      templateCatalog: []
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      ownerRoleName: 'alpha_prod_owner',
+      workspaceBindings: ['wrk_01alphaprod'],
+      templateId: 'pg_schema_shared_v1'
+    }
+  });
 
   assert.equal(sharedDatabaseMutation.ok, false);
   assert.equal(
@@ -374,6 +536,20 @@ test('postgres admin adapter validates profile guardrails, dependency safety, te
 
   assert.equal(disallowedType.ok, false);
   assert.equal(disallowedType.violations.some((violation) => violation.includes('allowed type catalog')), true);
+
+  assert.equal(unsafeRlsDisable.ok, false);
+  assert.equal(unsafeRlsDisable.violations.some((violation) => violation.includes('acknowledgeTenantIsolationImpact')), true);
+  assert.equal(unsafeRlsDisable.violations.some((violation) => violation.includes('Tenant-scoped shared tables')), true);
+
+  assert.equal(unsafeGrant.ok, false);
+  assert.equal(unsafeGrant.violations.some((violation) => violation.includes('reserved PostgreSQL roles')), true);
+  assert.equal(unsafeGrant.violations.some((violation) => violation.includes('not supported for table targets')), true);
+
+  assert.equal(unauthorizedExtension.ok, false);
+  assert.equal(unauthorizedExtension.violations.some((violation) => violation.includes('authorized extension catalog')), true);
+
+  assert.equal(missingTemplate.ok, false);
+  assert.equal(missingTemplate.violations.some((violation) => violation.includes('workspace template catalog')), true);
 });
 
 test('postgres admin adapter exposes common and advanced type catalogs when cluster features are enabled', () => {
@@ -462,6 +638,66 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
     scopes: ['database.admin'],
     effectiveRoles: ['workspace_admin']
   });
+  const tableSecurityCall = buildPostgresAdminAdapterCall({
+    resourceKind: 'table_security',
+    action: 'update',
+    callId: 'call_01pgrlsupdate',
+    tenantId: 'ten_01enterprisealpha',
+    workspaceId: 'wrk_01alphaprod',
+    planId: 'pln_01enterprise',
+    correlationId: 'corr-pgadm-003',
+    authorizationDecisionId: 'authz-pgadm-003',
+    idempotencyKey: 'idem-pgadm-003',
+    targetRef: 'database:tenant_alpha_main/schema:alpha_prod_app/table:customer_orders/security',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      currentPolicies: [{ policyName: 'customer_orders_tenant_isolation' }],
+      currentTable: { sharedTableClassification: 'workspace_local' }
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      rlsEnabled: true,
+      forceRls: true
+    },
+    scopes: ['database.admin'],
+    effectiveRoles: ['workspace_admin']
+  });
+  const grantPlan = buildPostgresGovernanceSqlPlan({
+    resourceKind: 'grant',
+    action: 'create',
+    payload: {
+      granteeRoleName: 'alpha_prod_runtime',
+      target: {
+        databaseName: 'tenant_alpha_main',
+        schemaName: 'alpha_prod_app',
+        objectType: 'table',
+        objectName: 'customer_orders'
+      },
+      privileges: ['select']
+    },
+    context: {
+      profile: resolvePostgresAdminProfile({ planId: 'pln_01enterprise' })
+    }
+  });
+  const schemaPlan = buildPostgresAdministrativeSqlPlan({
+    resourceKind: 'schema',
+    action: 'update',
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      ownerRoleName: 'alpha_prod_owner',
+      comment: 'Tenant schema',
+      documentation: { summary: 'Tenant schema for workspace alpha.' }
+    },
+    context: {
+      planId: 'pln_01enterprise',
+      profile: resolvePostgresAdminProfile({ planId: 'pln_01enterprise' })
+    }
+  });
   const inventory = buildPostgresAdminInventorySnapshot({
     tenantId: 'ten_01enterprisealpha',
     workspaceId: 'wrk_01alphaprod',
@@ -469,8 +705,14 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
     roles: [{ roleName: 'alpha_prod_owner' }],
     users: [{ userName: 'alpha_prod_api' }],
     databases: [{ databaseName: 'tenant_alpha_main' }],
-    schemas: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', workspaceBindings: ['wrk_01alphaprod'] }],
-    tables: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', columnCount: 2 }],
+    schemas: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', workspaceBindings: ['wrk_01alphaprod'], comment: 'Tenant schema' }],
+    tables: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', columnCount: 2, documentation: { summary: 'Orders table.' } }],
+    sequences: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', sequenceName: 'customer_orders_id_seq', ownedByTableName: 'customer_orders', ownedByColumnName: 'id' }],
+    tableSecurity: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', rlsEnabled: true, forceRls: true, policyCount: 1 }],
+    policies: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', policyName: 'customer_orders_tenant_isolation', appliesTo: { command: 'select' }, policyMode: 'restrictive' }],
+    grants: [{ grantId: 'tenant_alpha_main__alpha_prod_app__table__customer_orders__alpha_prod_runtime', granteeRoleName: 'alpha_prod_runtime', target: { databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', objectType: 'table', objectName: 'customer_orders' }, privileges: ['select'] }],
+    extensions: [{ databaseName: 'tenant_alpha_main', extensionName: 'pgcrypto', schemaName: 'public', authorized: true, requestedVersion: '1.3' }],
+    templates: [{ templateId: 'pg_schema_shared_v1', templateScope: 'schema', description: 'Shared-schema bootstrap', defaults: { extensions: ['pgcrypto'] } }],
     constraints: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', constraintName: 'customer_orders_pkey', constraintType: 'primary_key' }],
     indexes: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', indexName: 'customer_orders_status_idx', indexMethod: 'btree' }],
     views: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', viewName: 'customer_order_projection', dependencySummary: { readsFrom: [{ relationName: 'customer_orders' }] } }],
@@ -511,6 +753,34 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
       placementMode: 'database_per_tenant'
     }
   );
+  const dataApiDecision = evaluatePostgresDataApiAccess({
+    actorRoleName: 'alpha_prod_runtime',
+    command: 'select',
+    schemaGrants: [
+      {
+        granteeRoleName: 'alpha_prod_runtime',
+        privileges: ['usage'],
+        target: { schemaName: 'alpha_prod_app' }
+      }
+    ],
+    objectGrants: [
+      {
+        granteeRoleName: 'alpha_prod_runtime',
+        privileges: ['select'],
+        target: { schemaName: 'alpha_prod_app', objectName: 'customer_orders' }
+      }
+    ],
+    tableSecurity: { rlsEnabled: true },
+    policies: [
+      {
+        appliesTo: { command: 'select', roles: ['alpha_prod_runtime'] },
+        runtimePredicate: { kind: 'session_equals_row', sessionKey: 'tenantId', columnName: 'tenantId' }
+      }
+    ],
+    sessionContext: { tenantId: 'ten_01enterprisealpha' },
+    row: { tenantId: 'ten_01enterprisealpha' },
+    resource: { schemaName: 'alpha_prod_app', tableName: 'customer_orders' }
+  });
 
   assert.equal(adapterCall.adapter_id, 'postgresql');
   assert.equal(adapterCall.capability, 'postgres_materialized_view_create');
@@ -525,14 +795,30 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
   assert.equal(routineCall.payload.ddlPlan.statements[0].includes('CREATE OR REPLACE FUNCTION'), true);
   assert.equal(routineCall.payload.ddlPlan.statements.some((statement) => statement.includes('COMMENT ON FUNCTION')), true);
 
+  assert.equal(tableSecurityCall.capability, 'postgres_table_security_update');
+  assert.equal(tableSecurityCall.payload.ddlPlan.statements.some((statement) => statement.includes('ENABLE ROW LEVEL SECURITY')), true);
+  assert.equal(grantPlan.statements[0].includes('GRANT SELECT ON TABLE'), true);
+  assert.equal(schemaPlan.statements.some((statement) => statement.includes('COMMENT ON SCHEMA')), true);
+
   assert.equal(inventory.placementMode, 'database_per_tenant');
   assert.equal(inventory.counts.schemas, 1);
   assert.equal(inventory.counts.tables, 1);
+  assert.equal(inventory.counts.sequences, 1);
+  assert.equal(inventory.counts.tableSecurityProfiles, 1);
+  assert.equal(inventory.counts.policies, 1);
+  assert.equal(inventory.counts.grants, 1);
+  assert.equal(inventory.counts.extensions, 1);
+  assert.equal(inventory.counts.templates, 1);
   assert.equal(inventory.counts.constraints, 1);
   assert.equal(inventory.counts.indexes, 1);
   assert.equal(inventory.counts.materializedViews, 1);
   assert.equal(inventory.counts.functions, 1);
   assert.equal(inventory.counts.procedures, 1);
+  assert.equal(inventory.documentationRefs.length >= 2, true);
+  assert.equal(inventory.byDatabase.tenant_alpha_main.sequenceCount, 1);
+  assert.equal(inventory.byDatabase.tenant_alpha_main.policyCount, 1);
+  assert.equal(inventory.byDatabase.tenant_alpha_main.grantCount, 1);
+  assert.equal(inventory.byDatabase.tenant_alpha_main.extensionCount, 1);
   assert.equal(inventory.byDatabase.tenant_alpha_main.materializedViewCount, 1);
   assert.equal(inventory.minimumEnginePolicy.forbiddenAttributes.includes('SUPERUSER'), true);
 
@@ -545,4 +831,7 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
   assert.equal(normalizedError.code, 'GW_PGADM_QUOTA_EXCEEDED');
   assert.equal(normalizedError.detail.resourceKind, 'materialized_view');
   assert.equal(normalizedError.retryable, false);
+
+  assert.equal(dataApiDecision.allowed, true);
+  assert.equal(dataApiDecision.reason, 'grant_and_rls_allow');
 });

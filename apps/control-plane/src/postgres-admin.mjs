@@ -48,6 +48,12 @@ export function getPostgresCompatibilitySummary(context = {}) {
     contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
     placementMode: profile.placementMode,
     databaseMutationsSupported: profile.databaseMutationsSupported,
+    tableSecurityMutationsSupported: profile.tableSecurityMutationsSupported,
+    policyMutationsSupported: profile.policyMutationsSupported,
+    grantMutationsSupported: profile.grantMutationsSupported,
+    extensionMutationsSupported: profile.extensionMutationsSupported,
+    templateCatalogSupported: profile.templateCatalogSupported,
+    authorizedExtensions: profile.authorizedExtensions,
     quotaGuardrails: profile.quotaGuardrails,
     minimumEnginePolicy: POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY[profile.placementMode] ?? profile.minimumEnginePolicy,
     supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range, label, adminApiStability, placementModes }) => ({

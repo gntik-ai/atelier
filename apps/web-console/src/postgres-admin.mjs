@@ -101,11 +101,80 @@ export function buildPostgresRoutineExplorer(routines = [], operationId = 'getPo
   }));
 }
 
+export function buildPostgresTableSecurityExplorer(entries = []) {
+  return entries.map((entry) => ({
+    key: `${entry.databaseName}.${entry.schemaName}.${entry.tableName}.security`,
+    title: `${entry.tableName} security`,
+    databaseName: entry.databaseName,
+    schemaName: entry.schemaName,
+    tableName: entry.tableName,
+    rlsEnabled: entry.rlsEnabled !== false,
+    forceRls: entry.forceRls === true,
+    policyCount: entry.policyCount ?? 0,
+    route: getConsolePostgresRoute('getPostgresTableSecurity')
+  }));
+}
+
+export function buildPostgresPolicyExplorer(policies = []) {
+  return policies.map((policy) => ({
+    key: `${policy.databaseName}.${policy.schemaName}.${policy.tableName}.${policy.policyName}`,
+    title: policy.policyName,
+    databaseName: policy.databaseName,
+    schemaName: policy.schemaName,
+    tableName: policy.tableName,
+    command: policy.appliesTo?.command ?? policy.command ?? 'all',
+    policyMode: policy.policyMode ?? 'permissive',
+    roleCount: policy.appliesTo?.roles?.length ?? 0,
+    route: getConsolePostgresRoute('getPostgresPolicy')
+  }));
+}
+
+export function buildPostgresGrantExplorer(grants = []) {
+  return grants.map((grant) => ({
+    key: grant.grantId ?? `${grant.target?.databaseName}.${grant.target?.schemaName}.${grant.target?.objectType}.${grant.target?.objectName ?? grant.target?.schemaName}.${grant.granteeRoleName}`,
+    title: grant.granteeRoleName,
+    databaseName: grant.target?.databaseName ?? grant.databaseName,
+    schemaName: grant.target?.schemaName ?? grant.schemaName,
+    targetType: grant.target?.objectType ?? grant.objectType,
+    targetName: grant.target?.objectName ?? grant.objectName ?? grant.tableName ?? grant.sequenceName ?? grant.routineName ?? grant.target?.schemaName,
+    privilegeCount: grant.privileges?.length ?? 0,
+    route: getConsolePostgresRoute('getPostgresGrant')
+  }));
+}
+
+export function buildPostgresExtensionExplorer(extensions = []) {
+  return extensions.map((extension) => ({
+    key: `${extension.databaseName}.${extension.extensionName}`,
+    title: extension.extensionName,
+    databaseName: extension.databaseName,
+    schemaName: extension.schemaName,
+    authorized: extension.authorized !== false,
+    version: extension.requestedVersion ?? extension.installedVersion ?? extension.version,
+    route: getConsolePostgresRoute('getPostgresExtension')
+  }));
+}
+
+export function buildPostgresTemplateExplorer(templates = []) {
+  return templates.map((template) => ({
+    key: template.templateId,
+    title: template.templateId,
+    templateScope: template.templateScope ?? template.scope,
+    extensionCount: template.defaults?.extensions?.length ?? 0,
+    documentationSummary: template.documentation?.summary,
+    route: getConsolePostgresRoute('getPostgresTemplate')
+  }));
+}
+
 export function buildWorkspacePostgresExplorer({
   workspaceId,
   inventory,
   tables = [],
   columns = [],
+  tableSecurity = [],
+  policies = [],
+  grants = [],
+  extensions = [],
+  templates = [],
   constraints = [],
   indexes = [],
   views = [],
@@ -141,6 +210,41 @@ export function buildWorkspacePostgresExplorer({
           nullable: column.nullable !== false,
           route: getConsolePostgresRoute('getPostgresColumn')
         }))
+      },
+      {
+        id: 'table_security',
+        title: 'Table security',
+        count: tableSecurity.length,
+        route: getConsolePostgresRoute('getPostgresTableSecurity'),
+        items: buildPostgresTableSecurityExplorer(tableSecurity)
+      },
+      {
+        id: 'policies',
+        title: 'Policies',
+        count: policies.length,
+        route: getConsolePostgresRoute('listPostgresPolicies'),
+        items: buildPostgresPolicyExplorer(policies)
+      },
+      {
+        id: 'grants',
+        title: 'Grants',
+        count: grants.length,
+        route: getConsolePostgresRoute('listPostgresGrants'),
+        items: buildPostgresGrantExplorer(grants)
+      },
+      {
+        id: 'extensions',
+        title: 'Extensions',
+        count: extensions.length,
+        route: getConsolePostgresRoute('listPostgresExtensions'),
+        items: buildPostgresExtensionExplorer(extensions)
+      },
+      {
+        id: 'templates',
+        title: 'Templates',
+        count: templates.length,
+        route: getConsolePostgresRoute('listPostgresTemplates'),
+        items: buildPostgresTemplateExplorer(templates)
       },
       {
         id: 'constraints',
