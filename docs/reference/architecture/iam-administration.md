@@ -10,6 +10,7 @@ For workspace-scoped external application federation, see `docs/reference/archit
 - keep request/response envelopes stable across supported Keycloak versions
 - prevent invalid IAM combinations before they reach the provider
 - document operator and developer entry points for API and console flows
+- preserve actor-rich lifecycle evidence across audit and Kafka-compatible streams
 
 ## Public API family
 
@@ -19,6 +20,8 @@ All productized IAM administration routes live under `/v1/iam/*` and require:
 - `X-API-Version: 2026-03-24`
 - `X-Correlation-Id: <stable trace id>`
 - `Idempotency-Key: <stable replay key>` for `POST`, `PUT`, `PATCH`, and `DELETE`
+
+Tenant-scoped IAM enforcement also adds one explicit suspension route under `/v1/tenants/{tenantId}/iam-access` so operators can block or restore identity access without overloading the generic tenant entity model.
 
 ### Examples
 
@@ -92,6 +95,34 @@ curl -X PATCH https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/
   }'
 ```
 
+Suspend tenant-managed IAM access while preserving the tenant entity itself:
+
+```bash
+curl -X PATCH https://api.in-atelier.example.com/v1/tenants/ten_01starteralpha/iam-access \
+  -H 'Authorization: Bearer <token>' \
+  -H 'X-API-Version: 2026-03-24' \
+  -H 'X-Correlation-Id: corr-iam-005' \
+  -H 'Idempotency-Key: idem-iam-005' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "requestedByUserId": "usr_01tenantadmin",
+    "state": "suspended",
+    "reason": "Security hold while billing incident is reviewed",
+    "revokeActiveSessions": true,
+    "propagateToHumanUsers": true,
+    "propagateToServiceAccounts": true
+  }'
+```
+
+Query tenant IAM lifecycle activity:
+
+```bash
+curl https://api.in-atelier.example.com/v1/iam/tenants/ten_01starteralpha/activity?filter[eventType]=iam.tenant.access.suspended \
+  -H 'Authorization: Bearer <token>' \
+  -H 'X-API-Version: 2026-03-24' \
+  -H 'X-Correlation-Id: corr-iam-006'
+```
+
 ## Console path guidance
 
 The administrative API is designed to back the following console navigation paths:
@@ -103,6 +134,8 @@ The administrative API is designed to back the following console navigation path
 - `/console/tenants/:tenantId/iam/scopes`
 - `/console/tenants/:tenantId/iam/users`
 - `/console/tenants/:tenantId/iam/users/:iamUserId/reset-credentials`
+- `/console/tenants/:tenantId/iam/activity`
+- `/console/workspaces/:workspaceId/iam/activity`
 
 These paths are intentionally documented now so later console work can preserve route naming and user expectations without changing the product API.
 
@@ -117,6 +150,28 @@ The normalized IAM layer rejects unsafe combinations before the provider call is
 - reserved role and scope names cannot be reused casually
 - user group paths are normalized and deduplicated
 - temporary passwords must be at least 12 characters long
+
+## Lifecycle semantics
+
+- `user disablement` blocks one human identity. Other users, service accounts, and tenant-wide IAM posture remain unchanged.
+- `tenant suspension` blocks protected access for tenant-managed users and service accounts together. It is the state operators use when access must stop broadly but identifiers and audit history must remain intact.
+- `client/application revocation` blocks one workload or external application boundary. It does not imply that the tenant or its human operators are suspended.
+
+These distinctions are reflected in the traceability APIs and in the contract helper logic so later runtime code can preserve the same semantics.
+
+## Traceability and audit
+
+`US-IAM-06` adds two query surfaces for IAM activity:
+
+- `GET /v1/iam/tenants/{tenantId}/activity`
+- `GET /v1/iam/workspaces/{workspaceId}/activity`
+
+The returned lifecycle records are designed to preserve:
+
+- actor id, actor type, origin surface, IP, and user agent
+- tenant/workspace/realm/client target context
+- one audit record identifier and one replay-safe Kafka partition key
+- lifecycle outcome details for login, logout, signup, invitation, credential reset, tenant suspension, and reactivation events
 
 ## Supported Keycloak versions
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, data, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -13322,6 +13322,530 @@
         "x-visibility": "public",
         "x-owning-service": "control_api"
       }
+    },
+    "/v1/tenants/{tenantId}/iam-access": {
+      "patch": {
+        "operationId": "setTenantIamAccess",
+        "summary": "Suspend or reactivate all tenant-managed IAM access for users and service accounts.",
+        "tags": [
+          "Tenants",
+          "TenantIAMAccess"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantIamAccessStatusUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Tenant IAM access change accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "tenants",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "keycloak"
+        ]
+      }
+    },
+    "/v1/iam/tenants/{tenantId}/activity": {
+      "get": {
+        "operationId": "listTenantIamActivity",
+        "summary": "Query actor-rich IAM lifecycle activity for one tenant.",
+        "tags": [
+          "IAM",
+          "IAMAudit"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "name": "filter[eventType]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 160
+            },
+            "description": "Filter identity activity by the canonical lifecycle event type."
+          },
+          {
+            "name": "filter[outcome]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "applied",
+                "denied",
+                "reactivated"
+              ]
+            },
+            "description": "Filter identity activity by the resulting lifecycle disposition."
+          },
+          {
+            "name": "filter[actorId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 128
+            },
+            "description": "Filter identity activity to one actor identifier."
+          },
+          {
+            "name": "window[start]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start of the traceability time window."
+          },
+          {
+            "name": "window[end]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End of the traceability time window."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant IAM activity returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamLifecycleEventCollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "iam",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "auditor",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-read",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/iam/workspaces/{workspaceId}/activity": {
+      "get": {
+        "operationId": "listWorkspaceIamActivity",
+        "summary": "Query actor-rich IAM lifecycle activity for one workspace context.",
+        "tags": [
+          "IAM",
+          "IAMAudit"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "name": "filter[eventType]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 160
+            },
+            "description": "Filter identity activity by the canonical lifecycle event type."
+          },
+          {
+            "name": "filter[outcome]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "applied",
+                "denied",
+                "reactivated"
+              ]
+            },
+            "description": "Filter identity activity by the resulting lifecycle disposition."
+          },
+          {
+            "name": "filter[actorId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 128
+            },
+            "description": "Filter identity activity to one actor identifier."
+          },
+          {
+            "name": "window[start]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Start of the traceability time window."
+          },
+          {
+            "name": "window[end]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "End of the traceability time window."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace IAM activity returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IamLifecycleEventCollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested entity was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "iam",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "auditor",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_auditor",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-read",
+        "x-owning-service": "control_api"
+      }
     }
   },
   "components": {
@@ -14458,6 +14982,9 @@
           },
           "identityContext": {
             "$ref": "#/components/schemas/TenantIdentityContext"
+          },
+          "identityAccessPolicy": {
+            "$ref": "#/components/schemas/TenantIdentityAccessPolicy"
           }
         },
         "additionalProperties": false
@@ -14953,6 +15480,9 @@
             "items": {
               "$ref": "#/components/schemas/ServiceAccountCredentialReference"
             }
+          },
+          "accessProjection": {
+            "$ref": "#/components/schemas/ServiceAccountAccessProjection"
           }
         },
         "additionalProperties": false
@@ -21113,6 +21643,424 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExternalApplication"
+            }
+          }
+        }
+      },
+      "TenantIamAccessStatusUpdateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestedByUserId",
+          "state",
+          "reason"
+        ],
+        "properties": {
+          "requestedByUserId": {
+            "type": "string",
+            "pattern": "^usr_[0-9a-z]+$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "revokeActiveSessions": {
+            "type": "boolean"
+          },
+          "propagateToHumanUsers": {
+            "type": "boolean"
+          },
+          "propagateToServiceAccounts": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TenantIdentityAccessPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "enforcementMode",
+          "appliesToHumanUsers",
+          "appliesToServiceAccounts"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ]
+          },
+          "enforcementMode": {
+            "type": "string",
+            "enum": [
+              "provider_enforced",
+              "gateway_enforced",
+              "provider_and_gateway_enforced"
+            ]
+          },
+          "appliesToHumanUsers": {
+            "type": "boolean"
+          },
+          "appliesToServiceAccounts": {
+            "type": "boolean"
+          },
+          "lastChangedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastChangedByUserId": {
+            "type": "string",
+            "pattern": "^usr_[0-9a-z]+$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "lifecycleEventId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        }
+      },
+      "ServiceAccountAccessProjection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "effectiveAccess",
+          "blockedByTenantSuspension",
+          "clientState"
+        ],
+        "properties": {
+          "effectiveAccess": {
+            "type": "string",
+            "enum": [
+              "active",
+              "blocked_by_tenant",
+              "blocked_by_client",
+              "blocked_by_credential"
+            ]
+          },
+          "blockedByTenantSuspension": {
+            "type": "boolean"
+          },
+          "clientState": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked",
+              "suspended"
+            ]
+          },
+          "credentialState": {
+            "type": "string",
+            "enum": [
+              "active",
+              "rotated",
+              "revoked"
+            ]
+          },
+          "lastEvaluatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenantLifecycleEventId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        }
+      },
+      "IamLifecycleActor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actorId",
+          "actorType",
+          "originSurface"
+        ],
+        "properties": {
+          "actorId": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 128
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "platform_user",
+              "tenant_user",
+              "workspace_user",
+              "service_account",
+              "system"
+            ]
+          },
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "originSurface": {
+            "type": "string",
+            "enum": [
+              "console",
+              "public_api",
+              "provider_callback",
+              "system_job"
+            ]
+          },
+          "ipAddress": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          },
+          "userAgent": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "delegationChain": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 128
+            }
+          }
+        }
+      },
+      "IamLifecycleTarget": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceType",
+          "resourceId",
+          "tenantId"
+        ],
+        "properties": {
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace",
+              "iam_user",
+              "service_account",
+              "iam_client",
+              "external_application",
+              "invitation",
+              "auth_session"
+            ]
+          },
+          "resourceId": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "realmId": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$"
+          },
+          "clientId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 3
+          },
+          "parentResourceId": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          }
+        }
+      },
+      "IamLifecycleStreamDelivery": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "auditRecordId",
+          "deliveryMode",
+          "partitionKey"
+        ],
+        "properties": {
+          "auditRecordId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": [
+              "audit_only",
+              "audit_and_kafka"
+            ]
+          },
+          "kafkaTopic": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "partitionKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "replayToken": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        }
+      },
+      "IamLifecycleEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "eventType",
+          "action",
+          "outcome",
+          "actor",
+          "target",
+          "streamDelivery",
+          "correlationId",
+          "occurredAt",
+          "contractVersion"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "iam.user.login.succeeded",
+              "iam.user.logout.completed",
+              "iam.user.signup.requested",
+              "iam.user.activation.completed",
+              "iam.user.status.changed",
+              "iam.user.credentials.reset",
+              "iam.invitation.created",
+              "iam.invitation.accepted",
+              "iam.invitation.revoked",
+              "iam.tenant.access.suspended",
+              "iam.tenant.access.reactivated",
+              "iam.service_account.blocked",
+              "iam.service_account.reactivated",
+              "iam.client.revoked"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "applied",
+              "denied",
+              "reactivated"
+            ]
+          },
+          "actor": {
+            "$ref": "#/components/schemas/IamLifecycleActor"
+          },
+          "target": {
+            "$ref": "#/components/schemas/IamLifecycleTarget"
+          },
+          "streamDelivery": {
+            "$ref": "#/components/schemas/IamLifecycleStreamDelivery"
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "contractVersion": {
+            "type": "string",
+            "pattern": "^2026-03-24$"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "suspensionState": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          }
+        }
+      },
+      "IamLifecycleEventCollectionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "page",
+          "items"
+        ],
+        "properties": {
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IamLifecycleEvent"
+            }
+          },
+          "filtersApplied": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "actorId": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 128
+              },
+              "eventType": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 160
+              },
+              "outcome": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 40
+              },
+              "windowStart": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "windowEnd": {
+                "type": "string",
+                "format": "date-time"
+              }
             }
           }
         }

@@ -2,7 +2,7 @@
   "generatedFrom": "apps/control-plane/openapi/control-plane.openapi.json",
   "release": {
     "header_version": "2026-03-24",
-    "openapi_semver": "1.6.0",
+    "openapi_semver": "1.7.0",
     "path_version": "v1"
   },
   "routes": [
@@ -3418,6 +3418,157 @@
     },
     {
       "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "auditor",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "keycloak"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "family": "iam",
+      "familyTitle": "IAM",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "tenant_control",
+      "gatewayRequestValidationProfile": "tenant_control",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "control",
+      "gatewayTimeoutProfile": "control_plane",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "GET",
+      "operationId": "listTenantIamActivity",
+      "path": "/v1/iam/tenants/{tenantId}/activity",
+      "planCapabilityAnyOf": [
+        "identity.sso.oidc"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "control-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant",
+      "scope": "tenant",
+      "summary": "Query actor-rich IAM lifecycle activity for one tenant.",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "IAM",
+        "IAMAudit"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "optional"
+    },
+    {
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "auditor",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_auditor",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "keycloak"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "family": "iam",
+      "familyTitle": "IAM",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "tenant_control",
+      "gatewayRequestValidationProfile": "tenant_control",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "control",
+      "gatewayTimeoutProfile": "control_plane",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "GET",
+      "operationId": "listWorkspaceIamActivity",
+      "path": "/v1/iam/workspaces/{workspaceId}/activity",
+      "planCapabilityAnyOf": [
+        "identity.sso.oidc"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "control-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "workspace",
+      "scope": "workspace",
+      "summary": "Query actor-rich IAM lifecycle activity for one workspace context.",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "IAM",
+        "IAMAudit"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "optional"
+    },
+    {
+      "allowAnonymousOptions": true,
       "allowedContentTypes": [],
       "audiences": [
         "developer_external",
@@ -4969,6 +5120,78 @@
       "tags": [
         "Tenants",
         "CapabilityResolution"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "none"
+    },
+    {
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "keycloak"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "family": "tenants",
+      "familyTitle": "Tenants",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "tenant_control",
+      "gatewayRequestValidationProfile": "tenant_control",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "control",
+      "gatewayTimeoutProfile": "control_plane",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "PATCH",
+      "operationId": "setTenantIamAccess",
+      "path": "/v1/tenants/{tenantId}/iam-access",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 60,
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "tenant",
+      "scope": "tenant",
+      "summary": "Suspend or reactivate all tenant-managed IAM access for users and service accounts.",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Tenants",
+        "TenantIAMAccess"
       ],
       "tenantBinding": "required",
       "visibility": "public",

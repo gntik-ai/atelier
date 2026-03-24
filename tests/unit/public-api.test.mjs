@@ -25,7 +25,7 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
 
   assert.equal(taxonomy.release.path_version, 'v1');
   assert.equal(taxonomy.release.header_version, '2026-03-24');
-  assert.equal(taxonomy.release.openapi_semver, '1.6.0');
+  assert.equal(taxonomy.release.openapi_semver, '1.7.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/publish'));
@@ -40,6 +40,9 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/applications/templates'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/tenants/{tenantId}/iam-access'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/iam/tenants/{tenantId}/activity'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/iam/workspaces/{workspaceId}/activity'));
   assert.ok(routeCatalog.routes.every((route) => typeof route.gatewayQosProfile === 'string'));
   assert.ok(routeCatalog.routes.every((route) => typeof route.gatewayRequestValidationProfile === 'string'));
   assert.ok(routeCatalog.routes.every((route) => route.errorEnvelope === 'ErrorResponse'));

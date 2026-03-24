@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.6.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.7.0)
 
 ## Product API vs native passthrough
 
@@ -76,6 +76,7 @@ Tenant lifecycle, membership, invitation, quota, and tenant-level capability sur
 | POST | `/v1/tenants` | tenant | tenant | Submit a canonical tenant write request |
 | GET | `/v1/tenants/{tenantId}` | tenant | tenant | Fetch one canonical tenant entity |
 | GET | `/v1/tenants/{tenantId}/effective-capabilities` | tenant | tenant_capabilities | Resolve effective capabilities for one tenant |
+| PATCH | `/v1/tenants/{tenantId}/iam-access` | tenant | tenant | Suspend or reactivate all tenant-managed IAM access for users and service accounts. |
 | POST | `/v1/tenants/{tenantId}/invitations` | tenant | invitation | Submit an invitation write request |
 | GET | `/v1/tenants/{tenantId}/invitations/{invitationId}` | tenant | invitation | Fetch one invitation record |
 | POST | `/v1/tenants/{tenantId}/invitations/{invitationId}/acceptance` | tenant | invitation | Accept a tenant or workspace invitation while it is still pending. |
@@ -164,6 +165,8 @@ Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, an
 | PUT | `/v1/iam/realms/{realmId}/users/{iamUserId}` | tenant | iam_user | Replace the mutable settings of one managed IAM user |
 | POST | `/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets` | tenant | iam_user | Reset one managed IAM user password or required actions without exposing provider-native payloads |
 | PATCH | `/v1/iam/realms/{realmId}/users/{iamUserId}/status` | tenant | iam_user | Activate or deactivate one managed IAM user |
+| GET | `/v1/iam/tenants/{tenantId}/activity` | tenant | tenant | Query actor-rich IAM lifecycle activity for one tenant. |
+| GET | `/v1/iam/workspaces/{workspaceId}/activity` | workspace | workspace | Query actor-rich IAM lifecycle activity for one workspace context. |
 
 ## Postgres
 

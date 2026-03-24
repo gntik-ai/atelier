@@ -150,6 +150,14 @@
       "type": "tenant.suspended"
     },
     {
+      "id": "event-iam-user-login",
+      "type": "iam.user.login.succeeded"
+    },
+    {
+      "id": "event-iam-tenant-access-suspended",
+      "type": "iam.tenant.access.suspended"
+    },
+    {
       "id": "event-workspace-document-updated",
       "type": "workspace.document.updated"
     }
@@ -184,6 +192,10 @@
       "failure_mode": "idempotent_retry"
     },
     {
+      "id": "resilience-tenant-suspension-toggle",
+      "failure_mode": "tenant_suspension_toggle"
+    },
+    {
       "id": "resilience-event-gateway-load",
       "failure_mode": "bounded_load",
       "concurrent_sessions": 240,
@@ -212,8 +224,16 @@
       "path": "/tenant/:tenantId/audit"
     },
     {
+      "id": "route-tenant-iam-activity",
+      "path": "/tenant/:tenantId/iam/activity"
+    },
+    {
       "id": "route-workspace-dashboard",
       "path": "/tenant/:tenantId/workspaces/:workspaceId"
+    },
+    {
+      "id": "route-workspace-iam-activity",
+      "path": "/tenant/:tenantId/workspaces/:workspaceId/iam/activity"
     },
     {
       "id": "route-workspace-settings",

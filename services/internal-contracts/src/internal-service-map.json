@@ -20,18 +20,21 @@
         "Resolve contextual authorization with actor, tenant, workspace, plan, scopes, effective roles, and correlation metadata.",
         "Translate accepted operations into internal command envelopes.",
         "Accept BaaS-native IAM administrative operations for realms, clients, roles, scopes, and users while keeping provider payload normalization stable.",
-        "Emit audit evidence for request acceptance and synchronous rejection where required."
+        "Emit audit evidence for request acceptance and synchronous rejection where required.",
+        "Emit IAM lifecycle events with actor context for audit persistence and Kafka-compatible downstream delivery."
       ],
       "owned_resources": [
         "public route contract",
         "authorization context",
         "request validation policy",
         "authorization decision",
-        "iam administrative request envelope"
+        "iam administrative request envelope",
+        "iam lifecycle event envelope"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
-        "audit_module"
+        "audit_module",
+        "event_gateway"
       ],
       "adapter_dependencies": [],
       "inbound_contracts": [],
@@ -39,7 +42,8 @@
         "control_api_command",
         "provisioning_request",
         "audit_record",
-        "iam_admin_request"
+        "iam_admin_request",
+        "iam_lifecycle_event"
       ]
     },
     {
@@ -52,7 +56,8 @@
         "Coordinate Keycloak admin operations for realms, clients, roles, scopes, and users without letting control_api call adapters directly.",
         "Aggregate provider outcomes into a shared provisioning result envelope.",
         "Preserve workspace-safe authorization context and plan guardrails across provider-facing adapter calls.",
-        "Emit audit evidence for step transitions and final outcomes."
+        "Emit audit evidence for step transitions and final outcomes.",
+        "Preserve suspension/reactivation semantics for tenant-scoped users and service accounts when IAM access state changes."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -80,7 +85,8 @@
         "provisioning_result",
         "adapter_call",
         "audit_record",
-        "iam_admin_result"
+        "iam_admin_result",
+        "iam_lifecycle_event"
       ]
     },
     {
@@ -91,14 +97,16 @@
         "Expose the gateway-managed HTTP, SSE, and WebSocket event surface without exposing native Kafka clients.",
         "Translate authenticated publish and subscribe requests into Kafka producer/consumer operations while preserving tenant and workspace isolation.",
         "Apply transport-safe backpressure, throughput ceilings, replay windows, and message-format guardrails before broker interaction.",
-        "Emit audit evidence and operational telemetry for publish acceptance, delivery lag, auth denials, and stream lifecycle changes."
+        "Emit audit evidence and operational telemetry for publish acceptance, delivery lag, auth denials, and stream lifecycle changes.",
+        "Forward IAM lifecycle events into Kafka-compatible streams without dropping audit or correlation metadata."
       ],
       "owned_resources": [
         "event publication acceptance record",
         "stream subscription lease",
         "gateway backpressure policy",
         "delivery cursor and replay watermark",
-        "gateway realtime metrics projection"
+        "gateway realtime metrics projection",
+        "iam lifecycle stream publication"
       ],
       "service_dependencies": [
         "audit_module"
@@ -107,6 +115,7 @@
         "kafka"
       ],
       "inbound_contracts": [
+        "iam_lifecycle_event",
         "event_gateway_publish_request",
         "event_gateway_subscription_request"
       ],
@@ -125,7 +134,8 @@
         "Persist append-only evidence for control and provisioning activity.",
         "Attach correlation metadata and evidence pointers to audit records.",
         "Persist authorization decision identifiers, effective roles, and delegation-chain evidence without storing raw credentials.",
-        "Apply redaction and retention policy in later tasks without changing callers."
+        "Apply redaction and retention policy in later tasks without changing callers.",
+        "Preserve actor, origin, and tenant/workspace context for BaaS-managed IAM administrative evidence."
       ],
       "owned_resources": [
         "audit append log",
@@ -464,10 +474,18 @@
         "workspace_id",
         "authorization_decision_id",
         "effective_roles",
-        "delegation_chain"
+        "delegation_chain",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "request_ip",
+        "user_agent",
+        "target_resource",
+        "target_tenant_id",
+        "target_workspace_id"
       ],
       "idempotency": "Duplicate submissions with the same record_id must be coalesced into one append-only evidence record.",
-      "versioning": "Audit consumers may add derived indexes later, but the canonical evidence envelope is versioned and immutable once written.",
+      "versioning": "Audit consumers may add derived indexes later, but the canonical evidence envelope is versioned, immutable once written, and rich enough to reconstruct actor and tenant/workspace context for IAM operations.",
       "error_classes": [
         "storage_unavailable",
         "schema_validation_error"
@@ -622,9 +640,16 @@
         "effective_roles",
         "scopes",
         "contract_version",
-        "requested_at"
+        "requested_at",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "request_ip",
+        "user_agent",
+        "target_tenant_id",
+        "target_workspace_id"
       ],
-      "idempotency": "IAM admin mutations must coalesce by target_ref, action, and idempotency_key so safe retries do not duplicate provider-side changes.",
+      "idempotency": "IAM admin mutations must coalesce by target_ref, action, and idempotency_key so safe retries do not duplicate provider-side changes or emit duplicate lifecycle evidence.",
       "versioning": "The BaaS request envelope stays stable even when Keycloak payload details evolve or provider versions roll forward inside the supported compatibility matrix.",
       "error_classes": [
         "validation_error",
@@ -645,7 +670,9 @@
         "normalized_resource",
         "correlation_id",
         "contract_version",
-        "observed_at"
+        "observed_at",
+        "audit_record_id",
+        "lifecycle_event_id"
       ],
       "idempotency": "Repeated reads of the same IAM admin result must describe one logical provider outcome and one normalized resource projection.",
       "versioning": "Result contracts expose normalized BaaS-native resource shapes while preserving provider references and supported-version metadata additively.",
@@ -655,6 +682,34 @@
         "retryable_dependency_failure",
         "terminal_dependency_failure",
         "unsupported_provider_version"
+      ]
+    },
+    "iam_lifecycle_event": {
+      "owner": "control_api",
+      "version": "2026-03-24",
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "action",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "tenant_id",
+        "workspace_id",
+        "realm_id",
+        "target_ref",
+        "audit_record_id",
+        "partition_key",
+        "correlation_id",
+        "contract_version",
+        "occurred_at"
+      ],
+      "idempotency": "Lifecycle events must coalesce by event_id and correlation_id so retries do not duplicate downstream Kafka publications or audit links.",
+      "versioning": "The lifecycle event envelope stays additive while preserving stable actor, target, and stream-routing metadata for audit and observability consumers.",
+      "error_classes": [
+        "schema_validation_error",
+        "audit_unavailable",
+        "dependency_failure"
       ]
     }
   },
@@ -675,8 +730,9 @@
       "entry_service": "control_api",
       "steps": [
         "control_api resolves tenant-scoped authorization, accepts the request, and emits a versioned control command with authorization_decision_id and correlation metadata.",
-        "provisioning_orchestrator coordinates provider-facing suspend and access-revocation capabilities without widening tenant or workspace scope.",
-        "audit_module records requested scope, authorization evidence, outcome, and any pointer needed for later review."
+        "provisioning_orchestrator coordinates provider-facing suspend and access-revocation capabilities for both human users and service accounts without widening tenant or workspace scope.",
+        "audit_module records requested scope, authorization evidence, resulting access posture, and any pointer needed for later review.",
+        "event_gateway receives one iam_lifecycle_event envelope for suspension or reactivation so downstream observability can trace the tenant-wide IAM posture change."
       ]
     },
     {
@@ -714,7 +770,8 @@
         "control_api validates the BaaS-native IAM request, resolves contextual authorization for tenant/workspace scope, and emits one iam_admin_request envelope with correlation and idempotency metadata.",
         "provisioning_orchestrator validates the requested Keycloak version against the supported compatibility matrix, preserves tenant/workspace boundaries, and translates the normalized resource intent into one keycloak adapter_call.",
         "services/adapters performs realm, client, role, scope, or user operations through the Keycloak Admin API, then normalizes provider payloads and error classes back into the stable iam_admin_result contract.",
-        "audit_module records the actor, tenant/workspace scope, resource target, resulting provider reference, and any reset/deactivation evidence without storing raw credentials."
+        "audit_module records the actor, origin surface, tenant/workspace scope, resource target, resulting provider reference, and any reset/deactivation evidence without storing raw credentials.",
+        "control_api or provisioning_orchestrator emits one iam_lifecycle_event envelope for audit/Kafka consumers when the administrative action changes an identity lifecycle state."
       ]
     },
     {
@@ -745,6 +802,15 @@
         "provisioning_orchestrator expands the canonical application contract into Keycloak OIDC clients, SAML clients, and brokered identity-provider resources while preserving tenant and workspace boundaries.",
         "services/adapters validates metadata URLs, signing certificates, logout callbacks, and attribute-mapper compatibility before performing idempotent provider upserts.",
         "audit_module records the actor, workspace namespace, provider aliases, validation outcome, and resulting identity references without persisting raw secrets or certificates outside approved evidence pointers."
+      ]
+    },
+    {
+      "id": "iam_lifecycle_traceability",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api accepts IAM lifecycle-producing actions such as login, logout, signup activation, invitation changes, credential resets, and tenant access suspension with stable actor and correlation metadata.",
+        "audit_module appends one actor-rich evidence record that preserves tenant/workspace scope, target resource identifiers, and the resulting lifecycle disposition.",
+        "event_gateway forwards one iam_lifecycle_event envelope into the Kafka-compatible stream topology without dropping partitioning, audit linkage, or replay-safe identifiers."
       ]
     }
   ]

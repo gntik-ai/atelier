@@ -109,6 +109,16 @@ cross_domain_matrix:
         - event-tenant-provision-requested
         - tenant-shared-a
       expected: Outbound event envelopes are stable and replay-aware before provider integration.
+    - id: AI-EVT-002
+      level: adapter_integration
+      domain: events
+      taxonomy: positive
+      title: IAM lifecycle activity preserves actor context, audit linkage, and Kafka partitioning for tenant suspension and credential events.
+      fixtures:
+        - adapter-event-bus-stub
+        - event-iam-tenant-access-suspended
+        - tenant-shared-a
+      expected: Lifecycle evidence remains traceable across audit and Kafka-compatible streams without duplicating side effects.
     - id: AI-SEC-002
       level: adapter_integration
       domain: security
@@ -143,6 +153,15 @@ cross_domain_matrix:
       fixtures:
         - api-version-current
       expected: Access-check routes preserve tenant/workspace scoping, correlation headers, and explicit allow or deny semantics.
+    - id: AC-EVT-003
+      level: api_contract
+      domain: events
+      taxonomy: contract
+      title: IAM activity query routes expose actor-rich lifecycle records for tenant and workspace scopes.
+      fixtures:
+        - api-version-current
+        - event-iam-user-login
+      expected: IAM traceability endpoints remain versioned, correlated, and additive across new event types.
     - id: CE-CON-001
       level: console_e2e
       domain: console
@@ -218,6 +237,17 @@ cross_domain_matrix:
         - tenant-shared-a
         - tenant-dedicated-a
       expected: Recovery paths preserve the logical tenant contract and isolation boundary.
+    - id: RS-SEC-003
+      level: resilience
+      domain: security
+      taxonomy: resilience
+      title: Tenant suspension immediately blocks protected user and service-account access, and reactivation restores only the states that were not separately revoked.
+      fixtures:
+        - resilience-tenant-suspension-toggle
+        - tenant-shared-a
+        - workspace-alpha-dev
+        - event-iam-tenant-access-suspended
+      expected: Suspension and reactivation remain reversible, auditable, and semantically distinct from user disablement or client revocation.
     - id: RS-SEC-001
       level: resilience
       domain: security

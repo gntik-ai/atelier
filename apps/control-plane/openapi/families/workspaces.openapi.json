@@ -1752,6 +1752,9 @@
       "ServiceAccount": {
         "additionalProperties": false,
         "properties": {
+          "accessProjection": {
+            "$ref": "#/components/schemas/ServiceAccountAccessProjection"
+          },
           "credentialPolicy": {
             "$ref": "#/components/schemas/ServiceAccountCredentialPolicy"
           },
@@ -1838,6 +1841,54 @@
           "credentialStatus",
           "credentialPolicy",
           "credentials"
+        ],
+        "type": "object"
+      },
+      "ServiceAccountAccessProjection": {
+        "additionalProperties": false,
+        "properties": {
+          "blockedByTenantSuspension": {
+            "type": "boolean"
+          },
+          "clientState": {
+            "enum": [
+              "active",
+              "revoked",
+              "suspended"
+            ],
+            "type": "string"
+          },
+          "credentialState": {
+            "enum": [
+              "active",
+              "rotated",
+              "revoked"
+            ],
+            "type": "string"
+          },
+          "effectiveAccess": {
+            "enum": [
+              "active",
+              "blocked_by_tenant",
+              "blocked_by_client",
+              "blocked_by_credential"
+            ],
+            "type": "string"
+          },
+          "lastEvaluatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "tenantLifecycleEventId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "effectiveAccess",
+          "blockedByTenantSuspension",
+          "clientState"
         ],
         "type": "object"
       },
@@ -2423,7 +2474,7 @@
     "description": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
     "title": "In Atelier Workspaces API",
-    "version": "1.6.0"
+    "version": "1.7.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

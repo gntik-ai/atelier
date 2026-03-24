@@ -12,6 +12,7 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/platform/users/{userId}']);
   assert.ok(document.paths['/v1/platform/route-catalog']);
   assert.ok(document.paths['/v1/tenants/{tenantId}']);
+  assert.ok(document.paths['/v1/tenants/{tenantId}/iam-access']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/templates']);
@@ -40,6 +41,8 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/iam/realms/{realmId}/scopes/{scopeName}']);
   assert.ok(document.paths['/v1/iam/realms/{realmId}/users/{iamUserId}']);
   assert.ok(document.paths['/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets']);
+  assert.ok(document.paths['/v1/iam/tenants/{tenantId}/activity']);
+  assert.ok(document.paths['/v1/iam/workspaces/{workspaceId}/activity']);
   assert.ok(document.paths['/v1/platform/plans/{planId}']);
   assert.ok(document.paths['/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}']);
   assert.ok(document.paths['/v1/platform/deployment-profiles/{deploymentProfileId}']);
@@ -78,6 +81,9 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createIamRealm = document.paths['/v1/iam/realms'].post;
   const listIamClients = document.paths['/v1/iam/realms/{realmId}/clients'].get;
   const resetIamUserCredentials = document.paths['/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets'].post;
+  const listTenantIamActivity = document.paths['/v1/iam/tenants/{tenantId}/activity'].get;
+  const listWorkspaceIamActivity = document.paths['/v1/iam/workspaces/{workspaceId}/activity'].get;
+  const setTenantIamAccess = document.paths['/v1/tenants/{tenantId}/iam-access'].patch;
   const getWorkspaceCapabilities = document.paths['/v1/workspaces/{workspaceId}/effective-capabilities'].get;
   const createInvitation = document.paths['/v1/tenants/{tenantId}/invitations'].post;
   const acceptInvitation = document.paths['/v1/tenants/{tenantId}/invitations/{invitationId}/acceptance'].post;
@@ -97,7 +103,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.6.0');
+  assert.equal(document.info.version, '1.7.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -124,6 +130,9 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const iamRealmParameters = resolveParameters(document, createIamRealm);
   const iamClientListParameters = resolveParameters(document, listIamClients);
   const iamCredentialResetParameters = resolveParameters(document, resetIamUserCredentials);
+  const tenantIamActivityParameters = resolveParameters(document, listTenantIamActivity);
+  const workspaceIamActivityParameters = resolveParameters(document, listWorkspaceIamActivity);
+  const tenantIamAccessParameters = resolveParameters(document, setTenantIamAccess);
   const workspaceCapabilitiesParameters = resolveParameters(document, getWorkspaceCapabilities);
   const invitationParameters = resolveParameters(document, createInvitation);
   const invitationAcceptanceParameters = resolveParameters(document, acceptInvitation);
@@ -246,11 +255,31 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.IamUser);
   assert.ok(document.components.schemas.IamUserCredentialResetRequest);
   assert.ok(document.components.schemas.IamStatusUpdateRequest);
+  assert.ok(document.components.schemas.IamLifecycleEvent);
+  assert.ok(document.components.schemas.IamLifecycleEventCollectionResponse);
 
   assert.equal(getWorkspaceCapabilities['x-family'], 'workspaces');
   assert.equal(workspaceCapabilitiesParameters.some((parameter) => parameter.name === 'workspaceId'), true);
   assert.ok(getWorkspaceCapabilities.responses['200']);
   assert.ok(document.components.schemas.EffectiveCapabilityResolution);
+
+  assert.equal(listTenantIamActivity['x-family'], 'iam');
+  assert.equal(tenantIamActivityParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.equal(tenantIamActivityParameters.some((parameter) => parameter.name === 'filter[eventType]'), true);
+  assert.ok(listTenantIamActivity.responses['200']);
+
+  assert.equal(listWorkspaceIamActivity['x-family'], 'iam');
+  assert.equal(workspaceIamActivityParameters.some((parameter) => parameter.name === 'workspaceId'), true);
+  assert.equal(workspaceIamActivityParameters.some((parameter) => parameter.name === 'window[start]'), true);
+  assert.ok(listWorkspaceIamActivity.responses['200']);
+
+  assert.equal(setTenantIamAccess['x-family'], 'tenants');
+  assert.equal(tenantIamAccessParameters.some((parameter) => parameter.name === 'tenantId'), true);
+  assert.equal(tenantIamAccessParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(setTenantIamAccess.responses['202']);
+  assert.ok(document.components.schemas.TenantIamAccessStatusUpdateRequest);
+  assert.ok(document.components.schemas.TenantIdentityAccessPolicy);
+  assert.ok(document.components.schemas.ServiceAccountAccessProjection);
 
   assert.equal(createInvitation['x-family'], 'tenants');
   assert.equal(invitationParameters.some((parameter) => parameter.name === 'X-API-Version'), true);

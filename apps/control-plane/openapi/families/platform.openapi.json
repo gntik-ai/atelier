@@ -1594,7 +1594,7 @@
     "description": "Cross-tenant platform governance, catalog, and operator discovery surfaces. Generated from the unified public API contract for v1.",
     "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
     "title": "In Atelier Platform API",
-    "version": "1.6.0"
+    "version": "1.7.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

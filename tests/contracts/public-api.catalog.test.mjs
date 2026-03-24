@@ -31,9 +31,12 @@ test('control-plane and console route-catalog helpers expose the same generated 
   assert.ok(consoleSections.some((section) => section.id === 'iam'));
   assert.ok(consoleSections.some((section) => section.id === 'auth'));
   assert.ok(controlPlaneIamRoutes.some((route) => route.path === '/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets'));
+  assert.ok(controlPlaneIamRoutes.some((route) => route.path === '/v1/iam/tenants/{tenantId}/activity'));
+  assert.ok(controlPlaneIamRoutes.some((route) => route.path === '/v1/iam/workspaces/{workspaceId}/activity'));
   assert.ok(controlPlaneAuthRoutes.some((route) => route.path === '/v1/auth/login-sessions'));
   assert.ok(controlPlaneAuthRoutes.some((route) => route.path === '/v1/auth/signups'));
   assert.ok(controlPlaneAuthRoutes.some((route) => route.path === '/v1/auth/password-recovery-requests'));
+  assert.ok(listControlPlaneRoutes({ family: 'tenants' }).some((route) => route.path === '/v1/tenants/{tenantId}/iam-access'));
 
   const catalogSection = consoleSections.find((section) => section.id === 'platform');
   assert.ok(catalogSection.routes.some((route) => route.path === '/v1/platform/route-catalog'));
