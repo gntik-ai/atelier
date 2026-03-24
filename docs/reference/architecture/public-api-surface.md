@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.8.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.9.0)
 
 ## Product API vs native passthrough
 
@@ -90,8 +90,12 @@ Workspace lifecycle, application inventory, workload identities, and managed-res
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/workspaces` | tenant | workspace_collection | List workspaces for one tenant with lifecycle, environment, slug, and display-name filters |
 | POST | `/v1/workspaces` | workspace | workspace | Submit a canonical workspace write request under the workspaces family |
+| DELETE | `/v1/workspaces/{workspaceId}` | workspace | workspace | Soft-delete one canonical workspace while preserving audit and clone lineage metadata |
 | GET | `/v1/workspaces/{workspaceId}` | workspace | workspace | Fetch one canonical workspace entity under the workspaces family |
+| PUT | `/v1/workspaces/{workspaceId}` | workspace | workspace | Update one canonical workspace including IAM, lifecycle, and inheritance policy settings |
+| GET | `/v1/workspaces/{workspaceId}/api-surface` | workspace | workspace_api_surface | Fetch workspace-specific base URLs and application endpoint bindings for external clients |
 | GET | `/v1/workspaces/{workspaceId}/applications` | workspace | application | List canonical external applications, authentication flows, and validation status for one workspace |
 | POST | `/v1/workspaces/{workspaceId}/applications` | workspace | application | Submit a canonical external application write request under the workspaces family |
 | GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Fetch one canonical external application entity under the workspaces family |
@@ -101,6 +105,7 @@ Workspace lifecycle, application inventory, workload identities, and managed-res
 | GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Fetch one federated identity provider attached to an external application |
 | PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Update one federated identity provider including metadata, certificates, and mapper bindings |
 | GET | `/v1/workspaces/{workspaceId}/applications/templates` | workspace | application | List starter templates for SPA, confidential backend, and B2B SAML external applications |
+| POST | `/v1/workspaces/{workspaceId}/clone` | workspace | workspace | Clone one workspace baseline into a new environment with optional application and credential reset policies |
 | GET | `/v1/workspaces/{workspaceId}/effective-capabilities` | workspace | workspace_capabilities | Resolve effective capabilities for one workspace |
 | POST | `/v1/workspaces/{workspaceId}/managed-resources` | workspace | managed_resource | Submit a canonical managed resource write request |
 | GET | `/v1/workspaces/{workspaceId}/managed-resources/{resourceId}` | workspace | managed_resource | Fetch one canonical managed resource entity |

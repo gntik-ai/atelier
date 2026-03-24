@@ -21,6 +21,55 @@
           "type": "string"
         }
       },
+      "FilterTenantId": {
+        "description": "Restrict workspace discovery to one tenant boundary.",
+        "in": "query",
+        "name": "filter[tenantId]",
+        "required": true,
+        "schema": {
+          "pattern": "^ten_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "FilterWorkspaceDisplayName": {
+        "description": "Filter workspaces by display name inside the tenant boundary.",
+        "in": "query",
+        "name": "filter[displayName]",
+        "required": false,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "FilterWorkspaceEnvironment": {
+        "description": "Filter workspaces by runtime environment.",
+        "in": "query",
+        "name": "filter[environment]",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/WorkspaceEnvironment"
+        }
+      },
+      "FilterWorkspaceSlug": {
+        "description": "Filter workspaces by exact slug inside the tenant boundary.",
+        "in": "query",
+        "name": "filter[slug]",
+        "required": false,
+        "schema": {
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+          "type": "string"
+        }
+      },
+      "FilterWorkspaceState": {
+        "description": "Filter workspaces by lifecycle state.",
+        "in": "query",
+        "name": "filter[state]",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/EntityState"
+        }
+      },
       "IdempotencyKey": {
         "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway. Replays are retained for 24h and surfaced through X-Idempotency-Replayed.",
         "in": "header",
@@ -33,6 +82,29 @@
           "type": "string"
         }
       },
+      "PageAfter": {
+        "description": "Opaque cursor for the next page window.",
+        "in": "query",
+        "name": "page[after]",
+        "required": false,
+        "schema": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "PageSize": {
+        "description": "Maximum number of items to return for list and catalog routes.",
+        "in": "query",
+        "name": "page[size]",
+        "required": false,
+        "schema": {
+          "default": 25,
+          "maximum": 200,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
       "ResourceId": {
         "description": "Stable managed resource identifier.",
         "in": "path",
@@ -43,6 +115,17 @@
           "type": "string"
         }
       },
+      "Search": {
+        "description": "Free-text search across human-facing route metadata.",
+        "in": "query",
+        "name": "search",
+        "required": false,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
       "ServiceAccountId": {
         "description": "Stable service account identifier.",
         "in": "path",
@@ -50,6 +133,17 @@
         "required": true,
         "schema": {
           "pattern": "^svc_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "Sort": {
+        "description": "Stable sort field for catalog and collection routes.",
+        "in": "query",
+        "name": "sort",
+        "required": false,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 1,
           "type": "string"
         }
       },
@@ -324,6 +418,12 @@
             "maxLength": 120,
             "minLength": 1,
             "type": "string"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceApiEndpoint"
+            },
+            "type": "array"
           },
           "entityType": {
             "const": "external_application",
@@ -1230,6 +1330,27 @@
             "pattern": "^app_[0-9a-z]+$",
             "type": "string"
           },
+          "authorizedApplicationIds": {
+            "items": {
+              "pattern": "^app_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "authorizedServiceAccountIds": {
+            "items": {
+              "pattern": "^svc_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "consumerWorkspaceIds": {
+            "items": {
+              "pattern": "^wrk_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "displayName": {
             "maxLength": 120,
             "minLength": 1,
@@ -1241,6 +1362,11 @@
           },
           "kind": {
             "$ref": "#/components/schemas/ManagedResourceKind"
+          },
+          "logicalResourceKey": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
           },
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
@@ -1270,6 +1396,9 @@
           "serviceAccountId": {
             "pattern": "^svc_[0-9a-z]+$",
             "type": "string"
+          },
+          "sharingScope": {
+            "$ref": "#/components/schemas/ManagedResourceSharingScope"
           },
           "slug": {
             "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
@@ -1361,6 +1490,13 @@
           "bucket",
           "topic",
           "function"
+        ],
+        "type": "string"
+      },
+      "ManagedResourceSharingScope": {
+        "enum": [
+          "workspace",
+          "tenant_shared"
         ],
         "type": "string"
       },
@@ -2412,6 +2548,12 @@
       "Workspace": {
         "additionalProperties": false,
         "properties": {
+          "apiSurface": {
+            "$ref": "#/components/schemas/WorkspaceApiSurface"
+          },
+          "cloneSource": {
+            "$ref": "#/components/schemas/WorkspaceCloneSource"
+          },
           "description": {
             "maxLength": 500,
             "type": "string"
@@ -2443,6 +2585,9 @@
               "type": "integer"
             },
             "type": "object"
+          },
+          "resourceInheritance": {
+            "$ref": "#/components/schemas/WorkspaceResourceInheritance"
           },
           "runtimeNamespace": {
             "maxLength": 120,
@@ -2477,7 +2622,279 @@
           "environment",
           "state",
           "timestamps",
-          "metadata"
+          "metadata",
+          "iamBoundary",
+          "resourceInheritance",
+          "apiSurface"
+        ],
+        "type": "object"
+      },
+      "WorkspaceApiEndpoint": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "enum": [
+              "control_plane",
+              "console",
+              "identity",
+              "realtime",
+              "external_application"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "audience",
+          "url"
+        ],
+        "type": "object"
+      },
+      "WorkspaceApiSurface": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationBaseUrlPattern": {
+            "maxLength": 255,
+            "minLength": 10,
+            "type": "string"
+          },
+          "applicationEndpoints": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceApplicationEndpoint"
+            },
+            "type": "array"
+          },
+          "consoleBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "controlApiBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceApiEndpoint"
+            },
+            "type": "array"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "identityBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "realtimeBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceSlug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "workspaceSlug",
+          "environment",
+          "controlApiBaseUrl",
+          "consoleBaseUrl",
+          "identityBaseUrl",
+          "realtimeBaseUrl",
+          "applicationBaseUrlPattern",
+          "endpoints",
+          "applicationEndpoints"
+        ],
+        "type": "object"
+      },
+      "WorkspaceApplicationEndpoint": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationId": {
+            "pattern": "^app_[0-9a-z]+$",
+            "type": "string"
+          },
+          "applicationSlug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "callbackBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ApplicationProtocol"
+          },
+          "publicBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "applicationId",
+          "applicationSlug",
+          "protocol",
+          "publicBaseUrl"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCloneAccepted": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MutationAccepted"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "clonePolicy": {
+                "$ref": "#/components/schemas/WorkspaceClonePolicy"
+              },
+              "sourceWorkspaceId": {
+                "pattern": "^wrk_[0-9a-z]+$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "sourceWorkspaceId",
+              "clonePolicy"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "WorkspaceClonePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "cloneMetadata": {
+            "type": "boolean"
+          },
+          "includeApplications": {
+            "type": "boolean"
+          },
+          "includeManagedResourceBindings": {
+            "type": "boolean"
+          },
+          "includeServiceAccounts": {
+            "type": "boolean"
+          },
+          "resetCredentialReferences": {
+            "type": "boolean"
+          },
+          "reuseTenantLogicalResources": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "includeApplications",
+          "includeServiceAccounts",
+          "includeManagedResourceBindings",
+          "resetCredentialReferences",
+          "reuseTenantLogicalResources"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCloneRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "clonePolicy": {
+            "$ref": "#/components/schemas/WorkspaceClonePolicy"
+          },
+          "description": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "desiredState": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "workspace_clone",
+            "type": "string"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "iamBoundary": {
+            "$ref": "#/components/schemas/WorkspaceIamBoundary"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "resourceInheritance": {
+            "$ref": "#/components/schemas/WorkspaceResourceInheritance"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "slug",
+          "displayName",
+          "environment",
+          "desiredState",
+          "metadata",
+          "clonePolicy"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCloneSource": {
+        "additionalProperties": false,
+        "properties": {
+          "clonePolicy": {
+            "$ref": "#/components/schemas/WorkspaceClonePolicy"
+          },
+          "clonedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sourceWorkspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceWorkspaceId",
+          "clonedAt",
+          "clonePolicy"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCollectionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Workspace"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "page",
+          "items"
         ],
         "type": "object"
       },
@@ -2496,11 +2913,20 @@
           "clientNamespace": {
             "type": "string"
           },
+          "controlPlaneAttributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
           "defaultClientScopes": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "keyPolicy": {
+            "$ref": "#/components/schemas/WorkspaceIamKeyPolicy"
           },
           "protocolMappers": {
             "items": {
@@ -2515,7 +2941,104 @@
         "required": [
           "realm",
           "clientNamespace",
-          "defaultClientScopes"
+          "defaultClientScopes",
+          "keyPolicy"
+        ],
+        "type": "object"
+      },
+      "WorkspaceIamKeyPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultRotationDays": {
+            "maximum": 365,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxActiveKeys": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "propagateToExternalApplications": {
+            "type": "boolean"
+          },
+          "propagateToServiceAccounts": {
+            "type": "boolean"
+          },
+          "referenceMode": {
+            "enum": [
+              "reference_only",
+              "ephemeral_material"
+            ],
+            "type": "string"
+          },
+          "secretBackend": {
+            "enum": [
+              "vault",
+              "keycloak",
+              "sealed_secret"
+            ],
+            "type": "string"
+          },
+          "secretPathPrefix": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "secretBackend",
+          "secretPathPrefix",
+          "referenceMode",
+          "defaultRotationDays",
+          "maxActiveKeys"
+        ],
+        "type": "object"
+      },
+      "WorkspaceLogicalResourceBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "inherited": {
+            "type": "boolean"
+          },
+          "providerHint": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "resourceKey": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "resourceKind": {
+            "$ref": "#/components/schemas/ManagedResourceKind"
+          },
+          "sharingScope": {
+            "$ref": "#/components/schemas/ManagedResourceSharingScope"
+          },
+          "sourceWorkspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "specializationMode": {
+            "enum": [
+              "shared",
+              "workspace_override"
+            ],
+            "type": "string"
+          },
+          "targetResourceId": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceKey",
+          "resourceKind",
+          "sharingScope",
+          "specializationMode",
+          "inherited"
         ],
         "type": "object"
       },
@@ -2666,6 +3189,37 @@
         ],
         "type": "object"
       },
+      "WorkspaceResourceInheritance": {
+        "additionalProperties": false,
+        "properties": {
+          "keepProviderPlacements": {
+            "type": "boolean"
+          },
+          "logicalResources": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceLogicalResourceBinding"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "tenant_defaults",
+              "clone_workspace",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "sourceWorkspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "logicalResources"
+        ],
+        "type": "object"
+      },
       "WorkspaceRole": {
         "enum": [
           "workspace_admin",
@@ -2706,6 +3260,9 @@
           "metadata": {
             "$ref": "#/components/schemas/EntityMetadata"
           },
+          "resourceInheritance": {
+            "$ref": "#/components/schemas/WorkspaceResourceInheritance"
+          },
           "slug": {
             "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
             "type": "string"
@@ -2723,7 +3280,8 @@
           "displayName",
           "environment",
           "desiredState",
-          "metadata"
+          "metadata",
+          "iamBoundary"
         ],
         "type": "object"
       }
@@ -2733,12 +3291,155 @@
     "description": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
     "title": "In Atelier Workspaces API",
-    "version": "1.8.0"
+    "version": "1.9.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
     "/v1/workspaces": {
+      "get": {
+        "operationId": "listWorkspaces",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/FilterTenantId"
+          },
+          {
+            "$ref": "#/components/parameters/FilterWorkspaceSlug"
+          },
+          {
+            "$ref": "#/components/parameters/FilterWorkspaceDisplayName"
+          },
+          {
+            "$ref": "#/components/parameters/FilterWorkspaceEnvironment"
+          },
+          {
+            "$ref": "#/components/parameters/FilterWorkspaceState"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceCollectionResponse"
+                }
+              }
+            },
+            "description": "Workspace collection returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List workspaces for one tenant with lifecycle, environment, slug, and display-name filters",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "workspace_collection",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      },
       "post": {
         "operationId": "createWorkspace",
         "parameters": [
@@ -2880,6 +3581,137 @@
       }
     },
     "/v1/workspaces/{workspaceId}": {
+      "delete": {
+        "operationId": "deleteWorkspace",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Workspace deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Soft-delete one canonical workspace while preserving audit and clone lineage metadata",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "workspace",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
       "get": {
         "operationId": "getWorkspace",
         "parameters": [
@@ -2995,8 +3827,271 @@
         ],
         "x-family": "workspaces",
         "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "workspace",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateWorkspace",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MutationAccepted"
+                }
+              }
+            },
+            "description": "Workspace mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one canonical workspace including IAM, lifecycle, and inheritance policy settings",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
         "x-resource-type": "workspace",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/workspaces/{workspaceId}/api-surface": {
+      "get": {
+        "operationId": "getWorkspaceApiSurface",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceApiSurface"
+                }
+              }
+            },
+            "description": "Workspace API surface returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested entity was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch workspace-specific base URLs and application endpoint bindings for external clients",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "workspace_api_surface",
         "x-scope": "workspace",
         "x-visibility": "public"
       }
@@ -4314,6 +5409,149 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
         "x-resource-type": "application",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/workspaces/{workspaceId}/clone": {
+      "post": {
+        "operationId": "cloneWorkspace",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceCloneRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceCloneAccepted"
+                }
+              }
+            },
+            "description": "Workspace clone accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request conflicts with current entity integrity or lifecycle state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Clone one workspace baseline into a new environment with optional application and credential reset policies",
+        "tags": [
+          "Workspaces"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "workspace",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

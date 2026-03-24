@@ -20,4 +20,5 @@ Scaffolding added by `US-ARC-01-T01`, `US-ARC-03`, and `US-GW-01`:
 - `public-api-catalog.mjs` exposes the generated family/route discovery catalog that backs the `/v1/platform/route-catalog` contract
 - `iam-admin.mjs` exposes the normalized `/v1/iam/*` administrative family metadata and compatibility summary for Keycloak-backed IAM resources
 - `console-auth.mjs` exposes the normalized `/v1/auth/*` login, signup, activation, recovery, and status-view surface for the console
+- `workspace-management.mjs` exposes the enriched `/v1/workspaces/*` CRUD, cloning, lifecycle, inheritance, and API-surface helpers
 - provider-specific implementation remains out of this workspace

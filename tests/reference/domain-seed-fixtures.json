@@ -293,6 +293,15 @@
               "tenant_id": "ten_01starteralpha",
               "workspace_id": "wrk_01starterdev",
               "workspace_slug": "alpha-dev"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01starteralpha/workspaces/alpha-dev",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
           },
           "provisioning": {
@@ -403,6 +412,73 @@
               "attemptCount": 1,
               "idempotencyKey": "signup-activation-ten_01starteralpha"
             }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01starterdev",
+            "workspaceSlug": "alpha-dev",
+            "environment": "dev",
+            "controlApiBaseUrl": "https://api.dev.in-atelier.example.com/v1/workspaces/wrk_01starterdev",
+            "consoleBaseUrl": "https://console.dev.in-atelier.example.com/workspaces/wrk_01starterdev",
+            "identityBaseUrl": "https://iam.dev.in-atelier.example.com/realms/tenant-starter-alpha",
+            "realtimeBaseUrl": "https://realtime.dev.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://alpha-dev.apps.dev.in-atelier.example.com/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.dev.in-atelier.example.com/v1/workspaces/wrk_01starterdev"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.dev.in-atelier.example.com/workspaces/wrk_01starterdev"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.dev.in-atelier.example.com/realms/tenant-starter-alpha"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.dev.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": [
+              {
+                "applicationId": "app_01starterportal",
+                "applicationSlug": "customer-portal",
+                "protocol": "oidc",
+                "publicBaseUrl": "https://alpha-dev.apps.dev.in-atelier.example.com/customer-portal",
+                "callbackBaseUrl": "https://alpha-dev.apps.dev.in-atelier.example.com/customer-portal/callback"
+              }
+            ]
+          },
+          "resourceInheritance": {
+            "mode": "tenant_defaults",
+            "logicalResources": [
+              {
+                "resourceKey": "database.alpha-db",
+                "resourceKind": "database",
+                "sharingScope": "workspace",
+                "specializationMode": "workspace_override",
+                "sourceWorkspaceId": "wrk_01starterdev",
+                "targetResourceId": "res_01starterdb",
+                "providerHint": "postgresql",
+                "inherited": false
+              },
+              {
+                "resourceKey": "bucket.alpha-assets",
+                "resourceKind": "bucket",
+                "sharingScope": "workspace",
+                "specializationMode": "workspace_override",
+                "sourceWorkspaceId": "wrk_01starterdev",
+                "targetResourceId": "res_01starterbucket",
+                "providerHint": "storage",
+                "inherited": false
+              }
+            ],
+            "keepProviderPlacements": true
           }
         }
       ],
@@ -505,6 +581,18 @@
           },
           "redirectUris": [
             "https://customer-portal.alpha-dev.apps.in-atelier.example.com/auth/callback"
+          ],
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://alpha-dev.apps.dev.in-atelier.example.com/customer-portal"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://alpha-dev.apps.dev.in-atelier.example.com/customer-portal/callback"
+            }
           ]
         }
       ],
@@ -586,7 +674,15 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01starterdb",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "database.alpha-db",
+          "sharingScope": "workspace",
+          "consumerWorkspaceIds": [
+            "wrk_01starterdev"
+          ],
+          "authorizedServiceAccountIds": [
+            "svc_01starterci"
+          ]
         },
         {
           "resourceId": "res_01starterbucket",
@@ -627,7 +723,15 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01starterbucket",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "bucket.alpha-assets",
+          "sharingScope": "workspace",
+          "consumerWorkspaceIds": [
+            "wrk_01starterdev"
+          ],
+          "authorizedApplicationIds": [
+            "app_01starterportal"
+          ]
         }
       ],
       "tenantMemberships": [
@@ -1071,6 +1175,15 @@
               "tenant_id": "ten_01growthbeta",
               "workspace_id": "wrk_01betadev",
               "workspace_slug": "beta-dev"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01growthbeta/workspaces/beta-dev",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
           },
           "provisioning": {
@@ -1209,6 +1322,55 @@
               "attemptCount": 1,
               "idempotencyKey": "signup-activation-ten_01growthbeta"
             }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01betadev",
+            "workspaceSlug": "beta-dev",
+            "environment": "dev",
+            "controlApiBaseUrl": "https://api.dev.in-atelier.example.com/v1/workspaces/wrk_01betadev",
+            "consoleBaseUrl": "https://console.dev.in-atelier.example.com/workspaces/wrk_01betadev",
+            "identityBaseUrl": "https://iam.dev.in-atelier.example.com/realms/tenant-growth-beta",
+            "realtimeBaseUrl": "https://realtime.dev.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://beta-dev.apps.dev.in-atelier.example.com/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.dev.in-atelier.example.com/v1/workspaces/wrk_01betadev"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.dev.in-atelier.example.com/workspaces/wrk_01betadev"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.dev.in-atelier.example.com/realms/tenant-growth-beta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.dev.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": []
+          },
+          "resourceInheritance": {
+            "mode": "tenant_defaults",
+            "logicalResources": [
+              {
+                "resourceKey": "function.preview-functions",
+                "resourceKind": "function",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01betadev",
+                "targetResourceId": "res_01betafn",
+                "providerHint": "openwhisk",
+                "inherited": false
+              }
+            ],
+            "keepProviderPlacements": true
           }
         },
         {
@@ -1231,7 +1393,106 @@
               "tenant_id": "ten_01growthbeta",
               "workspace_id": "wrk_01betastaging",
               "workspace_slug": "beta-staging"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01growthbeta/workspaces/beta-staging",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
+          },
+          "cloneSource": {
+            "sourceWorkspaceId": "wrk_01betadev",
+            "clonedAt": "2026-03-24T00:00:00Z",
+            "clonePolicy": {
+              "includeApplications": true,
+              "includeServiceAccounts": true,
+              "includeManagedResourceBindings": true,
+              "resetCredentialReferences": true,
+              "reuseTenantLogicalResources": true,
+              "cloneMetadata": true
+            }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01betastaging",
+            "workspaceSlug": "beta-staging",
+            "environment": "staging",
+            "controlApiBaseUrl": "https://api.staging.in-atelier.example.com/v1/workspaces/wrk_01betastaging",
+            "consoleBaseUrl": "https://console.staging.in-atelier.example.com/workspaces/wrk_01betastaging",
+            "identityBaseUrl": "https://iam.staging.in-atelier.example.com/realms/tenant-growth-beta",
+            "realtimeBaseUrl": "https://realtime.staging.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://api.staging.in-atelier.example.com/workspaces/beta-staging/apps/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.staging.in-atelier.example.com/v1/workspaces/wrk_01betastaging"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.staging.in-atelier.example.com/workspaces/wrk_01betastaging"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.staging.in-atelier.example.com/realms/tenant-growth-beta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.staging.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": [
+              {
+                "applicationId": "app_01betaadmin",
+                "applicationSlug": "ops-console",
+                "protocol": "oidc",
+                "publicBaseUrl": "https://api.staging.in-atelier.example.com/workspaces/beta-staging/apps/ops-console",
+                "callbackBaseUrl": "https://api.staging.in-atelier.example.com/workspaces/beta-staging/apps/ops-console/callback"
+              }
+            ]
+          },
+          "resourceInheritance": {
+            "mode": "clone_workspace",
+            "logicalResources": [
+              {
+                "resourceKey": "database.beta-db",
+                "resourceKind": "database",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01betaprod",
+                "targetResourceId": "res_01betadb",
+                "providerHint": "postgresql",
+                "inherited": true
+              },
+              {
+                "resourceKey": "topic.events-topic",
+                "resourceKind": "topic",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01betastaging",
+                "targetResourceId": "res_01betatopic",
+                "providerHint": "kafka",
+                "inherited": true
+              },
+              {
+                "resourceKey": "function.preview-functions",
+                "resourceKind": "function",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01betadev",
+                "targetResourceId": "res_01betafn",
+                "providerHint": "openwhisk",
+                "inherited": true
+              }
+            ],
+            "keepProviderPlacements": true,
+            "sourceWorkspaceId": "wrk_01betadev"
           }
         },
         {
@@ -1254,7 +1515,113 @@
               "tenant_id": "ten_01growthbeta",
               "workspace_id": "wrk_01betaprod",
               "workspace_slug": "beta-prod"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01growthbeta/workspaces/beta-prod",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
+          },
+          "cloneSource": {
+            "sourceWorkspaceId": "wrk_01betastaging",
+            "clonedAt": "2026-03-24T00:00:00Z",
+            "clonePolicy": {
+              "includeApplications": true,
+              "includeServiceAccounts": true,
+              "includeManagedResourceBindings": true,
+              "resetCredentialReferences": true,
+              "reuseTenantLogicalResources": true,
+              "cloneMetadata": true
+            }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01betaprod",
+            "workspaceSlug": "beta-prod",
+            "environment": "prod",
+            "controlApiBaseUrl": "https://api.in-atelier.example.com/v1/workspaces/wrk_01betaprod",
+            "consoleBaseUrl": "https://console.in-atelier.example.com/workspaces/wrk_01betaprod",
+            "identityBaseUrl": "https://iam.in-atelier.example.com/realms/tenant-growth-beta",
+            "realtimeBaseUrl": "https://realtime.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.in-atelier.example.com/v1/workspaces/wrk_01betaprod"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.in-atelier.example.com/workspaces/wrk_01betaprod"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.in-atelier.example.com/realms/tenant-growth-beta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": [
+              {
+                "applicationId": "app_01betashop",
+                "applicationSlug": "shop-web",
+                "protocol": "oidc",
+                "publicBaseUrl": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-web",
+                "callbackBaseUrl": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-web/callback"
+              },
+              {
+                "applicationId": "app_01betamobile",
+                "applicationSlug": "shop-mobile",
+                "protocol": "oidc",
+                "publicBaseUrl": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-mobile",
+                "callbackBaseUrl": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-mobile/callback"
+              }
+            ]
+          },
+          "resourceInheritance": {
+            "mode": "clone_workspace",
+            "logicalResources": [
+              {
+                "resourceKey": "database.beta-db",
+                "resourceKind": "database",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01betaprod",
+                "targetResourceId": "res_01betadb",
+                "providerHint": "postgresql",
+                "inherited": true
+              },
+              {
+                "resourceKey": "topic.events-topic",
+                "resourceKind": "topic",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01betastaging",
+                "targetResourceId": "res_01betatopic",
+                "providerHint": "kafka",
+                "inherited": true
+              },
+              {
+                "resourceKey": "bucket.beta-assets",
+                "resourceKind": "bucket",
+                "sharingScope": "workspace",
+                "specializationMode": "workspace_override",
+                "sourceWorkspaceId": "wrk_01betaprod",
+                "targetResourceId": "res_01betabucket",
+                "providerHint": "storage",
+                "inherited": true
+              }
+            ],
+            "keepProviderPlacements": true,
+            "sourceWorkspaceId": "wrk_01betastaging"
           }
         }
       ],
@@ -1281,6 +1648,18 @@
           },
           "redirectUris": [
             "https://ops-console.beta-staging.apps.in-atelier.example.com/auth/callback"
+          ],
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://api.staging.in-atelier.example.com/workspaces/beta-staging/apps/ops-console"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://api.staging.in-atelier.example.com/workspaces/beta-staging/apps/ops-console/callback"
+            }
           ]
         },
         {
@@ -1403,6 +1782,18 @@
           },
           "redirectUris": [
             "https://shop-web.beta-prod.apps.in-atelier.example.com/auth/callback"
+          ],
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-web"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-web/callback"
+            }
           ]
         },
         {
@@ -1469,7 +1860,19 @@
           "validation": {
             "status": "valid",
             "checks": []
-          }
+          },
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-mobile"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/beta-prod/apps/shop-mobile/callback"
+            }
+          ]
         }
       ],
       "serviceAccounts": [
@@ -1625,7 +2028,17 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01betadb",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "database.beta-db",
+          "sharingScope": "tenant_shared",
+          "consumerWorkspaceIds": [
+            "wrk_01betastaging",
+            "wrk_01betaprod"
+          ],
+          "authorizedServiceAccountIds": [
+            "svc_01betadeploy",
+            "svc_01betamobileapi"
+          ]
         },
         {
           "resourceId": "res_01betatopic",
@@ -1667,7 +2080,17 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01betatopic",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "topic.events-topic",
+          "sharingScope": "tenant_shared",
+          "consumerWorkspaceIds": [
+            "wrk_01betastaging",
+            "wrk_01betaprod"
+          ],
+          "authorizedApplicationIds": [
+            "app_01betaadmin",
+            "app_01betashop"
+          ]
         },
         {
           "resourceId": "res_01betabucket",
@@ -1708,7 +2131,15 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01betabucket",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "bucket.beta-assets",
+          "sharingScope": "workspace",
+          "consumerWorkspaceIds": [
+            "wrk_01betaprod"
+          ],
+          "authorizedApplicationIds": [
+            "app_01betashop"
+          ]
         },
         {
           "resourceId": "res_01betafn",
@@ -1750,7 +2181,16 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01betafn",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "function.preview-functions",
+          "sharingScope": "tenant_shared",
+          "consumerWorkspaceIds": [
+            "wrk_01betadev",
+            "wrk_01betastaging"
+          ],
+          "authorizedServiceAccountIds": [
+            "svc_01betadeploy"
+          ]
         }
       ],
       "tenantMemberships": [
@@ -2266,6 +2706,15 @@
               "tenant_id": "ten_01enterprisedelta",
               "workspace_id": "wrk_01deltadev",
               "workspace_slug": "delta-dev"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01enterprisedelta/workspaces/delta-dev",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
           },
           "provisioning": {
@@ -2418,6 +2867,44 @@
               "attemptCount": 1,
               "idempotencyKey": "signup-activation-ten_01enterprisedelta"
             }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01deltadev",
+            "workspaceSlug": "delta-dev",
+            "environment": "dev",
+            "controlApiBaseUrl": "https://api.dev.in-atelier.example.com/v1/workspaces/wrk_01deltadev",
+            "consoleBaseUrl": "https://console.dev.in-atelier.example.com/workspaces/wrk_01deltadev",
+            "identityBaseUrl": "https://iam.dev.in-atelier.example.com/realms/tenant-enterprise-delta",
+            "realtimeBaseUrl": "https://realtime.dev.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://delta-dev.apps.dev.in-atelier.example.com/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.dev.in-atelier.example.com/v1/workspaces/wrk_01deltadev"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.dev.in-atelier.example.com/workspaces/wrk_01deltadev"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.dev.in-atelier.example.com/realms/tenant-enterprise-delta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.dev.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": []
+          },
+          "resourceInheritance": {
+            "mode": "tenant_defaults",
+            "logicalResources": [],
+            "keepProviderPlacements": true
           }
         },
         {
@@ -2440,7 +2927,78 @@
               "tenant_id": "ten_01enterprisedelta",
               "workspace_id": "wrk_01deltasandbox",
               "workspace_slug": "delta-sandbox"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01enterprisedelta/workspaces/delta-sandbox",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
+          },
+          "cloneSource": {
+            "sourceWorkspaceId": "wrk_01deltadev",
+            "clonedAt": "2026-03-24T00:00:00Z",
+            "clonePolicy": {
+              "includeApplications": true,
+              "includeServiceAccounts": true,
+              "includeManagedResourceBindings": true,
+              "resetCredentialReferences": true,
+              "reuseTenantLogicalResources": true,
+              "cloneMetadata": true
+            }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01deltasandbox",
+            "workspaceSlug": "delta-sandbox",
+            "environment": "sandbox",
+            "controlApiBaseUrl": "https://api.sandbox.in-atelier.example.com/v1/workspaces/wrk_01deltasandbox",
+            "consoleBaseUrl": "https://console.sandbox.in-atelier.example.com/workspaces/wrk_01deltasandbox",
+            "identityBaseUrl": "https://iam.sandbox.in-atelier.example.com/realms/tenant-enterprise-delta",
+            "realtimeBaseUrl": "https://realtime.sandbox.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://delta-sandbox.apps.sandbox.in-atelier.example.com/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.sandbox.in-atelier.example.com/v1/workspaces/wrk_01deltasandbox"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.sandbox.in-atelier.example.com/workspaces/wrk_01deltasandbox"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.sandbox.in-atelier.example.com/realms/tenant-enterprise-delta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.sandbox.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": []
+          },
+          "resourceInheritance": {
+            "mode": "clone_workspace",
+            "logicalResources": [
+              {
+                "resourceKey": "function.worker-functions",
+                "resourceKind": "function",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01deltasandbox",
+                "targetResourceId": "res_01deltaworkers",
+                "providerHint": "openwhisk",
+                "inherited": true
+              }
+            ],
+            "keepProviderPlacements": true,
+            "sourceWorkspaceId": "wrk_01deltadev"
           }
         },
         {
@@ -2463,7 +3021,96 @@
               "tenant_id": "ten_01enterprisedelta",
               "workspace_id": "wrk_01deltastaging",
               "workspace_slug": "delta-staging"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01enterprisedelta/workspaces/delta-staging",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
+          },
+          "cloneSource": {
+            "sourceWorkspaceId": "wrk_01deltasandbox",
+            "clonedAt": "2026-03-24T00:00:00Z",
+            "clonePolicy": {
+              "includeApplications": true,
+              "includeServiceAccounts": true,
+              "includeManagedResourceBindings": true,
+              "resetCredentialReferences": true,
+              "reuseTenantLogicalResources": true,
+              "cloneMetadata": true
+            }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01deltastaging",
+            "workspaceSlug": "delta-staging",
+            "environment": "staging",
+            "controlApiBaseUrl": "https://api.staging.in-atelier.example.com/v1/workspaces/wrk_01deltastaging",
+            "consoleBaseUrl": "https://console.staging.in-atelier.example.com/workspaces/wrk_01deltastaging",
+            "identityBaseUrl": "https://iam.staging.in-atelier.example.com/realms/tenant-enterprise-delta",
+            "realtimeBaseUrl": "https://realtime.staging.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://api.staging.in-atelier.example.com/workspaces/delta-staging/apps/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.staging.in-atelier.example.com/v1/workspaces/wrk_01deltastaging"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.staging.in-atelier.example.com/workspaces/wrk_01deltastaging"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.staging.in-atelier.example.com/realms/tenant-enterprise-delta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.staging.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": [
+              {
+                "applicationId": "app_01deltaops",
+                "applicationSlug": "ops-portal",
+                "protocol": "oidc",
+                "publicBaseUrl": "https://api.staging.in-atelier.example.com/workspaces/delta-staging/apps/ops-portal",
+                "callbackBaseUrl": "https://api.staging.in-atelier.example.com/workspaces/delta-staging/apps/ops-portal/callback"
+              }
+            ]
+          },
+          "resourceInheritance": {
+            "mode": "clone_workspace",
+            "logicalResources": [
+              {
+                "resourceKey": "bucket.audit-bucket",
+                "resourceKind": "bucket",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01deltastaging",
+                "targetResourceId": "res_01deltaauditbucket",
+                "providerHint": "storage",
+                "inherited": true
+              },
+              {
+                "resourceKey": "topic.event-bus",
+                "resourceKind": "topic",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01deltaprod",
+                "targetResourceId": "res_01deltabus",
+                "providerHint": "kafka",
+                "inherited": true
+              }
+            ],
+            "keepProviderPlacements": true,
+            "sourceWorkspaceId": "wrk_01deltasandbox"
           }
         },
         {
@@ -2486,7 +3133,133 @@
               "tenant_id": "ten_01enterprisedelta",
               "workspace_id": "wrk_01deltaprod",
               "workspace_slug": "delta-prod"
+            },
+            "keyPolicy": {
+              "secretBackend": "vault",
+              "secretPathPrefix": "tenants/ten_01enterprisedelta/workspaces/delta-prod",
+              "referenceMode": "reference_only",
+              "defaultRotationDays": 30,
+              "maxActiveKeys": 2,
+              "propagateToServiceAccounts": true,
+              "propagateToExternalApplications": true
             }
+          },
+          "cloneSource": {
+            "sourceWorkspaceId": "wrk_01deltastaging",
+            "clonedAt": "2026-03-24T00:00:00Z",
+            "clonePolicy": {
+              "includeApplications": true,
+              "includeServiceAccounts": true,
+              "includeManagedResourceBindings": true,
+              "resetCredentialReferences": true,
+              "reuseTenantLogicalResources": true,
+              "cloneMetadata": true
+            }
+          },
+          "apiSurface": {
+            "workspaceId": "wrk_01deltaprod",
+            "workspaceSlug": "delta-prod",
+            "environment": "prod",
+            "controlApiBaseUrl": "https://api.in-atelier.example.com/v1/workspaces/wrk_01deltaprod",
+            "consoleBaseUrl": "https://console.in-atelier.example.com/workspaces/wrk_01deltaprod",
+            "identityBaseUrl": "https://iam.in-atelier.example.com/realms/tenant-enterprise-delta",
+            "realtimeBaseUrl": "https://realtime.in-atelier.example.com/v1/websockets",
+            "applicationBaseUrlPattern": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/{applicationSlug}",
+            "endpoints": [
+              {
+                "name": "control-api",
+                "audience": "control_plane",
+                "url": "https://api.in-atelier.example.com/v1/workspaces/wrk_01deltaprod"
+              },
+              {
+                "name": "console",
+                "audience": "console",
+                "url": "https://console.in-atelier.example.com/workspaces/wrk_01deltaprod"
+              },
+              {
+                "name": "identity",
+                "audience": "identity",
+                "url": "https://iam.in-atelier.example.com/realms/tenant-enterprise-delta"
+              },
+              {
+                "name": "realtime",
+                "audience": "realtime",
+                "url": "https://realtime.in-atelier.example.com/v1/websockets"
+              }
+            ],
+            "applicationEndpoints": [
+              {
+                "applicationId": "app_01deltagateway",
+                "applicationSlug": "customer-gateway",
+                "protocol": "oidc",
+                "publicBaseUrl": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/customer-gateway",
+                "callbackBaseUrl": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/customer-gateway/callback"
+              },
+              {
+                "applicationId": "app_01deltapartner",
+                "applicationSlug": "partner-hub",
+                "protocol": "saml",
+                "publicBaseUrl": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/partner-hub",
+                "callbackBaseUrl": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/partner-hub/callback"
+              }
+            ]
+          },
+          "resourceInheritance": {
+            "mode": "clone_workspace",
+            "logicalResources": [
+              {
+                "resourceKey": "database.primary-db",
+                "resourceKind": "database",
+                "sharingScope": "workspace",
+                "specializationMode": "workspace_override",
+                "sourceWorkspaceId": "wrk_01deltaprod",
+                "targetResourceId": "res_01deltaprimarydb",
+                "providerHint": "postgresql",
+                "inherited": true
+              },
+              {
+                "resourceKey": "database.document-db",
+                "resourceKind": "database",
+                "sharingScope": "workspace",
+                "specializationMode": "workspace_override",
+                "sourceWorkspaceId": "wrk_01deltaprod",
+                "targetResourceId": "res_01deltadocdb",
+                "providerHint": "mongodb",
+                "inherited": true
+              },
+              {
+                "resourceKey": "bucket.audit-bucket",
+                "resourceKind": "bucket",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01deltastaging",
+                "targetResourceId": "res_01deltaauditbucket",
+                "providerHint": "storage",
+                "inherited": true
+              },
+              {
+                "resourceKey": "topic.event-bus",
+                "resourceKind": "topic",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01deltaprod",
+                "targetResourceId": "res_01deltabus",
+                "providerHint": "kafka",
+                "inherited": true
+              },
+              {
+                "resourceKey": "function.worker-functions",
+                "resourceKind": "function",
+                "sharingScope": "tenant_shared",
+                "specializationMode": "shared",
+                "sourceWorkspaceId": "wrk_01deltasandbox",
+                "targetResourceId": "res_01deltaworkers",
+                "providerHint": "openwhisk",
+                "inherited": true
+              }
+            ],
+            "keepProviderPlacements": true,
+            "sourceWorkspaceId": "wrk_01deltastaging"
           }
         }
       ],
@@ -2568,7 +3341,19 @@
           "validation": {
             "status": "valid",
             "checks": []
-          }
+          },
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/customer-gateway"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/customer-gateway/callback"
+            }
+          ]
         },
         {
           "applicationId": "app_01deltaops",
@@ -2647,7 +3432,19 @@
           "validation": {
             "status": "valid",
             "checks": []
-          }
+          },
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://api.staging.in-atelier.example.com/workspaces/delta-staging/apps/ops-portal"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://api.staging.in-atelier.example.com/workspaces/delta-staging/apps/ops-portal/callback"
+            }
+          ]
         },
         {
           "applicationId": "app_01deltapartner",
@@ -2748,7 +3545,19 @@
               "workspace-context"
             ],
             "frontChannelLogoutUri": "https://partner-hub.delta-prod.example.com/saml/slo"
-          }
+          },
+          "endpoints": [
+            {
+              "name": "public-base",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/partner-hub"
+            },
+            {
+              "name": "callback",
+              "audience": "external_application",
+              "url": "https://api.in-atelier.example.com/workspaces/delta-prod/apps/partner-hub/callback"
+            }
+          ]
         }
       ],
       "serviceAccounts": [
@@ -2865,7 +3674,15 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01deltaprimarydb",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "database.primary-db",
+          "sharingScope": "workspace",
+          "consumerWorkspaceIds": [
+            "wrk_01deltaprod"
+          ],
+          "authorizedServiceAccountIds": [
+            "svc_01deltaprovisioner"
+          ]
         },
         {
           "entityType": "managed_resource",
@@ -2913,7 +3730,12 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "mongodb://enterprise/document-db",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "database.document-db",
+          "sharingScope": "workspace",
+          "consumerWorkspaceIds": [
+            "wrk_01deltaprod"
+          ]
         },
         {
           "resourceId": "res_01deltaauditbucket",
@@ -2954,7 +3776,17 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01deltaauditbucket",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "bucket.audit-bucket",
+          "sharingScope": "tenant_shared",
+          "consumerWorkspaceIds": [
+            "wrk_01deltastaging",
+            "wrk_01deltaprod"
+          ],
+          "authorizedServiceAccountIds": [
+            "svc_01deltareporter",
+            "svc_01deltaprovisioner"
+          ]
         },
         {
           "resourceId": "res_01deltabus",
@@ -2996,7 +3828,17 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01deltabus",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "topic.event-bus",
+          "sharingScope": "tenant_shared",
+          "consumerWorkspaceIds": [
+            "wrk_01deltastaging",
+            "wrk_01deltaprod"
+          ],
+          "authorizedApplicationIds": [
+            "app_01deltaops",
+            "app_01deltagateway"
+          ]
         },
         {
           "resourceId": "res_01deltaworkers",
@@ -3038,7 +3880,16 @@
             "lastAttemptAt": "2026-03-24T00:00:00Z",
             "providerReference": "res_01deltaworkers",
             "visibleInConsole": true
-          }
+          },
+          "logicalResourceKey": "function.worker-functions",
+          "sharingScope": "tenant_shared",
+          "consumerWorkspaceIds": [
+            "wrk_01deltasandbox",
+            "wrk_01deltaprod"
+          ],
+          "authorizedServiceAccountIds": [
+            "svc_01deltaprovisioner"
+          ]
         }
       ],
       "tenantMemberships": [

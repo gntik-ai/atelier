@@ -487,6 +487,7 @@ function collectSeedFixtureViolations(model, seeds, deploymentTopology, violatio
   const tenantSizes = new Set();
   let hasSingleWorkspace = false;
   let hasMultiWorkspace = false;
+  let hasSharedWorkspaceResource = false;
 
   for (const profile of profiles) {
     if (!profile?.id) {
@@ -509,9 +510,13 @@ function collectSeedFixtureViolations(model, seeds, deploymentTopology, violatio
     }
 
     const workspaceIndex = new Map((profile.workspaces ?? []).map((workspace) => [workspace.workspaceId, workspace]));
-    const applicationIds = new Set((profile.externalApplications ?? []).map((application) => application.applicationId));
-    const serviceAccountIds = new Set((profile.serviceAccounts ?? []).map((serviceAccount) => serviceAccount.serviceAccountId));
+    const applicationIndex = new Map((profile.externalApplications ?? []).map((application) => [application.applicationId, application]));
+    const serviceAccountIndex = new Map((profile.serviceAccounts ?? []).map((serviceAccount) => [serviceAccount.serviceAccountId, serviceAccount]));
+    const applicationIds = new Set(applicationIndex.keys());
+    const serviceAccountIds = new Set(serviceAccountIndex.keys());
     const platformUserIds = new Set((profile.platformUsers ?? []).map((user) => user.userId));
+    const workspaceSlugs = new Set();
+    const workspaceNames = new Set();
 
     if (!Array.isArray(profile.workspaces) || profile.workspaces.length !== profile.workspace_count) {
       violations.push(`Domain seed profile ${profile.id} workspace_count must match the number of workspaces.`);
@@ -524,11 +529,33 @@ function collectSeedFixtureViolations(model, seeds, deploymentTopology, violatio
       if (!allowedEnvironments.has(workspace.environment)) {
         violations.push(`Domain seed workspace ${workspace.workspaceId} uses unknown environment ${workspace.environment}.`);
       }
+      if (!workspace.slug || workspaceSlugs.has(workspace.slug)) {
+        violations.push(`Domain seed workspace ${workspace.workspaceId} must define a tenant-unique slug.`);
+      } else {
+        workspaceSlugs.add(workspace.slug);
+      }
+      if (!workspace.displayName || workspaceNames.has(workspace.displayName)) {
+        violations.push(`Domain seed workspace ${workspace.workspaceId} must define a tenant-unique displayName.`);
+      } else {
+        workspaceNames.add(workspace.displayName);
+      }
+      if (!workspace.iamBoundary?.keyPolicy?.secretPathPrefix) {
+        violations.push(`Domain seed workspace ${workspace.workspaceId} must define iamBoundary.keyPolicy.secretPathPrefix.`);
+      }
+      if (!workspace.resourceInheritance?.mode || !Array.isArray(workspace.resourceInheritance?.logicalResources)) {
+        violations.push(`Domain seed workspace ${workspace.workspaceId} must define resourceInheritance mode and logicalResources.`);
+      }
+      if (!workspace.apiSurface?.controlApiBaseUrl || !workspace.apiSurface?.applicationBaseUrlPattern) {
+        violations.push(`Domain seed workspace ${workspace.workspaceId} must define apiSurface base URLs.`);
+      }
     }
 
     for (const application of profile.externalApplications ?? []) {
       if (!workspaceIndex.has(application.workspaceId)) {
         violations.push(`Domain seed application ${application.applicationId} references unknown workspace ${application.workspaceId}.`);
+      }
+      if (!ensureNonEmptyArray(application.endpoints)) {
+        violations.push(`Domain seed application ${application.applicationId} must define endpoints.`);
       }
     }
 
@@ -550,6 +577,9 @@ function collectSeedFixtureViolations(model, seeds, deploymentTopology, violatio
       if (!allowedResourceKinds.has(resource.kind)) {
         violations.push(`Domain seed managed resource ${resource.resourceId} uses unsupported kind ${resource.kind}.`);
       }
+      if (!resource.logicalResourceKey) {
+        violations.push(`Domain seed managed resource ${resource.resourceId} must define logicalResourceKey.`);
+      }
       if (resource.applicationId && !applicationIds.has(resource.applicationId)) {
         violations.push(
           `Domain seed managed resource ${resource.resourceId} references unknown application ${resource.applicationId}.`
@@ -559,6 +589,42 @@ function collectSeedFixtureViolations(model, seeds, deploymentTopology, violatio
         violations.push(
           `Domain seed managed resource ${resource.resourceId} references unknown service account ${resource.serviceAccountId}.`
         );
+      }
+
+      const consumerWorkspaceIds = resource.consumerWorkspaceIds ?? [];
+      for (const workspaceId of consumerWorkspaceIds) {
+        if (!workspaceIndex.has(workspaceId)) {
+          violations.push(`Domain seed managed resource ${resource.resourceId} references unknown consumer workspace ${workspaceId}.`);
+        }
+      }
+
+      for (const applicationId of resource.authorizedApplicationIds ?? []) {
+        const application = applicationIndex.get(applicationId);
+        if (!application) {
+          violations.push(`Domain seed managed resource ${resource.resourceId} references unknown authorized application ${applicationId}.`);
+        } else if (!consumerWorkspaceIds.includes(application.workspaceId)) {
+          violations.push(
+            `Domain seed managed resource ${resource.resourceId} authorized application ${applicationId} must belong to a consumer workspace.`
+          );
+        }
+      }
+
+      for (const serviceAccountId of resource.authorizedServiceAccountIds ?? []) {
+        const serviceAccount = serviceAccountIndex.get(serviceAccountId);
+        if (!serviceAccount) {
+          violations.push(`Domain seed managed resource ${resource.resourceId} references unknown authorized service account ${serviceAccountId}.`);
+        } else if (!consumerWorkspaceIds.includes(serviceAccount.workspaceId)) {
+          violations.push(
+            `Domain seed managed resource ${resource.resourceId} authorized service account ${serviceAccountId} must belong to a consumer workspace.`
+          );
+        }
+      }
+
+      if (resource.sharingScope === 'tenant_shared') {
+        hasSharedWorkspaceResource = true;
+        if (consumerWorkspaceIds.length < 2) {
+          violations.push(`Domain seed managed resource ${resource.resourceId} must expose at least two consumer workspaces when sharingScope is tenant_shared.`);
+        }
       }
     }
 
@@ -626,6 +692,10 @@ function collectSeedFixtureViolations(model, seeds, deploymentTopology, violatio
 
   if (!hasMultiWorkspace) {
     violations.push('Domain seed fixtures must include a multi-workspace profile.');
+  }
+
+  if (!hasSharedWorkspaceResource) {
+    violations.push('Domain seed fixtures must include at least one tenant-shared managed resource across multiple workspaces.');
   }
 }
 

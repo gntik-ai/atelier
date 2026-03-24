@@ -189,6 +189,14 @@
         ],
         "type": "object"
       },
+      "ApplicationProtocol": {
+        "enum": [
+          "oidc",
+          "saml",
+          "api_key"
+        ],
+        "type": "string"
+      },
       "AuthorizationContext": {
         "additionalProperties": false,
         "properties": {
@@ -994,6 +1002,22 @@
           "updatedAt"
         ],
         "type": "object"
+      },
+      "ManagedResourceKind": {
+        "enum": [
+          "database",
+          "bucket",
+          "topic",
+          "function"
+        ],
+        "type": "string"
+      },
+      "ManagedResourceSharingScope": {
+        "enum": [
+          "workspace",
+          "tenant_shared"
+        ],
+        "type": "string"
       },
       "MembershipPrincipalBinding": {
         "additionalProperties": false,
@@ -1810,6 +1834,12 @@
       "Workspace": {
         "additionalProperties": false,
         "properties": {
+          "apiSurface": {
+            "$ref": "#/components/schemas/WorkspaceApiSurface"
+          },
+          "cloneSource": {
+            "$ref": "#/components/schemas/WorkspaceCloneSource"
+          },
           "description": {
             "maxLength": 500,
             "type": "string"
@@ -1841,6 +1871,9 @@
               "type": "integer"
             },
             "type": "object"
+          },
+          "resourceInheritance": {
+            "$ref": "#/components/schemas/WorkspaceResourceInheritance"
           },
           "runtimeNamespace": {
             "maxLength": 120,
@@ -1875,7 +1908,186 @@
           "environment",
           "state",
           "timestamps",
-          "metadata"
+          "metadata",
+          "iamBoundary",
+          "resourceInheritance",
+          "apiSurface"
+        ],
+        "type": "object"
+      },
+      "WorkspaceApiEndpoint": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "enum": [
+              "control_plane",
+              "console",
+              "identity",
+              "realtime",
+              "external_application"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "audience",
+          "url"
+        ],
+        "type": "object"
+      },
+      "WorkspaceApiSurface": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationBaseUrlPattern": {
+            "maxLength": 255,
+            "minLength": 10,
+            "type": "string"
+          },
+          "applicationEndpoints": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceApplicationEndpoint"
+            },
+            "type": "array"
+          },
+          "consoleBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "controlApiBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "endpoints": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceApiEndpoint"
+            },
+            "type": "array"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "identityBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "realtimeBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceSlug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "workspaceSlug",
+          "environment",
+          "controlApiBaseUrl",
+          "consoleBaseUrl",
+          "identityBaseUrl",
+          "realtimeBaseUrl",
+          "applicationBaseUrlPattern",
+          "endpoints",
+          "applicationEndpoints"
+        ],
+        "type": "object"
+      },
+      "WorkspaceApplicationEndpoint": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationId": {
+            "pattern": "^app_[0-9a-z]+$",
+            "type": "string"
+          },
+          "applicationSlug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "callbackBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ApplicationProtocol"
+          },
+          "publicBaseUrl": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "applicationId",
+          "applicationSlug",
+          "protocol",
+          "publicBaseUrl"
+        ],
+        "type": "object"
+      },
+      "WorkspaceClonePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "cloneMetadata": {
+            "type": "boolean"
+          },
+          "includeApplications": {
+            "type": "boolean"
+          },
+          "includeManagedResourceBindings": {
+            "type": "boolean"
+          },
+          "includeServiceAccounts": {
+            "type": "boolean"
+          },
+          "resetCredentialReferences": {
+            "type": "boolean"
+          },
+          "reuseTenantLogicalResources": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "includeApplications",
+          "includeServiceAccounts",
+          "includeManagedResourceBindings",
+          "resetCredentialReferences",
+          "reuseTenantLogicalResources"
+        ],
+        "type": "object"
+      },
+      "WorkspaceCloneSource": {
+        "additionalProperties": false,
+        "properties": {
+          "clonePolicy": {
+            "$ref": "#/components/schemas/WorkspaceClonePolicy"
+          },
+          "clonedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sourceWorkspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceWorkspaceId",
+          "clonedAt",
+          "clonePolicy"
         ],
         "type": "object"
       },
@@ -1894,11 +2106,20 @@
           "clientNamespace": {
             "type": "string"
           },
+          "controlPlaneAttributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
           "defaultClientScopes": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "keyPolicy": {
+            "$ref": "#/components/schemas/WorkspaceIamKeyPolicy"
           },
           "protocolMappers": {
             "items": {
@@ -1913,7 +2134,104 @@
         "required": [
           "realm",
           "clientNamespace",
-          "defaultClientScopes"
+          "defaultClientScopes",
+          "keyPolicy"
+        ],
+        "type": "object"
+      },
+      "WorkspaceIamKeyPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultRotationDays": {
+            "maximum": 365,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxActiveKeys": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "propagateToExternalApplications": {
+            "type": "boolean"
+          },
+          "propagateToServiceAccounts": {
+            "type": "boolean"
+          },
+          "referenceMode": {
+            "enum": [
+              "reference_only",
+              "ephemeral_material"
+            ],
+            "type": "string"
+          },
+          "secretBackend": {
+            "enum": [
+              "vault",
+              "keycloak",
+              "sealed_secret"
+            ],
+            "type": "string"
+          },
+          "secretPathPrefix": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "secretBackend",
+          "secretPathPrefix",
+          "referenceMode",
+          "defaultRotationDays",
+          "maxActiveKeys"
+        ],
+        "type": "object"
+      },
+      "WorkspaceLogicalResourceBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "inherited": {
+            "type": "boolean"
+          },
+          "providerHint": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "resourceKey": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "resourceKind": {
+            "$ref": "#/components/schemas/ManagedResourceKind"
+          },
+          "sharingScope": {
+            "$ref": "#/components/schemas/ManagedResourceSharingScope"
+          },
+          "sourceWorkspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "specializationMode": {
+            "enum": [
+              "shared",
+              "workspace_override"
+            ],
+            "type": "string"
+          },
+          "targetResourceId": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceKey",
+          "resourceKind",
+          "sharingScope",
+          "specializationMode",
+          "inherited"
         ],
         "type": "object"
       },
@@ -2000,6 +2318,37 @@
         ],
         "type": "object"
       },
+      "WorkspaceResourceInheritance": {
+        "additionalProperties": false,
+        "properties": {
+          "keepProviderPlacements": {
+            "type": "boolean"
+          },
+          "logicalResources": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceLogicalResourceBinding"
+            },
+            "type": "array"
+          },
+          "mode": {
+            "enum": [
+              "tenant_defaults",
+              "clone_workspace",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "sourceWorkspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "logicalResources"
+        ],
+        "type": "object"
+      },
       "WorkspaceRole": {
         "enum": [
           "workspace_admin",
@@ -2018,7 +2367,7 @@
     "description": "Console login, signup, activation, password recovery, and contextual authorization decisions. Generated from the unified public API contract for v1.",
     "summary": "Console login, signup, activation, password recovery, and contextual authorization decisions.",
     "title": "In Atelier Auth API",
-    "version": "1.8.0"
+    "version": "1.9.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

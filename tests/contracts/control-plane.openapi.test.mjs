@@ -13,7 +13,10 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/platform/route-catalog']);
   assert.ok(document.paths['/v1/tenants/{tenantId}']);
   assert.ok(document.paths['/v1/tenants/{tenantId}/iam-access']);
+  assert.ok(document.paths['/v1/workspaces']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}']);
+  assert.ok(document.paths['/v1/workspaces/{workspaceId}/clone']);
+  assert.ok(document.paths['/v1/workspaces/{workspaceId}/api-surface']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/templates']);
   assert.ok(document.paths['/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers']);
@@ -77,6 +80,12 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createPasswordRecoveryRequest = document.paths['/v1/auth/password-recovery-requests'].post;
   const confirmPasswordRecovery = document.paths['/v1/auth/password-recovery-requests/{recoveryRequestId}/confirmations'].post;
   const getConsoleAccountStatusView = document.paths['/v1/auth/status-views/{statusViewId}'].get;
+  const listWorkspaces = document.paths['/v1/workspaces'].get;
+  const createWorkspace = document.paths['/v1/workspaces'].post;
+  const updateWorkspace = document.paths['/v1/workspaces/{workspaceId}'].put;
+  const deleteWorkspace = document.paths['/v1/workspaces/{workspaceId}'].delete;
+  const cloneWorkspace = document.paths['/v1/workspaces/{workspaceId}/clone'].post;
+  const getWorkspaceApiSurface = document.paths['/v1/workspaces/{workspaceId}/api-surface'].get;
   const createManagedResource = document.paths['/v1/workspaces/{workspaceId}/managed-resources'].post;
   const createIamRealm = document.paths['/v1/iam/realms'].post;
   const listIamClients = document.paths['/v1/iam/realms/{realmId}/clients'].get;
@@ -103,7 +112,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.8.0');
+  assert.equal(document.info.version, '1.9.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -116,6 +125,12 @@ test('control-plane contract enforces versioning, authorization, family metadata
     'resource'
   ]);
 
+  const listWorkspaceParameters = resolveParameters(document, listWorkspaces);
+  const createWorkspaceParameters = resolveParameters(document, createWorkspace);
+  const updateWorkspaceParameters = resolveParameters(document, updateWorkspace);
+  const deleteWorkspaceParameters = resolveParameters(document, deleteWorkspace);
+  const cloneWorkspaceParameters = resolveParameters(document, cloneWorkspace);
+  const workspaceApiSurfaceParameters = resolveParameters(document, getWorkspaceApiSurface);
   const accessCheckParameters = resolveParameters(document, accessCheck);
   const createConsoleLoginSessionParameters = resolveParameters(document, createConsoleLoginSession);
   const refreshConsoleLoginSessionParameters = resolveParameters(document, refreshConsoleLoginSession);
@@ -226,6 +241,29 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.ConsoleAccountStatusView);
   assert.ok(document.components.schemas.ConsoleActionLink);
 
+  assert.equal(listWorkspaces['x-family'], 'workspaces');
+  assert.equal(listWorkspaceParameters.some((parameter) => parameter.name === 'filter[tenantId]'), true);
+  assert.equal(listWorkspaceParameters.some((parameter) => parameter.name === 'filter[slug]'), true);
+  assert.equal(listWorkspaceParameters.some((parameter) => parameter.name === 'filter[displayName]'), true);
+  assert.ok(listWorkspaces.responses['200']);
+  assert.equal(createWorkspace['x-family'], 'workspaces');
+  assert.equal(createWorkspaceParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(createWorkspace.responses['202']);
+  assert.equal(updateWorkspace['x-family'], 'workspaces');
+  assert.equal(updateWorkspaceParameters.some((parameter) => parameter.name === 'workspaceId'), true);
+  assert.equal(updateWorkspaceParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(updateWorkspace.responses['202']);
+  assert.equal(deleteWorkspace['x-family'], 'workspaces');
+  assert.equal(deleteWorkspaceParameters.some((parameter) => parameter.name === 'workspaceId'), true);
+  assert.equal(deleteWorkspaceParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(deleteWorkspace.responses['202']);
+  assert.equal(cloneWorkspace['x-family'], 'workspaces');
+  assert.equal(cloneWorkspaceParameters.some((parameter) => parameter.name === 'workspaceId'), true);
+  assert.equal(cloneWorkspaceParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(cloneWorkspace.responses['202']);
+  assert.equal(getWorkspaceApiSurface['x-family'], 'workspaces');
+  assert.equal(workspaceApiSurfaceParameters.some((parameter) => parameter.name === 'workspaceId'), true);
+  assert.ok(getWorkspaceApiSurface.responses['200']);
   assert.equal(createManagedResource['x-family'], 'workspaces');
   assert.equal(managedResourceParameters.some((parameter) => parameter.name === 'X-API-Version'), true);
   assert.equal(managedResourceParameters.some((parameter) => parameter.name === 'X-Correlation-Id'), true);
@@ -322,6 +360,12 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.ProviderCapabilityRecord);
   assert.ok(document.components.schemas.TenantIdentityContext);
   assert.ok(document.components.schemas.WorkspaceIamBoundary);
+  assert.ok(document.components.schemas.WorkspaceCollectionResponse);
+  assert.ok(document.components.schemas.WorkspaceApiSurface);
+  assert.ok(document.components.schemas.WorkspaceCloneRequest);
+  assert.ok(document.components.schemas.WorkspaceCloneAccepted);
+  assert.ok(document.components.schemas.WorkspaceLogicalResourceBinding);
+  assert.ok(document.components.schemas.WorkspaceResourceInheritance);
   assert.ok(document.components.schemas.ExternalApplicationIamClient);
   assert.ok(document.components.schemas.ExternalApplicationAuthenticationFlow);
   assert.ok(document.components.schemas.ExternalApplicationStarterTemplate);
@@ -337,6 +381,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.ExternalApplication.properties.iamClient);
   assert.ok(document.components.schemas.ExternalApplication.properties.federatedProviders);
   assert.ok(document.components.schemas.ExternalApplication.properties.authenticationFlows);
+  assert.ok(document.components.schemas.ExternalApplication.properties.endpoints);
   assert.ok(document.components.schemas.ServiceAccount.properties.iamBinding);
   assert.ok(document.components.schemas.ServiceAccount.properties.credentialPolicy);
   assert.ok(document.components.schemas.ManagedResource.properties.accessPolicy);
@@ -349,7 +394,12 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.PlatformUser.properties.activationProvisioning);
   assert.ok(document.components.schemas.Tenant.properties.provisioning);
   assert.ok(document.components.schemas.Workspace.properties.provisioning);
+  assert.ok(document.components.schemas.Workspace.properties.apiSurface);
+  assert.ok(document.components.schemas.Workspace.properties.resourceInheritance);
+  assert.ok(document.components.schemas.WorkspaceIamBoundary.properties.keyPolicy);
   assert.ok(document.components.schemas.ManagedResource.properties.provisioning);
+  assert.ok(document.components.schemas.ManagedResource.properties.sharingScope);
+  assert.ok(document.components.schemas.ManagedResource.properties.consumerWorkspaceIds);
   assert.ok(document.components.schemas.PostgresInstance.properties.provisioning);
   assert.ok(document.components.schemas.MongoDatabase.properties.provisioning);
   assert.ok(document.components.schemas.EventTopic.properties.provisioning);

@@ -24,7 +24,10 @@ test('control-plane and console route-catalog helpers expose the same generated 
   assert.equal(controlPlanePostgresRoutes.every((route) => route.family === 'postgres'), true);
   assert.equal(controlPlaneIamRoutes.length >= 20, true);
 
+  assert.ok(consoleWorkspaceRoutes.some((route) => route.path === '/v1/workspaces'));
   assert.ok(consoleWorkspaceRoutes.some((route) => route.path === '/v1/workspaces/{workspaceId}'));
+  assert.ok(consoleWorkspaceRoutes.some((route) => route.path === '/v1/workspaces/{workspaceId}/clone'));
+  assert.ok(consoleWorkspaceRoutes.some((route) => route.path === '/v1/workspaces/{workspaceId}/api-surface'));
   assert.ok(consoleWorkspaceRoutes.some((route) => route.path === '/v1/workspaces/{workspaceId}/applications/{applicationId}'));
   assert.ok(consoleSections.some((section) => section.id === 'websockets'));
   assert.ok(consoleSections.some((section) => section.id === 'metrics'));
