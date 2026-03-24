@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import {
   getAdapterPort,
   getCommercialPlan,
@@ -448,6 +450,235 @@ function computeQuotaStatus(limitDescriptor = {}, used = 0) {
   };
 }
 
+function resolvePostgresExecutionMode(payload = {}, context = {}) {
+  if (payload.executionMode === 'preview' || context.executionMode === 'preview') return 'preview';
+  if (payload.preview === true || context.preview === true) return 'preview';
+  if (payload.dryRun === true || context.dryRun === true) return 'preview';
+  return 'execute';
+}
+
+function buildPostgresTenantIsolationProfile({ resourceKind, context = {}, profile = {}, resource = {} } = {}) {
+  if (!['database', 'schema', 'table', 'table_security', 'policy', 'grant'].includes(resourceKind)) {
+    return undefined;
+  }
+
+  const placementMode = profile.placementMode ?? context.placementMode;
+  const workspaceBindings = listUsage(resource.workspaceBindings ?? context.workspaceBindings ?? []);
+  const sharedTableClassification =
+    resource.sharedTableClassification ?? context.currentTable?.sharedTableClassification ?? context.sharedTableClassification;
+
+  return compactDefined({
+    placementMode,
+    isolationBoundary: placementMode === 'database_per_tenant' ? 'database' : 'schema',
+    rowAccessModel: placementMode === 'schema_per_tenant' ? 'rls_for_shared_tables' : 'boundary_first',
+    policyEnforcement: ['table_security', 'policy', 'table'].includes(resourceKind)
+      ? placementMode === 'schema_per_tenant'
+        ? 'required_for_shared_rows'
+        : 'optional_for_dedicated_databases'
+      : undefined,
+    tenantId: context.tenantId,
+    workspaceId: context.workspaceId,
+    tenantDatabaseName: context.tenantDatabaseName,
+    workspaceBindings,
+    sharedTableClassification,
+    defaultPrivileges: resource.accessPolicy?.defaultPrivileges,
+    isolationSurface:
+      placementMode === 'database_per_tenant'
+        ? 'database_and_schema_ownership'
+        : 'schema_ownership_with_row_level_security'
+  });
+}
+
+function withTenantIsolation(resourceKind, resource, context = {}, profile = {}) {
+  if (!resource) return resource;
+  return compactDefined({
+    ...resource,
+    tenantIsolation: buildPostgresTenantIsolationProfile({ resourceKind, context, profile, resource })
+  });
+}
+
+function classifyPostgresDdlStatement(sql = '') {
+  if (/^CREATE\s+/i.test(sql)) return 'create';
+  if (/^ALTER\s+/i.test(sql)) return 'alter';
+  if (/^DROP\s+/i.test(sql)) return 'drop';
+  if (/^COMMENT\s+ON\s+/i.test(sql)) return 'comment';
+  if (/^GRANT\s+/i.test(sql)) return 'grant';
+  if (/^REVOKE\s+/i.test(sql)) return 'revoke';
+  return 'other';
+}
+
+function buildPostgresDdlPreview({ ddlPlan, executionMode = 'execute' } = {}) {
+  if (!ddlPlan || !Array.isArray(ddlPlan.statements) || ddlPlan.statements.length === 0) {
+    return undefined;
+  }
+
+  const statementFingerprint = createHash('sha256').update(ddlPlan.statements.join('\n-- postgres-preview --\n')).digest('hex').slice(0, 24);
+
+  return {
+    executionMode,
+    statementCount: ddlPlan.statements.length,
+    statementFingerprint,
+    transactionMode: ddlPlan.transactionMode,
+    lockTargets: ddlPlan.lockTargets ?? [],
+    safeGuards: ddlPlan.safeGuards ?? [],
+    statements: ddlPlan.statements.map((sql, index) => ({
+      ordinal: index + 1,
+      category: classifyPostgresDdlStatement(sql),
+      destructive: /^DROP\s+/i.test(sql),
+      sql
+    }))
+  };
+}
+
+function warningSeverityRank(severity = 'low') {
+  return {
+    info: 0,
+    low: 1,
+    medium: 2,
+    high: 3,
+    critical: 4
+  }[severity] ?? 1;
+}
+
+function summarizePostgresRiskLevel(warnings = []) {
+  return warnings.reduce((highest, warning) => (warningSeverityRank(warning.severity) > warningSeverityRank(highest) ? warning.severity : highest), 'low');
+}
+
+function buildPostgresPreExecutionWarnings({ resourceKind, action, payload = {}, context = {}, ddlPlan, normalizedResource, executionMode = 'execute' } = {}) {
+  if (!ddlPlan || !Array.isArray(ddlPlan.statements) || ddlPlan.statements.length === 0) {
+    return [];
+  }
+
+  const warnings = [];
+  const rowEstimate = Number(context.currentTable?.rowEstimate ?? context.currentTable?.estimatedRowCount ?? 0);
+  const destructive = action === 'delete' || ddlPlan.statements.some((statement) => /^DROP\s+/i.test(statement));
+  const lockingLikely = (ddlPlan.lockTargets?.length ?? 0) > 0 && ['create', 'update', 'delete'].includes(action);
+  const writePrivileges = normalizedResource?.privileges?.filter((privilege) => ['insert', 'update', 'delete', 'truncate', 'references', 'trigger'].includes(privilege)) ?? [];
+  const disablesRls = resourceKind === 'table_security' && payload.rlsEnabled === false;
+  const mutatesPolicy = resourceKind === 'policy' && ['update', 'delete'].includes(action);
+  const rewritesLikely = ddlPlan.statements.some((statement) =>
+    /ALTER TABLE .* (ALTER COLUMN .* TYPE|ALTER COLUMN .* SET NOT NULL|DROP COLUMN|ADD CONSTRAINT)/i.test(statement)
+  );
+
+  if (executionMode === 'preview') {
+    warnings.push({
+      warningCode: 'preview_only',
+      severity: 'info',
+      category: 'execution_mode',
+      summary: 'Preview mode only renders the DDL plan and does not execute it.',
+      detail: 'Use the generated statement fingerprint and warnings to review the mutation before submitting the execution request.',
+      impactLevel: 'none',
+      requiresAcknowledgement: false
+    });
+  }
+
+  if (lockingLikely) {
+    warnings.push({
+      warningCode: 'ddl_lock_risk',
+      severity: destructive || rewritesLikely ? 'high' : 'medium',
+      category: 'locking',
+      summary: `This ${resourceKind} ${action} plan may acquire PostgreSQL DDL locks on ${ddlPlan.lockTargets.length} managed target(s).`,
+      detail: 'Concurrent readers or writers touching the same relation can be blocked until the DDL transaction completes.',
+      impactLevel: destructive || rewritesLikely ? 'high' : 'medium',
+      requiresAcknowledgement: destructive || rewritesLikely,
+      lockTargets: ddlPlan.lockTargets
+    });
+  }
+
+  if (ddlPlan.transactionMode === 'non_transactional_ddl') {
+    warnings.push({
+      warningCode: 'non_transactional_ddl',
+      severity: 'high',
+      category: 'rollback',
+      summary: 'This mutation uses non-transactional PostgreSQL DDL.',
+      detail: 'Rollback requires compensating DDL or restore procedures because PostgreSQL cannot wrap this operation in a single transaction.',
+      impactLevel: 'high',
+      requiresAcknowledgement: true
+    });
+  }
+
+  if (destructive) {
+    warnings.push({
+      warningCode: 'destructive_ddl',
+      severity: 'critical',
+      category: 'destructive_change',
+      summary: `This ${resourceKind} mutation removes or replaces existing PostgreSQL objects.`,
+      detail: 'Review dependencies, backup posture, and recovery steps before approving the generated DDL.',
+      impactLevel: 'critical',
+      requiresAcknowledgement: true,
+      lockTargets: ddlPlan.lockTargets
+    });
+  }
+
+  if (rewritesLikely) {
+    warnings.push({
+      warningCode: 'table_rewrite_or_scan',
+      severity: rowEstimate > 0 ? 'high' : 'medium',
+      category: 'performance',
+      summary: 'The generated DDL can trigger table scans, rewrites, or validation passes.',
+      detail:
+        rowEstimate > 0
+          ? `Current table estimate is ${rowEstimate} row(s); schedule the change during a low-traffic window if possible.`
+          : 'Row cardinality is unknown; treat the change as potentially expensive until inventory statistics confirm the impact.',
+      impactLevel: rowEstimate > 0 ? 'high' : 'medium',
+      requiresAcknowledgement: rowEstimate > 0
+    });
+  }
+
+  if (disablesRls || mutatesPolicy || writePrivileges.length > 0) {
+    warnings.push({
+      warningCode: 'tenant_isolation_review',
+      severity: disablesRls ? 'critical' : 'high',
+      category: 'tenant_isolation',
+      summary: 'This mutation can weaken tenant isolation guarantees or expand cross-tenant access.',
+      detail: disablesRls
+        ? 'RLS is being disabled for a managed table; verify shared-table classification, compensating controls, and approval evidence.'
+        : mutatesPolicy
+          ? 'Policy churn can alter row visibility or write eligibility for tenant-scoped data; review predicates before execution.'
+          : `Write-capable grant privileges requested: ${writePrivileges.join(', ')}. Confirm the principal and object scope are expected.`,
+      impactLevel: disablesRls ? 'critical' : 'high',
+      requiresAcknowledgement: true
+    });
+  }
+
+  return warnings;
+}
+
+function buildPostgresRiskProfile({ ddlPlan, warnings = [], executionMode = 'execute' } = {}) {
+  return compactDefined({
+    executionMode,
+    riskLevel: summarizePostgresRiskLevel(warnings),
+    statementCount: ddlPlan?.statements?.length ?? 0,
+    lockTargetCount: ddlPlan?.lockTargets?.length ?? 0,
+    blockingLikely: warnings.some((warning) => warning.warningCode === 'ddl_lock_risk'),
+    destructive: warnings.some((warning) => warning.warningCode === 'destructive_ddl'),
+    acknowledgementRequired: warnings.some((warning) => warning.requiresAcknowledgement === true),
+    transactionMode: ddlPlan?.transactionMode
+  });
+}
+
+function buildPostgresAuditSummary({ resourceKind, action, ddlPreview, warnings = [], tenantIsolation, executionMode = 'execute' } = {}) {
+  return compactDefined({
+    operationClass: POSTGRES_GOVERNANCE_RESOURCE_KINDS.includes(resourceKind)
+      ? 'governance_ddl'
+      : POSTGRES_STRUCTURAL_RESOURCE_KINDS.includes(resourceKind)
+        ? 'structural_ddl'
+        : 'administrative_ddl',
+    action,
+    executionMode,
+    capturesSqlText: Boolean(ddlPreview?.statementCount),
+    capturesStatementFingerprint: Boolean(ddlPreview?.statementFingerprint),
+    capturesWarnings: warnings.length > 0,
+    capturesTenantIsolation: Boolean(tenantIsolation),
+    warningCount: warnings.length,
+    statementFingerprint: ddlPreview?.statementFingerprint,
+    evidence: compactDefined({
+      lockTargetCount: ddlPreview?.lockTargets?.length ?? 0,
+      rowAccessModel: tenantIsolation?.rowAccessModel
+    })
+  });
+}
+
 function countSchemasForDatabase(currentInventory = {}, databaseName) {
   const byDatabase = currentInventory?.schemasByDatabase ?? {};
   if (typeof byDatabase[databaseName] === 'number') {
@@ -560,96 +791,116 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
         metadata: payload.metadata ?? {}
       });
     case 'database':
-      return compactDefined({
-        resourceType: 'postgres_database',
-        databaseName: payload.databaseName ?? payload.name ?? context.databaseName,
-        ownerRoleName: payload.ownerRoleName,
-        state: payload.state ?? 'active',
-        placementMode: profile.placementMode,
-        tenantBinding: compactDefined({
-          tenantId: context.tenantId,
-          workspaceId: context.workspaceId,
-          isolationBoundary: profile.placementMode === 'database_per_tenant' ? 'tenant' : 'workspace'
+      return withTenantIsolation(
+        resourceKind,
+        compactDefined({
+          resourceType: 'postgres_database',
+          databaseName: payload.databaseName ?? payload.name ?? context.databaseName,
+          ownerRoleName: payload.ownerRoleName,
+          state: payload.state ?? 'active',
+          placementMode: profile.placementMode,
+          tenantBinding: compactDefined({
+            tenantId: context.tenantId,
+            workspaceId: context.workspaceId,
+            isolationBoundary: profile.placementMode === 'database_per_tenant' ? 'tenant' : 'workspace'
+          }),
+          locale: compactDefined({
+            encoding: payload.locale?.encoding,
+            lcCollate: payload.locale?.lcCollate,
+            lcCtype: payload.locale?.lcCtype
+          }),
+          comment: payload.comment,
+          documentation: payload.documentation,
+          templateBinding:
+            payload.templateId || payload.templateVariables
+              ? compactDefined({
+                  templateId: payload.templateId,
+                  templateScope: 'database',
+                  variables: payload.templateVariables
+                })
+              : undefined,
+          providerCompatibility,
+          metadata: payload.metadata ?? {}
         }),
-        locale: compactDefined({
-          encoding: payload.locale?.encoding,
-          lcCollate: payload.locale?.lcCollate,
-          lcCtype: payload.locale?.lcCtype
-        }),
-        comment: payload.comment,
-        documentation: payload.documentation,
-        templateBinding:
-          payload.templateId || payload.templateVariables
-            ? compactDefined({
-                templateId: payload.templateId,
-                templateScope: 'database',
-                variables: payload.templateVariables
-              })
-            : undefined,
-        providerCompatibility,
-        metadata: payload.metadata ?? {}
-      });
+        context,
+        profile
+      );
     case 'schema':
-      return compactDefined({
-        resourceType: 'postgres_schema',
-        databaseName: payload.databaseName ?? context.databaseName,
-        schemaName: payload.schemaName ?? payload.name ?? context.schemaName,
-        ownerRoleName: payload.ownerRoleName,
-        state: payload.state ?? 'active',
-        placementMode: profile.placementMode,
-        workspaceBindings: listUsage(payload.workspaceBindings ?? [context.workspaceId].filter(Boolean)),
-        accessPolicy: compactDefined({
-          isolationBoundary: 'workspace',
-          rlsRequiredOnSharedRows: profile.placementMode === 'schema_per_tenant',
-          defaultPrivileges: 'least_privilege'
+      return withTenantIsolation(
+        resourceKind,
+        compactDefined({
+          resourceType: 'postgres_schema',
+          databaseName: payload.databaseName ?? context.databaseName,
+          schemaName: payload.schemaName ?? payload.name ?? context.schemaName,
+          ownerRoleName: payload.ownerRoleName,
+          state: payload.state ?? 'active',
+          placementMode: profile.placementMode,
+          workspaceBindings: listUsage(payload.workspaceBindings ?? [context.workspaceId].filter(Boolean)),
+          accessPolicy: compactDefined({
+            isolationBoundary: 'workspace',
+            rlsRequiredOnSharedRows: profile.placementMode === 'schema_per_tenant',
+            defaultPrivileges: 'least_privilege'
+          }),
+          comment: payload.comment,
+          documentation: payload.documentation,
+          templateBinding:
+            payload.templateId || payload.templateVariables
+              ? compactDefined({
+                  templateId: payload.templateId,
+                  templateScope: 'schema',
+                  variables: payload.templateVariables
+                })
+              : undefined,
+          objectCounts: compactDefined({
+            tables: payload.objectCounts?.tables,
+            views: payload.objectCounts?.views,
+            materializedViews: payload.objectCounts?.materializedViews,
+            indexes: payload.objectCounts?.indexes,
+            constraints: payload.objectCounts?.constraints,
+            functions: payload.objectCounts?.functions,
+            procedures: payload.objectCounts?.procedures
+          }),
+          providerCompatibility,
+          metadata: payload.metadata ?? {}
         }),
-        comment: payload.comment,
-        documentation: payload.documentation,
-        templateBinding:
-          payload.templateId || payload.templateVariables
-            ? compactDefined({
-                templateId: payload.templateId,
-                templateScope: 'schema',
-                variables: payload.templateVariables
-              })
-            : undefined,
-        objectCounts: compactDefined({
-          tables: payload.objectCounts?.tables,
-          views: payload.objectCounts?.views,
-          materializedViews: payload.objectCounts?.materializedViews,
-          indexes: payload.objectCounts?.indexes,
-          constraints: payload.objectCounts?.constraints,
-          functions: payload.objectCounts?.functions,
-          procedures: payload.objectCounts?.procedures
-        }),
-        providerCompatibility,
-        metadata: payload.metadata ?? {}
-      });
+        context,
+        profile
+      );
     default:
       if (POSTGRES_GOVERNANCE_RESOURCE_KINDS.includes(resourceKind)) {
-        return normalizePostgresGovernanceResource(
+        return withTenantIsolation(
           resourceKind,
-          payload,
-          {
-            ...context,
-            contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
-            supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
-            deploymentProfileId: profile.deploymentProfileId,
-            placementMode: profile.placementMode,
-            databaseMutationsSupported: profile.databaseMutationsSupported
-          },
+          normalizePostgresGovernanceResource(
+            resourceKind,
+            payload,
+            {
+              ...context,
+              contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
+              supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
+              deploymentProfileId: profile.deploymentProfileId,
+              placementMode: profile.placementMode,
+              databaseMutationsSupported: profile.databaseMutationsSupported
+            },
+            profile
+          ),
+          context,
           profile
         );
       }
 
-      return normalizePostgresStructuralResource(resourceKind, payload, {
-        ...context,
-        contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
-        supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
-        deploymentProfileId: profile.deploymentProfileId,
-        placementMode: profile.placementMode,
-        databaseMutationsSupported: profile.databaseMutationsSupported
-      }, profile);
+      return withTenantIsolation(
+        resourceKind,
+        normalizePostgresStructuralResource(resourceKind, payload, {
+          ...context,
+          contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
+          supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
+          deploymentProfileId: profile.deploymentProfileId,
+          placementMode: profile.placementMode,
+          databaseMutationsSupported: profile.databaseMutationsSupported
+        }, profile),
+        context,
+        profile
+      );
   }
 }
 
@@ -1081,19 +1332,41 @@ export function buildPostgresAdminAdapterCall({
     throw error;
   }
 
+  const executionMode = resolvePostgresExecutionMode(payload, context);
   const normalizedContext = {
     ...context,
+    executionMode,
     tenantId: context.tenantId ?? tenantId,
     workspaceId: context.workspaceId ?? workspaceId,
     planId: context.planId ?? planId,
     profile: validation.profile,
     allowedTypeCatalog: context.allowedTypeCatalog ?? buildAllowedPostgresTypeCatalog(context.clusterFeatures)
   };
+  const normalizedResource = normalizePostgresAdminResource(resourceKind, payload, normalizedContext);
   const ddlPlan = buildPostgresAdministrativeSqlPlan({
     resourceKind,
     action,
     payload,
     context: normalizedContext
+  });
+  const ddlPreview = buildPostgresDdlPreview({ ddlPlan, executionMode });
+  const preExecutionWarnings = buildPostgresPreExecutionWarnings({
+    resourceKind,
+    action,
+    payload,
+    context: normalizedContext,
+    ddlPlan,
+    normalizedResource,
+    executionMode
+  });
+  const riskProfile = buildPostgresRiskProfile({ ddlPlan, warnings: preExecutionWarnings, executionMode });
+  const auditSummary = buildPostgresAuditSummary({
+    resourceKind,
+    action,
+    ddlPreview,
+    warnings: preExecutionWarnings,
+    tenantIsolation: normalizedResource?.tenantIsolation,
+    executionMode
   });
 
   return {
@@ -1105,9 +1378,14 @@ export function buildPostgresAdminAdapterCall({
     payload: {
       resourceKind,
       action,
+      executionMode,
       placementProfile: validation.profile,
-      normalizedResource: normalizePostgresAdminResource(resourceKind, payload, normalizedContext),
+      normalizedResource,
       ddlPlan,
+      ddlPreview,
+      preExecutionWarnings,
+      riskProfile,
+      auditSummary,
       providerPayload: payload
     },
     idempotency_key: idempotencyKey,
@@ -1427,6 +1705,13 @@ export function buildPostgresAdminInventorySnapshot({
         }
       ])
     ),
+    tenantIsolation: compactDefined({
+      placementMode: profile.placementMode,
+      isolationBoundary: profile.placementMode === 'database_per_tenant' ? 'database' : 'schema',
+      rowAccessModel: profile.placementMode === 'schema_per_tenant' ? 'rls_for_shared_tables' : 'boundary_first',
+      tenantId,
+      workspaceId
+    }),
     minimumEnginePolicy: profile.minimumEnginePolicy,
     providerCompatibility: profile.providerCompatibility
   };
@@ -1434,7 +1719,13 @@ export function buildPostgresAdminInventorySnapshot({
 
 export function buildPostgresAdminMetadataRecord({
   resourceKind,
+  action,
+  executionMode,
   resource,
+  ddlPreview,
+  preExecutionWarnings = [],
+  riskProfile,
+  auditSummary,
   tenantId,
   workspaceId,
   observedAt = '2026-03-24T00:00:00Z'
@@ -1486,11 +1777,23 @@ export function buildPostgresAdminMetadataRecord({
         resource?.templateId ??
         resource?.routineName ??
         resource?.fullName,
+      action,
+      executionMode,
       placementMode: resource?.placementMode,
       ownerRoleName: resource?.ownerRoleName,
-      provider: resource?.providerCompatibility?.provider ?? 'postgresql'
+      provider: resource?.providerCompatibility?.provider ?? 'postgresql',
+      statementFingerprint: ddlPreview?.statementFingerprint,
+      warningCodes: preExecutionWarnings.length > 0 ? preExecutionWarnings.map((warning) => warning.warningCode) : undefined,
+      riskLevel: riskProfile?.riskLevel,
+      rowAccessModel: resource?.tenantIsolation?.rowAccessModel,
+      isolationBoundary: resource?.tenantIsolation?.isolationBoundary,
+      auditOperationClass: auditSummary?.operationClass
     }),
-    resource
+    resource,
+    ddlPreview,
+    preExecutionWarnings,
+    riskProfile,
+    auditSummary
   };
 }
 

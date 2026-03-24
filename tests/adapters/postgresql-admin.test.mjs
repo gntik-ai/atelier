@@ -9,6 +9,7 @@ import {
   buildAllowedPostgresTypeCatalog,
   buildPostgresAdminAdapterCall,
   buildPostgresAdminInventorySnapshot,
+  buildPostgresAdminMetadataRecord,
   buildPostgresAdministrativeSqlPlan,
   buildPostgresGovernanceSqlPlan,
   buildPostgresStructuralSqlPlan,
@@ -502,6 +503,62 @@ test('postgres admin adapter validates profile guardrails, dependency safety, te
       templateId: 'pg_schema_shared_v1'
     }
   });
+  const projectedColumnQuota = validatePostgresAdminRequest({
+    resourceKind: 'table',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      currentInventory: {
+        counts: {
+          columns: 2046
+        }
+      }
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_order_shadow',
+      columns: [
+        { columnName: 'tenant_id', dataType: 'uuid', nullable: false },
+        { columnName: 'workspace_id', dataType: 'uuid', nullable: false },
+        { columnName: 'payload', dataType: 'jsonb', nullable: false }
+      ]
+    }
+  });
+  const projectedMaterializedViewIndexQuota = validatePostgresAdminRequest({
+    resourceKind: 'materialized_view',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      currentInventory: {
+        counts: {
+          indexes: 1535
+        }
+      }
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      materializedViewName: 'customer_order_rollups',
+      query: 'SELECT tenant_id, count(*) AS total_orders FROM alpha_prod_app.customer_orders GROUP BY tenant_id',
+      indexes: [
+        {
+          indexName: 'customer_order_rollups_tenant_idx',
+          indexMethod: 'btree',
+          keys: [{ columnName: 'tenant_id' }]
+        },
+        {
+          indexName: 'customer_order_rollups_total_idx',
+          indexMethod: 'btree',
+          keys: [{ columnName: 'total_orders' }]
+        }
+      ]
+    }
+  });
 
   assert.equal(sharedDatabaseMutation.ok, false);
   assert.equal(
@@ -550,6 +607,12 @@ test('postgres admin adapter validates profile guardrails, dependency safety, te
 
   assert.equal(missingTemplate.ok, false);
   assert.equal(missingTemplate.violations.some((violation) => violation.includes('workspace template catalog')), true);
+
+  assert.equal(projectedColumnQuota.ok, false);
+  assert.equal(projectedColumnQuota.violations.some((violation) => violation.includes('Quota table.postgres.columns.max')), true);
+
+  assert.equal(projectedMaterializedViewIndexQuota.ok, false);
+  assert.equal(projectedMaterializedViewIndexQuota.violations.some((violation) => violation.includes('materialized-view index')), true);
 });
 
 test('postgres admin adapter exposes common and advanced type catalogs when cluster features are enabled', () => {
@@ -666,6 +729,70 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
     scopes: ['database.admin'],
     effectiveRoles: ['workspace_admin']
   });
+  const previewCall = buildPostgresAdminAdapterCall({
+    resourceKind: 'column',
+    action: 'update',
+    callId: 'call_01pgcolumnpreview',
+    tenantId: 'ten_01enterprisealpha',
+    workspaceId: 'wrk_01alphaprod',
+    planId: 'pln_01enterprise',
+    correlationId: 'corr-pgadm-004',
+    authorizationDecisionId: 'authz-pgadm-004',
+    idempotencyKey: 'idem-pgadm-004',
+    targetRef: 'database:tenant_alpha_main/schema:alpha_prod_app/table:customer_orders/column:status',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      currentTable: { rowEstimate: 125000 },
+      currentColumn: {
+        columnName: 'status',
+        dataType: { typeName: 'text', fullName: 'pg_catalog.text' },
+        nullable: true,
+        defaultExpression: null
+      }
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      columnName: 'status',
+      dataType: 'text',
+      nullable: false,
+      dryRun: true
+    },
+    scopes: ['database.admin'],
+    effectiveRoles: ['workspace_admin']
+  });
+  const destructiveGrantCall = buildPostgresAdminAdapterCall({
+    resourceKind: 'grant',
+    action: 'create',
+    callId: 'call_01pggrantwarn',
+    tenantId: 'ten_01enterprisealpha',
+    workspaceId: 'wrk_01alphaprod',
+    planId: 'pln_01enterprise',
+    correlationId: 'corr-pgadm-005',
+    authorizationDecisionId: 'authz-pgadm-005',
+    idempotencyKey: 'idem-pgadm-005',
+    targetRef: 'database:tenant_alpha_main/schema:alpha_prod_app/table:customer_orders/grant:alpha_prod_runtime',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    },
+    payload: {
+      granteeRoleName: 'alpha_prod_runtime',
+      target: {
+        databaseName: 'tenant_alpha_main',
+        schemaName: 'alpha_prod_app',
+        objectType: 'table',
+        objectName: 'customer_orders'
+      },
+      privileges: ['select', 'update']
+    },
+    scopes: ['database.admin'],
+    effectiveRoles: ['workspace_admin']
+  });
   const grantPlan = buildPostgresGovernanceSqlPlan({
     resourceKind: 'grant',
     action: 'create',
@@ -739,6 +866,18 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
       }
     }
   });
+  const metadataRecord = buildPostgresAdminMetadataRecord({
+    resourceKind: 'grant',
+    action: 'create',
+    executionMode: destructiveGrantCall.payload.executionMode,
+    tenantId: 'ten_01enterprisealpha',
+    workspaceId: 'wrk_01alphaprod',
+    resource: destructiveGrantCall.payload.normalizedResource,
+    ddlPreview: destructiveGrantCall.payload.ddlPreview,
+    preExecutionWarnings: destructiveGrantCall.payload.preExecutionWarnings,
+    riskProfile: destructiveGrantCall.payload.riskProfile,
+    auditSummary: destructiveGrantCall.payload.auditSummary
+  });
   const normalizedError = normalizePostgresAdminError(
     {
       classification: 'quota_exceeded',
@@ -789,6 +928,8 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
   assert.equal(adapterCall.payload.normalizedResource.resourceType, 'postgres_materialized_view');
   assert.equal(adapterCall.payload.ddlPlan.statements[0].includes('CREATE MATERIALIZED VIEW'), true);
   assert.equal(adapterCall.payload.ddlPlan.statements.some((statement) => statement.includes('CREATE INDEX')), true);
+  assert.equal(adapterCall.payload.ddlPreview.statementCount, 2);
+  assert.equal(adapterCall.payload.auditSummary.operationClass, 'structural_ddl');
   assert.equal(adapterCall.contract_version, '2026-03-24');
 
   assert.equal(routineCall.capability, 'postgres_function_create');
@@ -797,6 +938,19 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
 
   assert.equal(tableSecurityCall.capability, 'postgres_table_security_update');
   assert.equal(tableSecurityCall.payload.ddlPlan.statements.some((statement) => statement.includes('ENABLE ROW LEVEL SECURITY')), true);
+  assert.equal(tableSecurityCall.payload.normalizedResource.tenantIsolation.policyEnforcement, 'optional_for_dedicated_databases');
+
+  assert.equal(previewCall.payload.executionMode, 'preview');
+  assert.equal(previewCall.payload.ddlPreview.executionMode, 'preview');
+  assert.equal(previewCall.payload.ddlPreview.statementFingerprint.length, 24);
+  assert.equal(previewCall.payload.preExecutionWarnings.some((warning) => warning.warningCode === 'preview_only'), true);
+  assert.equal(previewCall.payload.preExecutionWarnings.some((warning) => warning.warningCode === 'ddl_lock_risk'), true);
+  assert.equal(previewCall.payload.preExecutionWarnings.some((warning) => warning.warningCode === 'table_rewrite_or_scan'), true);
+  assert.equal(previewCall.payload.riskProfile.acknowledgementRequired, true);
+
+  assert.equal(destructiveGrantCall.payload.preExecutionWarnings.some((warning) => warning.warningCode === 'tenant_isolation_review'), true);
+  assert.equal(destructiveGrantCall.payload.auditSummary.capturesTenantIsolation, true);
+
   assert.equal(grantPlan.statements[0].includes('GRANT SELECT ON TABLE'), true);
   assert.equal(schemaPlan.statements.some((statement) => statement.includes('COMMENT ON SCHEMA')), true);
 
@@ -820,12 +974,18 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
   assert.equal(inventory.byDatabase.tenant_alpha_main.grantCount, 1);
   assert.equal(inventory.byDatabase.tenant_alpha_main.extensionCount, 1);
   assert.equal(inventory.byDatabase.tenant_alpha_main.materializedViewCount, 1);
+  assert.equal(inventory.tenantIsolation.isolationBoundary, 'database');
   assert.equal(inventory.minimumEnginePolicy.forbiddenAttributes.includes('SUPERUSER'), true);
 
   assert.equal(indexPlan.statements[0].includes('CREATE INDEX'), true);
   assert.equal(indexPlan.statements[0].includes('USING BTREE'), true);
   assert.equal(indexPlan.statements[0].includes('WHERE status <>'), true);
   assert.equal(indexPlan.transactionMode, 'transactional_ddl');
+
+  assert.equal(metadataRecord.metadata.statementFingerprint, destructiveGrantCall.payload.ddlPreview.statementFingerprint);
+  assert.equal(metadataRecord.metadata.riskLevel, destructiveGrantCall.payload.riskProfile.riskLevel);
+  assert.equal(metadataRecord.metadata.rowAccessModel, 'boundary_first');
+  assert.equal(metadataRecord.auditSummary.operationClass, 'governance_ddl');
 
   assert.equal(normalizedError.status, 422);
   assert.equal(normalizedError.code, 'GW_PGADM_QUOTA_EXCEEDED');

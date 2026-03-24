@@ -28,10 +28,14 @@ test('postgres admin service contracts and adapter capability baseline cover the
   assert.equal(postgresInventorySnapshot.owner, 'provisioning_orchestrator');
   assert.ok(postgresAdminRequest.required_fields.includes('resource_kind'));
   assert.ok(postgresAdminRequest.required_fields.includes('placement_mode'));
+  assert.ok(postgresAdminRequest.required_fields.includes('execution_mode'));
   assert.ok(postgresAdminResult.required_fields.includes('normalized_resource'));
   assert.ok(postgresAdminResult.required_fields.includes('inventory_projection'));
+  assert.ok(postgresAdminResult.required_fields.includes('ddl_preview'));
+  assert.ok(postgresAdminResult.required_fields.includes('pre_execution_warnings'));
   assert.ok(postgresInventorySnapshot.required_fields.includes('counts'));
   assert.ok(postgresInventorySnapshot.required_fields.includes('minimum_engine_policy'));
+  assert.ok(postgresInventorySnapshot.required_fields.includes('tenant_isolation'));
 
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_role_create'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_user_update'));
@@ -81,9 +85,18 @@ test('postgres public routes publish normalized family metadata, inventory, and 
   assert.ok(document.components.schemas.PostgresRole.properties.providerCompatibility);
   assert.ok(document.components.schemas.PostgresUser.properties.credentialBinding);
   assert.ok(document.components.schemas.PostgresDatabase.properties.placementMode);
+  assert.ok(document.components.schemas.PostgresDatabase.properties.tenantIsolation);
   assert.ok(document.components.schemas.PostgresSchema.properties.accessPolicy);
+  assert.ok(document.components.schemas.PostgresSchema.properties.tenantIsolation);
   assert.ok(document.components.schemas.PostgresAdminInventory.properties.minimumEnginePolicy);
+  assert.ok(document.components.schemas.PostgresAdminInventory.properties.tenantIsolation);
   assert.ok(document.components.schemas.PostgresAdminMutationAccepted);
+  assert.ok(document.components.schemas.PostgresAdminMutationAccepted.properties.ddlPreview);
+  assert.ok(document.components.schemas.PostgresAdminMutationAccepted.properties.preExecutionWarnings);
+  assert.ok(document.components.schemas.PostgresAdminMutationAccepted.properties.auditSummary);
+  assert.ok(document.components.schemas.PostgresPreExecutionWarning);
+  assert.ok(document.components.schemas.PostgresDdlPreview);
+  assert.ok(document.components.schemas.PostgresTenantIsolationProfile);
   assert.ok(document.components.schemas.PostgresConstraint.properties.constraintType);
   assert.ok(document.components.schemas.PostgresIndex.properties.performanceProfile);
   assert.ok(document.components.schemas.PostgresView.properties.dependencySummary);

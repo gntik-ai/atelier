@@ -724,6 +724,9 @@
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
+          },
           "userNames": {
             "items": {
               "maxLength": 63,
@@ -752,7 +755,8 @@
           "quotas",
           "minimumEnginePolicy",
           "observedAt",
-          "providerCompatibility"
+          "providerCompatibility",
+          "tenantIsolation"
         ],
         "type": "object"
       },
@@ -771,10 +775,19 @@
             ],
             "type": "string"
           },
+          "auditSummary": {
+            "$ref": "#/components/schemas/PostgresAuditSummary"
+          },
           "correlationId": {
             "maxLength": 128,
             "minLength": 8,
             "type": "string"
+          },
+          "ddlPreview": {
+            "$ref": "#/components/schemas/PostgresDdlPreview"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "inventoryRef": {
             "maxLength": 255,
@@ -787,6 +800,12 @@
               "database_per_tenant"
             ],
             "type": "string"
+          },
+          "preExecutionWarnings": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresPreExecutionWarning"
+            },
+            "type": "array"
           },
           "requestId": {
             "maxLength": 128,
@@ -815,6 +834,9 @@
             ],
             "type": "string"
           },
+          "riskProfile": {
+            "$ref": "#/components/schemas/PostgresMutationRiskProfile"
+          },
           "targetRef": {
             "maxLength": 255,
             "minLength": 3,
@@ -828,7 +850,8 @@
           "targetRef",
           "placementMode",
           "correlationId",
-          "acceptedAt"
+          "acceptedAt",
+          "executionMode"
         ],
         "type": "object"
       },
@@ -946,6 +969,78 @@
           "kind",
           "typeClass",
           "available"
+        ],
+        "type": "object"
+      },
+      "PostgresAuditEvidenceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "lockTargetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "rowAccessModel": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PostgresAuditSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "create",
+              "update",
+              "delete"
+            ],
+            "type": "string"
+          },
+          "capturesSqlText": {
+            "type": "boolean"
+          },
+          "capturesStatementFingerprint": {
+            "type": "boolean"
+          },
+          "capturesTenantIsolation": {
+            "type": "boolean"
+          },
+          "capturesWarnings": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/PostgresAuditEvidenceSummary"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "operationClass": {
+            "enum": [
+              "administrative_ddl",
+              "structural_ddl",
+              "governance_ddl"
+            ],
+            "type": "string"
+          },
+          "statementFingerprint": {
+            "maxLength": 24,
+            "minLength": 24,
+            "type": "string"
+          },
+          "warningCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operationClass",
+          "action",
+          "executionMode",
+          "capturesSqlText",
+          "capturesStatementFingerprint",
+          "capturesWarnings",
+          "capturesTenantIsolation",
+          "warningCount"
         ],
         "type": "object"
       },
@@ -1140,6 +1235,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "generated": {
             "$ref": "#/components/schemas/PostgresGeneratedColumn"
@@ -1371,6 +1472,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "initiallyDeferred": {
             "type": "boolean"
           },
@@ -1583,6 +1690,9 @@
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
+          },
           "workspaceId": {
             "pattern": "^wrk_[0-9a-z]+$",
             "type": "string"
@@ -1692,6 +1802,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "locale": {
             "additionalProperties": false,
             "properties": {
@@ -1746,6 +1862,96 @@
           "workspaceId",
           "databaseName",
           "ownerRoleName"
+        ],
+        "type": "object"
+      },
+      "PostgresDdlPreview": {
+        "additionalProperties": false,
+        "properties": {
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "lockTargets": {
+            "items": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "safeGuards": {
+            "items": {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "statementCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "statementFingerprint": {
+            "maxLength": 24,
+            "minLength": 24,
+            "type": "string"
+          },
+          "statements": {
+            "items": {
+              "$ref": "#/components/schemas/PostgresDdlStatement"
+            },
+            "type": "array"
+          },
+          "transactionMode": {
+            "enum": [
+              "transactional_ddl",
+              "non_transactional_ddl"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "executionMode",
+          "statementCount",
+          "statementFingerprint",
+          "transactionMode",
+          "statements"
+        ],
+        "type": "object"
+      },
+      "PostgresDdlStatement": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "create",
+              "alter",
+              "drop",
+              "comment",
+              "grant",
+              "revoke",
+              "other"
+            ],
+            "type": "string"
+          },
+          "destructive": {
+            "type": "boolean"
+          },
+          "ordinal": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "sql": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "ordinal",
+          "category",
+          "destructive",
+          "sql"
         ],
         "type": "object"
       },
@@ -1949,6 +2155,13 @@
         },
         "type": "object"
       },
+      "PostgresExecutionMode": {
+        "enum": [
+          "execute",
+          "preview"
+        ],
+        "type": "string"
+      },
       "PostgresExtension": {
         "additionalProperties": false,
         "properties": {
@@ -2092,6 +2305,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "extensionName": {
             "maxLength": 63,
@@ -2342,6 +2561,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "exposedToTenantRuntime": {
             "type": "boolean"
           },
@@ -2485,6 +2710,9 @@
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
+          },
           "workspaceId": {
             "pattern": "^wrk_[0-9a-z]+$",
             "type": "string"
@@ -2613,6 +2841,12 @@
       "PostgresGrantWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "grantId": {
             "maxLength": 255,
             "minLength": 3,
@@ -2877,6 +3111,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "includeColumns": {
             "items": {
               "maxLength": 63,
@@ -3029,10 +3269,16 @@
             ],
             "type": "string"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
           "engineVersion": {
             "maxLength": 40,
             "minLength": 1,
             "type": "string"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "planTier": {
             "maxLength": 80,
@@ -3322,6 +3568,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "indexes": {
             "items": {
               "$ref": "#/components/schemas/PostgresIndexWriteRequest"
@@ -3373,6 +3625,57 @@
           "schemaName",
           "viewName",
           "query"
+        ],
+        "type": "object"
+      },
+      "PostgresMutationRiskProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledgementRequired": {
+            "type": "boolean"
+          },
+          "blockingLikely": {
+            "type": "boolean"
+          },
+          "destructive": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "lockTargetCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "riskLevel": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "statementCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "transactionMode": {
+            "enum": [
+              "transactional_ddl",
+              "non_transactional_ddl"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "executionMode",
+          "riskLevel",
+          "statementCount",
+          "lockTargetCount",
+          "blockingLikely",
+          "destructive",
+          "acknowledgementRequired"
         ],
         "type": "object"
       },
@@ -3441,6 +3744,9 @@
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
           },
           "usingExpression": {
             "maxLength": 2048,
@@ -3593,6 +3899,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "forceRls": {
             "type": "boolean"
           },
@@ -3659,6 +3971,72 @@
           "schemaName",
           "tableName",
           "policyName"
+        ],
+        "type": "object"
+      },
+      "PostgresPreExecutionWarning": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          },
+          "detail": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "impactLevel": {
+            "enum": [
+              "none",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "lockTargets": {
+            "items": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "requiresAcknowledgement": {
+            "type": "boolean"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ],
+            "type": "string"
+          },
+          "summary": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "warningCode": {
+            "maxLength": 64,
+            "minLength": 3,
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "warningCode",
+          "severity",
+          "category",
+          "summary",
+          "impactLevel",
+          "requiresAcknowledgement"
         ],
         "type": "object"
       },
@@ -3811,6 +4189,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "exposedToTenantRuntime": {
             "type": "boolean"
@@ -4087,6 +4471,12 @@
       "PostgresRoleWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "memberOf": {
             "items": {
               "maxLength": 63,
@@ -4271,6 +4661,9 @@
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
+          },
           "workspaceBindings": {
             "items": {
               "pattern": "^wrk_[0-9a-z]+$",
@@ -4387,6 +4780,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "metadata": {
             "additionalProperties": true,
@@ -4538,6 +4937,9 @@
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
+          },
           "workspaceId": {
             "pattern": "^wrk_[0-9a-z]+$",
             "type": "string"
@@ -4629,6 +5031,9 @@
             "pattern": "^ten_[0-9a-z]+$",
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/PostgresTenantIsolationProfile"
+          },
           "workspaceId": {
             "pattern": "^wrk_[0-9a-z]+$",
             "type": "string"
@@ -4706,6 +5111,12 @@
             },
             "type": "object"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "forceRls": {
             "type": "boolean"
           },
@@ -4766,6 +5177,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "ownerRoleName": {
             "maxLength": 63,
@@ -5046,6 +5463,12 @@
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
           },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
           "metadata": {
             "additionalProperties": true,
             "type": "object"
@@ -5088,6 +5511,76 @@
           "workspaceId",
           "templateId",
           "templateScope"
+        ],
+        "type": "object"
+      },
+      "PostgresTenantIsolationProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultPrivileges": {
+            "type": "string"
+          },
+          "isolationBoundary": {
+            "enum": [
+              "schema",
+              "database"
+            ],
+            "type": "string"
+          },
+          "isolationSurface": {
+            "type": "string"
+          },
+          "placementMode": {
+            "enum": [
+              "schema_per_tenant",
+              "database_per_tenant",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "policyEnforcement": {
+            "type": "string"
+          },
+          "rowAccessModel": {
+            "enum": [
+              "rls_for_shared_tables",
+              "boundary_first"
+            ],
+            "type": "string"
+          },
+          "sharedTableClassification": {
+            "enum": [
+              "tenant_scoped",
+              "workspace_local",
+              "reference_data"
+            ],
+            "type": "string"
+          },
+          "tenantDatabaseName": {
+            "maxLength": 63,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceBindings": {
+            "items": {
+              "pattern": "^wrk_[0-9a-z]+$",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "placementMode",
+          "isolationBoundary",
+          "rowAccessModel"
         ],
         "type": "object"
       },
@@ -5216,6 +5709,12 @@
         "properties": {
           "credentialBinding": {
             "$ref": "#/components/schemas/PostgresCredentialBinding"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "loginEnabled": {
             "type": "boolean"
@@ -5399,6 +5898,12 @@
           },
           "documentation": {
             "$ref": "#/components/schemas/PostgresDocumentation"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
           },
           "metadata": {
             "additionalProperties": true,

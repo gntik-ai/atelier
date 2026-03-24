@@ -789,6 +789,11 @@ function routineQuotaUsage(context = {}, kind = 'functions') {
   return Number(context.currentSchema?.[`${kind}Count`] ?? context.currentInventory?.counts?.[kind] ?? context.currentInventory?.[kind]?.length ?? 0);
 }
 
+function wouldExceedQuota(quota = {}, used = 0, increment = 1) {
+  if (!quota || typeof quota.limit !== 'number') return false;
+  return used + increment > quota.limit;
+}
+
 function toRelationKey(databaseName, schemaName, relationName) {
   return [databaseName, schemaName, relationName].filter(Boolean).map((value) => normalizeIdentifier(value)).join('.');
 }
@@ -1214,7 +1219,7 @@ function validateConstraintRequest(payload, context = {}, profile = {}) {
   }
 
   const constraintQuota = profile.quotaGuardrails?.constraints;
-  if (context.action === 'create' && constraintQuota && constraintQuotaUsage(context) >= constraintQuota.limit) {
+  if (context.action === 'create' && wouldExceedQuota(constraintQuota, constraintQuotaUsage(context))) {
     violations.push(`Quota ${constraintQuota.metricKey} would be exceeded by creating another constraint.`);
   }
 
@@ -1277,7 +1282,7 @@ function validateIndexRequest(payload, context = {}, profile = {}) {
   }
 
   const indexQuota = profile.quotaGuardrails?.indexes;
-  if (context.action === 'create' && indexQuota && indexQuotaUsage(context) >= indexQuota.limit) {
+  if (context.action === 'create' && wouldExceedQuota(indexQuota, indexQuotaUsage(context))) {
     violations.push(`Quota ${indexQuota.metricKey} would be exceeded by creating another index.`);
   }
 
@@ -1345,8 +1350,14 @@ function validateViewRequest(payload, context = {}, profile = {}, kind = 'view')
 
   if (kind === 'materialized_view') {
     const quota = profile.quotaGuardrails?.materializedViews;
-    if (context.action === 'create' && quota && materializedViewQuotaUsage(context) >= quota.limit) {
+    if (context.action === 'create' && wouldExceedQuota(quota, materializedViewQuotaUsage(context))) {
       violations.push(`Quota ${quota.metricKey} would be exceeded by creating another materialized view.`);
+    }
+
+    const embeddedIndexCount = normalized.indexes?.length ?? 0;
+    const indexQuota = profile.quotaGuardrails?.indexes;
+    if (context.action === 'create' && embeddedIndexCount > 0 && wouldExceedQuota(indexQuota, indexQuotaUsage(context), embeddedIndexCount)) {
+      violations.push(`Quota ${indexQuota.metricKey} would be exceeded by creating ${embeddedIndexCount} materialized-view index(es).`);
     }
 
     for (const index of normalized.indexes ?? []) {
@@ -1368,7 +1379,7 @@ function validateViewRequest(payload, context = {}, profile = {}, kind = 'view')
     }
   } else {
     const quota = profile.quotaGuardrails?.views;
-    if (context.action === 'create' && quota && viewQuotaUsage(context) >= quota.limit) {
+    if (context.action === 'create' && wouldExceedQuota(quota, viewQuotaUsage(context))) {
       violations.push(`Quota ${quota.metricKey} would be exceeded by creating another view.`);
     }
   }
@@ -1459,7 +1470,7 @@ function validateRoutineRequest(payload, context = {}, profile = {}, routineKind
 
   const quotaKey = routineKind === 'function' ? 'functions' : 'procedures';
   const quota = profile.quotaGuardrails?.[quotaKey];
-  if (context.action === 'create' && quota && routineQuotaUsage(context, quotaKey) >= quota.limit) {
+  if (context.action === 'create' && wouldExceedQuota(quota, routineQuotaUsage(context, quotaKey))) {
     violations.push(`Quota ${quota.metricKey} would be exceeded by creating another ${routineKind}.`);
   }
 
@@ -1691,13 +1702,13 @@ export function validatePostgresStructuralRequest({ resourceKind, action, payloa
     }
 
     const tableQuota = quotaGuardrails.tables;
-    if (action === 'create' && tableQuota && tableQuotaUsage(context) >= tableQuota.limit) {
+    if (action === 'create' && wouldExceedQuota(tableQuota, tableQuotaUsage(context))) {
       violations.push(`Quota ${tableQuota.metricKey} would be exceeded by creating another table.`);
     }
 
     const columnQuota = quotaGuardrails.columns;
-    if (action === 'create' && columnQuota && columns.length > columnQuota.limit) {
-      violations.push(`Quota ${columnQuota.metricKey} would be exceeded by creating a table with ${columns.length} columns.`);
+    if (action === 'create' && wouldExceedQuota(columnQuota, columnQuotaUsage(context), columns.length)) {
+      violations.push(`Quota ${columnQuota.metricKey} would be exceeded by creating a table with ${columns.length} column(s).`);
     }
 
     if ((action === 'update' || action === 'delete') && tableName) {
@@ -1733,7 +1744,7 @@ export function validatePostgresStructuralRequest({ resourceKind, action, payloa
     const columnValidation = validateColumnRules({ ...payload, databaseName, schemaName, tableName }, { ...context, databaseName, schemaName, tableName }, { action });
     violations.push(...columnValidation.violations);
 
-    if (action === 'create' && columnQuota && columnQuotaUsage(context) >= columnQuota.limit) {
+    if (action === 'create' && wouldExceedQuota(columnQuota, columnQuotaUsage(context))) {
       violations.push(`Quota ${columnQuota.metricKey} would be exceeded by creating another column.`);
     }
 
