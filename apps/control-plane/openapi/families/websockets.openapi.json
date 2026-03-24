@@ -20,7 +20,7 @@
         "required": true,
         "schema": {
           "const": "2026-03-24",
-          "pattern": "^2026-03-23$",
+          "pattern": "^2026-03-24$",
           "type": "string"
         }
       },
@@ -123,6 +123,97 @@
         ],
         "type": "object"
       },
+      "EventBackpressurePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "maxDeliveriesPerSecond": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxInFlight": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxPublishesPerSecond": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "overflowAction": {
+            "enum": [
+              "429_reject",
+              "session_throttle",
+              "disconnect"
+            ],
+            "type": "string"
+          },
+          "strategy": {
+            "enum": [
+              "bounded_queue",
+              "reject_new",
+              "disconnect_slowest_consumer"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "strategy",
+          "maxInFlight",
+          "maxPublishesPerSecond",
+          "maxDeliveriesPerSecond",
+          "overflowAction"
+        ],
+        "type": "object"
+      },
+      "EventSubscriptionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "batchSize": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "channel": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "cursorStart": {
+            "enum": [
+              "latest",
+              "earliest",
+              "last_event_id"
+            ],
+            "type": "string"
+          },
+          "filters": {
+            "additionalProperties": {
+              "maxLength": 120,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "replayWindowHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "topicName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "topicName",
+          "channel",
+          "cursorStart",
+          "batchSize"
+        ],
+        "type": "object"
+      },
       "GatewayMutationAccepted": {
         "additionalProperties": false,
         "properties": {
@@ -171,8 +262,15 @@
       "WebSocketSession": {
         "additionalProperties": false,
         "properties": {
+          "auditRecordId": {
+            "pattern": "^aud_[0-9a-z]+$",
+            "type": "string"
+          },
+          "backpressure": {
+            "$ref": "#/components/schemas/EventBackpressurePolicy"
+          },
           "channel": {
-            "maxLength": 120,
+            "maxLength": 160,
             "minLength": 3,
             "type": "string"
           },
@@ -183,6 +281,11 @@
           "handshakeUrl": {
             "format": "uri",
             "type": "string"
+          },
+          "heartbeatSeconds": {
+            "maximum": 60,
+            "minimum": 5,
+            "type": "integer"
           },
           "sessionId": {
             "pattern": "^wss_[0-9a-z]+$",
@@ -195,6 +298,19 @@
               "closed"
             ],
             "type": "string"
+          },
+          "subprotocol": {
+            "enum": [
+              "in_atelier.event.v1"
+            ],
+            "type": "string"
+          },
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/EventSubscriptionRequest"
+            },
+            "minItems": 1,
+            "type": "array"
           },
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
@@ -212,7 +328,10 @@
           "channel",
           "handshakeUrl",
           "expiresAt",
-          "status"
+          "status",
+          "subscriptions",
+          "heartbeatSeconds",
+          "backpressure"
         ],
         "type": "object"
       },
@@ -220,8 +339,20 @@
         "additionalProperties": false,
         "properties": {
           "channel": {
-            "maxLength": 120,
+            "maxLength": 160,
             "minLength": 3,
+            "type": "string"
+          },
+          "heartbeatSeconds": {
+            "maximum": 60,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "subscribe",
+              "publish_subscribe"
+            ],
             "type": "string"
           },
           "protocol": {
@@ -230,6 +361,14 @@
               "wss"
             ],
             "type": "string"
+          },
+          "subscriptions": {
+            "items": {
+              "$ref": "#/components/schemas/EventSubscriptionRequest"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "type": "array"
           },
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
@@ -243,17 +382,18 @@
         "required": [
           "tenantId",
           "workspaceId",
-          "channel"
+          "channel",
+          "subscriptions"
         ],
         "type": "object"
       }
     }
   },
   "info": {
-    "description": "Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients. Generated from the unified public API contract for v1.",
-    "summary": "Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients.",
+    "description": "Realtime websocket session negotiation and channel subscriptions for workspace-scoped event delivery through the gateway. Generated from the unified public API contract for v1.",
+    "summary": "Realtime websocket session negotiation and channel subscriptions for workspace-scoped event delivery through the gateway.",
     "title": "In Atelier WebSockets API",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -369,7 +509,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Negotiate one websocket session through the unified realtime family",
+        "summary": "Negotiate one websocket session for gateway-managed topic subscriptions",
         "tags": [
           "WebSockets"
         ],
@@ -379,8 +519,11 @@
           "workspace_developer",
           "platform_team"
         ],
+        "x-downstream-adapters": [
+          "kafka"
+        ],
         "x-family": "websockets",
-        "x-owning-service": "control_api",
+        "x-owning-service": "event_gateway",
         "x-rate-limit-class": "realtime",
         "x-resource-type": "websocket_session",
         "x-scope": "workspace",
@@ -494,7 +637,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Fetch one negotiated websocket session descriptor",
+        "summary": "Fetch one negotiated websocket session descriptor, subscriptions, and backpressure policy",
         "tags": [
           "WebSockets"
         ],
@@ -504,8 +647,11 @@
           "workspace_developer",
           "platform_team"
         ],
+        "x-downstream-adapters": [
+          "kafka"
+        ],
         "x-family": "websockets",
-        "x-owning-service": "control_api",
+        "x-owning-service": "event_gateway",
         "x-rate-limit-class": "realtime",
         "x-resource-type": "websocket_session",
         "x-scope": "workspace",

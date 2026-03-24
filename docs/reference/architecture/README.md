@@ -13,6 +13,7 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/adr/0005-contextual-authorization-model.md` records the multi-tenant, multi-workspace authorization decision baseline introduced by `US-ARC-03`.
 - `services/internal-contracts/src/authorization-model.json` is the machine-readable source of truth for security context, role scopes, resource ownership, propagation, and negative authorization coverage.
 - `docs/reference/architecture/contextual-authorization.md` is the human-readable architecture companion for the authorization model.
+- `docs/reference/architecture/gateway-realtime-and-event-gateway.md` records the gateway baseline for APISIX metrics, SSE/WebSocket channels, and the HTTP event gateway introduced by `US-GW-04`.
 - `docs/adr/0006-core-domain-entity-model.md` records the canonical entity, relationship, and lifecycle decision baseline introduced by `US-DOM-01`.
 - `services/internal-contracts/src/domain-model.json` is the machine-readable source of truth for shared identifiers, entity relationships, lifecycle events, and OpenAPI mapping metadata.
 - `docs/reference/architecture/core-domain-model.md` is the human-readable architecture companion for the core domain model.

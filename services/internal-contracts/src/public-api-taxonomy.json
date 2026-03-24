@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-24",
-    "openapi_semver": "1.1.0"
+    "openapi_semver": "1.2.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -257,10 +257,11 @@
       "id": "events",
       "title": "Events",
       "prefix": "/v1/events",
-      "summary": "Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes.",
-      "owning_service": "control_api",
+      "summary": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.",
+      "owning_service": "event_gateway",
       "downstream_contracts": [
-        "provisioning_request",
+        "event_gateway_publish_request",
+        "event_gateway_subscription_request",
         "adapter_call",
         "audit_record"
       ],
@@ -338,7 +339,7 @@
       "id": "metrics",
       "title": "Metrics",
       "prefix": "/v1/metrics",
-      "summary": "Workspace-scoped usage, quota, and observability series exposed through the unified gateway.",
+      "summary": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "control_api_command",
@@ -361,10 +362,11 @@
       "id": "websockets",
       "title": "WebSockets",
       "prefix": "/v1/websockets",
-      "summary": "Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients.",
-      "owning_service": "control_api",
+      "summary": "Realtime websocket session negotiation and channel subscriptions for workspace-scoped event delivery through the gateway.",
+      "owning_service": "event_gateway",
       "downstream_contracts": [
-        "control_api_command",
+        "event_gateway_subscription_request",
+        "event_gateway_subscription_status",
         "audit_record"
       ],
       "resource_scopes": [
@@ -378,7 +380,10 @@
         "platform_team"
       ],
       "visibility": "public",
-      "apisix_route_class": "realtime"
+      "apisix_route_class": "realtime",
+      "downstream_adapters": [
+        "kafka"
+      ]
     }
   ],
   "resource_taxonomy": [
@@ -457,6 +462,24 @@
     {
       "resource_type": "websocket_session",
       "family": "websockets",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "event_publication",
+      "family": "events",
+      "scope": "workspace",
+      "authorization_resource": "topic"
+    },
+    {
+      "resource_type": "event_stream",
+      "family": "events",
+      "scope": "workspace",
+      "authorization_resource": "topic"
+    },
+    {
+      "resource_type": "gateway_stream_metrics",
+      "family": "metrics",
       "scope": "workspace",
       "authorization_resource": null
     }

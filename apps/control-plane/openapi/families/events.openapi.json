@@ -30,7 +30,7 @@
         "required": true,
         "schema": {
           "const": "2026-03-24",
-          "pattern": "^2026-03-23$",
+          "pattern": "^2026-03-24$",
           "type": "string"
         }
       },
@@ -133,15 +133,189 @@
         ],
         "type": "object"
       },
+      "EventPublicationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "auditRecordId": {
+            "pattern": "^aud_[0-9a-z]+$",
+            "type": "string"
+          },
+          "channel": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "deliverySemantics": {
+            "enum": [
+              "at_least_once"
+            ],
+            "type": "string"
+          },
+          "partitionKey": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "publicationId": {
+            "pattern": "^pub_[0-9a-z]+$",
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued"
+            ],
+            "type": "string"
+          },
+          "topicName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "publicationId",
+          "requestId",
+          "status",
+          "topicName",
+          "channel",
+          "deliverySemantics",
+          "auditRecordId",
+          "acceptedAt",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "EventPublicationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "contentType": {
+            "enum": [
+              "application/json",
+              "application/cloudevents+json"
+            ],
+            "type": "string"
+          },
+          "eventType": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "headers": {
+            "additionalProperties": {
+              "maxLength": 256,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "orderingKey": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "partitionKey": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "channel",
+          "eventType",
+          "contentType",
+          "payload"
+        ],
+        "type": "object"
+      },
       "EventTopic": {
         "additionalProperties": false,
         "properties": {
+          "allowedTransports": {
+            "items": {
+              "enum": [
+                "http_publish",
+                "sse",
+                "websocket"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "auditMode": {
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ],
+            "type": "string"
+          },
+          "channelPrefix": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
           "deliverySemantics": {
             "enum": [
               "at_least_once",
               "exactly_once_candidate"
             ],
             "type": "string"
+          },
+          "maxConcurrentSubscriptions": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxPublishesPerSecond": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "partitionStrategy": {
+            "enum": [
+              "tenant_workspace_key",
+              "channel_key",
+              "producer_key"
+            ],
+            "type": "string"
+          },
+          "replayWindowHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
           },
           "resourceId": {
             "pattern": "^res_[0-9a-z]+$",
@@ -182,8 +356,14 @@
           "tenantId",
           "workspaceId",
           "topicName",
+          "channelPrefix",
           "deliverySemantics",
+          "partitionStrategy",
           "retentionHours",
+          "replayWindowHours",
+          "allowedTransports",
+          "maxPublishesPerSecond",
+          "maxConcurrentSubscriptions",
           "status",
           "timestamps"
         ],
@@ -192,12 +372,52 @@
       "EventTopicWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "allowedTransports": {
+            "items": {
+              "enum": [
+                "http_publish",
+                "sse",
+                "websocket"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "channelPrefix": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
           "deliverySemantics": {
             "enum": [
               "at_least_once",
               "exactly_once_candidate"
             ],
             "type": "string"
+          },
+          "maxConcurrentSubscriptions": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxPublishesPerSecond": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "partitionStrategy": {
+            "enum": [
+              "tenant_workspace_key",
+              "channel_key",
+              "producer_key"
+            ],
+            "type": "string"
+          },
+          "replayWindowHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
           },
           "retentionHours": {
             "maximum": 8760,
@@ -222,8 +442,14 @@
           "tenantId",
           "workspaceId",
           "topicName",
+          "channelPrefix",
           "deliverySemantics",
-          "retentionHours"
+          "partitionStrategy",
+          "retentionHours",
+          "replayWindowHours",
+          "allowedTransports",
+          "maxPublishesPerSecond",
+          "maxConcurrentSubscriptions"
         ],
         "type": "object"
       },
@@ -305,10 +531,10 @@
     }
   },
   "info": {
-    "description": "Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes. Generated from the unified public API contract for v1.",
-    "summary": "Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes.",
+    "description": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics. Generated from the unified public API contract for v1.",
+    "summary": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.",
     "title": "In Atelier Events API",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -424,7 +650,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Submit a workspace-scoped event topic provisioning request through the unified events family",
+        "summary": "Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family",
         "tags": [
           "Events"
         ],
@@ -438,7 +664,7 @@
           "kafka"
         ],
         "x-family": "events",
-        "x-owning-service": "control_api",
+        "x-owning-service": "event_gateway",
         "x-rate-limit-class": "data-control",
         "x-resource-type": "topic",
         "x-scope": "workspace",
@@ -546,7 +772,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Fetch one workspace-scoped event topic contract under the events family",
+        "summary": "Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family",
         "tags": [
           "Events"
         ],
@@ -560,9 +786,314 @@
           "kafka"
         ],
         "x-family": "events",
-        "x-owning-service": "control_api",
+        "x-owning-service": "event_gateway",
         "x-rate-limit-class": "data-read",
         "x-resource-type": "topic",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/events/topics/{resourceId}/publish": {
+      "post": {
+        "operationId": "publishEventToTopic",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/cloudevents+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventPublicationRequest"
+              }
+            },
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventPublicationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPublicationAccepted"
+                }
+              }
+            },
+            "description": "Publication accepted by the event gateway."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected event publication gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Publish one event through the HTTP event gateway without exposing native Kafka clients",
+        "tags": [
+          "Events"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka"
+        ],
+        "x-family": "events",
+        "x-owning-service": "event_gateway",
+        "x-rate-limit-class": "event-gateway-publish",
+        "x-resource-type": "event_publication",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/events/topics/{resourceId}/stream": {
+      "get": {
+        "operationId": "streamTopicEvents",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "description": "Opaque replay cursor or Last-Event-ID checkpoint.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 160,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxEvents",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "heartbeatSeconds",
+            "required": false,
+            "schema": {
+              "default": 15,
+              "maximum": 60,
+              "minimum": 5,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "example": "event: message\\nid: evt_01abc\\ndata: {\"eventId\":\"evt_01abc\",\"eventType\":\"document.updated\"}\\n\\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE stream opened."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected event stream gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Consume one topic through the HTTP SSE event gateway with replay and backpressure hints",
+        "tags": [
+          "Events"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka"
+        ],
+        "x-family": "events",
+        "x-owning-service": "event_gateway",
+        "x-rate-limit-class": "event-gateway-stream",
+        "x-resource-type": "event_stream",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

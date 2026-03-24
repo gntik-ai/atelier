@@ -26,9 +26,12 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/postgres/instances/{resourceId}']);
   assert.ok(document.paths['/v1/mongo/databases/{resourceId}']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}']);
+  assert.ok(document.paths['/v1/events/topics/{resourceId}/publish']);
+  assert.ok(document.paths['/v1/events/topics/{resourceId}/stream']);
   assert.ok(document.paths['/v1/functions/actions/{resourceId}']);
   assert.ok(document.paths['/v1/storage/buckets/{resourceId}']);
   assert.ok(document.paths['/v1/metrics/workspaces/{workspaceId}/series']);
+  assert.ok(document.paths['/v1/metrics/workspaces/{workspaceId}/gateway-streams']);
   assert.ok(document.paths['/v1/websockets/sessions/{sessionId}']);
   assert.ok(document.components.securitySchemes.bearerAuth);
   assert.ok(document.components.schemas.RouteCatalogResponse);
@@ -42,10 +45,13 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createInvitation = document.paths['/v1/tenants/{tenantId}/invitations'].post;
   const getRouteCatalog = document.paths['/v1/platform/route-catalog'].get;
   const createPostgres = document.paths['/v1/postgres/instances'].post;
+  const publishEvent = document.paths['/v1/events/topics/{resourceId}/publish'].post;
+  const streamTopicEvents = document.paths['/v1/events/topics/{resourceId}/stream'].get;
+  const getGatewayStreamMetrics = document.paths['/v1/metrics/workspaces/{workspaceId}/gateway-streams'].get;
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.1.0');
+  assert.equal(document.info.version, '1.2.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -64,6 +70,9 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const invitationParameters = resolveParameters(document, createInvitation);
   const routeCatalogParameters = resolveParameters(document, getRouteCatalog);
   const postgresParameters = resolveParameters(document, createPostgres);
+  const publishEventParameters = resolveParameters(document, publishEvent);
+  const streamTopicParameters = resolveParameters(document, streamTopicEvents);
+  const gatewayMetricParameters = resolveParameters(document, getGatewayStreamMetrics);
   const websocketParameters = resolveParameters(document, createWebSocketSession);
 
   assert.equal(accessCheck['x-family'], 'auth');
@@ -114,7 +123,27 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(postgresParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.ok(document.components.schemas.PostgresInstance);
 
+  assert.equal(publishEvent['x-family'], 'events');
+  assert.equal(publishEvent['x-owning-service'], 'event_gateway');
+  assert.equal(publishEventParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.ok(publishEvent.responses['202']);
+  assert.ok(document.components.schemas.EventPublicationRequest);
+  assert.ok(document.components.schemas.EventPublicationAccepted);
+  assert.ok(document.components.schemas.EventDeliveryEnvelope);
+
+  assert.equal(streamTopicEvents['x-family'], 'events');
+  assert.equal(streamTopicEvents['x-resource-type'], 'event_stream');
+  assert.equal(streamTopicParameters.some((parameter) => parameter.name === 'cursor'), true);
+  assert.ok(streamTopicEvents.responses['200']);
+
+  assert.equal(getGatewayStreamMetrics['x-family'], 'metrics');
+  assert.equal(gatewayMetricParameters.some((parameter) => parameter.name === 'window'), true);
+  assert.ok(document.components.schemas.GatewayStreamMetricsResponse);
+
   assert.equal(createWebSocketSession['x-family'], 'websockets');
+  assert.equal(createWebSocketSession['x-owning-service'], 'event_gateway');
   assert.equal(websocketParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.ok(document.components.schemas.WebSocketSession);
+  assert.ok(document.components.schemas.EventSubscriptionRequest);
+  assert.ok(document.components.schemas.EventBackpressurePolicy);
 });

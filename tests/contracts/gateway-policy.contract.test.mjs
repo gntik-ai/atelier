@@ -23,7 +23,15 @@ test('gateway contract publishes APISIX policy for every public family and passt
     assert.deepEqual(Object.keys(route.plugins).sort(), REQUIRED_PRODUCT_PLUGINS.slice().sort());
     assert.equal(route.plugins['limit-count'].rejected_code, 429);
     assert.ok(route.plugins['client-control'].max_body_size > 0);
+
+    if (family.id === 'websockets') {
+      assert.equal(route.enableWebsocket, true);
+    }
   }
+
+  const realtimeRoute = enabledRoutes.find((entry) => entry.name === 'realtime');
+  assert.ok(realtimeRoute);
+  assert.equal(realtimeRoute.enableWebsocket, true);
 
   for (const routeId of ['keycloak_admin', 'openwhisk_admin']) {
     const route = enabledRoutes.find((entry) => entry.labels?.['gateway.in-atelier.io/passthrough-id'] === routeId);
@@ -37,6 +45,24 @@ test('gateway contract publishes APISIX policy for every public family and passt
   for (const family of gatewayRouting.spec.families) {
     assert.equal(catalogFamilies.has(family.id), true, `route catalog missing family ${family.id}`);
   }
+});
+
+test('gateway metrics and event-gateway QoS remain explicit in values and catalog', () => {
+  const values = readGatewayPolicyValues();
+  const routeCatalog = readPublicRouteCatalog();
+
+  assert.equal(values.gatewayPolicy.observability.gatewayMetrics.enabled, true);
+  assert.equal(values.gatewayPolicy.observability.gatewayMetrics.plugin, 'prometheus');
+  assert.equal(values.gatewayPolicy.observability.gatewayMetrics.metricsPath, '/apisix/prometheus/metrics');
+  assert.equal(values.gatewayPolicy.observability.gatewayMetrics.seriesPrefix, 'in_atelier_event_gateway_');
+  assert.ok(values.gatewayPolicy.observability.gatewayMetrics.requiredSeries.includes('in_atelier_event_gateway_publish_total'));
+
+  const publishRoute = routeCatalog.routes.find((route) => route.path === '/v1/events/topics/{resourceId}/publish');
+  const websocketRoute = routeCatalog.routes.find((route) => route.path === '/v1/websockets/sessions');
+  assert.equal(publishRoute.gatewayQosProfile, 'event_gateway');
+  assert.equal(publishRoute.gatewayRequestValidationProfile, 'event_gateway');
+  assert.equal(websocketRoute.gatewayQosProfile, 'realtime');
+  assert.equal(websocketRoute.gatewayRequestValidationProfile, 'realtime');
 });
 
 test('route catalog exposes gateway-facing auth and context metadata for every operation', () => {

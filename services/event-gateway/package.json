@@ -1,0 +1,11 @@
+{
+  "name": "@in-atelier/event-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "lint": "node -e \"console.log('event-gateway lint placeholder')\"",
+    "test": "node -e \"console.log('event-gateway test placeholder')\"",
+    "typecheck": "node -e \"console.log('event-gateway typecheck placeholder')\""
+  }
+}

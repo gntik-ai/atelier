@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-23",
+  "version": "2026-03-24",
   "scope": "US-ARC-01-T01",
   "system": "in-atelier-baas-control-plane",
   "principles": [
@@ -72,6 +72,40 @@
       ],
       "outbound_contracts": [
         "provisioning_result",
+        "adapter_call",
+        "audit_record"
+      ]
+    },
+    {
+      "id": "event_gateway",
+      "package": "services/event-gateway",
+      "layer": "application",
+      "responsibilities": [
+        "Expose the gateway-managed HTTP, SSE, and WebSocket event surface without exposing native Kafka clients.",
+        "Translate authenticated publish and subscribe requests into Kafka producer/consumer operations while preserving tenant and workspace isolation.",
+        "Apply transport-safe backpressure, throughput ceilings, replay windows, and message-format guardrails before broker interaction.",
+        "Emit audit evidence and operational telemetry for publish acceptance, delivery lag, auth denials, and stream lifecycle changes."
+      ],
+      "owned_resources": [
+        "event publication acceptance record",
+        "stream subscription lease",
+        "gateway backpressure policy",
+        "delivery cursor and replay watermark",
+        "gateway realtime metrics projection"
+      ],
+      "service_dependencies": [
+        "audit_module"
+      ],
+      "adapter_dependencies": [
+        "kafka"
+      ],
+      "inbound_contracts": [
+        "event_gateway_publish_request",
+        "event_gateway_subscription_request"
+      ],
+      "outbound_contracts": [
+        "event_gateway_publish_result",
+        "event_gateway_subscription_status",
         "adapter_call",
         "audit_record"
       ]
@@ -172,12 +206,16 @@
       "package": "services/adapters",
       "port": "event_bus_adapter",
       "consumers": [
-        "provisioning_orchestrator"
+        "provisioning_orchestrator",
+        "event_gateway"
       ],
       "capabilities": [
         "ensure_topics",
         "ensure_acls",
-        "publish_lifecycle_event"
+        "publish_lifecycle_event",
+        "publish_event",
+        "consume_events",
+        "read_consumer_lag"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -232,7 +270,7 @@
   "contracts": {
     "control_api_command": {
       "owner": "control_api",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "command_id",
         "request_id",
@@ -262,7 +300,7 @@
     },
     "provisioning_request": {
       "owner": "provisioning_orchestrator",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "provisioning_run_id",
         "tenant_id",
@@ -288,7 +326,7 @@
     },
     "provisioning_result": {
       "owner": "provisioning_orchestrator",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "provisioning_run_id",
         "tenant_id",
@@ -309,7 +347,7 @@
     },
     "adapter_call": {
       "owner": "services/adapters",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "call_id",
         "tenant_id",
@@ -337,7 +375,7 @@
     },
     "adapter_result": {
       "owner": "services/adapters",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "call_id",
         "adapter_id",
@@ -356,7 +394,7 @@
     },
     "audit_record": {
       "owner": "audit_module",
-      "version": "2026-03-23",
+      "version": "2026-03-24",
       "required_fields": [
         "record_id",
         "actor",
@@ -380,6 +418,111 @@
         "schema_validation_error"
       ],
       "write_mode": "append_only"
+    },
+    "event_gateway_publish_request": {
+      "owner": "event_gateway",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "correlation_id",
+        "tenant_id",
+        "workspace_id",
+        "topic_ref",
+        "channel",
+        "event_id",
+        "event_type",
+        "payload",
+        "content_type",
+        "idempotency_key",
+        "partition_key",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "authorization_decision_id",
+        "requested_at"
+      ],
+      "idempotency": "Every accepted publication carries a stable idempotency_key so retries reuse one logical gateway acceptance and one broker-side publish intent.",
+      "versioning": "The gateway publish contract evolves additively under the versioned /v1 HTTP surface and must remain backward-compatible until a deliberate event contract migration.",
+      "error_classes": [
+        "validation_error",
+        "authorization_error",
+        "plan_policy_violation",
+        "backpressure",
+        "dependency_failure"
+      ]
+    },
+    "event_gateway_subscription_request": {
+      "owner": "event_gateway",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "correlation_id",
+        "tenant_id",
+        "workspace_id",
+        "topic_ref",
+        "channel",
+        "transport",
+        "cursor",
+        "max_in_flight",
+        "plan_id",
+        "scopes",
+        "effective_roles",
+        "authorization_decision_id",
+        "requested_at"
+      ],
+      "idempotency": "Subscription negotiation is idempotent per request_id and transport so duplicate handshakes do not multiply consumer leases.",
+      "versioning": "HTTP and WebSocket subscription negotiation stay pinned to the public API version while allowing additive metadata for lag, replay, and transport hints.",
+      "error_classes": [
+        "validation_error",
+        "authorization_error",
+        "plan_policy_violation",
+        "backpressure",
+        "dependency_failure"
+      ]
+    },
+    "event_gateway_publish_result": {
+      "owner": "event_gateway",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "correlation_id",
+        "publication_id",
+        "topic_ref",
+        "channel",
+        "accepted_at",
+        "delivery_semantics",
+        "audit_record_id",
+        "status"
+      ],
+      "idempotency": "Result envelopes must preserve the same publication_id when the originating request is replayed through the idempotent gateway path.",
+      "versioning": "Publish results stay stable for /v1 consumers while Kafka-specific placement details remain additive metadata only.",
+      "error_classes": [
+        "backpressure",
+        "dependency_failure",
+        "audit_unavailable"
+      ]
+    },
+    "event_gateway_subscription_status": {
+      "owner": "event_gateway",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "correlation_id",
+        "subscription_id",
+        "session_id",
+        "topic_ref",
+        "transport",
+        "status",
+        "lag_snapshot",
+        "expires_at"
+      ],
+      "idempotency": "Status lookups for a negotiated subscription must return the same logical subscription descriptor until the lease expires or is revoked.",
+      "versioning": "Subscription status evolves additively so transport and lag hints can expand without breaking existing clients.",
+      "error_classes": [
+        "not_found",
+        "authorization_error",
+        "dependency_failure"
+      ]
     }
   },
   "interaction_flows": [
@@ -400,6 +543,24 @@
         "control_api resolves tenant-scoped authorization, accepts the request, and emits a versioned control command with authorization_decision_id and correlation metadata.",
         "provisioning_orchestrator coordinates provider-facing suspend and access-revocation capabilities without widening tenant or workspace scope.",
         "audit_module records requested scope, authorization evidence, outcome, and any pointer needed for later review."
+      ]
+    },
+    {
+      "id": "event_publish_gateway",
+      "entry_service": "event_gateway",
+      "steps": [
+        "event_gateway authenticates the caller through APISIX-managed context, validates tenant/workspace/topic scope, and enforces throughput plus backpressure ceilings before broker contact.",
+        "event_gateway maps the accepted HTTP publish envelope into one idempotent Kafka publish request with partitioning, replay, and audit metadata preserved.",
+        "audit_module appends acceptance or rejection evidence with correlation_id, authorization_decision_id, and masked payload metadata only."
+      ]
+    },
+    {
+      "id": "realtime_subscription_gateway",
+      "entry_service": "event_gateway",
+      "steps": [
+        "event_gateway negotiates SSE or WebSocket subscriptions through gateway-managed headers and tenant/workspace authorization context.",
+        "event_gateway establishes a transport-scoped consumer lease against Kafka-safe topics and tracks replay cursor, max_in_flight, and lag telemetry for the session.",
+        "audit_module records subscription lifecycle changes and APISIX/stream metrics expose active connections, lag, denials, and backpressure outcomes for observability."
       ]
     }
   ]

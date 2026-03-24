@@ -590,6 +590,7 @@ bootstrap:
         name: realtime
         uri: /realtime/*
         priority: 80
+        enableWebsocket: true
         upstream:
           component: controlPlane
           port: 8080
@@ -860,12 +861,13 @@ bootstrap:
         uri: /v1/websockets/*
         methods: *id002
         priority: 229
+        enableWebsocket: true
         labels:
           gateway.in-atelier.io/route-kind: product_api
           gateway.in-atelier.io/family: websockets
           gateway.in-atelier.io/tenant-binding: required
           gateway.in-atelier.io/workspace-binding: required
-          gateway.in-atelier.io/plan-capabilities: ''
+          gateway.in-atelier.io/plan-capabilities: data.kafka.topics
           gateway.in-atelier.io/audit-required: 'false'
         plugins: *id003
         upstream:
@@ -1943,6 +1945,13 @@ gatewayPolicy:
         maxBodyBytes: 65536
         requireIdempotencyHeaderOnMutations: false
         rejectSpoofedContextHeaders: true
+      event_gateway:
+        allowedContentTypes:
+        - application/json
+        - application/cloudevents+json
+        maxBodyBytes: 262144
+        requireIdempotencyHeaderOnMutations: true
+        rejectSpoofedContextHeaders: true
       realtime:
         allowedContentTypes:
         - application/json
@@ -1997,10 +2006,16 @@ gatewayPolicy:
         burst: 80
         timeoutProfile: observability
         retryProfile: safe_reads
+      event_gateway:
+        rateLimitClass: event-gateway-publish
+        requestsPerMinute: 180
+        burst: 60
+        timeoutProfile: event_gateway
+        retryProfile: mutations
       realtime:
-        rateLimitClass: realtime
-        requestsPerMinute: 120
-        burst: 40
+        rateLimitClass: event-gateway-stream
+        requestsPerMinute: 180
+        burst: 80
         timeoutProfile: realtime
         retryProfile: mutations
       native_admin:
@@ -2022,10 +2037,14 @@ gatewayPolicy:
         connectSeconds: 3
         sendSeconds: 10
         readSeconds: 15
+      event_gateway:
+        connectSeconds: 3
+        sendSeconds: 15
+        readSeconds: 75
       realtime:
         connectSeconds: 3
-        sendSeconds: 10
-        readSeconds: 20
+        sendSeconds: 15
+        readSeconds: 75
       native_admin:
         connectSeconds: 3
         sendSeconds: 15
@@ -2046,6 +2065,22 @@ gatewayPolicy:
         retries: 0
         retryTimeoutSeconds: 0
         retryOnStatuses: []
+  observability:
+    gatewayMetrics:
+      enabled: true
+      plugin: prometheus
+      metricsPath: /apisix/prometheus/metrics
+      seriesPrefix: in_atelier_event_gateway_
+      requiredSeries:
+      - apisix_http_status
+      - apisix_nginx_http_current_connections
+      - in_atelier_event_gateway_active_ws_connections
+      - in_atelier_event_gateway_active_sse_streams
+      - in_atelier_event_gateway_publish_total
+      - in_atelier_event_gateway_backpressure_rejections_total
+      scrapeTarget:
+        component: apisix
+        portName: http
   publicRoutes:
     allowAnonymousOptions: true
     routes:
@@ -2147,8 +2182,8 @@ gatewayPolicy:
     events:
       tenantBinding: required
       workspaceBinding: required
-      qosProfile: provisioning
-      requestValidationProfile: provisioning
+      qosProfile: event_gateway
+      requestValidationProfile: event_gateway
       planCapabilityAnyOf:
       - data.kafka.topics
     functions:
@@ -2177,7 +2212,8 @@ gatewayPolicy:
       workspaceBinding: required
       qosProfile: realtime
       requestValidationProfile: realtime
-      planCapabilityAnyOf: []
+      planCapabilityAnyOf:
+      - data.kafka.topics
   accessMatrix:
     personas:
     - id: basic_profile
@@ -2227,12 +2263,28 @@ gatewayPolicy:
       family: platform
       expect: deny
     - persona: basic_profile
+      routeKind: product_api
+      family: events
+      expect: allow
+    - persona: basic_profile
+      routeKind: product_api
+      family: websockets
+      expect: allow
+    - persona: basic_profile
       routeKind: passthrough
       routeId: keycloak_admin
       expect: deny
     - persona: tenant_admin
       routeKind: product_api
       family: tenants
+      expect: allow
+    - persona: tenant_admin
+      routeKind: product_api
+      family: events
+      expect: allow
+    - persona: tenant_admin
+      routeKind: product_api
+      family: websockets
       expect: allow
     - persona: tenant_admin
       routeKind: product_api
@@ -2249,6 +2301,14 @@ gatewayPolicy:
     - persona: superadmin
       routeKind: product_api
       family: platform
+      expect: allow
+    - persona: superadmin
+      routeKind: product_api
+      family: events
+      expect: allow
+    - persona: superadmin
+      routeKind: product_api
+      family: websockets
       expect: allow
     - persona: superadmin
       routeKind: product_api

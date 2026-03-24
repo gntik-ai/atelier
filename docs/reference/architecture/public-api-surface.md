@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.1.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.2.0)
 
 ## Product API vs native passthrough
 
@@ -40,7 +40,7 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 | auth | auth_control | auth_control | 131072 | control_plane | mutations |
 | postgres | provisioning | provisioning | 1048576 | provisioning | mutations |
 | mongo | provisioning | provisioning | 1048576 | provisioning | mutations |
-| events | provisioning | provisioning | 1048576 | provisioning | mutations |
+| events | event_gateway | event_gateway | 262144 | event_gateway | mutations |
 | functions | provisioning | provisioning | 1048576 | provisioning | mutations |
 | storage | provisioning | provisioning | 1048576 | provisioning | mutations |
 | metrics | observability | observability | 65536 | observability | safe_reads |
@@ -126,12 +126,14 @@ Workspace-scoped document database control and discovery routes exposed through 
 
 ## Events
 
-Workspace-scoped event topics, delivery semantics, and audit-friendly event gateway routes.
+Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/events/topics` | workspace | topic | Submit a workspace-scoped event topic provisioning request through the unified events family |
-| GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped event topic contract under the events family |
+| POST | `/v1/events/topics` | workspace | topic | Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family |
+| GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family |
+| POST | `/v1/events/topics/{resourceId}/publish` | workspace | event_publication | Publish one event through the HTTP event gateway without exposing native Kafka clients |
+| GET | `/v1/events/topics/{resourceId}/stream` | workspace | event_stream | Consume one topic through the HTTP SSE event gateway with replay and backpressure hints |
 
 ## Functions
 
@@ -153,17 +155,18 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 
 ## Metrics
 
-Workspace-scoped usage, quota, and observability series exposed through the unified gateway.
+Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/metrics/workspaces/{workspaceId}/gateway-streams` | workspace | gateway_stream_metrics | Fetch gateway publish, connection, lag, and backpressure metrics for one workspace |
 | GET | `/v1/metrics/workspaces/{workspaceId}/series` | workspace | metric_series | Fetch one workspace metric series window through the unified metrics family |
 
 ## WebSockets
 
-Realtime session discovery and negotiated websocket entrypoints for workspace-scoped clients.
+Realtime websocket session negotiation and channel subscriptions for workspace-scoped event delivery through the gateway.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/websockets/sessions` | workspace | websocket_session | Negotiate one websocket session through the unified realtime family |
-| GET | `/v1/websockets/sessions/{sessionId}` | workspace | websocket_session | Fetch one negotiated websocket session descriptor |
+| POST | `/v1/websockets/sessions` | workspace | websocket_session | Negotiate one websocket session for gateway-managed topic subscriptions |
+| GET | `/v1/websockets/sessions/{sessionId}` | workspace | websocket_session | Fetch one negotiated websocket session descriptor, subscriptions, and backpressure policy |

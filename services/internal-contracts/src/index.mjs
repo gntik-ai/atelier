@@ -69,6 +69,7 @@ export const DOMAIN_MODEL_VERSION = readDomainModel().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
+export const EVENT_GATEWAY_SERVICE_ID = 'event_gateway';
 export const AUDIT_MODULE_SERVICE_ID = 'audit_module';
 
 export function listServices() {

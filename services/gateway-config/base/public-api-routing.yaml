@@ -50,10 +50,14 @@ spec:
       connectSeconds: 3
       sendSeconds: 10
       readSeconds: 15
+    event_gateway:
+      connectSeconds: 3
+      sendSeconds: 15
+      readSeconds: 75
     realtime:
       connectSeconds: 3
-      sendSeconds: 10
-      readSeconds: 20
+      sendSeconds: 15
+      readSeconds: 75
     native_admin:
       connectSeconds: 3
       sendSeconds: 15
@@ -110,6 +114,13 @@ spec:
       maxBodyBytes: 65536
       requireIdempotencyHeaderOnMutations: false
       rejectSpoofedContextHeaders: true
+    event_gateway:
+      allowedContentTypes:
+        - application/json
+        - application/cloudevents+json
+      maxBodyBytes: 262144
+      requireIdempotencyHeaderOnMutations: true
+      rejectSpoofedContextHeaders: true
     realtime:
       allowedContentTypes:
         - application/json
@@ -159,10 +170,16 @@ spec:
       burst: 80
       timeoutProfile: observability
       retryProfile: safe_reads
+    event_gateway:
+      rateLimitClass: event-gateway-publish
+      requestsPerMinute: 180
+      burst: 60
+      timeoutProfile: event_gateway
+      retryProfile: mutations
     realtime:
-      rateLimitClass: realtime
-      requestsPerMinute: 120
-      burst: 40
+      rateLimitClass: event-gateway-stream
+      requestsPerMinute: 180
+      burst: 80
       timeoutProfile: realtime
       retryProfile: mutations
     native_admin:
@@ -271,7 +288,7 @@ spec:
       requestValidationProfile: provisioning
     - id: events
       pathPrefix: /v1/events
-      upstreamService: control_api
+      upstreamService: event_gateway
       routeClass: event
       authMode: bearer_oidc
       discoveryEnabled: false
@@ -282,8 +299,8 @@ spec:
       propagatedHeaders: *propagatedHeaders
       planCapabilityAnyOf:
         - data.kafka.topics
-      qosProfile: provisioning
-      requestValidationProfile: provisioning
+      qosProfile: event_gateway
+      requestValidationProfile: event_gateway
     - id: functions
       pathPrefix: /v1/functions
       upstreamService: control_api
@@ -331,7 +348,7 @@ spec:
       requestValidationProfile: observability
     - id: websockets
       pathPrefix: /v1/websockets
-      upstreamService: control_api
+      upstreamService: event_gateway
       routeClass: realtime
       authMode: bearer_oidc
       discoveryEnabled: false
@@ -340,6 +357,8 @@ spec:
       tenantBinding: required
       workspaceBinding: required
       propagatedHeaders: *propagatedHeaders
+      planCapabilityAnyOf:
+        - data.kafka.topics
       qosProfile: realtime
       requestValidationProfile: realtime
   allowedRequestHeaders: &allowedRequestHeaders

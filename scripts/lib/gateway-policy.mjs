@@ -223,6 +223,39 @@ function collectHardeningViolations(values, gatewayRouting, violations) {
   }
 }
 
+function collectObservabilityViolations(values, violations) {
+  const metrics = values?.gatewayPolicy?.observability?.gatewayMetrics ?? {};
+
+  if (metrics.enabled !== true) {
+    violations.push('gatewayPolicy.observability.gatewayMetrics.enabled must remain true.');
+  }
+
+  if (metrics.plugin !== 'prometheus') {
+    violations.push('gatewayPolicy.observability.gatewayMetrics.plugin must remain prometheus.');
+  }
+
+  if (metrics.metricsPath !== '/apisix/prometheus/metrics') {
+    violations.push('gatewayPolicy.observability.gatewayMetrics.metricsPath must remain /apisix/prometheus/metrics.');
+  }
+
+  if (metrics.seriesPrefix !== 'in_atelier_event_gateway_') {
+    violations.push('gatewayPolicy.observability.gatewayMetrics.seriesPrefix must remain in_atelier_event_gateway_.');
+  }
+
+  for (const series of [
+    'apisix_http_status',
+    'apisix_nginx_http_current_connections',
+    'in_atelier_event_gateway_active_ws_connections',
+    'in_atelier_event_gateway_active_sse_streams',
+    'in_atelier_event_gateway_publish_total',
+    'in_atelier_event_gateway_backpressure_rejections_total'
+  ]) {
+    if (!(metrics.requiredSeries ?? []).includes(series)) {
+      violations.push(`gatewayPolicy.observability.gatewayMetrics.requiredSeries must include ${series}.`);
+    }
+  }
+}
+
 function collectQosViolations(values, gatewayRouting, violations) {
   const qos = values?.gatewayPolicy?.qos ?? {};
   const requestValidation = values?.gatewayPolicy?.requestValidation ?? {};
@@ -366,6 +399,15 @@ function collectApisixRouteViolations(values, gatewayRouting, violations) {
     if ((route.plugins?.['client-control']?.max_body_size ?? 0) <= 0) {
       violations.push(`APISIX route public-api-${family.id} must declare a positive client-control.max_body_size.`);
     }
+
+    if (family.id === 'websockets' && route.enableWebsocket !== true) {
+      violations.push('APISIX route public-api-websockets must enable websocket upgrades.');
+    }
+  }
+
+  const realtimeRoute = enabledRoutes.find((route) => route.name === 'realtime');
+  if (realtimeRoute?.enableWebsocket !== true) {
+    violations.push('APISIX route realtime must enable websocket upgrades for versioned realtime channels.');
   }
 
   const passthroughPolicyRoutes = values?.gatewayPolicy?.passthrough?.routes ?? [];
@@ -451,6 +493,7 @@ export function collectGatewayPolicyViolations({
   collectClaimsViolations(values, violations);
   collectCorsViolations(values, violations);
   collectHardeningViolations(values, gatewayRouting, violations);
+  collectObservabilityViolations(values, violations);
   collectQosViolations(values, gatewayRouting, violations);
   collectRoutingAlignmentViolations(values, gatewayRouting, routeCatalog, violations);
   collectApisixRouteViolations(values, gatewayRouting, violations);

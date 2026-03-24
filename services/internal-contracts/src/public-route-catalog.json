@@ -2,7 +2,7 @@
   "generatedFrom": "apps/control-plane/openapi/control-plane.openapi.json",
   "release": {
     "header_version": "2026-03-24",
-    "openapi_semver": "1.1.0",
+    "openapi_semver": "1.2.0",
     "path_version": "v1"
   },
   "routes": [
@@ -80,7 +80,8 @@
     {
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
-        "application/json"
+        "application/json",
+        "application/cloudevents+json"
       ],
       "audiences": [
         "developer_external",
@@ -96,7 +97,7 @@
       "downstreamAdapters": [
         "kafka"
       ],
-      "downstreamService": "control_api",
+      "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
       "family": "events",
       "familyTitle": "Events",
@@ -118,22 +119,22 @@
         "X-Auth-Scopes",
         "X-Actor-Roles"
       ],
-      "gatewayQosProfile": "provisioning",
-      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
       "gatewayRetryProfile": "mutations",
       "gatewayRouteClass": "event",
-      "gatewayTimeoutProfile": "provisioning",
+      "gatewayTimeoutProfile": "event_gateway",
       "idempotencyReplayHeader": "X-Idempotency-Replayed",
       "idempotencyTtlSeconds": 86400,
       "internalRequestMode": "validated_attestation",
-      "maxRequestBodyBytes": 1048576,
+      "maxRequestBodyBytes": 262144,
       "method": "POST",
       "operationId": "createEvents",
       "path": "/v1/events/topics",
       "planCapabilityAnyOf": [
         "data.kafka.topics"
       ],
-      "qosBurst": 30,
+      "qosBurst": 60,
       "rateLimitClass": "data-control",
       "requiredHeaders": [
         "Idempotency-Key",
@@ -142,7 +143,7 @@
       ],
       "resourceType": "topic",
       "scope": "workspace",
-      "summary": "Submit a workspace-scoped event topic provisioning request through the unified events family",
+      "summary": "Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family",
       "supportsIdempotencyKey": true,
       "tags": [
         "Events"
@@ -154,7 +155,8 @@
     {
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
-        "application/json"
+        "application/json",
+        "application/cloudevents+json"
       ],
       "audiences": [
         "developer_external",
@@ -170,7 +172,7 @@
       "downstreamAdapters": [
         "kafka"
       ],
-      "downstreamService": "control_api",
+      "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
       "family": "events",
       "familyTitle": "Events",
@@ -192,22 +194,22 @@
         "X-Auth-Scopes",
         "X-Actor-Roles"
       ],
-      "gatewayQosProfile": "provisioning",
-      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
       "gatewayRetryProfile": "mutations",
       "gatewayRouteClass": "event",
-      "gatewayTimeoutProfile": "provisioning",
+      "gatewayTimeoutProfile": "event_gateway",
       "idempotencyReplayHeader": null,
       "idempotencyTtlSeconds": null,
       "internalRequestMode": "validated_attestation",
-      "maxRequestBodyBytes": 1048576,
+      "maxRequestBodyBytes": 262144,
       "method": "GET",
       "operationId": "getEvents",
       "path": "/v1/events/topics/{resourceId}",
       "planCapabilityAnyOf": [
         "data.kafka.topics"
       ],
-      "qosBurst": 30,
+      "qosBurst": 60,
       "rateLimitClass": "data-read",
       "requiredHeaders": [
         "X-API-Version",
@@ -215,7 +217,156 @@
       ],
       "resourceType": "topic",
       "scope": "workspace",
-      "summary": "Fetch one workspace-scoped event topic contract under the events family",
+      "summary": "Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Events"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json",
+        "application/cloudevents+json"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "event_gateway",
+      "errorEnvelope": "ErrorResponse",
+      "family": "events",
+      "familyTitle": "Events",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "event",
+      "gatewayTimeoutProfile": "event_gateway",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "POST",
+      "operationId": "publishEventToTopic",
+      "path": "/v1/events/topics/{resourceId}/publish",
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "event-gateway-publish",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "event_publication",
+      "scope": "workspace",
+      "summary": "Publish one event through the HTTP event gateway without exposing native Kafka clients",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Events"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json",
+        "application/cloudevents+json"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "event_gateway",
+      "errorEnvelope": "ErrorResponse",
+      "family": "events",
+      "familyTitle": "Events",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "event",
+      "gatewayTimeoutProfile": "event_gateway",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "GET",
+      "operationId": "streamTopicEvents",
+      "path": "/v1/events/topics/{resourceId}/stream",
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "event-gateway-stream",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "event_stream",
+      "scope": "workspace",
+      "summary": "Consume one topic through the HTTP SSE event gateway with replay and backpressure hints",
       "supportsIdempotencyKey": false,
       "tags": [
         "Events"
@@ -366,6 +517,77 @@
       "supportsIdempotencyKey": false,
       "tags": [
         "Functions"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
+        "developer_external",
+        "workspace_operator",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "event_gateway",
+      "errorEnvelope": "ErrorResponse",
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "getWorkspaceGatewayStreamMetrics",
+      "path": "/v1/metrics/workspaces/{workspaceId}/gateway-streams",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "observability",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "resourceType": "gateway_stream_metrics",
+      "scope": "workspace",
+      "summary": "Fetch gateway publish, connection, lag, and backpressure metrics for one workspace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
       ],
       "tenantBinding": "required",
       "visibility": "public",
@@ -2132,8 +2354,10 @@
       "correlationIdRequired": true,
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
-      "downstreamAdapters": [],
-      "downstreamService": "control_api",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
       "family": "websockets",
       "familyTitle": "WebSockets",
@@ -2167,8 +2391,10 @@
       "method": "POST",
       "operationId": "createWebSocketSession",
       "path": "/v1/websockets/sessions",
-      "planCapabilityAnyOf": [],
-      "qosBurst": 40,
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 80,
       "rateLimitClass": "realtime",
       "requiredHeaders": [
         "Idempotency-Key",
@@ -2177,7 +2403,7 @@
       ],
       "resourceType": "websocket_session",
       "scope": "workspace",
-      "summary": "Negotiate one websocket session through the unified realtime family",
+      "summary": "Negotiate one websocket session for gateway-managed topic subscriptions",
       "supportsIdempotencyKey": true,
       "tags": [
         "WebSockets"
@@ -2202,8 +2428,10 @@
       "correlationIdRequired": true,
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
-      "downstreamAdapters": [],
-      "downstreamService": "control_api",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
       "family": "websockets",
       "familyTitle": "WebSockets",
@@ -2237,8 +2465,10 @@
       "method": "GET",
       "operationId": "getWebSocketSession",
       "path": "/v1/websockets/sessions/{sessionId}",
-      "planCapabilityAnyOf": [],
-      "qosBurst": 40,
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 80,
       "rateLimitClass": "realtime",
       "requiredHeaders": [
         "X-API-Version",
@@ -2246,7 +2476,7 @@
       ],
       "resourceType": "websocket_session",
       "scope": "workspace",
-      "summary": "Fetch one negotiated websocket session descriptor",
+      "summary": "Fetch one negotiated websocket session descriptor, subscriptions, and backpressure policy",
       "supportsIdempotencyKey": false,
       "tags": [
         "WebSockets"

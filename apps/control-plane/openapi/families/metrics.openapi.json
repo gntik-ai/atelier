@@ -19,7 +19,7 @@
         "required": true,
         "schema": {
           "const": "2026-03-24",
-          "pattern": "^2026-03-23$",
+          "pattern": "^2026-03-24$",
           "type": "string"
         }
       },
@@ -122,6 +122,138 @@
         ],
         "type": "object"
       },
+      "GatewayStreamMetricsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "authz": {
+            "additionalProperties": false,
+            "properties": {
+              "backpressureRejectionsPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "deniedPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "deniedPerMinute",
+              "backpressureRejectionsPerMinute"
+            ],
+            "type": "object"
+          },
+          "connections": {
+            "additionalProperties": false,
+            "properties": {
+              "sseActive": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "websocketActive": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "websocketActive",
+              "sseActive"
+            ],
+            "type": "object"
+          },
+          "lag": {
+            "additionalProperties": false,
+            "properties": {
+              "maxMessagesBehind": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "p95Ms": {
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "p95Ms",
+              "maxMessagesBehind"
+            ],
+            "type": "object"
+          },
+          "publishes": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptedPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "publishP95Ms": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "rejectedPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "acceptedPerMinute",
+              "rejectedPerMinute",
+              "publishP95Ms"
+            ],
+            "type": "object"
+          },
+          "sampledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "source": {
+            "additionalProperties": false,
+            "properties": {
+              "metricsPath": {
+                "const": "/apisix/prometheus/metrics",
+                "type": "string"
+              },
+              "seriesPrefix": {
+                "const": "in_atelier_event_gateway_",
+                "type": "string"
+              }
+            },
+            "required": [
+              "metricsPath",
+              "seriesPrefix"
+            ],
+            "type": "object"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "window": {
+            "enum": [
+              "5m",
+              "1h",
+              "24h"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "window",
+          "sampledAt",
+          "connections",
+          "publishes",
+          "lag",
+          "authz",
+          "source"
+        ],
+        "type": "object"
+      },
       "MetricSeriesResponse": {
         "additionalProperties": false,
         "properties": {
@@ -186,14 +318,139 @@
     }
   },
   "info": {
-    "description": "Workspace-scoped usage, quota, and observability series exposed through the unified gateway. Generated from the unified public API contract for v1.",
-    "summary": "Workspace-scoped usage, quota, and observability series exposed through the unified gateway.",
+    "description": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway. Generated from the unified public API contract for v1.",
+    "summary": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.",
     "title": "In Atelier Metrics API",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/v1/metrics/workspaces/{workspaceId}/gateway-streams": {
+      "get": {
+        "operationId": "getWorkspaceGatewayStreamMetrics",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": true,
+            "schema": {
+              "enum": [
+                "5m",
+                "1h",
+                "24h"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayStreamMetricsResponse"
+                }
+              }
+            },
+            "description": "Gateway stream metrics returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway metrics error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch gateway publish, connection, lag, and backpressure metrics for one workspace",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_operator",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "event_gateway",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "gateway_stream_metrics",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/metrics/workspaces/{workspaceId}/series": {
       "get": {
         "operationId": "getWorkspaceMetricSeries",

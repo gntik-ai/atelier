@@ -56,6 +56,7 @@ data:
 {{- $retryProfile := (index $.Values.gatewayPolicy.qos.retryProfiles ($qosProfile.retryProfile | default "") | default (dict)) -}}
 {{- $validationProfile := (index $.Values.gatewayPolicy.requestValidation.profiles $validationProfileName | default (dict)) -}}
 {{- if .methods }}{{- $_ := set $routeBody "methods" .methods -}}{{- end }}
+{{- if .enableWebsocket }}{{- $_ := set $routeBody "enable_websocket" true -}}{{- end }}
 {{- if .labels }}{{- $_ := set $routeBody "labels" .labels -}}{{- end }}
 {{- if .vars }}{{- $_ := set $routeBody "vars" .vars -}}{{- end }}
 {{- if $qosProfileName }}

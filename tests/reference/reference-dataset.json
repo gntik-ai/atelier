@@ -148,6 +148,10 @@
     {
       "id": "event-tenant-suspended",
       "type": "tenant.suspended"
+    },
+    {
+      "id": "event-workspace-document-updated",
+      "type": "workspace.document.updated"
     }
   ],
   "resilience_cases": [
@@ -178,6 +182,16 @@
     {
       "id": "resilience-idempotent-retry",
       "failure_mode": "idempotent_retry"
+    },
+    {
+      "id": "resilience-event-gateway-load",
+      "failure_mode": "bounded_load",
+      "concurrent_sessions": 240,
+      "topic_max_concurrent_subscriptions": 200,
+      "topic_max_publishes_per_second": 120,
+      "publish_attempts_per_second": 180,
+      "publish_duration_seconds": 10,
+      "max_in_flight": 48
     }
   ],
   "console_routes": [

@@ -63,11 +63,16 @@ test('reference testing strategy includes resilience fixtures for invalid header
   const scenarioIds = new Set(strategy.cross_domain_matrix.scenarios.map((scenario) => scenario.id));
   const fixtureIds = new Set(dataset.resilience_cases.map((entry) => entry.id));
 
-  for (const scenarioId of ['RS-EVT-002', 'RS-SEC-002', 'RS-DAT-002']) {
+  for (const scenarioId of ['RS-EVT-002', 'RS-EVT-003', 'RS-SEC-002', 'RS-DAT-002']) {
     assert.equal(scenarioIds.has(scenarioId), true, `missing scenario ${scenarioId}`);
   }
 
-  for (const fixtureId of ['resilience-invalid-headers', 'resilience-oversized-body', 'resilience-idempotent-retry']) {
+  for (const fixtureId of [
+    'resilience-invalid-headers',
+    'resilience-oversized-body',
+    'resilience-idempotent-retry',
+    'resilience-event-gateway-load'
+  ]) {
     assert.equal(fixtureIds.has(fixtureId), true, `missing resilience fixture ${fixtureId}`);
   }
 });

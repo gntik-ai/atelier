@@ -199,6 +199,16 @@ cross_domain_matrix:
         - event-tenant-provision-requested
         - tenant-shared-a
       expected: Safe retries preserve one logical acceptance, one correlation chain, and one downstream mutation envelope.
+    - id: RS-EVT-003
+      level: resilience
+      domain: events
+      taxonomy: resilience
+      title: Event gateway load stays bounded for concurrent subscriptions and sustained publishing.
+      fixtures:
+        - resilience-event-gateway-load
+        - event-workspace-document-updated
+        - tenant-shared-a
+      expected: Concurrent sessions and publish bursts stay inside documented limits, and excess work is rejected predictably instead of buffering without bound.
     - id: RS-TEN-001
       level: resilience
       domain: multi_tenant
@@ -343,7 +353,7 @@ api_contract:
   required_error_contracts: true
   compatibility_expectations:
     - Non-health control-plane operations stay under `/v1/` until a deliberate versioning change is introduced.
-    - The current pinned API-version value remains `2026-03-23` for this contract generation.
+    - The current pinned API-version value remains `2026-03-24` for this contract generation.
     - Access-check routes remain tenant/workspace-scoped and carry explicit correlation metadata.
     - Backward-compatible additions may add optional fields but must preserve existing required fields and error shapes.
     - Breaking changes require an explicit versioning plan rather than silent contract drift.

@@ -18,6 +18,9 @@ data:
   requestIdHeader: {{ .Values.gatewayPolicy.correlation.requestIdHeader | quote }}
   gatewayInternalMode: {{ .Values.gatewayPolicy.internalRequests.mode | quote }}
   errorEnvelopeSchema: {{ .Values.gatewayPolicy.errorEnvelope.schema | quote }}
+  gatewayMetricsPath: {{ .Values.gatewayPolicy.observability.gatewayMetrics.metricsPath | quote }}
+  gatewayMetricsSeriesPrefix: {{ .Values.gatewayPolicy.observability.gatewayMetrics.seriesPrefix | quote }}
+  realtimePathPrefix: {{ .Values.publicSurface.routePrefixes.realtime | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap
