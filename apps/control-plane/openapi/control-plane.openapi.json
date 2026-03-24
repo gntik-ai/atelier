@@ -29542,6 +29542,335 @@
         "x-scope": "workspace",
         "x-visibility": "public"
       }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}": {
+      "post": {
+        "operationId": "executePostgresDataRpc",
+        "summary": "Execute one reusable PostgreSQL function as an RPC-style data endpoint with parameter binding",
+        "tags": [
+          "Postgres"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/RoutineName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresDataRpcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Routine executed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresDataRpcEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The RPC payload is malformed or the routine contract cannot be satisfied.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks grants to execute the requested routine in this workspace context.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database, schema, or routine was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The RPC arguments are structurally valid JSON but violate routine parameter or policy constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "postgres_data_rpc",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/admin/{databaseName}/sql": {
+      "post": {
+        "operationId": "executePostgresAdminSql",
+        "summary": "Preview or execute one restricted administrative PostgreSQL SQL statement outside the public data API channel",
+        "tags": [
+          "Postgres"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresAdminSqlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Administrative SQL preview or execution result.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminSqlResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The administrative SQL request is malformed or violates surface safeguards.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for the restricted administrative SQL channel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates confirmation, plan flag, or SQL safety policy constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this administrative channel.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "postgres",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "postgres_admin_sql",
+        "x-scope": "workspace",
+        "x-visibility": "public",
+        "x-plan-flags": [
+          "postgres.admin_sql",
+          "postgres.admin_sql.audit"
+        ],
+        "x-admin-channel": "restricted_admin_sql",
+        "x-explicit-confirmation": true
+      }
     }
   },
   "components": {
@@ -45347,7 +45676,9 @@
             "type": "string",
             "enum": [
               "transactional_ddl",
-              "non_transactional_ddl"
+              "non_transactional_ddl",
+              "single_statement",
+              "single_transaction"
             ]
           }
         }
@@ -45384,7 +45715,8 @@
             "enum": [
               "administrative_ddl",
               "structural_ddl",
-              "governance_ddl"
+              "governance_ddl",
+              "administrative_sql"
             ]
           },
           "action": {
@@ -45392,7 +45724,8 @@
             "enum": [
               "create",
               "update",
-              "delete"
+              "delete",
+              "execute"
             ]
           },
           "executionMode": {
@@ -45646,6 +45979,310 @@
           "primaryKey": {
             "type": "object",
             "additionalProperties": true
+          }
+        }
+      },
+      "PostgresDataRpcRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "arguments"
+        ],
+        "properties": {
+          "arguments": {
+            "type": "object",
+            "description": "Named function arguments bound by the control plane without string interpolation.",
+            "additionalProperties": true
+          },
+          "routineSignature": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "returnsSet": {
+            "type": "boolean"
+          },
+          "resultColumnName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      },
+      "PostgresDataRpcEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "databaseName",
+          "schemaName",
+          "routineName",
+          "effectiveRoleName",
+          "rowCount",
+          "returnedSet"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "databaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "routineName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "effectiveRoleName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "returnedSet": {
+            "type": "boolean"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "value": {},
+          "statementFingerprint": {
+            "type": "string",
+            "minLength": 24,
+            "maxLength": 24
+          }
+        }
+      },
+      "PostgresAdminSqlConfirmation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "confirmed",
+          "statementFingerprint"
+        ],
+        "properties": {
+          "confirmed": {
+            "type": "boolean"
+          },
+          "statementFingerprint": {
+            "type": "string",
+            "minLength": 24,
+            "maxLength": 24
+          },
+          "intentPhrase": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          }
+        }
+      },
+      "PostgresAdminSqlRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sqlText",
+          "executionMode"
+        ],
+        "properties": {
+          "sqlText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "parameters": {
+            "description": "Optional positional or named parameters bound independently from sqlText.",
+            "oneOf": [
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ]
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "queryLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "confirmation": {
+            "$ref": "#/components/schemas/PostgresAdminSqlConfirmation"
+          }
+        }
+      },
+      "PostgresAdminSqlQueryPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "executionMode",
+          "statementFingerprint",
+          "statementType",
+          "parameterMode",
+          "parameterCount",
+          "transactionMode",
+          "sqlText"
+        ],
+        "properties": {
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "statementFingerprint": {
+            "type": "string",
+            "minLength": 24,
+            "maxLength": 24
+          },
+          "statementType": {
+            "type": "string",
+            "enum": [
+              "read",
+              "dml",
+              "ddl",
+              "maintenance",
+              "other"
+            ]
+          },
+          "parameterMode": {
+            "type": "string",
+            "enum": [
+              "none",
+              "named",
+              "positional"
+            ]
+          },
+          "parameterCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "transactionMode": {
+            "type": "string",
+            "enum": [
+              "single_statement",
+              "single_transaction"
+            ]
+          },
+          "planFlags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "safeGuards": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "sqlText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000
+          }
+        }
+      },
+      "PostgresAdminSqlResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "databaseName",
+          "executionMode",
+          "statementFingerprint",
+          "rowCount",
+          "queryPreview",
+          "auditSummary"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "databaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "executionMode": {
+            "$ref": "#/components/schemas/PostgresExecutionMode"
+          },
+          "statementFingerprint": {
+            "type": "string",
+            "minLength": 24,
+            "maxLength": 24
+          },
+          "rowCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "queryPreview": {
+            "$ref": "#/components/schemas/PostgresAdminSqlQueryPreview"
+          },
+          "preExecutionWarnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresPreExecutionWarning"
+            }
+          },
+          "riskProfile": {
+            "$ref": "#/components/schemas/PostgresMutationRiskProfile"
+          },
+          "auditSummary": {
+            "$ref": "#/components/schemas/PostgresAuditSummary"
           }
         }
       }

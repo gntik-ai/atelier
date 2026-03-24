@@ -52,7 +52,8 @@
         "iam_admin_request",
         "iam_lifecycle_event",
         "postgres_admin_request",
-        "postgres_data_request"
+        "postgres_data_request",
+        "postgres_admin_sql_request"
       ]
     },
     {
@@ -99,7 +100,8 @@
         "provisioning_request",
         "iam_admin_request",
         "postgres_admin_request",
-        "postgres_data_request"
+        "postgres_data_request",
+        "postgres_admin_sql_request"
       ],
       "outbound_contracts": [
         "provisioning_result",
@@ -109,7 +111,8 @@
         "iam_lifecycle_event",
         "postgres_admin_result",
         "postgres_inventory_snapshot",
-        "postgres_data_result"
+        "postgres_data_result",
+        "postgres_admin_sql_result"
       ]
     },
     {
@@ -346,7 +349,9 @@
         "postgres_data_select",
         "postgres_data_insert",
         "postgres_data_update",
-        "postgres_data_delete"
+        "postgres_data_delete",
+        "postgres_data_rpc",
+        "postgres_admin_sql_execute"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -997,6 +1002,48 @@
         "retryable_dependency_failure",
         "terminal_dependency_failure"
       ]
+    },
+    "postgres_admin_sql_request": {
+      "owner": "control_api",
+      "version": "2026-03-24",
+      "required_fields": [
+        "database_name",
+        "sql_text",
+        "execution_mode",
+        "origin_surface",
+        "plan_flags",
+        "statement_fingerprint",
+        "workspace_id",
+        "correlation_id",
+        "authorization_decision_id"
+      ],
+      "idempotency": "Control-plane admin SQL requests are deduplicated by idempotency key plus statement fingerprint.",
+      "versioning": "Additive request metadata is backward compatible; changes to confirmation or audit semantics require a version bump.",
+      "error_classes": [
+        "validation_failed",
+        "forbidden",
+        "dependency_failure",
+        "timeout"
+      ]
+    },
+    "postgres_admin_sql_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-24",
+      "required_fields": [
+        "statement_fingerprint",
+        "execution_mode",
+        "row_count",
+        "query_preview",
+        "audit_summary"
+      ],
+      "idempotency": "Admin SQL result envelopes are replay-safe when the statement fingerprint and request idempotency key match.",
+      "versioning": "Additive result metadata is backward compatible; changes to the preview or audit envelope require a version bump.",
+      "error_classes": [
+        "dependency_failure",
+        "timeout",
+        "forbidden",
+        "recovery_required"
+      ]
     }
   },
   "interaction_flows": [
@@ -1129,6 +1176,20 @@
         "provisioning_orchestrator preserves grants and RLS constraints, translates the request into one parameterized postgresql adapter call, and rejects unsafe relation traversals outside the declared allow-list.",
         "services/adapters executes CRUD/query operations with the least-privilege effective role, preserving row-filter predicates and returning secret-free rows plus pagination metadata.",
         "audit_module records the actor, effective role, workspace scope, table reference, selector summary, and resulting row-count or denial reason without persisting raw row payloads beyond approved evidence limits."
+      ]
+    },
+    {
+      "id": "postgres_admin_sql_execution",
+      "summary": "Restricted administrative SQL preview and execution for trusted PostgreSQL operators.",
+      "participants": [
+        "control_api",
+        "provisioning_orchestrator",
+        "audit_module"
+      ],
+      "contracts": [
+        "postgres_admin_sql_request",
+        "postgres_admin_sql_result",
+        "audit_record"
       ]
     }
   ]

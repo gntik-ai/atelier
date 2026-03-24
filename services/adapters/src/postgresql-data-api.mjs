@@ -4,8 +4,8 @@ const IDENTIFIER_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,62}$/;
 const ORDER_DIRECTION_SET = new Set(['asc', 'desc']);
 const MUTATION_OPERATIONS = new Set(['insert', 'update', 'delete']);
 
-export const POSTGRES_DATA_API_OPERATIONS = Object.freeze(['list', 'get', 'insert', 'update', 'delete']);
-export const POSTGRES_DATA_API_COMMANDS = Object.freeze(['select', 'insert', 'update', 'delete']);
+export const POSTGRES_DATA_API_OPERATIONS = Object.freeze(['list', 'get', 'insert', 'update', 'delete', 'rpc']);
+export const POSTGRES_DATA_API_COMMANDS = Object.freeze(['select', 'insert', 'update', 'delete', 'execute']);
 export const POSTGRES_DATA_FILTER_OPERATORS = Object.freeze([
   'eq',
   'neq',
@@ -27,7 +27,8 @@ export const POSTGRES_DATA_API_CAPABILITIES = Object.freeze({
   get: 'postgres_data_select',
   insert: 'postgres_data_insert',
   update: 'postgres_data_update',
-  delete: 'postgres_data_delete'
+  delete: 'postgres_data_delete',
+  rpc: 'postgres_data_rpc'
 });
 
 function unique(list = []) {
@@ -115,6 +116,36 @@ function normalizeTableDefinition(table = {}, defaultSchemaName, defaultTableNam
     columnMap,
     primaryKey,
     relations: (table.relations ?? []).map((relation) => normalizeRelationDefinition(relation, schemaName, tableName))
+  };
+}
+
+function normalizeRoutineArgumentDefinition(argument = {}, index = 0) {
+  const argumentName = normalizeIdentifier(argument.argumentName ?? argument.name ?? `arg${index + 1}`, 'routine.argumentName');
+  const dataType =
+    typeof argument.dataType === 'string'
+      ? argument.dataType.trim()
+      : argument.dataType?.displayName ?? argument.dataType?.fullName ?? argument.dataType?.name;
+
+  return compactDefined({
+    argumentName,
+    dataType: dataType && dataType.length > 0 ? dataType : undefined,
+    required: argument.required !== false
+  });
+}
+
+function normalizeRoutineDefinition(routine = {}, defaultSchemaName, defaultRoutineName) {
+  const schemaName = normalizeIdentifier(routine.schemaName ?? defaultSchemaName, 'schemaName');
+  const routineName = normalizeIdentifier(routine.routineName ?? routine.name ?? defaultRoutineName, 'routineName');
+  const resultColumnName = normalizeIdentifier(routine.resultColumnName ?? 'result', 'resultColumnName');
+
+  return {
+    schemaName,
+    routineName,
+    signature: routine.signature,
+    returnsSet: routine.returnsSet === true,
+    exposedAsRpc: routine.exposedAsRpc !== false,
+    resultColumnName,
+    arguments: (routine.arguments ?? []).map((argument, index) => normalizeRoutineArgumentDefinition(argument, index))
   };
 }
 
@@ -259,6 +290,7 @@ function ensureColumn(table, columnName) {
 
 function commandForOperation(operation) {
   if (operation === 'list' || operation === 'get') return 'select';
+  if (operation === 'rpc') return 'execute';
   return operation;
 }
 
@@ -269,6 +301,107 @@ function privilegeSatisfies(command, privileges = []) {
   if (command === 'update') return normalized.has('update');
   if (command === 'delete') return normalized.has('delete');
   return false;
+}
+
+function hasSchemaUsageGrant(schemaGrants = [], actorRoleName, schemaName) {
+  return schemaGrants.some(
+    (grant) =>
+      grant?.granteeRoleName === actorRoleName &&
+      grant?.target?.schemaName === schemaName &&
+      new Set((grant?.privileges ?? ['usage']).map((entry) => String(entry).trim().toLowerCase())).has('usage')
+  );
+}
+
+function hasRoutineExecuteGrant(objectGrants = [], actorRoleName, schemaName, routine = {}) {
+  const candidateNames = new Set(
+    [routine.routineName, routine.signature, `${routine.schemaName}.${routine.routineName}`, `${routine.routineName}()`].filter(Boolean)
+  );
+
+  return objectGrants.some(
+    (grant) =>
+      grant?.granteeRoleName === actorRoleName &&
+      grant?.target?.schemaName === schemaName &&
+      candidateNames.has(grant?.target?.objectName) &&
+      new Set((grant?.privileges ?? []).map((entry) => String(entry).trim().toLowerCase())).has('execute')
+  );
+}
+
+function normalizeRpcArguments(argumentPayload, routine) {
+  const definitions = routine.arguments ?? [];
+
+  if (Array.isArray(argumentPayload)) {
+    if (definitions.length > 0 && argumentPayload.length < definitions.filter((argument) => argument.required !== false).length) {
+      throw new Error(`Routine ${routine.schemaName}.${routine.routineName} is missing one or more required arguments.`);
+    }
+
+    return argumentPayload.map((value, index) => ({
+      argumentName: definitions[index]?.argumentName ?? `arg${index + 1}`,
+      dataType: definitions[index]?.dataType,
+      value
+    }));
+  }
+
+  if (argumentPayload === undefined || argumentPayload === null) {
+    if (definitions.some((argument) => argument.required !== false)) {
+      throw new Error(`Routine ${routine.schemaName}.${routine.routineName} requires arguments.`);
+    }
+
+    return [];
+  }
+
+  if (typeof argumentPayload !== 'object') {
+    throw new Error('RPC arguments must be an object or array.');
+  }
+
+  const orderedDefinitions = definitions.length > 0
+    ? definitions
+    : Object.keys(argumentPayload)
+        .sort()
+        .map((argumentName) => ({ argumentName }));
+
+  const bindings = []
+  for (const definition of orderedDefinitions) {
+    if (!(definition.argumentName in argumentPayload)) {
+      if (definition.required === false) continue;
+      throw new Error(`Routine ${routine.schemaName}.${routine.routineName} is missing required argument ${definition.argumentName}.`);
+    }
+
+    bindings.push({
+      argumentName: definition.argumentName,
+      dataType: definition.dataType,
+      value: argumentPayload[definition.argumentName]
+    });
+  }
+
+  return bindings;
+}
+
+function resolveRpcEffectiveRole({ candidateRoles, schemaGrants, objectGrants, routine }) {
+  const errors = [];
+
+  for (const actorRoleName of candidateRoles) {
+    if (!hasSchemaUsageGrant(schemaGrants, actorRoleName, routine.schemaName)) {
+      errors.push(`${actorRoleName}:missing_schema_grant`);
+      continue;
+    }
+
+    if (!hasRoutineExecuteGrant(objectGrants, actorRoleName, routine.schemaName, routine)) {
+      errors.push(`${actorRoleName}:missing_execute_grant`);
+      continue;
+    }
+
+    return {
+      effectiveRoleName: actorRoleName,
+      accessDecision: {
+        allowed: true,
+        visible: true,
+        reason: 'grant_allow',
+        rowPredicateRequired: false
+      }
+    };
+  }
+
+  throw new Error(`No effective role satisfies the PostgreSQL RPC request (${errors.join(', ')}).`);
 }
 
 function policyAppliesToActor(policy = {}, actorRoleName, command) {
@@ -681,6 +814,60 @@ function buildReturningClause({ table, select }) {
   };
 }
 
+function buildPostgresDataRpcPlan(request = {}, { workspaceId, databaseName, candidateRoles } = {}) {
+  const routine = normalizeRoutineDefinition(request.routine ?? {}, request.schemaName, request.routineName);
+  if (!routine.exposedAsRpc) {
+    throw new Error(`Routine ${routine.schemaName}.${routine.routineName} is not exposed as an RPC endpoint.`);
+  }
+
+  const argumentBindings = normalizeRpcArguments(request.arguments, routine);
+  const { effectiveRoleName, accessDecision } = resolveRpcEffectiveRole({
+    candidateRoles,
+    schemaGrants: request.schemaGrants,
+    objectGrants: request.objectGrants,
+    routine
+  });
+  const values = [];
+  const placeholders = argumentBindings.map((binding) => pushValue(values, binding.value, binding.dataType));
+  const functionCall = `${quoteIdent(routine.schemaName)}.${quoteIdent(routine.routineName)}(${placeholders.join(', ')})`;
+  const sql = routine.returnsSet
+    ? [`SELECT *`, `FROM ${functionCall}`].join('\n')
+    : `SELECT ${functionCall} AS ${quoteIdent(routine.resultColumnName)}`;
+
+  return {
+    operation: 'rpc',
+    command: 'execute',
+    capability: POSTGRES_DATA_API_CAPABILITIES.rpc,
+    effectiveRoleName,
+    resource: {
+      workspaceId,
+      databaseName,
+      schemaName: routine.schemaName,
+      routineName: routine.routineName
+    },
+    routine: {
+      schemaName: routine.schemaName,
+      routineName: routine.routineName,
+      returnsSet: routine.returnsSet,
+      argumentCount: argumentBindings.length,
+      signature: routine.signature
+    },
+    arguments: argumentBindings.map((binding) => ({
+      argumentName: binding.argumentName,
+      dataType: binding.dataType
+    })),
+    access: {
+      reason: accessDecision.reason,
+      rlsEnforced: false,
+      rowPredicateRequired: false
+    },
+    sql: {
+      text: sql,
+      values
+    }
+  };
+}
+
 export function buildPostgresDataApiPlan(request = {}) {
   const operation = String(request.operation ?? 'list').trim().toLowerCase();
   if (!POSTGRES_DATA_API_OPERATIONS.includes(operation)) {
@@ -689,13 +876,17 @@ export function buildPostgresDataApiPlan(request = {}) {
 
   const workspaceId = String(request.workspaceId ?? '').trim();
   const databaseName = normalizeIdentifier(request.databaseName, 'databaseName');
-  const table = normalizeTableDefinition(request.table ?? {}, request.schemaName, request.tableName);
   const command = commandForOperation(operation);
   const candidateRoles = unique([...(request.effectiveRoles ?? []), request.actorRoleName].filter(Boolean));
   if (candidateRoles.length === 0) {
     throw new Error('At least one actor or effective role must be provided.');
   }
 
+  if (operation === 'rpc') {
+    return buildPostgresDataRpcPlan(request, { workspaceId, databaseName, candidateRoles });
+  }
+
+  const table = normalizeTableDefinition(request.table ?? {}, request.schemaName, request.tableName);
   const select = normalizeSelect(request.select, table);
   const filters = normalizeFilters(request.filters, table);
   const joins = normalizeJoins(request.joins, table);

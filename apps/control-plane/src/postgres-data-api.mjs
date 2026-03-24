@@ -12,7 +12,7 @@ import {
   summarizePostgresDataApiCapabilityMatrix
 } from '../../../services/adapters/src/postgresql-data-api.mjs';
 
-const POSTGRES_DATA_RESOURCE_TYPES = ['postgres_data_rows', 'postgres_data_row'];
+const POSTGRES_DATA_RESOURCE_TYPES = ['postgres_data_rows', 'postgres_data_row', 'postgres_data_rpc'];
 
 export const postgresDataApiFamily = getApiFamily('postgres');
 export const postgresDataRequestContract = getContract('postgres_data_request');
@@ -42,7 +42,8 @@ const ROUTE_MATCHERS_BY_OPERATION = {
   get: (route) => route.operationId === 'getPostgresDataRowByPrimaryKey',
   insert: (route) => route.operationId === 'createPostgresDataRow',
   update: (route) => route.operationId === 'updatePostgresDataRowByPrimaryKey',
-  delete: (route) => route.operationId === 'deletePostgresDataRowByPrimaryKey'
+  delete: (route) => route.operationId === 'deletePostgresDataRowByPrimaryKey',
+  rpc: (route) => route.operationId === 'executePostgresDataRpc'
 };
 
 export function summarizePostgresDataApiSurface() {

@@ -306,3 +306,67 @@ export function buildWorkspacePostgresExplorer({
     ]
   };
 }
+
+export function buildPostgresAdminQueryHistory(entries = []) {
+  return entries.map((entry, index) => ({
+    key: entry.historyId ?? entry.requestId ?? entry.statementFingerprint ?? `admin-sql-${index + 1}`,
+    title: entry.queryLabel ?? entry.summary ?? `Admin SQL ${index + 1}`,
+    executionMode: entry.executionMode ?? 'preview',
+    databaseName: entry.databaseName,
+    schemaName: entry.schemaName,
+    statementFingerprint: entry.statementFingerprint,
+    statementType: entry.statementType ?? entry.queryPreview?.statementType,
+    warningCount: entry.warningCount ?? entry.preExecutionWarnings?.length ?? 0,
+    confirmed: entry.confirmation?.confirmed === true,
+    route: getConsolePostgresRoute('executePostgresAdminSql')
+  }));
+}
+
+export function buildPostgresAdminQueryConsole({
+  workspaceId,
+  databaseName,
+  draft = {},
+  history = [],
+  queryPreview,
+  preExecutionWarnings = [],
+  riskProfile,
+  route = getConsolePostgresRoute('executePostgresAdminSql')
+} = {}) {
+  const preview = queryPreview
+    ? {
+        statementFingerprint: queryPreview.statementFingerprint,
+        statementType: queryPreview.statementType,
+        parameterMode: queryPreview.parameterMode,
+        parameterCount: queryPreview.parameterCount,
+        transactionMode: queryPreview.transactionMode,
+        planFlags: queryPreview.planFlags ?? [],
+        safeGuards: queryPreview.safeGuards ?? [],
+        sqlText: queryPreview.sqlText
+      }
+    : undefined;
+
+  return {
+    workspaceId,
+    databaseName,
+    route,
+    editor: {
+      language: 'sql',
+      sqlText: draft.sqlText ?? '',
+      parameters: draft.parameters ?? {},
+      executionMode: draft.executionMode ?? 'preview',
+      queryLabel: draft.queryLabel,
+      reason: draft.reason,
+      schemaName: draft.schemaName
+    },
+    preview,
+    history: buildPostgresAdminQueryHistory(history),
+    warnings: preExecutionWarnings,
+    riskProfile,
+    confirmation: {
+      required: draft.executionMode === 'execute' || riskProfile?.acknowledgementRequired === true,
+      statementFingerprint: preview?.statementFingerprint,
+      intentPhrase: preview?.statementFingerprint ? `EXECUTE ${preview.statementFingerprint}` : undefined,
+      explicitConfirmation: true
+    }
+  };
+}

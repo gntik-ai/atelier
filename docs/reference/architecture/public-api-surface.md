@@ -188,7 +188,7 @@ Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, an
 
 ## Postgres
 
-Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts.
+Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts. Includes workspace-scoped data RPC routines and a restricted admin SQL channel.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
@@ -266,6 +266,8 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, inven
 | DELETE | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Delete one workspace-scoped PostgreSQL user through the bounded administrative surface |
 | GET | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Fetch one workspace-scoped PostgreSQL user contract |
 | PUT | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Update one workspace-scoped PostgreSQL user through the bounded administrative surface |
+| POST | `/v1/postgres/workspaces/{workspaceId}/admin/{databaseName}/sql` | workspace | postgres_admin_sql | Preview or execute one restricted administrative PostgreSQL SQL statement outside the public data API channel |
+| POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}` | workspace | postgres_data_rpc | Execute one reusable PostgreSQL function as an RPC-style data endpoint with parameter binding |
 | GET | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows` | workspace | postgres_data_rows | List rows from one workspace-scoped PostgreSQL table with filters, projection, ordering, pagination, and controlled one-hop relations |
 | POST | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows` | workspace | postgres_data_rows | Insert one row into one workspace-scoped PostgreSQL table while preserving effective-role, grants, and RLS guardrails |
 | DELETE | `/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key` | workspace | postgres_data_row | Delete one PostgreSQL row by primary-key selector while preserving effective-role, grants, and RLS guardrails |
