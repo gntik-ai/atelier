@@ -24,7 +24,8 @@
         "Emit audit evidence for request acceptance and synchronous rejection where required.",
         "Emit IAM lifecycle events with actor context for audit persistence and Kafka-compatible downstream delivery.",
         "Accept BaaS-native PostgreSQL administrative operations for roles, users, databases, and schemas while preserving placement-aware validation and secret-free payload normalization.",
-        "Expose PostgreSQL administrative inventory projections and minimum-privilege operational guidance without leaking unsafe engine details."
+        "Expose PostgreSQL administrative inventory projections and minimum-privilege operational guidance without leaking unsafe engine details.",
+        "Accept workspace-scoped PostgreSQL Data API CRUD and query requests with dynamic table routing, filter validation, effective-role resolution, and RLS-safe query semantics."
       ],
       "owned_resources": [
         "public route contract",
@@ -34,7 +35,8 @@
         "iam administrative request envelope",
         "iam lifecycle event envelope",
         "postgres administrative request envelope",
-        "postgres administrative inventory projection"
+        "postgres administrative inventory projection",
+        "postgres data request envelope"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -49,7 +51,8 @@
         "audit_record",
         "iam_admin_request",
         "iam_lifecycle_event",
-        "postgres_admin_request"
+        "postgres_admin_request",
+        "postgres_data_request"
       ]
     },
     {
@@ -67,7 +70,8 @@
         "Persist per-resource provisioning state for bootstrap visibility across API and console surfaces.",
         "Resume partially failed tenant bootstrap runs without replaying resources that already converged successfully.",
         "Coordinate PostgreSQL administrative operations for roles, users, databases, and schemas without letting control_api call adapters directly.",
-        "Persist PostgreSQL metadata and inventory snapshots for console-safe reads and profile-aware validation."
+        "Persist PostgreSQL metadata and inventory snapshots for console-safe reads and profile-aware validation.",
+        "Coordinate PostgreSQL Data API reads and mutations through parameterized adapter calls while preserving effective role, grants, and RLS constraints."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -77,7 +81,8 @@
         "propagated authorization context",
         "iam admin orchestration result",
         "postgres admin orchestration result",
-        "postgres metadata inventory snapshot"
+        "postgres metadata inventory snapshot",
+        "postgres data query result"
       ],
       "service_dependencies": [
         "audit_module"
@@ -93,7 +98,8 @@
       "inbound_contracts": [
         "provisioning_request",
         "iam_admin_request",
-        "postgres_admin_request"
+        "postgres_admin_request",
+        "postgres_data_request"
       ],
       "outbound_contracts": [
         "provisioning_result",
@@ -102,7 +108,8 @@
         "iam_admin_result",
         "iam_lifecycle_event",
         "postgres_admin_result",
-        "postgres_inventory_snapshot"
+        "postgres_inventory_snapshot",
+        "postgres_data_result"
       ]
     },
     {
@@ -335,7 +342,11 @@
         "postgres_template_get",
         "postgres_template_create",
         "postgres_template_update",
-        "postgres_template_delete"
+        "postgres_template_delete",
+        "postgres_data_select",
+        "postgres_data_insert",
+        "postgres_data_update",
+        "postgres_data_delete"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -919,6 +930,73 @@
         "storage_unavailable",
         "schema_validation_error"
       ]
+    },
+    "postgres_data_request": {
+      "owner": "control_api",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "database_name",
+        "schema_name",
+        "table_name",
+        "action",
+        "effective_role_name",
+        "effective_roles",
+        "selection",
+        "filters",
+        "joins",
+        "order",
+        "page",
+        "payload",
+        "correlation_id",
+        "authorization_decision_id",
+        "scopes",
+        "contract_version",
+        "requested_at",
+        "actor_id",
+        "actor_type",
+        "origin_surface"
+      ],
+      "idempotency": "PostgreSQL Data API mutations coalesce by workspace_id, database_name, schema_name, table_name, action, effective_role_name, primary-key selector, and idempotency_key so safe retries do not duplicate writes.",
+      "versioning": "The PostgreSQL Data API request envelope remains additive while filter operators, relation projections, and pagination semantics evolve behind stable field names.",
+      "error_classes": [
+        "validation_error",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "dependency_failure"
+      ]
+    },
+    "postgres_data_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "action",
+        "status",
+        "effective_role_name",
+        "row_count",
+        "rows",
+        "page",
+        "projection",
+        "relation_summary",
+        "correlation_id",
+        "contract_version",
+        "observed_at",
+        "authorization_decision_id"
+      ],
+      "idempotency": "Repeated reads of the same PostgreSQL Data API result describe one logical query or mutation outcome under one effective role and selector set.",
+      "versioning": "The PostgreSQL Data API result contract stays secret-free and additive while row projections, joins, and pagination metadata expand.",
+      "error_classes": [
+        "forbidden",
+        "not_found",
+        "conflict",
+        "retryable_dependency_failure",
+        "terminal_dependency_failure"
+      ]
     }
   },
   "interaction_flows": [
@@ -1041,6 +1119,16 @@
         "services/adapters performs role, user, database, or schema operations through the bounded PostgreSQL administrative surface, then returns normalized secret-free resources and inventory metadata.",
         "provisioning_orchestrator persists a postgres_inventory_snapshot so console surfaces can answer fast inventory queries without live engine enumeration for every read.",
         "audit_module records actor, scope, target resource, placement mode, and minimum-privilege evidence without persisting raw credentials or unrestricted engine detail."
+      ]
+    },
+    {
+      "id": "postgres_data_access",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api validates the workspace/logical-database/schema/table route, resolves effective-role context, and normalizes filters, projection, pagination, and relation selections into one postgres_data_request envelope.",
+        "provisioning_orchestrator preserves grants and RLS constraints, translates the request into one parameterized postgresql adapter call, and rejects unsafe relation traversals outside the declared allow-list.",
+        "services/adapters executes CRUD/query operations with the least-privilege effective role, preserving row-filter predicates and returning secret-free rows plus pagination metadata.",
+        "audit_module records the actor, effective role, workspace scope, table reference, selector summary, and resulting row-count or denial reason without persisting raw row payloads beyond approved evidence limits."
       ]
     }
   ]
