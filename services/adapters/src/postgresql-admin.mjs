@@ -11,6 +11,15 @@ import {
   normalizePostgresStructuralResource,
   validatePostgresStructuralRequest
 } from './postgresql-structural-admin.mjs';
+import {
+  POSTGRES_GOVERNANCE_RESOURCE_KINDS,
+  buildPostgresGovernanceSqlPlan,
+  evaluatePostgresDataApiAccess,
+  normalizePostgresGovernanceResource,
+  renderPostgresDocumentationComment,
+  resolveAuthorizedPostgresExtensions,
+  validatePostgresGovernanceRequest
+} from './postgresql-governance-admin.mjs';
 
 export const postgresqlAdminAdapterPort = getAdapterPort('postgresql');
 export const postgresAdminRequestContract = getContract('postgres_admin_request');
@@ -22,7 +31,8 @@ export const POSTGRES_ADMIN_RESOURCE_KINDS = Object.freeze([
   'user',
   'database',
   'schema',
-  ...POSTGRES_STRUCTURAL_RESOURCE_KINDS
+  ...POSTGRES_STRUCTURAL_RESOURCE_KINDS,
+  ...POSTGRES_GOVERNANCE_RESOURCE_KINDS
 ]);
 export const POSTGRES_ADMIN_ACTIONS = Object.freeze(['list', 'get', 'create', 'update', 'delete']);
 
@@ -109,7 +119,12 @@ export const POSTGRES_ADMIN_CAPABILITY_MATRIX = Object.freeze({
   view: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   materialized_view: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   function: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
-  procedure: Object.freeze(['list', 'get', 'create', 'update', 'delete'])
+  procedure: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  table_security: Object.freeze(['get', 'update']),
+  policy: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  grant: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  extension: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  template: Object.freeze(['list', 'get', 'create', 'update', 'delete'])
 });
 
 export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
@@ -309,6 +324,18 @@ function normalizeIdentifier(value) {
     .slice(0, 63);
 }
 
+function quoteIdent(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
+function quoteLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function renderQualifiedName(schemaName, objectName) {
+  return `${quoteIdent(schemaName)}.${quoteIdent(objectName)}`;
+}
+
 function hasPrefix(value, prefix) {
   if (!prefix) return true;
   return String(value ?? '').startsWith(prefix);
@@ -469,9 +496,19 @@ export function resolvePostgresAdminProfile({ planId, deploymentProfileId } = {}
     materializedViewMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
     functionMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
     procedureMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    tableSecurityMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    policyMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    grantMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    extensionMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    templateCatalogSupported: true,
     typeCatalogSupported: true,
     quotaGuardrails,
     minimumEnginePolicy: enginePolicyForPlacement(placementMode),
+    authorizedExtensions: resolveAuthorizedPostgresExtensions({
+      clusterFeatures: profile?.clusterFeatures,
+      placementMode,
+      deploymentProfileId: profile?.deploymentProfileId ?? deploymentProfileId
+    }, { placementMode, deploymentProfileId: profile?.deploymentProfileId ?? deploymentProfileId }),
     providerCompatibility: defaultProviderCompatibility({
       placementMode,
       deploymentProfileId: profile?.deploymentProfileId ?? deploymentProfileId,
@@ -539,6 +576,16 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
           lcCollate: payload.locale?.lcCollate,
           lcCtype: payload.locale?.lcCtype
         }),
+        comment: payload.comment,
+        documentation: payload.documentation,
+        templateBinding:
+          payload.templateId || payload.templateVariables
+            ? compactDefined({
+                templateId: payload.templateId,
+                templateScope: 'database',
+                variables: payload.templateVariables
+              })
+            : undefined,
         providerCompatibility,
         metadata: payload.metadata ?? {}
       });
@@ -556,6 +603,16 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
           rlsRequiredOnSharedRows: profile.placementMode === 'schema_per_tenant',
           defaultPrivileges: 'least_privilege'
         }),
+        comment: payload.comment,
+        documentation: payload.documentation,
+        templateBinding:
+          payload.templateId || payload.templateVariables
+            ? compactDefined({
+                templateId: payload.templateId,
+                templateScope: 'schema',
+                variables: payload.templateVariables
+              })
+            : undefined,
         objectCounts: compactDefined({
           tables: payload.objectCounts?.tables,
           views: payload.objectCounts?.views,
@@ -569,6 +626,22 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
         metadata: payload.metadata ?? {}
       });
     default:
+      if (POSTGRES_GOVERNANCE_RESOURCE_KINDS.includes(resourceKind)) {
+        return normalizePostgresGovernanceResource(
+          resourceKind,
+          payload,
+          {
+            ...context,
+            contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
+            supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
+            deploymentProfileId: profile.deploymentProfileId,
+            placementMode: profile.placementMode,
+            databaseMutationsSupported: profile.databaseMutationsSupported
+          },
+          profile
+        );
+      }
+
       return normalizePostgresStructuralResource(resourceKind, payload, {
         ...context,
         contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
@@ -706,6 +779,15 @@ export function validatePostgresAdminRequest(request = {}) {
         violations.push('Databases must declare ownerRoleName.');
       }
 
+      if (payload.templateId) {
+        const template = (context.templateCatalog ?? []).find((entry) => entry.templateId === payload.templateId);
+        if (!template) {
+          violations.push(`Database template ${payload.templateId} is not present in the workspace template catalog.`);
+        } else if ((template.templateScope ?? template.scope) !== 'database') {
+          violations.push(`Template ${payload.templateId} is not a database template.`);
+        }
+      }
+
       if (action === 'create' && used >= quota.limit) {
         violations.push(`Quota ${quota.metricKey} would be exceeded by creating another database.`);
       }
@@ -740,6 +822,15 @@ export function validatePostgresAdminRequest(request = {}) {
         violations.push('Schemas must declare ownerRoleName.');
       }
 
+      if (payload.templateId) {
+        const template = (context.templateCatalog ?? []).find((entry) => entry.templateId === payload.templateId);
+        if (!template) {
+          violations.push(`Schema template ${payload.templateId} is not present in the workspace template catalog.`);
+        } else if ((template.templateScope ?? template.scope) !== 'schema') {
+          violations.push(`Template ${payload.templateId} is not a schema template.`);
+        }
+      }
+
       if (workspaceBindings.length === 0) {
         violations.push('Schemas must remain bound to at least one workspace context.');
       }
@@ -762,6 +853,18 @@ export function validatePostgresAdminRequest(request = {}) {
       break;
     }
     default: {
+      if (POSTGRES_GOVERNANCE_RESOURCE_KINDS.includes(resourceKind)) {
+        const governanceValidation = validatePostgresGovernanceRequest({
+          resourceKind,
+          action,
+          payload,
+          context,
+          profile
+        });
+        violations.push(...governanceValidation.violations);
+        break;
+      }
+
       const structuralValidation = validatePostgresStructuralRequest({
         resourceKind,
         action,
@@ -811,6 +914,137 @@ export function normalizePostgresAdminError(error = {}, context = {}) {
   };
 }
 
+function resolveTemplateEntry(payload = {}, context = {}, scope) {
+  if (!payload.templateId) return undefined;
+  return (context.templateCatalog ?? []).find((entry) => entry.templateId === payload.templateId && (entry.templateScope ?? entry.scope) === scope);
+}
+
+function applyTemplateDefaults(payload = {}, templateEntry) {
+  if (!templateEntry) return payload;
+
+  return {
+    ...templateEntry.defaults,
+    ...payload,
+    locale: payload.locale ?? templateEntry.defaults?.locale,
+    workspaceBindings: payload.workspaceBindings ?? templateEntry.defaults?.workspaceBindings,
+    comment: payload.comment ?? templateEntry.defaults?.comment,
+    documentation: payload.documentation ?? templateEntry.defaults?.documentation,
+    metadata: { ...(templateEntry.defaults?.metadata ?? {}), ...(payload.metadata ?? {}) }
+  };
+}
+
+function buildDatabaseSqlPlan({ action, payload = {}, context = {} } = {}) {
+  const templateEntry = resolveTemplateEntry(payload, context, 'database');
+  const effectivePayload = applyTemplateDefaults(payload, templateEntry);
+  const databaseName = effectivePayload.databaseName ?? context.databaseName;
+  const statements = [];
+  const safeGuards = [
+    'Database templates only provide bounded defaults and do not introduce arbitrary SQL.',
+    'Database DDL is emitted as non-transactional PostgreSQL statements because CREATE/DROP DATABASE cannot run inside transactional DDL blocks.',
+    'Database comments are rendered from bounded documentation fields only.'
+  ];
+
+  if (action === 'create') {
+    const fragments = [`CREATE DATABASE ${quoteIdent(databaseName)}`, effectivePayload.ownerRoleName ? `OWNER ${quoteIdent(effectivePayload.ownerRoleName)}` : undefined];
+    if (effectivePayload.locale?.encoding) fragments.push(`ENCODING ${quoteLiteral(effectivePayload.locale.encoding)}`);
+    if (effectivePayload.locale?.lcCollate) fragments.push(`LC_COLLATE ${quoteLiteral(effectivePayload.locale.lcCollate)}`);
+    if (effectivePayload.locale?.lcCtype) fragments.push(`LC_CTYPE ${quoteLiteral(effectivePayload.locale.lcCtype)}`);
+    statements.push(fragments.filter(Boolean).join(' '));
+  }
+
+  if (action === 'update') {
+    if (effectivePayload.ownerRoleName) {
+      statements.push(`ALTER DATABASE ${quoteIdent(databaseName)} OWNER TO ${quoteIdent(effectivePayload.ownerRoleName)}`);
+    }
+  }
+
+  if (action === 'delete') {
+    statements.push(`DROP DATABASE ${quoteIdent(databaseName)}`);
+  }
+
+  if (action === 'create' || action === 'update') {
+    const databaseComment = renderPostgresDocumentationComment(effectivePayload.documentation, effectivePayload.comment);
+    if (databaseComment || Object.prototype.hasOwnProperty.call(payload, 'comment') || Object.prototype.hasOwnProperty.call(payload, 'documentation')) {
+      statements.push(`COMMENT ON DATABASE ${quoteIdent(databaseName)} IS ${databaseComment ? quoteLiteral(databaseComment) : 'NULL'}`);
+    }
+  }
+
+  return {
+    resourceKind: 'database',
+    action,
+    databaseName,
+    statements,
+    lockTargets: [databaseName],
+    transactionMode: 'non_transactional_ddl',
+    safeGuards
+  };
+}
+
+function buildSchemaSqlPlan({ action, payload = {}, context = {} } = {}) {
+  const templateEntry = resolveTemplateEntry(payload, context, 'schema');
+  const effectivePayload = applyTemplateDefaults(payload, templateEntry);
+  const databaseName = effectivePayload.databaseName ?? context.databaseName;
+  const schemaName = effectivePayload.schemaName ?? context.schemaName;
+  const statements = [];
+  const safeGuards = [
+    'Schema templates only provide bounded defaults and do not execute arbitrary SQL.',
+    'Schema comments are rendered from documentation fields rather than raw COMMENT text blobs.',
+    'Workspace bindings remain metadata and are not expanded into ad hoc role grants here.'
+  ];
+
+  if (action === 'create') {
+    statements.push(`CREATE SCHEMA ${quoteIdent(schemaName)} AUTHORIZATION ${quoteIdent(effectivePayload.ownerRoleName)}`);
+  }
+
+  if (action === 'update' && effectivePayload.ownerRoleName) {
+    statements.push(`ALTER SCHEMA ${quoteIdent(schemaName)} OWNER TO ${quoteIdent(effectivePayload.ownerRoleName)}`);
+  }
+
+  if (action === 'delete') {
+    statements.push(`DROP SCHEMA ${quoteIdent(schemaName)}`);
+  }
+
+  if (action === 'create' || action === 'update') {
+    const schemaComment = renderPostgresDocumentationComment(effectivePayload.documentation, effectivePayload.comment);
+    if (schemaComment || Object.prototype.hasOwnProperty.call(payload, 'comment') || Object.prototype.hasOwnProperty.call(payload, 'documentation')) {
+      statements.push(`COMMENT ON SCHEMA ${quoteIdent(schemaName)} IS ${schemaComment ? quoteLiteral(schemaComment) : 'NULL'}`);
+    }
+  }
+
+  return {
+    resourceKind: 'schema',
+    action,
+    databaseName,
+    schemaName,
+    statements,
+    lockTargets: [`${databaseName}.${schemaName}`],
+    transactionMode: 'transactional_ddl',
+    safeGuards
+  };
+}
+
+function buildPostgresAdministrativeSqlPlan({ resourceKind, action, payload = {}, context = {} } = {}) {
+  if (!isMutation(action)) return undefined;
+
+  if (resourceKind === 'database') {
+    return buildDatabaseSqlPlan({ action, payload, context });
+  }
+
+  if (resourceKind === 'schema') {
+    return buildSchemaSqlPlan({ action, payload, context });
+  }
+
+  if (POSTGRES_GOVERNANCE_RESOURCE_KINDS.includes(resourceKind)) {
+    return buildPostgresGovernanceSqlPlan({ resourceKind, action, payload, context });
+  }
+
+  if (POSTGRES_STRUCTURAL_RESOURCE_KINDS.includes(resourceKind) && resourceKind !== 'type') {
+    return buildPostgresStructuralSqlPlan({ resourceKind, action, payload, context });
+  }
+
+  return undefined;
+}
+
 export function buildPostgresAdminAdapterCall({
   resourceKind,
   action,
@@ -855,15 +1089,12 @@ export function buildPostgresAdminAdapterCall({
     profile: validation.profile,
     allowedTypeCatalog: context.allowedTypeCatalog ?? buildAllowedPostgresTypeCatalog(context.clusterFeatures)
   };
-  const ddlPlan =
-    POSTGRES_STRUCTURAL_RESOURCE_KINDS.includes(resourceKind) && resourceKind !== 'type' && isMutation(action)
-      ? buildPostgresStructuralSqlPlan({
-          resourceKind,
-          action,
-          payload,
-          context: normalizedContext
-        })
-      : undefined;
+  const ddlPlan = buildPostgresAdministrativeSqlPlan({
+    resourceKind,
+    action,
+    payload,
+    context: normalizedContext
+  });
 
   return {
     call_id: callId,
@@ -903,6 +1134,12 @@ export function buildPostgresAdminInventorySnapshot({
   schemas = [],
   tables = [],
   columns = [],
+  sequences = [],
+  tableSecurity = [],
+  policies = [],
+  grants = [],
+  extensions = [],
+  templates = [],
   constraints = [],
   indexes = [],
   views = [],
@@ -919,7 +1156,10 @@ export function buildPostgresAdminInventorySnapshot({
     .map((schema) => ({
       databaseName: schema.databaseName,
       schemaName: schema.schemaName ?? schema.name,
-      workspaceBindings: listUsage(schema.workspaceBindings)
+      workspaceBindings: listUsage(schema.workspaceBindings),
+      comment: schema.comment,
+      documentationSummary: schema.documentation?.summary,
+      templateId: schema.templateBinding?.templateId ?? schema.templateId
     }))
     .filter((schema) => schema.databaseName && schema.schemaName);
   const tableRefs = tables
@@ -927,10 +1167,68 @@ export function buildPostgresAdminInventorySnapshot({
       databaseName: table.databaseName,
       schemaName: table.schemaName,
       tableName: table.tableName ?? table.name,
-      columnCount: Number(table.columnCount ?? 0)
+      columnCount: Number(table.columnCount ?? 0),
+      documented: Boolean(table.comment || table.documentation?.summary)
     }))
     .filter((table) => table.databaseName && table.schemaName && table.tableName);
   const totalColumns = columns.length > 0 ? columns.length : tableRefs.reduce((count, table) => count + table.columnCount, 0);
+  const sequenceRefs = sequences
+    .map((sequence) => ({
+      databaseName: sequence.databaseName,
+      schemaName: sequence.schemaName,
+      sequenceName: sequence.sequenceName ?? sequence.name,
+      ownedByTableName: sequence.ownedByTableName,
+      ownedByColumnName: sequence.ownedByColumnName
+    }))
+    .filter((sequence) => sequence.databaseName && sequence.schemaName && sequence.sequenceName);
+  const tableSecurityRefs = tableSecurity
+    .map((entry) => ({
+      databaseName: entry.databaseName,
+      schemaName: entry.schemaName,
+      tableName: entry.tableName,
+      rlsEnabled: entry.rlsEnabled !== false,
+      forceRls: entry.forceRls === true,
+      policyCount: Number(entry.policyCount ?? 0)
+    }))
+    .filter((entry) => entry.databaseName && entry.schemaName && entry.tableName);
+  const policyRefs = policies
+    .map((policy) => ({
+      databaseName: policy.databaseName,
+      schemaName: policy.schemaName,
+      tableName: policy.tableName,
+      policyName: policy.policyName ?? policy.name,
+      command: policy.appliesTo?.command ?? policy.command ?? 'all',
+      policyMode: policy.policyMode ?? 'permissive'
+    }))
+    .filter((policy) => policy.databaseName && policy.schemaName && policy.tableName && policy.policyName);
+  const grantRefs = grants
+    .map((grant) => ({
+      grantId: grant.grantId,
+      granteeRoleName: grant.granteeRoleName,
+      objectType: grant.target?.objectType ?? grant.objectType,
+      databaseName: grant.target?.databaseName ?? grant.databaseName,
+      schemaName: grant.target?.schemaName ?? grant.schemaName,
+      objectName: grant.target?.objectName ?? grant.objectName ?? grant.tableName ?? grant.sequenceName ?? grant.routineName,
+      privilegeCount: Number(grant.privileges?.length ?? 0)
+    }))
+    .filter((grant) => grant.granteeRoleName && grant.objectType && grant.databaseName && grant.schemaName);
+  const extensionRefs = extensions
+    .map((extension) => ({
+      databaseName: extension.databaseName,
+      extensionName: extension.extensionName,
+      schemaName: extension.schemaName,
+      authorized: extension.authorized !== false,
+      requestedVersion: extension.requestedVersion ?? extension.version ?? extension.installedVersion
+    }))
+    .filter((extension) => extension.databaseName && extension.extensionName);
+  const templateRefs = templates
+    .map((template) => ({
+      templateId: template.templateId,
+      templateScope: template.templateScope ?? template.scope,
+      description: template.description ?? template.documentation?.summary,
+      extensionCount: Number(template.defaults?.extensions?.length ?? 0)
+    }))
+    .filter((template) => template.templateId && template.templateScope);
   const constraintRefs = constraints
     .map((constraint) => ({
       databaseName: constraint.databaseName,
@@ -946,7 +1244,8 @@ export function buildPostgresAdminInventorySnapshot({
       schemaName: index.schemaName,
       tableName: index.tableName,
       indexName: index.indexName ?? index.name,
-      indexMethod: index.indexMethod ?? index.method
+      indexMethod: index.indexMethod ?? index.method,
+      documented: Boolean(index.comment || index.documentation?.summary)
     }))
     .filter((index) => index.databaseName && index.schemaName && index.tableName && index.indexName);
   const viewRefs = views
@@ -971,7 +1270,8 @@ export function buildPostgresAdminInventorySnapshot({
       databaseName: routine.databaseName,
       schemaName: routine.schemaName,
       routineName: routine.routineName ?? routine.name,
-      signature: routine.signature
+      signature: routine.signature,
+      documented: Boolean(routine.comment || routine.documentation?.summary)
     }))
     .filter((routine) => routine.databaseName && routine.schemaName && routine.routineName);
   const procedureRefs = procedures
@@ -982,6 +1282,67 @@ export function buildPostgresAdminInventorySnapshot({
       signature: routine.signature
     }))
     .filter((routine) => routine.databaseName && routine.schemaName && routine.routineName);
+  const documentationRefs = [
+    ...databases
+      .filter((database) => database.comment || database.documentation?.summary)
+      .map((database) => ({
+        resourceKind: 'database',
+        databaseName: database.databaseName,
+        summary: database.documentation?.summary,
+        commentPresent: Boolean(database.comment)
+      })),
+    ...schemas
+      .filter((schema) => schema.comment || schema.documentation?.summary)
+      .map((schema) => ({
+        resourceKind: 'schema',
+        databaseName: schema.databaseName,
+        schemaName: schema.schemaName,
+        summary: schema.documentation?.summary,
+        commentPresent: Boolean(schema.comment)
+      })),
+    ...tables
+      .filter((table) => table.comment || table.documentation?.summary)
+      .map((table) => ({
+        resourceKind: 'table',
+        databaseName: table.databaseName,
+        schemaName: table.schemaName,
+        tableName: table.tableName,
+        summary: table.documentation?.summary,
+        commentPresent: Boolean(table.comment)
+      })),
+    ...columns
+      .filter((column) => column.comment || column.documentation?.summary)
+      .map((column) => ({
+        resourceKind: 'column',
+        databaseName: column.databaseName,
+        schemaName: column.schemaName,
+        tableName: column.tableName,
+        columnName: column.columnName,
+        summary: column.documentation?.summary,
+        commentPresent: Boolean(column.comment)
+      })),
+    ...indexes
+      .filter((index) => index.comment || index.documentation?.summary)
+      .map((index) => ({
+        resourceKind: 'index',
+        databaseName: index.databaseName,
+        schemaName: index.schemaName,
+        tableName: index.tableName,
+        indexName: index.indexName,
+        summary: index.documentation?.summary,
+        commentPresent: Boolean(index.comment)
+      })),
+    ...functions
+      .filter((routine) => routine.comment || routine.documentation?.summary)
+      .map((routine) => ({
+        resourceKind: 'function',
+        databaseName: routine.databaseName,
+        schemaName: routine.schemaName,
+        routineName: routine.routineName,
+        summary: routine.documentation?.summary,
+        commentPresent: Boolean(routine.comment)
+      }))
+  ];
 
   return {
     snapshotId: `pginv_${normalizeIdentifier(tenantId ?? 'tenant')}_${normalizeIdentifier(workspaceId ?? 'workspace')}`,
@@ -999,12 +1360,19 @@ export function buildPostgresAdminInventorySnapshot({
       schemas: schemaRefs.length,
       tables: tableRefs.length,
       columns: totalColumns,
+      sequences: sequenceRefs.length,
+      tableSecurityProfiles: tableSecurityRefs.length,
+      policies: policyRefs.length,
+      grants: grantRefs.length,
+      extensions: extensionRefs.length,
+      templates: templateRefs.length,
       constraints: constraintRefs.length,
       indexes: indexRefs.length,
       views: viewRefs.length,
       materializedViews: materializedViewRefs.length,
       functions: functionRefs.length,
-      procedures: procedureRefs.length
+      procedures: procedureRefs.length,
+      documentationEntries: documentationRefs.length
     },
     quotas: {
       roles: computeQuotaStatus(profile.quotaGuardrails.roles, roleNames.length),
@@ -1025,6 +1393,13 @@ export function buildPostgresAdminInventorySnapshot({
     databaseNames,
     schemaRefs,
     tableRefs,
+    sequenceRefs,
+    tableSecurityRefs,
+    policyRefs,
+    grantRefs,
+    extensionRefs,
+    templateRefs,
+    documentationRefs,
     constraintRefs,
     indexRefs,
     viewRefs,
@@ -1041,6 +1416,10 @@ export function buildPostgresAdminInventorySnapshot({
               .filter((schema) => schema.databaseName === databaseName)
               .flatMap((schema) => schema.workspaceBindings ?? [])
           ),
+          sequenceCount: sequenceRefs.filter((sequence) => sequence.databaseName === databaseName).length,
+          policyCount: policyRefs.filter((policy) => policy.databaseName === databaseName).length,
+          grantCount: grantRefs.filter((grant) => grant.databaseName === databaseName).length,
+          extensionCount: extensionRefs.filter((extension) => extension.databaseName === databaseName).length,
           viewCount: viewRefs.filter((view) => view.databaseName === databaseName).length,
           materializedViewCount: materializedViewRefs.filter((view) => view.databaseName === databaseName).length,
           functionCount: functionRefs.filter((routine) => routine.databaseName === databaseName).length,
@@ -1083,15 +1462,28 @@ export function buildPostgresAdminMetadataRecord({
                     ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}.${resource.constraintName}`
                     : resource?.databaseName && resource?.schemaName && resource?.indexName
                       ? `${resource.databaseName}.${resource.schemaName}.${resource.indexName}`
-                      : resource?.databaseName && resource?.schemaName
-                        ? `${resource.databaseName}.${resource.schemaName}`
-                        : resource?.databaseName) ??
+                      : resource?.databaseName && resource?.schemaName && resource?.tableName && resource?.policyName
+                        ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}.${resource.policyName}`
+                        : resource?.target?.databaseName && resource?.target?.schemaName && resource?.granteeRoleName
+                          ? `${resource.target.databaseName}.${resource.target.schemaName}.${resource.target.objectType}.${resource.target.objectName ?? resource.target.schemaName}.${resource.granteeRoleName}`
+                          : resource?.databaseName && resource?.extensionName
+                            ? `${resource.databaseName}.extension.${resource.extensionName}`
+                            : resource?.templateId
+                              ? resource.templateId
+                              : resource?.databaseName && resource?.schemaName && resource?.tableName && Object.prototype.hasOwnProperty.call(resource ?? {}, 'rlsEnabled')
+                                ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}.security`
+                                : resource?.databaseName && resource?.schemaName
+                                  ? `${resource.databaseName}.${resource.schemaName}`
+                                  : resource?.databaseName) ??
         resource?.tableName ??
         resource?.columnName ??
         resource?.viewName ??
         resource?.materializedViewName ??
         resource?.constraintName ??
         resource?.indexName ??
+        resource?.policyName ??
+        resource?.extensionName ??
+        resource?.templateId ??
         resource?.routineName ??
         resource?.fullName,
       placementMode: resource?.placementMode,
@@ -1102,4 +1494,4 @@ export function buildPostgresAdminMetadataRecord({
   };
 }
 
-export { buildAllowedPostgresTypeCatalog, buildPostgresStructuralSqlPlan };
+export { buildAllowedPostgresTypeCatalog, buildPostgresAdministrativeSqlPlan, buildPostgresGovernanceSqlPlan, buildPostgresStructuralSqlPlan, evaluatePostgresDataApiAccess };

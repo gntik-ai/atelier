@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-24",
-    "openapi_semver": "1.13.0"
+    "openapi_semver": "1.14.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -691,6 +691,36 @@
     },
     {
       "resource_type": "postgres_procedure",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_table_security",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_policy",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_grant",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_extension",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_template",
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": "database"
