@@ -457,7 +457,9 @@
     "database": [
       "database.read",
       "database.write",
-      "database.admin"
+      "database.admin",
+      "database.rpc.execute",
+      "database.admin_sql.execute"
     ],
     "bucket": [
       "bucket.read",
@@ -554,11 +556,14 @@
       ],
       "delegable_actions": [
         "database.read",
-        "database.write"
+        "database.write",
+        "database.rpc.execute"
       ],
       "forbidden_actions": [
         "database.admin_without_workspace_admin",
-        "cross_workspace_connection_reuse"
+        "cross_workspace_connection_reuse",
+        "database.admin_sql_without_explicit_confirmation",
+        "database.admin_sql_from_automation"
       ]
     },
     {
@@ -798,7 +803,9 @@
           "service_account.admin",
           "service_account.rotate",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "database.rpc.execute",
+          "database.admin_sql.execute"
         ]
       },
       {
@@ -923,7 +930,9 @@
           "app.federation.manage",
           "app.attribute_mappers.manage",
           "app.logout.manage",
-          "app.templates.read"
+          "app.templates.read",
+          "database.rpc.execute",
+          "database.admin_sql.execute"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -957,7 +966,9 @@
           "app.federation.manage",
           "app.attribute_mappers.manage",
           "app.logout.manage",
-          "app.templates.read"
+          "app.templates.read",
+          "database.rpc.execute",
+          "database.admin_sql.execute"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -984,7 +995,8 @@
           "service_account.read",
           "app.federation.read",
           "app.attribute_mappers.manage",
-          "app.templates.read"
+          "app.templates.read",
+          "database.rpc.execute"
         ],
         "denied_actions": [
           "workspace.members.manage",
@@ -1001,7 +1013,8 @@
           "service_account.credentials.issue",
           "service_account.credentials.revoke",
           "app.federation.manage",
-          "app.logout.manage"
+          "app.logout.manage",
+          "database.admin_sql.execute"
         ]
       },
       {
@@ -1085,7 +1098,9 @@
           "service_account.credentials.revoke",
           "app.federation.manage",
           "app.attribute_mappers.manage",
-          "app.logout.manage"
+          "app.logout.manage",
+          "database.rpc.execute",
+          "database.admin_sql.execute"
         ]
       },
       {
@@ -1102,7 +1117,8 @@
           "function.read",
           "function.invoke",
           "app.read",
-          "service_account.read"
+          "service_account.read",
+          "database.rpc.execute"
         ],
         "denied_actions": [
           "workspace.update",
@@ -1120,7 +1136,8 @@
           "service_account.rotate",
           "service_account.admin",
           "service_account.credentials.issue",
-          "service_account.credentials.revoke"
+          "service_account.credentials.revoke",
+          "database.admin_sql.execute"
         ]
       }
     ]

@@ -241,7 +241,7 @@
       "id": "postgres",
       "title": "Postgres",
       "prefix": "/v1/postgres",
-      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts.",
+      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API CRUD/query routes exposed through safe BaaS contracts. Includes workspace-scoped data RPC routines and a restricted admin SQL channel.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "provisioning_request",
@@ -735,6 +735,18 @@
     },
     {
       "resource_type": "postgres_data_row",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_data_rpc",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_admin_sql",
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": "database"

@@ -129,6 +129,22 @@ export const POSTGRES_ADMIN_CAPABILITY_MATRIX = Object.freeze({
   template: Object.freeze(['list', 'get', 'create', 'update', 'delete'])
 });
 
+export const POSTGRES_ADMIN_SQL_ALLOWED_ORIGIN_SURFACES = Object.freeze(['web_console', 'control_api']);
+export const POSTGRES_ADMIN_SQL_REQUIRED_SCOPES = Object.freeze(['database.admin']);
+export const POSTGRES_ADMIN_SQL_ALLOWED_EFFECTIVE_ROLES = Object.freeze([
+  'workspace_owner',
+  'workspace_admin',
+  'workspace_operator',
+  'platform_operator',
+  'platform_team'
+]);
+export const POSTGRES_ADMIN_SQL_PLAN_FLAGS_BY_PLAN = Object.freeze({
+  pln_01starter: Object.freeze([]),
+  pln_01growth: Object.freeze([]),
+  pln_01regulated: Object.freeze(['postgres.admin_sql', 'postgres.admin_sql.audit']),
+  pln_01enterprise: Object.freeze(['postgres.admin_sql', 'postgres.admin_sql.audit'])
+});
+
 export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
   pln_01starter: Object.freeze({
     roles: { limit: 16, scope: 'workspace', metricKey: 'workspace.postgres.roles.max' },
@@ -677,6 +693,439 @@ function buildPostgresAuditSummary({ resourceKind, action, ddlPreview, warnings 
       rowAccessModel: tenantIsolation?.rowAccessModel
     })
   });
+}
+
+
+function splitSqlStatements(sqlText = '') {
+  const statements = [];
+  let current = '';
+  let inSingle = false;
+  let inDouble = false;
+
+  for (let index = 0; index < sqlText.length; index += 1) {
+    const char = sqlText[index];
+    const next = sqlText[index + 1];
+
+    if (!inDouble && char === '\'' && sqlText[index - 1] !== '\\') {
+      inSingle = !inSingle;
+      current += char;
+      continue;
+    }
+
+    if (!inSingle && char === '"' && sqlText[index - 1] !== '\\') {
+      inDouble = !inDouble;
+      current += char;
+      continue;
+    }
+
+    if (!inSingle && !inDouble && char === ';') {
+      const normalized = current.trim();
+      if (normalized) statements.push(normalized);
+      current = '';
+      continue;
+    }
+
+    if (!inSingle && !inDouble && char === '-' && next === '-') {
+      while (index < sqlText.length && sqlText[index] !== '\n') index += 1;
+      continue;
+    }
+
+    current += char;
+  }
+
+  const normalized = current.trim();
+  if (normalized) statements.push(normalized);
+  return statements;
+}
+
+function normalizePostgresAdminSqlText(sqlText) {
+  if (typeof sqlText !== 'string' || sqlText.trim().length === 0) {
+    throw new Error('Administrative SQL requests must include sqlText.');
+  }
+
+  return sqlText.trim().replace(/;+$/u, '').trim();
+}
+
+function classifyPostgresAdminSqlStatement(sqlText = '') {
+  const normalized = sqlText.trim().replace(/^\(+/, '').toUpperCase();
+  if (/^(SELECT|WITH|EXPLAIN)\b/.test(normalized)) return 'read';
+  if (/^(INSERT|UPDATE|DELETE|MERGE)\b/.test(normalized)) return 'dml';
+  if (/^(CREATE|ALTER|DROP|TRUNCATE|COMMENT|GRANT|REVOKE|REINDEX)\b/.test(normalized)) return 'ddl';
+  if (/^(VACUUM|ANALYZE|REFRESH|CALL)\b/.test(normalized)) return 'maintenance';
+  return 'other';
+}
+
+function compilePostgresAdminSqlParameters(sqlText, parameters) {
+  if (Array.isArray(parameters)) {
+    return {
+      sqlText,
+      values: parameters,
+      parameterMode: parameters.length > 0 ? 'positional' : 'none',
+      parameterCount: parameters.length
+    };
+  }
+
+  if (!parameters || typeof parameters !== 'object') {
+    return {
+      sqlText,
+      values: [],
+      parameterMode: 'none',
+      parameterCount: 0
+    };
+  }
+
+  const values = [];
+  const sqlWithBindings = sqlText.replace(/(?<!:):([A-Za-z_][A-Za-z0-9_]*)/g, (_, parameterName) => {
+    if (!Object.prototype.hasOwnProperty.call(parameters, parameterName)) {
+      throw new Error(`Missing SQL parameter ${parameterName}.`);
+    }
+
+    values.push(parameters[parameterName]);
+    return `$${values.length}`;
+  });
+
+  return {
+    sqlText: sqlWithBindings,
+    values,
+    parameterMode: values.length > 0 ? 'named' : 'none',
+    parameterCount: values.length
+  };
+}
+
+function resolvePostgresAdminSqlPlanFlags(planId) {
+  const resolvedPlanId = resolvePlan(planId)?.planId ?? planId ?? 'pln_01starter';
+  return POSTGRES_ADMIN_SQL_PLAN_FLAGS_BY_PLAN[resolvedPlanId] ?? [];
+}
+
+export function resolvePostgresAdminSqlPolicy({ planId, originSurface, actorType, scopes = [], effectiveRoles = [] } = {}) {
+  const planFlags = resolvePostgresAdminSqlPlanFlags(planId);
+
+  return {
+    planId: resolvePlan(planId)?.planId ?? planId ?? 'pln_01starter',
+    planFlags,
+    enabled: planFlags.includes('postgres.admin_sql'),
+    auditRequired: planFlags.includes('postgres.admin_sql.audit'),
+    previewRequired: true,
+    explicitConfirmationRequired: true,
+    allowedOriginSurfaces: POSTGRES_ADMIN_SQL_ALLOWED_ORIGIN_SURFACES,
+    requiredScopes: POSTGRES_ADMIN_SQL_REQUIRED_SCOPES,
+    allowedEffectiveRoles: POSTGRES_ADMIN_SQL_ALLOWED_EFFECTIVE_ROLES,
+    originSurface: originSurface ?? 'unknown',
+    actorType: actorType ?? 'human_operator',
+    scopes,
+    effectiveRoles
+  };
+}
+
+export function validatePostgresAdminSqlRequest({
+  payload = {},
+  planId,
+  scopes = [],
+  effectiveRoles = [],
+  actorType,
+  originSurface,
+  context = {}
+} = {}) {
+  const violations = [];
+  const executionMode = resolvePostgresExecutionMode(payload, context);
+  const policy = resolvePostgresAdminSqlPolicy({
+    planId: context.planId ?? planId,
+    originSurface: context.originSurface ?? originSurface,
+    actorType: context.actorType ?? actorType,
+    scopes,
+    effectiveRoles
+  });
+  const sqlText = payload.sqlText ?? payload.sql ?? payload.query ?? '';
+  let normalizedSqlText = '';
+  let statements = [];
+  let statementType = 'other';
+
+  if (!policy.enabled) {
+    violations.push(`Administrative SQL requires plan flag postgres.admin_sql for plan ${policy.planId}.`);
+  }
+
+  if (!policy.allowedOriginSurfaces.includes(policy.originSurface)) {
+    violations.push(`Administrative SQL is only available from ${policy.allowedOriginSurfaces.join(', ')} origins.`);
+  }
+
+  if (policy.actorType !== 'human_operator' && policy.actorType !== 'platform_operator') {
+    violations.push('Administrative SQL can only be initiated by human-operated admin contexts.');
+  }
+
+  for (const requiredScope of policy.requiredScopes) {
+    if (!scopes.includes(requiredScope)) {
+      violations.push(`Administrative SQL requires scope ${requiredScope}.`);
+    }
+  }
+
+  if (!effectiveRoles.some((role) => policy.allowedEffectiveRoles.includes(role))) {
+    violations.push(`Administrative SQL requires one of the effective roles: ${policy.allowedEffectiveRoles.join(', ')}.`);
+  }
+
+  try {
+    normalizedSqlText = normalizePostgresAdminSqlText(sqlText);
+    statements = splitSqlStatements(normalizedSqlText);
+    if (statements.length !== 1) {
+      violations.push('Administrative SQL accepts exactly one SQL statement per request.');
+    }
+    statementType = classifyPostgresAdminSqlStatement(statements[0] ?? normalizedSqlText);
+  } catch (error) {
+    violations.push(error.message);
+  }
+
+  const forbiddenPatterns = [
+    { pattern: /\bALTER\s+SYSTEM\b/i, reason: 'ALTER SYSTEM is forbidden on managed PostgreSQL surfaces.' },
+    { pattern: /\bCOPY\s+.+\bPROGRAM\b/i, reason: 'COPY PROGRAM is forbidden on managed PostgreSQL surfaces.' },
+    { pattern: /\bSET\s+ROLE\b/i, reason: 'SET ROLE is forbidden; effective roles are resolved by the control plane.' },
+    { pattern: /\bRESET\s+ROLE\b/i, reason: 'RESET ROLE is forbidden on the administrative SQL surface.' },
+    { pattern: /\bBEGIN\b|\bCOMMIT\b|\bROLLBACK\b/i, reason: 'Transaction control statements are forbidden; the admin SQL channel executes one managed statement at a time.' }
+  ];
+
+  for (const rule of forbiddenPatterns) {
+    if (rule.pattern.test(normalizedSqlText)) {
+      violations.push(rule.reason);
+    }
+  }
+
+  if (executionMode === 'execute') {
+    const confirmation = payload.confirmation ?? {};
+    if (confirmation.confirmed !== true) {
+      violations.push('Administrative SQL execution requires explicit confirmation.confirmed=true.');
+    }
+    if (typeof confirmation.statementFingerprint !== 'string' || confirmation.statementFingerprint.length !== 24) {
+      violations.push('Administrative SQL execution requires a 24-character confirmation.statementFingerprint.');
+    }
+  }
+
+  return {
+    ok: violations.length === 0,
+    violations,
+    policy,
+    executionMode,
+    normalizedSqlText,
+    statementType
+  };
+}
+
+function buildPostgresAdminSqlPreview({ compiledQuery, executionMode, statementType, planFlags }) {
+  const statementFingerprint = createHash('sha256').update(compiledQuery.sqlText).digest('hex').slice(0, 24);
+
+  return {
+    executionMode,
+    statementFingerprint,
+    statementType,
+    parameterMode: compiledQuery.parameterMode,
+    parameterCount: compiledQuery.parameterCount,
+    transactionMode: 'single_statement',
+    planFlags,
+    safeGuards: [
+      'One-statement execution only; multi-statement batches are rejected.',
+      'Parameters remain bound separately from sqlText when provided.',
+      'Execution requires explicit fingerprint confirmation outside preview mode.'
+    ],
+    sqlText: compiledQuery.sqlText
+  };
+}
+
+function buildPostgresAdminSqlWarnings({ statementType, executionMode, normalizedSqlText, originSurface }) {
+  const warnings = [];
+  const destructive = /\bDROP\b|\bTRUNCATE\b/i.test(normalizedSqlText);
+  const lockSensitive = /\bFOR\s+UPDATE\b|\bLOCK\s+TABLE\b|\bALTER\s+TABLE\b/i.test(normalizedSqlText);
+
+  if (executionMode === 'preview') {
+    warnings.push({
+      warningCode: 'preview_only',
+      severity: 'info',
+      category: 'execution_mode',
+      summary: 'Preview mode renders the normalized administrative SQL without executing it.',
+      impactLevel: 'none',
+      requiresAcknowledgement: false
+    });
+  }
+
+  if (statementType !== 'read') {
+    warnings.push({
+      warningCode: 'admin_sql_high_privilege',
+      severity: destructive ? 'critical' : 'high',
+      category: 'privileged_sql',
+      summary: 'This administrative SQL statement can mutate provider-managed PostgreSQL state.',
+      detail: `Origin surface ${originSurface} must remain restricted to trusted operators with explicit confirmation evidence.`,
+      impactLevel: destructive ? 'critical' : 'high',
+      requiresAcknowledgement: true
+    });
+  }
+
+  if (lockSensitive) {
+    warnings.push({
+      warningCode: 'admin_sql_lock_risk',
+      severity: 'high',
+      category: 'locking',
+      summary: 'This administrative SQL statement can block concurrent traffic or metadata changes.',
+      impactLevel: 'high',
+      requiresAcknowledgement: true
+    });
+  }
+
+  if (destructive) {
+    warnings.push({
+      warningCode: 'admin_sql_destructive',
+      severity: 'critical',
+      category: 'destructive_change',
+      summary: 'This administrative SQL statement includes destructive DDL or truncation semantics.',
+      impactLevel: 'critical',
+      requiresAcknowledgement: true
+    });
+  }
+
+  return warnings;
+}
+
+function buildPostgresAdminSqlRiskProfile({ executionMode, statementType, warnings = [] } = {}) {
+  const destructive = warnings.some((warning) => warning.warningCode === 'admin_sql_destructive');
+
+  return {
+    executionMode,
+    riskLevel: summarizePostgresRiskLevel(warnings),
+    statementCount: 1,
+    lockTargetCount: warnings.some((warning) => warning.warningCode === 'admin_sql_lock_risk') ? 1 : 0,
+    blockingLikely: warnings.some((warning) => warning.warningCode === 'admin_sql_lock_risk'),
+    destructive,
+    acknowledgementRequired: warnings.some((warning) => warning.requiresAcknowledgement === true),
+    transactionMode: statementType === 'read' ? 'single_statement' : 'single_transaction'
+  };
+}
+
+function buildPostgresAdminSqlAuditSummary({ executionMode, statementFingerprint, warnings = [], originSurface, policy } = {}) {
+  return {
+    operationClass: 'administrative_sql',
+    action: 'execute',
+    executionMode,
+    capturesSqlText: true,
+    capturesStatementFingerprint: true,
+    capturesWarnings: warnings.length > 0,
+    capturesTenantIsolation: false,
+    warningCount: warnings.length,
+    statementFingerprint,
+    evidence: compactDefined({
+      originSurface,
+      requiredPlanFlags: policy?.planFlags,
+      explicitConfirmationRequired: policy?.explicitConfirmationRequired === true
+    })
+  };
+}
+
+export function buildPostgresAdminSqlAdapterCall({
+  payload = {},
+  targetRef,
+  callId,
+  tenantId,
+  workspaceId,
+  planId,
+  scopes = [],
+  effectiveRoles = [],
+  correlationId,
+  authorizationDecisionId,
+  idempotencyKey,
+  requestedAt = '2026-03-24T00:00:00Z',
+  identityBlueprintRef = 'identity-blueprint-platform-v1',
+  context = {}
+} = {}) {
+  const validation = validatePostgresAdminSqlRequest({
+    payload,
+    planId,
+    scopes,
+    effectiveRoles,
+    actorType: context.actorType,
+    originSurface: context.originSurface,
+    context: {
+      ...context,
+      planId: context.planId ?? planId
+    }
+  });
+
+  if (!validation.ok) {
+    const error = new Error('PostgreSQL administrative SQL request failed validation.');
+    error.validation = validation;
+    throw error;
+  }
+
+  const compiledQuery = compilePostgresAdminSqlParameters(validation.normalizedSqlText, payload.parameters);
+  const queryPreview = buildPostgresAdminSqlPreview({
+    compiledQuery,
+    executionMode: validation.executionMode,
+    statementType: validation.statementType,
+    planFlags: validation.policy.planFlags
+  });
+
+  if (validation.executionMode === 'execute') {
+    const confirmation = payload.confirmation ?? {};
+    if (confirmation.statementFingerprint !== queryPreview.statementFingerprint) {
+      const error = new Error('Administrative SQL confirmation fingerprint does not match the compiled query preview.');
+      error.validation = {
+        ...validation,
+        violations: [
+          ...(validation.violations ?? []),
+          'Administrative SQL confirmation fingerprint must match the compiled query preview.'
+        ]
+      };
+      throw error;
+    }
+  }
+
+  const preExecutionWarnings = buildPostgresAdminSqlWarnings({
+    statementType: validation.statementType,
+    executionMode: validation.executionMode,
+    normalizedSqlText: validation.normalizedSqlText,
+    originSurface: validation.policy.originSurface
+  });
+  const riskProfile = buildPostgresAdminSqlRiskProfile({
+    executionMode: validation.executionMode,
+    statementType: validation.statementType,
+    warnings: preExecutionWarnings
+  });
+  const auditSummary = buildPostgresAdminSqlAuditSummary({
+    executionMode: validation.executionMode,
+    statementFingerprint: queryPreview.statementFingerprint,
+    warnings: preExecutionWarnings,
+    originSurface: validation.policy.originSurface,
+    policy: validation.policy
+  });
+
+  return {
+    call_id: callId,
+    tenant_id: tenantId,
+    adapter_id: 'postgresql',
+    capability: 'postgres_admin_sql_execute',
+    target_ref: targetRef,
+    payload: {
+      resourceKind: 'admin_sql',
+      action: 'execute',
+      executionMode: validation.executionMode,
+      originSurface: validation.policy.originSurface,
+      planFlags: validation.policy.planFlags,
+      queryPreview,
+      compiledQuery,
+      preExecutionWarnings,
+      riskProfile,
+      auditSummary,
+      providerPayload: {
+        databaseName: payload.databaseName,
+        schemaName: payload.schemaName,
+        sqlText: validation.normalizedSqlText,
+        parameters: payload.parameters
+      }
+    },
+    idempotency_key: idempotencyKey,
+    correlation_id: correlationId,
+    contract_version: postgresAdminRequestContract?.version ?? '2026-03-24',
+    requested_at: requestedAt,
+    workspace_id: workspaceId,
+    plan_id: planId,
+    scopes,
+    effective_roles: effectiveRoles,
+    authorization_decision_id: authorizationDecisionId,
+    identity_blueprint_ref: identityBlueprintRef
+  };
 }
 
 function countSchemasForDatabase(currentInventory = {}, databaseName) {

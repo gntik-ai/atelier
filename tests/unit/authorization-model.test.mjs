@@ -31,15 +31,19 @@ test('permission matrix preserves tenant and workspace boundaries', () => {
   assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('workspace.members.manage'), true);
   assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('service_account.credentials.issue'), true);
   assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('app.federation.manage'), true);
+  assert.equal(workspaceRoles.get('workspace_admin').allowed_actions.includes('database.admin_sql.execute'), true);
   assert.equal(workspaceRoles.get('workspace_admin').denied_actions.includes('tenant.suspend'), true);
   assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('function.deploy'), true);
   assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('app.redirect_uris.manage'), true);
   assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('app.templates.read'), true);
+  assert.equal(workspaceRoles.get('workspace_developer').allowed_actions.includes('database.rpc.execute'), true);
   assert.equal(workspaceRoles.get('workspace_developer').denied_actions.includes('workspace.members.manage'), true);
   assert.equal(workspaceRoles.get('workspace_operator').allowed_actions.includes('service_account.rotate'), true);
   assert.equal(workspaceRoles.get('workspace_viewer').allowed_actions.includes('function.read'), true);
+  assert.equal(workspaceRoles.get('workspace_viewer').denied_actions.includes('database.rpc.execute'), true);
   assert.equal(workspaceRoles.get('workspace_viewer').denied_actions.includes('function.invoke'), true);
   assert.equal(workspaceRoles.get('workspace_service_account').allowed_actions.includes('topic.publish'), true);
+  assert.equal(workspaceRoles.get('workspace_service_account').allowed_actions.includes('database.rpc.execute'), true);
   assert.equal(workspaceRoles.get('workspace_service_account').denied_actions.includes('service_account.credentials.issue'), true);
 
   assert.equal(tenantRoles.get('tenant_owner').allowed_actions.includes('tenant.invitations.manage'), true);
@@ -50,6 +54,7 @@ test('permission matrix preserves tenant and workspace boundaries', () => {
   assert.equal(tenantRoles.get('tenant_admin').allowed_actions.includes('workspace.effective_permissions.recalculate'), true);
   assert.equal(tenantRoles.get('tenant_admin').denied_actions.includes('tenant.ownership.transfer'), true);
   assert.equal(tenantRoles.get('tenant_admin').denied_actions.includes('database.admin'), true);
+  assert.equal(tenantRoles.get('tenant_admin').denied_actions.includes('database.admin_sql.execute'), true);
   assert.equal(tenantRoles.get('tenant_developer').allowed_actions.includes('tenant.effective_permissions.read'), true);
   assert.equal(tenantRoles.get('tenant_developer').allowed_actions.includes('app.templates.read'), true);
   assert.equal(tenantRoles.get('tenant_developer').denied_actions.includes('function.invoke'), true);

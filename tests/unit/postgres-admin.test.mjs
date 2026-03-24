@@ -3,12 +3,16 @@ import assert from 'node:assert/strict';
 
 import {
   getPostgresAdminRoute,
+  getPostgresAdminSqlRoute,
   getPostgresCompatibilitySummary,
   listPostgresAdminRoutes,
+  listPostgresAdminSqlRoutes,
   postgresApiFamily,
   summarizePostgresAdminSurface
 } from '../../apps/control-plane/src/postgres-admin.mjs';
 import {
+  buildPostgresAdminQueryConsole,
+  buildPostgresAdminQueryHistory,
   buildPostgresConstraintExplorer,
   buildPostgresExtensionExplorer,
   buildPostgresGrantExplorer,
@@ -28,6 +32,7 @@ import {
 
 test('postgres admin control-plane helpers expose the expanded postgres family surface', () => {
   const routes = listPostgresAdminRoutes();
+  const adminSqlRoutes = listPostgresAdminSqlRoutes();
   const summary = summarizePostgresAdminSurface();
   const resourceKinds = new Map(summary.map((entry) => [entry.resourceKind, entry]));
 
@@ -44,7 +49,10 @@ test('postgres admin control-plane helpers expose the expanded postgres family s
   assert.ok(routes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/grants'));
   assert.ok(routes.some((route) => route.path === '/v1/postgres/databases/{databaseName}/extensions'));
   assert.ok(routes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/templates'));
+  assert.ok(routes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/admin/{databaseName}/sql'));
+  assert.equal(adminSqlRoutes.length, 1);
   assert.equal(getPostgresAdminRoute('getPostgresInventory').resourceType, 'postgres_inventory');
+  assert.equal(getPostgresAdminSqlRoute().resourceType, 'postgres_admin_sql');
   assert.equal(getPostgresAdminRoute('getPostgresMaterializedView').resourceType, 'postgres_materialized_view');
   assert.equal(getPostgresAdminRoute('getPostgresTableSecurity').resourceType, 'postgres_table_security');
   assert.equal(getPostgresAdminRoute('getPostgresGrant').resourceType, 'postgres_grant');
@@ -61,6 +69,7 @@ test('postgres admin control-plane helpers expose the expanded postgres family s
   assert.equal(resourceKinds.get('template').routeCount, 5);
   assert.equal(resourceKinds.get('type').routeCount, 1);
   assert.equal(resourceKinds.get('inventory').routeCount, 1);
+  assert.equal(resourceKinds.get('admin_sql').routeCount, 1);
 });
 
 test('postgres admin compatibility summary reflects placement-aware capability flags and quota guardrails for advanced structural resources', () => {
@@ -83,12 +92,15 @@ test('postgres admin compatibility summary reflects placement-aware capability f
   assert.equal(growth.extensionMutationsSupported, true);
   assert.equal(growth.templateCatalogSupported, true);
   assert.equal(growth.authorizedExtensions.some((entry) => entry.extensionName === 'pgcrypto'), true);
+  assert.equal(growth.adminSqlEnabled, false);
 
   assert.equal(enterprise.placementMode, 'database_per_tenant');
   assert.equal(enterprise.databaseMutationsSupported, true);
   assert.equal(enterprise.minimumEnginePolicy.requiresCreatedb, true);
   assert.equal(enterprise.minimumEnginePolicy.forbiddenAttributes.includes('SUPERUSER'), true);
   assert.equal(enterprise.quotaGuardrails.functions.limit > enterprise.quotaGuardrails.procedures.limit, true);
+  assert.equal(enterprise.adminSqlEnabled, true);
+  assert.equal(enterprise.adminSqlPlanFlags.includes('postgres.admin_sql.audit'), true);
 });
 
 test('web console postgres helpers expose explorer sections for security grants extensions templates and advanced structural objects', () => {
@@ -352,4 +364,56 @@ test('web console postgres helpers expose explorer sections for security grants 
   assert.equal(explorer.sections.find((section) => section.id === 'materialized_views').items[0].refreshPolicy, 'manual');
   assert.equal(explorer.sections.find((section) => section.id === 'functions').items[0].signature, 'get_customer_order(uuid)');
   assert.equal(explorer.sections.find((section) => section.id === 'types').filters.kinds.includes('enum'), true);
+});
+
+
+test('web console admin SQL helpers expose a minimal query editor with history and explicit confirmation', () => {
+  const history = buildPostgresAdminQueryHistory([
+    {
+      historyId: 'hist_01',
+      queryLabel: 'Check locks',
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'pg_catalog',
+      executionMode: 'preview',
+      statementFingerprint: '1234567890abcdef12345678',
+      statementType: 'read',
+      preExecutionWarnings: []
+    }
+  ]);
+  const consoleModel = buildPostgresAdminQueryConsole({
+    workspaceId: 'wrk_01alphaprod',
+    databaseName: 'tenant_alpha_main',
+    draft: {
+      sqlText: 'SELECT * FROM pg_stat_activity WHERE datname = :databaseName',
+      parameters: { databaseName: 'tenant_alpha_main' },
+      executionMode: 'execute',
+      queryLabel: 'Inspect sessions',
+      schemaName: 'pg_catalog'
+    },
+    history,
+    queryPreview: {
+      statementFingerprint: '1234567890abcdef12345678',
+      statementType: 'read',
+      parameterMode: 'named',
+      parameterCount: 1,
+      transactionMode: 'single_statement',
+      planFlags: ['postgres.admin_sql', 'postgres.admin_sql.audit'],
+      safeGuards: ['One statement only'],
+      sqlText: 'SELECT * FROM pg_stat_activity WHERE datname = $1'
+    },
+    preExecutionWarnings: [
+      { warningCode: 'preview_only', severity: 'info', category: 'execution_mode', summary: 'Preview only', impactLevel: 'none', requiresAcknowledgement: false }
+    ],
+    riskProfile: { acknowledgementRequired: true }
+  });
+
+  assert.equal(history[0].title, 'Check locks');
+  assert.equal(history[0].statementType, 'read');
+  assert.equal(consoleModel.route.operationId, 'executePostgresAdminSql');
+  assert.equal(consoleModel.editor.language, 'sql');
+  assert.equal(consoleModel.editor.executionMode, 'execute');
+  assert.equal(consoleModel.preview.planFlags.includes('postgres.admin_sql.audit'), true);
+  assert.equal(consoleModel.confirmation.required, true);
+  assert.equal(consoleModel.confirmation.explicitConfirmation, true);
+  assert.equal(consoleModel.confirmation.intentPhrase, 'EXECUTE 1234567890abcdef12345678');
 });

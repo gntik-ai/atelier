@@ -76,6 +76,8 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(eventGatewayPublishResultContract.required_fields.includes('audit_record_id'));
   assert.ok(eventGatewaySubscriptionStatusContract.required_fields.includes('lag_snapshot'));
   assert.ok(getContract('postgres_admin_request').required_fields.includes('placement_mode'));
+  assert.ok(getContract('postgres_admin_sql_request').required_fields.includes('sql_text'));
+  assert.ok(getContract('postgres_admin_sql_result').required_fields.includes('query_preview'));
   assert.ok(getContract('postgres_admin_request').required_fields.includes('execution_mode'));
   assert.ok(getContract('postgres_admin_result').required_fields.includes('inventory_projection'));
   assert.ok(getContract('postgres_admin_result').required_fields.includes('ddl_preview'));
@@ -129,6 +131,8 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_column_update'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_type_list'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_inventory_upsert'));
+  assert.ok(postgresqlAdapter.capabilities.includes('postgres_data_rpc'));
+  assert.ok(postgresqlAdapter.capabilities.includes('postgres_admin_sql_execute'));
   assert.equal(getContract('adapter_call').required_fields.includes('provisioning_run_id'), true);
   assert.equal(getContract('adapter_call').required_fields.includes('resource_key'), true);
   assert.equal(getContract('adapter_result').required_fields.includes('resource_key'), true);
@@ -142,6 +146,7 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(interactionFlowIds.has('service_account_credential_rotation'));
   assert.ok(interactionFlowIds.has('iam_administration'));
   assert.ok(interactionFlowIds.has('postgres_administration'));
+  assert.ok(interactionFlowIds.has('postgres_admin_sql_execution'));
   assert.ok(interactionFlowIds.has('iam_lifecycle_traceability'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));
   assert.ok(interactionFlowIds.has('realtime_subscription_gateway'));

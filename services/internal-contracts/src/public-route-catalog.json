@@ -7,6 +7,7 @@
   },
   "routes": [
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -29,6 +30,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -69,6 +71,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "authorization_decision",
       "scope": "workspace",
       "summary": "Resolve a contextual authorization decision under the auth family",
@@ -82,6 +85,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -104,6 +108,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -144,6 +149,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "auth_session",
       "scope": "platform",
       "summary": "Authenticate a console operator with username/password and mint the SPA session envelope.",
@@ -157,6 +163,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -179,6 +186,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -219,6 +227,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "auth_session",
       "scope": "platform",
       "summary": "Invalidate an active console session and revoke its refresh lifecycle.",
@@ -232,6 +241,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -254,6 +264,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -294,6 +305,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "auth_session",
       "scope": "platform",
       "summary": "Rotate the console access token set from a refresh token without replaying username/password.",
@@ -307,6 +319,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -329,6 +342,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -369,6 +383,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "password_recovery",
       "scope": "platform",
       "summary": "Start password recovery for a console operator without leaking whether the account exists.",
@@ -382,6 +397,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -404,6 +420,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -444,6 +461,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "password_recovery",
       "scope": "platform",
       "summary": "Confirm a password-reset token and return the next status view for the console account.",
@@ -457,6 +475,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -479,6 +498,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -519,6 +539,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "console_signup",
       "scope": "platform",
       "summary": "Create a self-service console signup and return whether activation is automatic or pending approval.",
@@ -532,6 +553,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -554,6 +576,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -593,6 +616,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "console_signup",
       "scope": "platform",
       "summary": "Inspect the current signup registration status for pending activation, activation, or rejection messaging.",
@@ -606,6 +630,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -622,6 +647,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -662,6 +688,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "console_signup",
       "scope": "platform",
       "summary": "Approve or reject a pending self-service signup as a platform superadmin workflow.",
@@ -675,6 +702,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -697,6 +725,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -736,6 +765,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "signup_policy",
       "scope": "platform",
       "summary": "Resolve the effective self-service signup mode across global, environment, and plan overrides.",
@@ -749,6 +779,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -771,6 +802,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "auth",
       "familyTitle": "Auth",
       "gatewayAllowedHeaders": [
@@ -810,6 +842,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "account_status_view",
       "scope": "platform",
       "summary": "Resolve the canonical status-screen copy and next actions for console auth edge states.",
@@ -823,6 +856,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json",
@@ -845,6 +879,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "events",
       "familyTitle": "Events",
       "gatewayAllowedHeaders": [
@@ -887,6 +922,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "topic",
       "scope": "workspace",
       "summary": "Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family",
@@ -899,6 +935,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json",
@@ -923,6 +960,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "events",
       "familyTitle": "Events",
       "gatewayAllowedHeaders": [
@@ -964,6 +1002,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "topic",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family",
@@ -976,6 +1015,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json",
@@ -999,6 +1039,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "events",
       "familyTitle": "Events",
       "gatewayAllowedHeaders": [
@@ -1041,6 +1082,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "event_publication",
       "scope": "workspace",
       "summary": "Publish one event through the HTTP event gateway without exposing native Kafka clients",
@@ -1053,6 +1095,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json",
@@ -1077,6 +1120,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "events",
       "familyTitle": "Events",
       "gatewayAllowedHeaders": [
@@ -1118,6 +1162,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "event_stream",
       "scope": "workspace",
       "summary": "Consume one topic through the HTTP SSE event gateway with replay and backpressure hints",
@@ -1130,6 +1175,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1151,6 +1197,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "functions",
       "familyTitle": "Functions",
       "gatewayAllowedHeaders": [
@@ -1193,6 +1240,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "function",
       "scope": "workspace",
       "summary": "Submit a workspace-scoped function action provisioning request through the unified functions family",
@@ -1205,6 +1253,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1228,6 +1277,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "functions",
       "familyTitle": "Functions",
       "gatewayAllowedHeaders": [
@@ -1269,6 +1319,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "function",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped function action contract under the functions family",
@@ -1281,6 +1332,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1300,6 +1352,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1341,6 +1394,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_realm",
       "scope": "tenant",
       "summary": "List managed IAM realms through the normalized BaaS surface",
@@ -1354,6 +1408,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1373,6 +1428,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1415,6 +1471,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_realm",
       "scope": "tenant",
       "summary": "Create one managed IAM realm with normalized validation and audit semantics",
@@ -1428,6 +1485,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1447,6 +1505,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1489,6 +1548,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_realm",
       "scope": "tenant",
       "summary": "Delete one managed IAM realm through the asynchronous control-plane surface",
@@ -1502,6 +1562,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1521,6 +1582,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1562,6 +1624,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_realm",
       "scope": "tenant",
       "summary": "Fetch one managed IAM realm",
@@ -1575,6 +1638,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1594,6 +1658,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1636,6 +1701,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_realm",
       "scope": "tenant",
       "summary": "Replace the mutable IAM realm settings exposed by the BaaS contract",
@@ -1649,6 +1715,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1668,6 +1735,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1709,6 +1777,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_client",
       "scope": "workspace",
       "summary": "List managed clients inside one IAM realm",
@@ -1722,6 +1791,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1741,6 +1811,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1783,6 +1854,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_client",
       "scope": "workspace",
       "summary": "Create one managed client inside a tenant realm",
@@ -1796,6 +1868,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1815,6 +1888,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1857,6 +1931,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_client",
       "scope": "workspace",
       "summary": "Delete one managed IAM client",
@@ -1870,6 +1945,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1889,6 +1965,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -1930,6 +2007,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_client",
       "scope": "workspace",
       "summary": "Fetch one managed IAM client",
@@ -1943,6 +2021,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -1962,6 +2041,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2004,6 +2084,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_client",
       "scope": "workspace",
       "summary": "Replace the mutable settings of one managed IAM client",
@@ -2017,6 +2098,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2036,6 +2118,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2078,6 +2161,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_client",
       "scope": "workspace",
       "summary": "Activate or deactivate one managed IAM client",
@@ -2091,6 +2175,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2110,6 +2195,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2151,6 +2237,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_role",
       "scope": "tenant",
       "summary": "List managed realm roles",
@@ -2164,6 +2251,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2183,6 +2271,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2225,6 +2314,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_role",
       "scope": "tenant",
       "summary": "Create one managed realm role",
@@ -2238,6 +2328,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2257,6 +2348,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2299,6 +2391,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_role",
       "scope": "tenant",
       "summary": "Delete one managed realm role",
@@ -2312,6 +2405,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2331,6 +2425,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2372,6 +2467,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_role",
       "scope": "tenant",
       "summary": "Fetch one managed realm role",
@@ -2385,6 +2481,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2404,6 +2501,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2446,6 +2544,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_role",
       "scope": "tenant",
       "summary": "Replace the mutable settings of one managed realm role",
@@ -2459,6 +2558,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2478,6 +2578,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2519,6 +2620,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_scope",
       "scope": "tenant",
       "summary": "List managed client scopes inside one realm",
@@ -2532,6 +2634,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2551,6 +2654,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2593,6 +2697,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_scope",
       "scope": "tenant",
       "summary": "Create one managed client scope",
@@ -2606,6 +2711,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2625,6 +2731,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2667,6 +2774,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_scope",
       "scope": "tenant",
       "summary": "Delete one managed client scope",
@@ -2680,6 +2788,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2699,6 +2808,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2740,6 +2850,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_scope",
       "scope": "tenant",
       "summary": "Fetch one managed client scope",
@@ -2753,6 +2864,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2772,6 +2884,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2814,6 +2927,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_scope",
       "scope": "tenant",
       "summary": "Replace the mutable settings of one managed client scope",
@@ -2827,6 +2941,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2846,6 +2961,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2888,6 +3004,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_realm",
       "scope": "tenant",
       "summary": "Activate or deactivate one managed IAM realm",
@@ -2901,6 +3018,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2920,6 +3038,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -2961,6 +3080,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "List managed IAM users inside one realm",
@@ -2974,6 +3094,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -2993,6 +3114,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3035,6 +3157,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "Create one managed IAM user with optional bootstrap credentials, attributes, roles, and groups",
@@ -3048,6 +3171,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3067,6 +3191,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3109,6 +3234,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "Delete one managed IAM user",
@@ -3122,6 +3248,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3141,6 +3268,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3182,6 +3310,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "Fetch one managed IAM user",
@@ -3195,6 +3324,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3214,6 +3344,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3256,6 +3387,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "Replace the mutable settings of one managed IAM user",
@@ -3269,6 +3401,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3288,6 +3421,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3330,6 +3464,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "Reset one managed IAM user password or required actions without exposing provider-native payloads",
@@ -3343,6 +3478,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3362,6 +3498,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3404,6 +3541,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "iam_user",
       "scope": "tenant",
       "summary": "Activate or deactivate one managed IAM user",
@@ -3417,6 +3555,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3437,6 +3576,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3478,6 +3618,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Query actor-rich IAM lifecycle activity for one tenant.",
@@ -3491,6 +3632,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3514,6 +3656,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "iam",
       "familyTitle": "IAM",
       "gatewayAllowedHeaders": [
@@ -3555,6 +3698,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Query actor-rich IAM lifecycle activity for one workspace context.",
@@ -3568,6 +3712,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [],
       "audiences": [
@@ -3589,6 +3734,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "metrics",
       "familyTitle": "Metrics",
       "gatewayAllowedHeaders": [
@@ -3630,6 +3776,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "gateway_stream_metrics",
       "scope": "workspace",
       "summary": "Fetch gateway publish, connection, lag, and backpressure metrics for one workspace",
@@ -3642,6 +3789,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [],
       "audiences": [
@@ -3661,6 +3809,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "metrics",
       "familyTitle": "Metrics",
       "gatewayAllowedHeaders": [
@@ -3702,6 +3851,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "metric_series",
       "scope": "workspace",
       "summary": "Fetch one workspace metric series window through the unified metrics family",
@@ -3714,6 +3864,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3735,6 +3886,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "mongo",
       "familyTitle": "Mongo",
       "gatewayAllowedHeaders": [
@@ -3775,6 +3927,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "document_database",
       "scope": "workspace",
       "summary": "Submit a workspace-scoped MongoDB database provisioning request through the unified mongo family",
@@ -3787,6 +3940,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3810,6 +3964,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "mongo",
       "familyTitle": "Mongo",
       "gatewayAllowedHeaders": [
@@ -3849,6 +4004,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "document_database",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped MongoDB database contract under the mongo family",
@@ -3861,6 +4017,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3877,6 +4034,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -3917,6 +4075,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "deployment_profile",
       "scope": "platform",
       "summary": "Submit a deployment profile write request",
@@ -3930,6 +4089,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -3946,6 +4106,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -3985,6 +4146,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "deployment_profile",
       "scope": "platform",
       "summary": "Fetch one deployment profile",
@@ -3998,6 +4160,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4014,6 +4177,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4054,6 +4218,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "plan",
       "scope": "platform",
       "summary": "Submit a commercial plan write request",
@@ -4067,6 +4232,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4083,6 +4249,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4122,6 +4289,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "plan",
       "scope": "platform",
       "summary": "Fetch one commercial plan",
@@ -4135,6 +4303,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4151,6 +4320,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4191,6 +4361,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "plan",
       "scope": "platform",
       "summary": "Submit a quota policy write request",
@@ -4204,6 +4375,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4220,6 +4392,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4259,6 +4432,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "plan",
       "scope": "platform",
       "summary": "Fetch one quota policy",
@@ -4272,6 +4446,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4288,6 +4463,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4328,6 +4504,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "provider_capability",
       "scope": "platform",
       "summary": "Submit a provider capability write request",
@@ -4341,6 +4518,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4357,6 +4535,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4396,6 +4575,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "provider_capability",
       "scope": "platform",
       "summary": "Fetch one provider capability record",
@@ -4409,6 +4589,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4425,6 +4606,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4464,6 +4646,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "route_catalog",
       "scope": "platform",
       "summary": "List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility",
@@ -4477,6 +4660,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4493,6 +4677,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4533,6 +4718,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "platform_user",
       "scope": "platform",
       "summary": "Submit a canonical platform user write request under the platform family",
@@ -4546,6 +4732,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4562,6 +4749,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "platform",
       "familyTitle": "Platform",
       "gatewayAllowedHeaders": [
@@ -4601,6 +4789,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "platform_user",
       "scope": "platform",
       "summary": "Fetch one canonical platform user entity under the platform family",
@@ -4614,6 +4803,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4635,6 +4825,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -4677,6 +4868,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_database",
       "scope": "tenant",
       "summary": "List tenant-scoped PostgreSQL databases exposed by the bounded administrative surface",
@@ -4689,6 +4881,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4708,6 +4901,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -4751,6 +4945,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_database",
       "scope": "tenant",
       "summary": "Create one tenant-scoped PostgreSQL database when the placement profile supports database-per-tenant administration",
@@ -4763,6 +4958,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4782,6 +4978,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -4825,6 +5022,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_database",
       "scope": "tenant",
       "summary": "Delete one tenant-scoped PostgreSQL database through the bounded administrative surface",
@@ -4837,6 +5035,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4858,6 +5057,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -4900,6 +5100,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_database",
       "scope": "tenant",
       "summary": "Fetch one tenant-scoped PostgreSQL database contract",
@@ -4912,6 +5113,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -4931,6 +5133,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -4974,6 +5177,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_database",
       "scope": "tenant",
       "summary": "Update one tenant-scoped PostgreSQL database through the bounded administrative surface",
@@ -4986,6 +5190,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5007,6 +5212,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5049,6 +5255,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_extension",
       "scope": "workspace",
       "summary": "List authorized PostgreSQL extensions for one managed database",
@@ -5061,6 +5268,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5081,6 +5289,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5124,6 +5333,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_extension",
       "scope": "workspace",
       "summary": "Enable one authorized PostgreSQL extension for a managed database",
@@ -5136,6 +5346,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5156,6 +5367,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5199,6 +5411,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_extension",
       "scope": "workspace",
       "summary": "Disable one authorized PostgreSQL extension for a managed database",
@@ -5211,6 +5424,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5232,6 +5446,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5274,6 +5489,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_extension",
       "scope": "workspace",
       "summary": "Fetch one authorized PostgreSQL extension record for a managed database",
@@ -5286,6 +5502,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5306,6 +5523,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5349,6 +5567,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_extension",
       "scope": "workspace",
       "summary": "Update one authorized PostgreSQL extension record for a managed database",
@@ -5361,6 +5580,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5382,6 +5602,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5424,6 +5645,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_schema",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL schemas inside one managed database",
@@ -5436,6 +5658,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5455,6 +5678,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5498,6 +5722,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_schema",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL schema inside a managed database",
@@ -5510,6 +5735,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5529,6 +5755,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5572,6 +5799,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_schema",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL schema through the bounded administrative surface",
@@ -5584,6 +5812,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5605,6 +5834,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5647,6 +5877,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_schema",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL schema contract",
@@ -5659,6 +5890,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5678,6 +5910,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5721,6 +5954,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_schema",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL schema through the bounded administrative surface",
@@ -5733,6 +5967,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5754,6 +5989,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5796,6 +6032,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_function",
       "scope": "workspace",
       "summary": "List workspace-scoped tenant-exposed PostgreSQL functions inside one managed schema",
@@ -5808,6 +6045,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5828,6 +6066,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5871,6 +6110,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_function",
       "scope": "workspace",
       "summary": "Create one workspace-scoped tenant-exposed PostgreSQL function inside a managed schema",
@@ -5883,6 +6123,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5903,6 +6144,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -5946,6 +6188,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_function",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL function through the bounded administrative surface",
@@ -5958,6 +6201,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -5979,6 +6223,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6021,6 +6266,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_function",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL function contract",
@@ -6033,6 +6279,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6053,6 +6300,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6096,6 +6344,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_function",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL function through the bounded administrative surface",
@@ -6108,6 +6357,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6129,6 +6379,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6171,6 +6422,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_materialized_view",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL materialized views inside one managed schema",
@@ -6183,6 +6435,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6203,6 +6456,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6246,6 +6500,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_materialized_view",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL materialized view inside a managed schema",
@@ -6258,6 +6513,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6278,6 +6534,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6321,6 +6578,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_materialized_view",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL materialized view through the bounded administrative surface",
@@ -6333,6 +6591,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6354,6 +6613,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6396,6 +6656,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_materialized_view",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL materialized view contract",
@@ -6408,6 +6669,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6428,6 +6690,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6471,6 +6734,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_materialized_view",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL materialized view through the bounded administrative surface",
@@ -6483,6 +6747,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6504,6 +6769,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6546,6 +6812,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_procedure",
       "scope": "workspace",
       "summary": "List workspace-scoped tenant-exposed PostgreSQL procedures inside one managed schema",
@@ -6558,6 +6825,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6578,6 +6846,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6621,6 +6890,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_procedure",
       "scope": "workspace",
       "summary": "Create one workspace-scoped tenant-exposed PostgreSQL procedure inside a managed schema",
@@ -6633,6 +6903,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6653,6 +6924,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6696,6 +6968,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_procedure",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL procedure through the bounded administrative surface",
@@ -6708,6 +6981,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6729,6 +7003,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6771,6 +7046,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_procedure",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL procedure contract",
@@ -6783,6 +7059,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6803,6 +7080,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6846,6 +7124,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_procedure",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL procedure through the bounded administrative surface",
@@ -6858,6 +7137,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6879,6 +7159,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6921,6 +7202,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL tables inside one managed schema",
@@ -6933,6 +7215,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -6953,6 +7236,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -6996,6 +7280,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL table inside a managed schema",
@@ -7008,6 +7293,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7028,6 +7314,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7071,6 +7358,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL table through the bounded administrative surface",
@@ -7083,6 +7371,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7104,6 +7393,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7146,6 +7436,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL table contract",
@@ -7158,6 +7449,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7178,6 +7470,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7221,6 +7514,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL table through the bounded administrative surface",
@@ -7233,6 +7527,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7254,6 +7549,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7296,6 +7592,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_column",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL columns inside one managed table",
@@ -7308,6 +7605,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7328,6 +7626,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7371,6 +7670,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_column",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL column inside a managed table",
@@ -7383,6 +7683,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7403,6 +7704,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7446,6 +7748,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_column",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL column through the bounded administrative surface",
@@ -7458,6 +7761,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7479,6 +7783,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7521,6 +7826,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_column",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL column contract",
@@ -7533,6 +7839,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7553,6 +7860,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7596,6 +7904,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_column",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL column through the bounded administrative surface",
@@ -7608,6 +7917,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7629,6 +7939,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7671,6 +7982,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_constraint",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL constraints inside one managed table",
@@ -7683,6 +7995,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7703,6 +8016,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7746,6 +8060,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_constraint",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL constraint inside a managed table",
@@ -7758,6 +8073,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7778,6 +8094,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7821,6 +8138,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_constraint",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL constraint through the bounded administrative surface",
@@ -7833,6 +8151,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7854,6 +8173,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7896,6 +8216,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_constraint",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL constraint contract",
@@ -7908,6 +8229,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -7928,6 +8250,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -7971,6 +8294,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_constraint",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL constraint through the bounded administrative surface",
@@ -7983,6 +8307,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8004,6 +8329,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8046,6 +8372,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_index",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL indexes inside one managed table",
@@ -8058,6 +8385,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8078,6 +8406,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8121,6 +8450,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_index",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL index inside a managed table",
@@ -8133,6 +8463,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8153,6 +8484,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8196,6 +8528,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_index",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL index through the bounded administrative surface",
@@ -8208,6 +8541,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8229,6 +8563,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8271,6 +8606,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_index",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL index contract",
@@ -8283,6 +8619,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8303,6 +8640,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8346,6 +8684,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_index",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL index through the bounded administrative surface",
@@ -8358,6 +8697,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8379,6 +8719,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8421,6 +8762,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_policy",
       "scope": "workspace",
       "summary": "List declarative PostgreSQL row-level-security policies for one managed table",
@@ -8433,6 +8775,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8453,6 +8796,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8496,6 +8840,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_policy",
       "scope": "workspace",
       "summary": "Create one declarative PostgreSQL row-level-security policy for a managed table",
@@ -8508,6 +8853,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8528,6 +8874,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8571,6 +8918,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_policy",
       "scope": "workspace",
       "summary": "Delete one declarative PostgreSQL row-level-security policy for a managed table",
@@ -8583,6 +8931,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8604,6 +8953,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8646,6 +8996,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_policy",
       "scope": "workspace",
       "summary": "Fetch one declarative PostgreSQL row-level-security policy for a managed table",
@@ -8658,6 +9009,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8678,6 +9030,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8721,6 +9074,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_policy",
       "scope": "workspace",
       "summary": "Update one declarative PostgreSQL row-level-security policy for a managed table",
@@ -8733,6 +9087,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8754,6 +9109,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8796,6 +9152,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table_security",
       "scope": "workspace",
       "summary": "Fetch the effective PostgreSQL row-level-security posture for one managed table",
@@ -8808,6 +9165,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8828,6 +9186,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8871,6 +9230,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_table_security",
       "scope": "workspace",
       "summary": "Update the PostgreSQL row-level-security posture for one managed table",
@@ -8883,6 +9243,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8904,6 +9265,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -8946,6 +9308,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_view",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL views inside one managed schema",
@@ -8958,6 +9321,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -8978,6 +9342,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9021,6 +9386,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_view",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL view inside a managed schema",
@@ -9033,6 +9399,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9053,6 +9420,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9096,6 +9464,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_view",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL view through the bounded administrative surface",
@@ -9108,6 +9477,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9129,6 +9499,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9171,6 +9542,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_view",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL view contract",
@@ -9183,6 +9555,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9203,6 +9576,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9246,6 +9620,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_view",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL view through the bounded administrative surface",
@@ -9258,6 +9633,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9279,6 +9655,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9322,6 +9699,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "database",
       "scope": "workspace",
       "summary": "Submit a workspace-scoped PostgreSQL instance provisioning request through the unified postgres family",
@@ -9334,6 +9712,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9357,6 +9736,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9399,6 +9779,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "database",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL instance contract under the postgres family",
@@ -9411,6 +9792,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9432,6 +9814,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9474,6 +9857,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_role",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL roles through the normalized administrative surface",
@@ -9486,6 +9870,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9505,6 +9890,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9548,6 +9934,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_role",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL role through the bounded administrative surface",
@@ -9560,6 +9947,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9579,6 +9967,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9622,6 +10011,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_role",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL role through the bounded administrative surface",
@@ -9634,6 +10024,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9655,6 +10046,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9697,6 +10089,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_role",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL role contract",
@@ -9709,6 +10102,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9728,6 +10122,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9771,6 +10166,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_role",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL role through the bounded administrative surface",
@@ -9783,6 +10179,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9804,6 +10201,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9846,6 +10244,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_user",
       "scope": "workspace",
       "summary": "List workspace-scoped PostgreSQL users through the normalized administrative surface",
@@ -9858,6 +10257,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9877,6 +10277,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9920,6 +10321,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_user",
       "scope": "workspace",
       "summary": "Create one workspace-scoped PostgreSQL user through the bounded administrative surface",
@@ -9932,6 +10334,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -9951,6 +10354,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -9994,6 +10398,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_user",
       "scope": "workspace",
       "summary": "Delete one workspace-scoped PostgreSQL user through the bounded administrative surface",
@@ -10006,6 +10411,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10027,6 +10433,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10069,6 +10476,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_user",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped PostgreSQL user contract",
@@ -10081,6 +10489,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10100,6 +10509,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10143,6 +10553,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_user",
       "scope": "workspace",
       "summary": "Update one workspace-scoped PostgreSQL user through the bounded administrative surface",
@@ -10155,6 +10566,167 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": "restricted_admin_sql",
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": true,
+      "family": "postgres",
+      "familyTitle": "Postgres",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "executePostgresAdminSql",
+      "path": "/v1/postgres/workspaces/{workspaceId}/admin/{databaseName}/sql",
+      "planCapabilityAnyOf": [
+        "data.postgresql.shared",
+        "data.postgresql.dedicated"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [
+        "postgres.admin_sql",
+        "postgres.admin_sql.audit"
+      ],
+      "resourceType": "postgres_admin_sql",
+      "scope": "workspace",
+      "summary": "Preview or execute one restricted administrative PostgreSQL SQL statement outside the public data API channel",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Postgres"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_service_account",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "postgres",
+      "familyTitle": "Postgres",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "executePostgresDataRpc",
+      "path": "/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}",
+      "planCapabilityAnyOf": [
+        "data.postgresql.shared",
+        "data.postgresql.dedicated"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "postgres_data_rpc",
+      "scope": "workspace",
+      "summary": "Execute one reusable PostgreSQL function as an RPC-style data endpoint with parameter binding",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Postgres"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10176,6 +10748,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10218,6 +10791,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_data_rows",
       "scope": "workspace",
       "summary": "List rows from one workspace-scoped PostgreSQL table with filters, projection, ordering, pagination, and controlled one-hop relations",
@@ -10230,6 +10804,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10250,6 +10825,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10293,6 +10869,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_data_rows",
       "scope": "workspace",
       "summary": "Insert one row into one workspace-scoped PostgreSQL table while preserving effective-role, grants, and RLS guardrails",
@@ -10305,6 +10882,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10325,6 +10903,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10368,6 +10947,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_data_row",
       "scope": "workspace",
       "summary": "Delete one PostgreSQL row by primary-key selector while preserving effective-role, grants, and RLS guardrails",
@@ -10380,6 +10960,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10401,6 +10982,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10443,6 +11025,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_data_row",
       "scope": "workspace",
       "summary": "Fetch one PostgreSQL row by primary-key selector with optional projection and controlled one-hop relations",
@@ -10455,6 +11038,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10475,6 +11059,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10518,6 +11103,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_data_row",
       "scope": "workspace",
       "summary": "Update one PostgreSQL row by primary-key selector while preserving effective-role, grants, and RLS guardrails",
@@ -10530,6 +11116,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10551,6 +11138,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10593,6 +11181,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_grant",
       "scope": "workspace",
       "summary": "List effective PostgreSQL grants for one workspace inventory projection",
@@ -10605,6 +11194,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10625,6 +11215,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10668,6 +11259,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_grant",
       "scope": "workspace",
       "summary": "Create one declarative PostgreSQL privilege grant for a workspace-managed object",
@@ -10680,6 +11272,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10700,6 +11293,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10743,6 +11337,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_grant",
       "scope": "workspace",
       "summary": "Delete one declarative PostgreSQL privilege grant for a workspace-managed object",
@@ -10755,6 +11350,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10776,6 +11372,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10818,6 +11415,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_grant",
       "scope": "workspace",
       "summary": "Fetch one declarative PostgreSQL privilege grant for a workspace-managed object",
@@ -10830,6 +11428,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10850,6 +11449,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10893,6 +11493,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_grant",
       "scope": "workspace",
       "summary": "Update one declarative PostgreSQL privilege grant for a workspace-managed object",
@@ -10905,6 +11506,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -10925,6 +11527,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -10967,6 +11570,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_inventory",
       "scope": "workspace",
       "summary": "Fetch the persisted PostgreSQL administrative inventory projection for one workspace",
@@ -10979,6 +11583,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11000,6 +11605,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -11042,6 +11648,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_template",
       "scope": "workspace",
       "summary": "List PostgreSQL database and schema onboarding templates for one workspace",
@@ -11054,6 +11661,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11074,6 +11682,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -11117,6 +11726,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_template",
       "scope": "workspace",
       "summary": "Create one PostgreSQL database or schema onboarding template for a workspace",
@@ -11129,6 +11739,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11149,6 +11760,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -11192,6 +11804,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_template",
       "scope": "workspace",
       "summary": "Delete one PostgreSQL database or schema onboarding template for a workspace",
@@ -11204,6 +11817,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11225,6 +11839,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -11267,6 +11882,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_template",
       "scope": "workspace",
       "summary": "Fetch one PostgreSQL database or schema onboarding template for a workspace",
@@ -11279,6 +11895,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11299,6 +11916,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -11342,6 +11960,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_template",
       "scope": "workspace",
       "summary": "Update one PostgreSQL database or schema onboarding template for a workspace",
@@ -11354,6 +11973,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11375,6 +11995,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "postgres",
       "familyTitle": "Postgres",
       "gatewayAllowedHeaders": [
@@ -11417,6 +12038,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "postgres_type",
       "scope": "workspace",
       "summary": "List PostgreSQL types currently allowed for one workspace and target cluster profile",
@@ -11429,6 +12051,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11450,6 +12073,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "storage",
       "familyTitle": "Storage",
       "gatewayAllowedHeaders": [
@@ -11492,6 +12116,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "bucket",
       "scope": "workspace",
       "summary": "Submit a workspace-scoped storage bucket provisioning request through the unified storage family",
@@ -11504,6 +12129,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11527,6 +12153,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "storage",
       "familyTitle": "Storage",
       "gatewayAllowedHeaders": [
@@ -11568,6 +12195,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "bucket",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped storage bucket contract under the storage family",
@@ -11580,6 +12208,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11598,6 +12227,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -11637,6 +12267,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_collection",
       "scope": "platform",
       "summary": "List tenants with lifecycle, quota, label, placement, and governance filters",
@@ -11649,6 +12280,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11666,6 +12298,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -11706,6 +12339,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Submit a canonical tenant write request with governance labels, quotas, and lifecycle controls",
@@ -11718,6 +12352,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11735,6 +12370,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -11775,6 +12411,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Logically delete one tenant while preserving retention, auditability, and purge preconditions",
@@ -11787,6 +12424,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11807,6 +12445,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -11846,6 +12485,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Fetch one canonical tenant with governance labels, quotas, retention posture, and export metadata",
@@ -11858,6 +12498,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11875,6 +12516,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -11915,6 +12557,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Update one canonical tenant including lifecycle, quota, label, and retention governance settings",
@@ -11927,6 +12570,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -11945,6 +12589,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -11984,6 +12629,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_dashboard",
       "scope": "tenant",
       "summary": "Fetch tenant governance dashboard data including quotas, labels, provisioning state, and allowed actions",
@@ -11996,6 +12642,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12016,6 +12663,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12055,6 +12703,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_capabilities",
       "scope": "tenant",
       "summary": "Resolve effective capabilities for one tenant",
@@ -12068,6 +12717,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12085,6 +12735,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12125,6 +12776,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_export",
       "scope": "tenant",
       "summary": "Create a recovery-oriented functional configuration export for one tenant",
@@ -12137,6 +12789,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12156,6 +12809,7 @@
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12196,6 +12850,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Suspend or reactivate all tenant-managed IAM access for users and service accounts.",
@@ -12209,6 +12864,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12227,6 +12883,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12266,6 +12923,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_inventory",
       "scope": "tenant",
       "summary": "Fetch one tenant inventory snapshot covering workspaces, applications, service accounts, and managed resources",
@@ -12278,6 +12936,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12296,6 +12955,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12336,6 +12996,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "invitation",
       "scope": "tenant",
       "summary": "Submit an invitation write request",
@@ -12349,6 +13010,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12367,6 +13029,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12406,6 +13069,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "invitation",
       "scope": "tenant",
       "summary": "Fetch one invitation record",
@@ -12419,6 +13083,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12437,6 +13102,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12477,6 +13143,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "invitation",
       "scope": "tenant",
       "summary": "Accept a tenant or workspace invitation while it is still pending.",
@@ -12490,6 +13157,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12507,6 +13175,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12547,6 +13216,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "invitation",
       "scope": "tenant",
       "summary": "Revoke a pending invitation before it is accepted or expires.",
@@ -12560,6 +13230,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12578,6 +13249,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12618,6 +13290,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_membership",
       "scope": "tenant",
       "summary": "Submit a tenant membership write request",
@@ -12631,6 +13304,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12649,6 +13323,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12688,6 +13363,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_membership",
       "scope": "tenant",
       "summary": "Fetch one tenant membership record",
@@ -12701,6 +13377,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12717,6 +13394,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12757,6 +13435,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Initiate a secure tenant ownership transfer that requires acceptance by the designated target owner.",
@@ -12770,6 +13449,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12787,6 +13467,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12826,6 +13507,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Fetch one tenant ownership transfer record.",
@@ -12839,6 +13521,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12856,6 +13539,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12896,6 +13580,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Accept a pending tenant ownership transfer before it expires.",
@@ -12909,6 +13594,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12928,6 +13614,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -12967,6 +13654,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Fetch one tenant-scoped effective-permission recalculation record.",
@@ -12980,6 +13668,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -12995,6 +13684,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -13035,6 +13725,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant_purge",
       "scope": "tenant",
       "summary": "Definitively purge one logically deleted tenant after retention and elevated confirmation checks",
@@ -13047,6 +13738,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13064,6 +13756,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "tenants",
       "familyTitle": "Tenants",
       "gatewayAllowedHeaders": [
@@ -13104,6 +13797,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "tenant",
       "scope": "tenant",
       "summary": "Reactivate one suspended tenant and restore descendant access controls under audit",
@@ -13116,6 +13810,7 @@
       "workspaceBinding": "none"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13138,6 +13833,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "websockets",
       "familyTitle": "WebSockets",
       "gatewayAllowedHeaders": [
@@ -13180,6 +13876,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "websocket_session",
       "scope": "workspace",
       "summary": "Negotiate one websocket session for gateway-managed topic subscriptions",
@@ -13192,6 +13889,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13215,6 +13913,7 @@
       ],
       "downstreamService": "event_gateway",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "websockets",
       "familyTitle": "WebSockets",
       "gatewayAllowedHeaders": [
@@ -13256,6 +13955,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "websocket_session",
       "scope": "workspace",
       "summary": "Fetch one negotiated websocket session descriptor, subscriptions, and backpressure policy",
@@ -13268,6 +13968,7 @@
       "workspaceBinding": "required"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13288,6 +13989,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13327,6 +14029,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace_collection",
       "scope": "tenant",
       "summary": "List workspaces for one tenant with lifecycle, environment, slug, and display-name filters",
@@ -13339,6 +14042,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13359,6 +14063,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13399,6 +14104,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Submit a canonical workspace write request under the workspaces family",
@@ -13411,6 +14117,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13430,6 +14137,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13470,6 +14178,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Soft-delete one canonical workspace while preserving audit and clone lineage metadata",
@@ -13482,6 +14191,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13503,6 +14213,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13542,6 +14253,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Fetch one canonical workspace entity under the workspaces family",
@@ -13554,6 +14266,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13573,6 +14286,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13613,6 +14327,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Update one canonical workspace including IAM, lifecycle, and inheritance policy settings",
@@ -13625,6 +14340,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13646,6 +14362,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13685,6 +14402,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace_api_surface",
       "scope": "workspace",
       "summary": "Fetch workspace-specific base URLs and application endpoint bindings for external clients",
@@ -13697,6 +14415,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13718,6 +14437,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13757,6 +14477,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "List canonical external applications, authentication flows, and validation status for one workspace",
@@ -13770,6 +14491,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13790,6 +14512,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13830,6 +14553,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "Submit a canonical external application write request under the workspaces family",
@@ -13843,6 +14567,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13864,6 +14589,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13903,6 +14629,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "Fetch one canonical external application entity under the workspaces family",
@@ -13916,6 +14643,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -13936,6 +14664,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -13976,6 +14705,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "Update one canonical external application including federation, logout, scope, and role settings",
@@ -13989,6 +14719,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14010,6 +14741,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14049,6 +14781,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "List federated OIDC and SAML identity providers attached to one external application",
@@ -14062,6 +14795,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14082,6 +14816,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14122,6 +14857,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "Create one federated identity provider for an external application",
@@ -14135,6 +14871,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14156,6 +14893,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14195,6 +14933,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "Fetch one federated identity provider attached to an external application",
@@ -14208,6 +14947,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14228,6 +14968,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14268,6 +15009,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "Update one federated identity provider including metadata, certificates, and mapper bindings",
@@ -14281,6 +15023,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14302,6 +15045,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14341,6 +15085,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "application",
       "scope": "workspace",
       "summary": "List starter templates for SPA, confidential backend, and B2B SAML external applications",
@@ -14354,6 +15099,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14373,6 +15119,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14413,6 +15160,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Clone one workspace baseline into a new environment with optional application and credential reset policies",
@@ -14425,6 +15173,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14446,6 +15195,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14485,6 +15235,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace_capabilities",
       "scope": "workspace",
       "summary": "Resolve effective capabilities for one workspace",
@@ -14498,6 +15249,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14518,6 +15270,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14558,6 +15311,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "managed_resource",
       "scope": "workspace",
       "summary": "Submit a canonical managed resource write request",
@@ -14571,6 +15325,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14593,6 +15348,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14632,6 +15388,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "managed_resource",
       "scope": "workspace",
       "summary": "Fetch one canonical managed resource entity",
@@ -14645,6 +15402,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14665,6 +15423,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14705,6 +15464,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace_membership",
       "scope": "workspace",
       "summary": "Submit a workspace membership write request",
@@ -14718,6 +15478,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14738,6 +15499,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14777,6 +15539,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace_membership",
       "scope": "workspace",
       "summary": "Fetch one workspace membership record",
@@ -14790,6 +15553,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14809,6 +15573,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14848,6 +15613,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "workspace",
       "scope": "workspace",
       "summary": "Fetch one workspace-scoped effective-permission recalculation record.",
@@ -14861,6 +15627,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14881,6 +15648,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14921,6 +15689,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "service_account",
       "scope": "workspace",
       "summary": "Submit a canonical service account write request",
@@ -14934,6 +15703,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -14955,6 +15725,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -14994,6 +15765,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "service_account",
       "scope": "workspace",
       "summary": "Fetch one canonical service account entity",
@@ -15007,6 +15779,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -15026,6 +15799,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -15066,6 +15840,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "service_account",
       "scope": "workspace",
       "summary": "Issue a new secret-free credential reference for one workspace service account.",
@@ -15079,6 +15854,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -15098,6 +15874,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -15138,6 +15915,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "service_account",
       "scope": "workspace",
       "summary": "Revoke one or all active credential references for a workspace service account.",
@@ -15151,6 +15929,7 @@
       "workspaceBinding": "optional"
     },
     {
+      "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
         "application/json"
@@ -15171,6 +15950,7 @@
       "downstreamAdapters": [],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
       "family": "workspaces",
       "familyTitle": "Workspaces",
       "gatewayAllowedHeaders": [
@@ -15211,6 +15991,7 @@
         "X-API-Version",
         "X-Correlation-Id"
       ],
+      "requiredPlanFlags": [],
       "resourceType": "service_account",
       "scope": "workspace",
       "summary": "Rotate the active credential reference for one workspace service account.",

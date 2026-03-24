@@ -33,6 +33,7 @@ test('postgres data API service contracts and adapter capability baseline are pu
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_data_insert'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_data_update'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_data_delete'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_data_rpc'));
 });
 
 test('postgres data API public routes publish CRUD/query metadata and query parameter contracts', () => {
@@ -42,11 +43,13 @@ test('postgres data API public routes publish CRUD/query metadata and query para
   const getRowRoute = getPublicRoute('getPostgresDataRowByPrimaryKey');
   const updateRowRoute = getPublicRoute('updatePostgresDataRowByPrimaryKey');
   const deleteRowRoute = getPublicRoute('deletePostgresDataRowByPrimaryKey');
+  const rpcRoute = getPublicRoute('executePostgresDataRpc');
   const listOperation = document.paths['/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows'].get;
   const createOperation = document.paths['/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows'].post;
   const getOperation = document.paths['/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key'].get;
   const updateOperation = document.paths['/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key'].patch;
   const deleteOperation = document.paths['/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key'].delete;
+  const rpcOperation = document.paths['/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}'].post;
   const listParameters = resolveParameters(document, listOperation);
   const getParameters = resolveParameters(document, getOperation);
   const updateParameters = resolveParameters(document, updateOperation);
@@ -58,12 +61,14 @@ test('postgres data API public routes publish CRUD/query metadata and query para
   assert.equal(getRowRoute.resourceType, 'postgres_data_row');
   assert.equal(updateRowRoute.supportsIdempotencyKey, true);
   assert.equal(deleteRowRoute.supportsIdempotencyKey, true);
+  assert.equal(rpcRoute.resourceType, 'postgres_data_rpc');
 
   assert.equal(listOperation['x-resource-type'], 'postgres_data_rows');
   assert.equal(createOperation['x-rate-limit-class'], 'data-write');
   assert.equal(getOperation['x-resource-type'], 'postgres_data_row');
   assert.equal(updateOperation['x-resource-type'], 'postgres_data_row');
   assert.equal(deleteOperation['x-resource-type'], 'postgres_data_row');
+  assert.equal(rpcOperation['x-resource-type'], 'postgres_data_rpc');
   assert.equal(listParameters.some((parameter) => parameter.name === 'select'), true);
   assert.equal(listParameters.some((parameter) => parameter.name === 'include'), true);
   assert.equal(listParameters.some((parameter) => parameter.name === 'order'), true);
@@ -78,6 +83,8 @@ test('postgres data API public routes publish CRUD/query metadata and query para
   assert.ok(document.components.schemas.PostgresDataMutationResult);
   assert.ok(document.components.schemas.PostgresDataProjection);
   assert.ok(document.components.schemas.PostgresDataRelationProjection);
+  assert.ok(document.components.schemas.PostgresDataRpcRequest);
+  assert.ok(document.components.schemas.PostgresDataRpcEnvelope);
   assert.ok(document.components.schemas.PostgresDataRowCollection.properties.filters);
   assert.ok(document.components.schemas.PostgresDataMutationResult.properties.effectiveRoleName);
   assert.ok(document.components.schemas.PostgresDataInsertRequest.properties.row);

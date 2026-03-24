@@ -108,14 +108,17 @@ test('postgres data API control-plane helpers expose the CRUD/query surface', ()
   assert.equal(postgresDataApiFamily.id, 'postgres');
   assert.ok(routes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows'));
   assert.ok(routes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/tables/{tableName}/rows/by-primary-key'));
+  assert.ok(routes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/data/{databaseName}/schemas/{schemaName}/rpc/{routineName}'));
   assert.equal(getPostgresDataApiRoute('listPostgresDataRows').resourceType, 'postgres_data_rows');
   assert.equal(getPostgresDataApiRoute('getPostgresDataRowByPrimaryKey').resourceType, 'postgres_data_row');
-  assert.deepEqual(POSTGRES_DATA_API_OPERATIONS, ['list', 'get', 'insert', 'update', 'delete']);
-  assert.equal(summary.routeCount, 5);
+  assert.equal(getPostgresDataApiRoute('executePostgresDataRpc').resourceType, 'postgres_data_rpc');
+  assert.deepEqual(POSTGRES_DATA_API_OPERATIONS, ['list', 'get', 'insert', 'update', 'delete', 'rpc']);
+  assert.equal(summary.routeCount, 6);
   assert.equal(summary.operations.find((entry) => entry.operation === 'list').routeCount, 1);
   assert.equal(summary.operations.find((entry) => entry.operation === 'get').routeCount, 1);
   assert.equal(summary.operations.find((entry) => entry.operation === 'insert').routeCount, 1);
   assert.equal(summary.operations.find((entry) => entry.operation === 'update').routeCount, 1);
+  assert.equal(summary.operations.find((entry) => entry.operation === 'rpc').routeCount, 1);
   assert.equal(summary.filterOperators.includes('json_contains'), true);
   assert.equal(summary.relationTypes.includes('one_to_many'), true);
   assert.equal(capabilitySummary.find((entry) => entry.operation === 'delete').capability, 'postgres_data_delete');
@@ -156,4 +159,42 @@ test('postgres data API plan builder supports filters projections joins ordering
   assert.equal(plan.sql.text.includes('LIMIT 25'), true);
   assert.equal(plan.sql.values.includes('ten_alpha'), true);
   assert.equal(plan.page.size, 25);
+});
+
+
+test('postgres data API plan builder supports RPC-style routine execution with bound parameters', () => {
+  const plan = buildPostgresDataApiPlan({
+    operation: 'rpc',
+    workspaceId: 'wrk_01alphaprod',
+    databaseName: 'tenant_alpha_main',
+    schemaName: 'alpha_prod_app',
+    routineName: 'get_customer_order',
+    routine: {
+      schemaName: 'alpha_prod_app',
+      routineName: 'get_customer_order',
+      signature: 'get_customer_order(uuid, text)',
+      returnsSet: true,
+      exposedAsRpc: true,
+      arguments: [
+        { name: 'customerId', dataType: 'uuid' },
+        { name: 'tenantId', dataType: 'text' }
+      ]
+    },
+    arguments: { customerId: 'cus_01', tenantId: 'ten_alpha' },
+    actorRoleName: 'workspace_developer',
+    effectiveRoles: ['workspace_developer', 'alpha_runtime'],
+    schemaGrants: [
+      { granteeRoleName: 'alpha_runtime', privileges: ['usage'], target: { schemaName: 'alpha_prod_app' } }
+    ],
+    objectGrants: [
+      { granteeRoleName: 'alpha_runtime', privileges: ['execute'], target: { schemaName: 'alpha_prod_app', objectName: 'get_customer_order' } }
+    ]
+  });
+
+  assert.equal(plan.capability, 'postgres_data_rpc');
+  assert.equal(plan.effectiveRoleName, 'alpha_runtime');
+  assert.equal(plan.resource.routineName, 'get_customer_order');
+  assert.equal(plan.routine.returnsSet, true);
+  assert.equal(plan.sql.text.includes('FROM "alpha_prod_app"."get_customer_order"($1::uuid, $2::text)'), true);
+  assert.deepEqual(plan.sql.values, ['cus_01', 'ten_alpha']);
 });

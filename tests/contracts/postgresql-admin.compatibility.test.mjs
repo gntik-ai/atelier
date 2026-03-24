@@ -16,6 +16,8 @@ import {
 test('postgres admin service contracts and adapter capability baseline cover the expanded PostgreSQL admin surface', () => {
   const postgresAdminRequest = getContract('postgres_admin_request');
   const postgresAdminResult = getContract('postgres_admin_result');
+  const postgresAdminSqlRequest = getContract('postgres_admin_sql_request');
+  const postgresAdminSqlResult = getContract('postgres_admin_sql_result');
   const postgresInventorySnapshot = getContract('postgres_inventory_snapshot');
   const controlApi = getService('control_api');
   const provisioning = getService('provisioning_orchestrator');
@@ -30,6 +32,10 @@ test('postgres admin service contracts and adapter capability baseline cover the
   assert.ok(postgresAdminRequest.required_fields.includes('placement_mode'));
   assert.ok(postgresAdminRequest.required_fields.includes('execution_mode'));
   assert.ok(postgresAdminResult.required_fields.includes('normalized_resource'));
+  assert.ok(postgresAdminSqlRequest.required_fields.includes('sql_text'));
+  assert.ok(postgresAdminSqlRequest.required_fields.includes('statement_fingerprint'));
+  assert.ok(postgresAdminSqlResult.required_fields.includes('query_preview'));
+  assert.ok(postgresAdminSqlResult.required_fields.includes('audit_summary'));
   assert.ok(postgresAdminResult.required_fields.includes('inventory_projection'));
   assert.ok(postgresAdminResult.required_fields.includes('ddl_preview'));
   assert.ok(postgresAdminResult.required_fields.includes('pre_execution_warnings'));
@@ -48,6 +54,7 @@ test('postgres admin service contracts and adapter capability baseline cover the
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_function_get'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_procedure_delete'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_inventory_upsert'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_admin_sql_execute'));
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.schema, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.index, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.function, ['list', 'get', 'create', 'update', 'delete']);
@@ -65,6 +72,7 @@ test('postgres public routes publish normalized family metadata, inventory, and 
   const listMaterializedViewsRoute = getPublicRoute('listPostgresMaterializedViews');
   const createFunctionRoute = getPublicRoute('createPostgresFunction');
   const getProcedureRoute = getPublicRoute('getPostgresProcedure');
+  const executeAdminSqlRoute = getPublicRoute('executePostgresAdminSql');
 
   assert.equal(listRolesRoute.family, 'postgres');
   assert.equal(listRolesRoute.path, '/v1/postgres/roles');
@@ -79,6 +87,10 @@ test('postgres public routes publish normalized family metadata, inventory, and 
   assert.equal(listMaterializedViewsRoute.resourceType, 'postgres_materialized_view');
   assert.equal(createFunctionRoute.resourceType, 'postgres_function');
   assert.equal(getProcedureRoute.resourceType, 'postgres_procedure');
+  assert.equal(executeAdminSqlRoute.resourceType, 'postgres_admin_sql');
+  assert.deepEqual(executeAdminSqlRoute.requiredPlanFlags, ['postgres.admin_sql', 'postgres.admin_sql.audit']);
+  assert.equal(executeAdminSqlRoute.adminChannel, 'restricted_admin_sql');
+  assert.equal(executeAdminSqlRoute.explicitConfirmationRequired, true);
 
   assert.ok(document.components.schemas.PostgresProviderCompatibility);
   assert.ok(document.components.schemas.PostgresAdminEnginePolicy);
@@ -103,6 +115,10 @@ test('postgres public routes publish normalized family metadata, inventory, and 
   assert.ok(document.components.schemas.PostgresMaterializedView.properties.integrityProfile);
   assert.ok(document.components.schemas.PostgresFunction.properties.documentation);
   assert.ok(document.components.schemas.PostgresProcedure.properties.securityMode);
+  assert.ok(document.components.schemas.PostgresAdminSqlRequest);
+  assert.ok(document.components.schemas.PostgresAdminSqlResult);
+  assert.ok(document.components.schemas.PostgresAdminSqlQueryPreview);
+  assert.ok(document.components.schemas.PostgresAdminSqlConfirmation);
   assert.ok(document.components.schemas.PostgresAdminInventory.properties.constraintRefs);
   assert.ok(document.components.schemas.PostgresAdminInventory.properties.materializedViewRefs);
 });
