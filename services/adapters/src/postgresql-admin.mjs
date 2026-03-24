@@ -103,7 +103,13 @@ export const POSTGRES_ADMIN_CAPABILITY_MATRIX = Object.freeze({
   schema: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   table: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   column: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
-  type: Object.freeze(['list', 'get'])
+  type: Object.freeze(['list', 'get']),
+  constraint: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  index: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  view: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  materialized_view: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  function: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  procedure: Object.freeze(['list', 'get', 'create', 'update', 'delete'])
 });
 
 export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
@@ -113,7 +119,13 @@ export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
     databases: { limit: 1, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
     schemas: { limit: 8, scope: 'workspace', metricKey: 'workspace.postgres.schemas.max' },
     tables: { limit: 64, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
-    columns: { limit: 256, scope: 'table', metricKey: 'table.postgres.columns.max' }
+    columns: { limit: 256, scope: 'table', metricKey: 'table.postgres.columns.max' },
+    constraints: { limit: 256, scope: 'table', metricKey: 'table.postgres.constraints.max' },
+    indexes: { limit: 128, scope: 'table', metricKey: 'table.postgres.indexes.max' },
+    views: { limit: 32, scope: 'schema', metricKey: 'schema.postgres.views.max' },
+    materializedViews: { limit: 8, scope: 'schema', metricKey: 'schema.postgres.materialized_views.max' },
+    functions: { limit: 48, scope: 'schema', metricKey: 'schema.postgres.functions.max' },
+    procedures: { limit: 16, scope: 'schema', metricKey: 'schema.postgres.procedures.max' }
   }),
   pln_01growth: Object.freeze({
     roles: { limit: 32, scope: 'workspace', metricKey: 'workspace.postgres.roles.max' },
@@ -121,7 +133,13 @@ export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
     databases: { limit: 1, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
     schemas: { limit: 24, scope: 'workspace', metricKey: 'workspace.postgres.schemas.max' },
     tables: { limit: 160, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
-    columns: { limit: 512, scope: 'table', metricKey: 'table.postgres.columns.max' }
+    columns: { limit: 512, scope: 'table', metricKey: 'table.postgres.columns.max' },
+    constraints: { limit: 768, scope: 'table', metricKey: 'table.postgres.constraints.max' },
+    indexes: { limit: 384, scope: 'table', metricKey: 'table.postgres.indexes.max' },
+    views: { limit: 96, scope: 'schema', metricKey: 'schema.postgres.views.max' },
+    materializedViews: { limit: 24, scope: 'schema', metricKey: 'schema.postgres.materialized_views.max' },
+    functions: { limit: 144, scope: 'schema', metricKey: 'schema.postgres.functions.max' },
+    procedures: { limit: 48, scope: 'schema', metricKey: 'schema.postgres.procedures.max' }
   }),
   pln_01regulated: Object.freeze({
     roles: { limit: 64, scope: 'tenant', metricKey: 'tenant.postgres.roles.max' },
@@ -129,7 +147,13 @@ export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
     databases: { limit: 3, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
     schemas: { limit: 48, scope: 'database', metricKey: 'database.postgres.schemas.max' },
     tables: { limit: 320, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
-    columns: { limit: 1024, scope: 'table', metricKey: 'table.postgres.columns.max' }
+    columns: { limit: 1024, scope: 'table', metricKey: 'table.postgres.columns.max' },
+    constraints: { limit: 1536, scope: 'table', metricKey: 'table.postgres.constraints.max' },
+    indexes: { limit: 768, scope: 'table', metricKey: 'table.postgres.indexes.max' },
+    views: { limit: 192, scope: 'schema', metricKey: 'schema.postgres.views.max' },
+    materializedViews: { limit: 48, scope: 'schema', metricKey: 'schema.postgres.materialized_views.max' },
+    functions: { limit: 288, scope: 'schema', metricKey: 'schema.postgres.functions.max' },
+    procedures: { limit: 96, scope: 'schema', metricKey: 'schema.postgres.procedures.max' }
   }),
   pln_01enterprise: Object.freeze({
     roles: { limit: 128, scope: 'tenant', metricKey: 'tenant.postgres.roles.max' },
@@ -137,7 +161,13 @@ export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
     databases: { limit: 8, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
     schemas: { limit: 96, scope: 'database', metricKey: 'database.postgres.schemas.max' },
     tables: { limit: 640, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
-    columns: { limit: 2048, scope: 'table', metricKey: 'table.postgres.columns.max' }
+    columns: { limit: 2048, scope: 'table', metricKey: 'table.postgres.columns.max' },
+    constraints: { limit: 3072, scope: 'table', metricKey: 'table.postgres.constraints.max' },
+    indexes: { limit: 1536, scope: 'table', metricKey: 'table.postgres.indexes.max' },
+    views: { limit: 384, scope: 'schema', metricKey: 'schema.postgres.views.max' },
+    materializedViews: { limit: 96, scope: 'schema', metricKey: 'schema.postgres.materialized_views.max' },
+    functions: { limit: 576, scope: 'schema', metricKey: 'schema.postgres.functions.max' },
+    procedures: { limit: 192, scope: 'schema', metricKey: 'schema.postgres.procedures.max' }
   })
 });
 
@@ -160,6 +190,21 @@ export const POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY = Object.freeze({
       'create_workspace_columns',
       'alter_workspace_columns',
       'drop_workspace_columns',
+      'create_workspace_constraints',
+      'alter_workspace_constraints',
+      'drop_workspace_constraints',
+      'create_workspace_indexes',
+      'alter_workspace_indexes',
+      'drop_workspace_indexes',
+      'create_workspace_views',
+      'alter_workspace_views',
+      'drop_workspace_views',
+      'create_workspace_materialized_views',
+      'alter_workspace_materialized_views',
+      'drop_workspace_materialized_views',
+      'create_workspace_routines',
+      'alter_workspace_routines',
+      'drop_workspace_routines',
       'read_allowed_type_catalog',
       'grant_usage_and_object_privileges',
       'write_control_metadata_inventory'
@@ -198,6 +243,21 @@ export const POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY = Object.freeze({
       'create_workspace_columns',
       'alter_workspace_columns',
       'drop_workspace_columns',
+      'create_workspace_constraints',
+      'alter_workspace_constraints',
+      'drop_workspace_constraints',
+      'create_workspace_indexes',
+      'alter_workspace_indexes',
+      'drop_workspace_indexes',
+      'create_workspace_views',
+      'alter_workspace_views',
+      'drop_workspace_views',
+      'create_workspace_materialized_views',
+      'alter_workspace_materialized_views',
+      'drop_workspace_materialized_views',
+      'create_workspace_routines',
+      'alter_workspace_routines',
+      'drop_workspace_routines',
       'read_allowed_type_catalog',
       'grant_usage_and_object_privileges',
       'write_control_metadata_inventory'
@@ -339,6 +399,12 @@ function defaultProviderCompatibility(profile) {
     databaseMutationsSupported: profile.databaseMutationsSupported,
     tableMutationsSupported: profile.tableMutationsSupported,
     columnMutationsSupported: profile.columnMutationsSupported,
+    constraintMutationsSupported: profile.constraintMutationsSupported,
+    indexMutationsSupported: profile.indexMutationsSupported,
+    viewMutationsSupported: profile.viewMutationsSupported,
+    materializedViewMutationsSupported: profile.materializedViewMutationsSupported,
+    functionMutationsSupported: profile.functionMutationsSupported,
+    procedureMutationsSupported: profile.procedureMutationsSupported,
     typeCatalogSupported: profile.typeCatalogSupported
   };
 }
@@ -397,6 +463,12 @@ export function resolvePostgresAdminProfile({ planId, deploymentProfileId } = {}
     schemaMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
     tableMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
     columnMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    constraintMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    indexMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    viewMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    materializedViewMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    functionMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    procedureMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
     typeCatalogSupported: true,
     quotaGuardrails,
     minimumEnginePolicy: enginePolicyForPlacement(placementMode),
@@ -487,7 +559,11 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
         objectCounts: compactDefined({
           tables: payload.objectCounts?.tables,
           views: payload.objectCounts?.views,
-          functions: payload.objectCounts?.functions
+          materializedViews: payload.objectCounts?.materializedViews,
+          indexes: payload.objectCounts?.indexes,
+          constraints: payload.objectCounts?.constraints,
+          functions: payload.objectCounts?.functions,
+          procedures: payload.objectCounts?.procedures
         }),
         providerCompatibility,
         metadata: payload.metadata ?? {}
@@ -780,7 +856,7 @@ export function buildPostgresAdminAdapterCall({
     allowedTypeCatalog: context.allowedTypeCatalog ?? buildAllowedPostgresTypeCatalog(context.clusterFeatures)
   };
   const ddlPlan =
-    (resourceKind === 'table' || resourceKind === 'column') && isMutation(action)
+    POSTGRES_STRUCTURAL_RESOURCE_KINDS.includes(resourceKind) && resourceKind !== 'type' && isMutation(action)
       ? buildPostgresStructuralSqlPlan({
           resourceKind,
           action,
@@ -827,6 +903,12 @@ export function buildPostgresAdminInventorySnapshot({
   schemas = [],
   tables = [],
   columns = [],
+  constraints = [],
+  indexes = [],
+  views = [],
+  materializedViews = [],
+  functions = [],
+  procedures = [],
   observedAt = '2026-03-24T00:00:00Z'
 } = {}) {
   const profile = resolvePostgresAdminProfile({ planId, deploymentProfileId });
@@ -849,6 +931,57 @@ export function buildPostgresAdminInventorySnapshot({
     }))
     .filter((table) => table.databaseName && table.schemaName && table.tableName);
   const totalColumns = columns.length > 0 ? columns.length : tableRefs.reduce((count, table) => count + table.columnCount, 0);
+  const constraintRefs = constraints
+    .map((constraint) => ({
+      databaseName: constraint.databaseName,
+      schemaName: constraint.schemaName,
+      tableName: constraint.tableName,
+      constraintName: constraint.constraintName ?? constraint.name,
+      constraintType: constraint.constraintType ?? constraint.type
+    }))
+    .filter((constraint) => constraint.databaseName && constraint.schemaName && constraint.tableName && constraint.constraintName);
+  const indexRefs = indexes
+    .map((index) => ({
+      databaseName: index.databaseName,
+      schemaName: index.schemaName,
+      tableName: index.tableName,
+      indexName: index.indexName ?? index.name,
+      indexMethod: index.indexMethod ?? index.method
+    }))
+    .filter((index) => index.databaseName && index.schemaName && index.tableName && index.indexName);
+  const viewRefs = views
+    .map((view) => ({
+      databaseName: view.databaseName,
+      schemaName: view.schemaName,
+      viewName: view.viewName ?? view.name,
+      dependencyCount: Number(view.dependencySummary?.readsFrom?.length ?? 0)
+    }))
+    .filter((view) => view.databaseName && view.schemaName && view.viewName);
+  const materializedViewRefs = materializedViews
+    .map((view) => ({
+      databaseName: view.databaseName,
+      schemaName: view.schemaName,
+      viewName: view.viewName ?? view.materializedViewName ?? view.name,
+      refreshPolicy: view.refreshPolicy,
+      indexCount: Number(view.indexes?.length ?? 0)
+    }))
+    .filter((view) => view.databaseName && view.schemaName && view.viewName);
+  const functionRefs = functions
+    .map((routine) => ({
+      databaseName: routine.databaseName,
+      schemaName: routine.schemaName,
+      routineName: routine.routineName ?? routine.name,
+      signature: routine.signature
+    }))
+    .filter((routine) => routine.databaseName && routine.schemaName && routine.routineName);
+  const procedureRefs = procedures
+    .map((routine) => ({
+      databaseName: routine.databaseName,
+      schemaName: routine.schemaName,
+      routineName: routine.routineName ?? routine.name,
+      signature: routine.signature
+    }))
+    .filter((routine) => routine.databaseName && routine.schemaName && routine.routineName);
 
   return {
     snapshotId: `pginv_${normalizeIdentifier(tenantId ?? 'tenant')}_${normalizeIdentifier(workspaceId ?? 'workspace')}`,
@@ -865,7 +998,13 @@ export function buildPostgresAdminInventorySnapshot({
       databases: databaseNames.length,
       schemas: schemaRefs.length,
       tables: tableRefs.length,
-      columns: totalColumns
+      columns: totalColumns,
+      constraints: constraintRefs.length,
+      indexes: indexRefs.length,
+      views: viewRefs.length,
+      materializedViews: materializedViewRefs.length,
+      functions: functionRefs.length,
+      procedures: procedureRefs.length
     },
     quotas: {
       roles: computeQuotaStatus(profile.quotaGuardrails.roles, roleNames.length),
@@ -873,13 +1012,25 @@ export function buildPostgresAdminInventorySnapshot({
       databases: computeQuotaStatus(profile.quotaGuardrails.databases, databaseNames.length),
       schemas: computeQuotaStatus(profile.quotaGuardrails.schemas, schemaRefs.length),
       tables: computeQuotaStatus(profile.quotaGuardrails.tables, tableRefs.length),
-      columns: computeQuotaStatus(profile.quotaGuardrails.columns, totalColumns)
+      columns: computeQuotaStatus(profile.quotaGuardrails.columns, totalColumns),
+      constraints: computeQuotaStatus(profile.quotaGuardrails.constraints, constraintRefs.length),
+      indexes: computeQuotaStatus(profile.quotaGuardrails.indexes, indexRefs.length),
+      views: computeQuotaStatus(profile.quotaGuardrails.views, viewRefs.length),
+      materializedViews: computeQuotaStatus(profile.quotaGuardrails.materializedViews, materializedViewRefs.length),
+      functions: computeQuotaStatus(profile.quotaGuardrails.functions, functionRefs.length),
+      procedures: computeQuotaStatus(profile.quotaGuardrails.procedures, procedureRefs.length)
     },
     roleNames,
     userNames,
     databaseNames,
     schemaRefs,
     tableRefs,
+    constraintRefs,
+    indexRefs,
+    viewRefs,
+    materializedViewRefs,
+    functionRefs,
+    procedureRefs,
     byDatabase: Object.fromEntries(
       databaseNames.map((databaseName) => [
         databaseName,
@@ -889,7 +1040,11 @@ export function buildPostgresAdminInventorySnapshot({
             schemaRefs
               .filter((schema) => schema.databaseName === databaseName)
               .flatMap((schema) => schema.workspaceBindings ?? [])
-          )
+          ),
+          viewCount: viewRefs.filter((view) => view.databaseName === databaseName).length,
+          materializedViewCount: materializedViewRefs.filter((view) => view.databaseName === databaseName).length,
+          functionCount: functionRefs.filter((routine) => routine.databaseName === databaseName).length,
+          procedureCount: procedureRefs.filter((routine) => routine.databaseName === databaseName).length
         }
       ])
     ),
@@ -914,14 +1069,30 @@ export function buildPostgresAdminMetadataRecord({
       primaryRef:
         resource?.roleName ??
         resource?.userName ??
-        resource?.databaseName ??
-        (resource?.databaseName && resource?.schemaName && resource?.tableName
-          ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}`
-          : resource?.databaseName && resource?.schemaName
-            ? `${resource.databaseName}.${resource.schemaName}`
-            : resource?.schemaName) ??
+        (resource?.databaseName && resource?.schemaName && resource?.tableName && resource?.columnName
+          ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}.${resource.columnName}`
+          : resource?.databaseName && resource?.schemaName && resource?.tableName
+            ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}`
+            : resource?.databaseName && resource?.schemaName && resource?.viewName
+              ? `${resource.databaseName}.${resource.schemaName}.${resource.viewName}`
+              : resource?.databaseName && resource?.schemaName && resource?.materializedViewName
+                ? `${resource.databaseName}.${resource.schemaName}.${resource.materializedViewName}`
+                : resource?.databaseName && resource?.schemaName && resource?.routineName
+                  ? `${resource.databaseName}.${resource.schemaName}.${resource.routineName}`
+                  : resource?.databaseName && resource?.schemaName && resource?.constraintName
+                    ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}.${resource.constraintName}`
+                    : resource?.databaseName && resource?.schemaName && resource?.indexName
+                      ? `${resource.databaseName}.${resource.schemaName}.${resource.indexName}`
+                      : resource?.databaseName && resource?.schemaName
+                        ? `${resource.databaseName}.${resource.schemaName}`
+                        : resource?.databaseName) ??
         resource?.tableName ??
         resource?.columnName ??
+        resource?.viewName ??
+        resource?.materializedViewName ??
+        resource?.constraintName ??
+        resource?.indexName ??
+        resource?.routineName ??
         resource?.fullName,
       placementMode: resource?.placementMode,
       ownerRoleName: resource?.ownerRoleName,

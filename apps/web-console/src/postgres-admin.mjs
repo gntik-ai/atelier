@@ -12,6 +12,10 @@ export function getConsolePostgresRoute(operationId) {
   return route?.family === 'postgres' ? route : undefined;
 }
 
+function relationKey(entry = {}) {
+  return `${entry.databaseName}.${entry.schemaName}.${entry.tableName ?? entry.viewName ?? entry.materializedViewName ?? entry.routineName ?? entry.indexName}`;
+}
+
 export function buildPostgresTableExplorer({ tables = [], columns = [] } = {}) {
   const columnCountByTable = new Map();
 
@@ -44,7 +48,72 @@ export function buildPostgresTypeFilterOptions(types = []) {
   };
 }
 
-export function buildWorkspacePostgresExplorer({ workspaceId, inventory, tables = [], columns = [], types = [] } = {}) {
+export function buildPostgresConstraintExplorer(constraints = []) {
+  return constraints.map((constraint) => ({
+    key: `${constraint.databaseName}.${constraint.schemaName}.${constraint.tableName}.${constraint.constraintName ?? constraint.columnName}`,
+    title: constraint.constraintName ?? constraint.columnName,
+    databaseName: constraint.databaseName,
+    schemaName: constraint.schemaName,
+    tableName: constraint.tableName,
+    constraintType: constraint.constraintType,
+    target: constraint.columnName ?? (constraint.columns ?? []).join(', '),
+    route: getConsolePostgresRoute('getPostgresConstraint')
+  }));
+}
+
+export function buildPostgresIndexExplorer(indexes = []) {
+  return indexes.map((index) => ({
+    key: relationKey(index),
+    title: index.indexName,
+    databaseName: index.databaseName,
+    schemaName: index.schemaName,
+    tableName: index.tableName,
+    indexMethod: index.indexMethod,
+    unique: index.unique === true,
+    partial: Boolean(index.predicateExpression),
+    compound: (index.keys?.length ?? 0) > 1,
+    route: getConsolePostgresRoute('getPostgresIndex')
+  }));
+}
+
+export function buildPostgresViewExplorer(views = [], operationId = 'getPostgresView') {
+  return views.map((view) => ({
+    key: relationKey(view),
+    title: view.viewName ?? view.materializedViewName,
+    databaseName: view.databaseName,
+    schemaName: view.schemaName,
+    dependencyCount: view.dependencySummary?.readsFrom?.length ?? 0,
+    refreshPolicy: view.refreshPolicy,
+    route: getConsolePostgresRoute(operationId)
+  }));
+}
+
+export function buildPostgresRoutineExplorer(routines = [], operationId = 'getPostgresFunction') {
+  return routines.map((routine) => ({
+    key: relationKey(routine),
+    title: routine.routineName,
+    databaseName: routine.databaseName,
+    schemaName: routine.schemaName,
+    language: routine.language,
+    signature: routine.signature,
+    documentationSummary: routine.documentation?.summary,
+    route: getConsolePostgresRoute(operationId)
+  }));
+}
+
+export function buildWorkspacePostgresExplorer({
+  workspaceId,
+  inventory,
+  tables = [],
+  columns = [],
+  constraints = [],
+  indexes = [],
+  views = [],
+  materializedViews = [],
+  functions = [],
+  procedures = [],
+  types = []
+} = {}) {
   return {
     workspaceId,
     family: postgresConsoleFamily,
@@ -72,6 +141,48 @@ export function buildWorkspacePostgresExplorer({ workspaceId, inventory, tables 
           nullable: column.nullable !== false,
           route: getConsolePostgresRoute('getPostgresColumn')
         }))
+      },
+      {
+        id: 'constraints',
+        title: 'Constraints',
+        count: constraints.length,
+        route: getConsolePostgresRoute('listPostgresConstraints'),
+        items: buildPostgresConstraintExplorer(constraints)
+      },
+      {
+        id: 'indexes',
+        title: 'Indexes',
+        count: indexes.length,
+        route: getConsolePostgresRoute('listPostgresIndexes'),
+        items: buildPostgresIndexExplorer(indexes)
+      },
+      {
+        id: 'views',
+        title: 'Views',
+        count: views.length,
+        route: getConsolePostgresRoute('listPostgresViews'),
+        items: buildPostgresViewExplorer(views, 'getPostgresView')
+      },
+      {
+        id: 'materialized_views',
+        title: 'Materialized views',
+        count: materializedViews.length,
+        route: getConsolePostgresRoute('listPostgresMaterializedViews'),
+        items: buildPostgresViewExplorer(materializedViews, 'getPostgresMaterializedView')
+      },
+      {
+        id: 'functions',
+        title: 'Functions',
+        count: functions.length,
+        route: getConsolePostgresRoute('listPostgresFunctions'),
+        items: buildPostgresRoutineExplorer(functions, 'getPostgresFunction')
+      },
+      {
+        id: 'procedures',
+        title: 'Procedures',
+        count: procedures.length,
+        route: getConsolePostgresRoute('listPostgresProcedures'),
+        items: buildPostgresRoutineExplorer(procedures, 'getPostgresProcedure')
       },
       {
         id: 'types',

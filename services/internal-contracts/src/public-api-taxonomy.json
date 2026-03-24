@@ -658,6 +658,42 @@
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": null
+    },
+    {
+      "resource_type": "postgres_constraint",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_index",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_view",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_materialized_view",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_function",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_procedure",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
     }
   ]
 }

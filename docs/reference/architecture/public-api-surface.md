@@ -202,6 +202,21 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Delete one workspace-scoped PostgreSQL schema through the bounded administrative surface |
 | GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Fetch one workspace-scoped PostgreSQL schema contract |
 | PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Update one workspace-scoped PostgreSQL schema through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/functions` | workspace | postgres_function | List workspace-scoped tenant-exposed PostgreSQL functions inside one managed schema |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/functions` | workspace | postgres_function | Create one workspace-scoped tenant-exposed PostgreSQL function inside a managed schema |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/functions/{routineName}` | workspace | postgres_function | Delete one workspace-scoped PostgreSQL function through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/functions/{routineName}` | workspace | postgres_function | Fetch one workspace-scoped PostgreSQL function contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/functions/{routineName}` | workspace | postgres_function | Update one workspace-scoped PostgreSQL function through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/materialized-views` | workspace | postgres_materialized_view | List workspace-scoped PostgreSQL materialized views inside one managed schema |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/materialized-views` | workspace | postgres_materialized_view | Create one workspace-scoped PostgreSQL materialized view inside a managed schema |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/materialized-views/{viewName}` | workspace | postgres_materialized_view | Delete one workspace-scoped PostgreSQL materialized view through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/materialized-views/{viewName}` | workspace | postgres_materialized_view | Fetch one workspace-scoped PostgreSQL materialized view contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/materialized-views/{viewName}` | workspace | postgres_materialized_view | Update one workspace-scoped PostgreSQL materialized view through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/procedures` | workspace | postgres_procedure | List workspace-scoped tenant-exposed PostgreSQL procedures inside one managed schema |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/procedures` | workspace | postgres_procedure | Create one workspace-scoped tenant-exposed PostgreSQL procedure inside a managed schema |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/procedures/{routineName}` | workspace | postgres_procedure | Delete one workspace-scoped PostgreSQL procedure through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/procedures/{routineName}` | workspace | postgres_procedure | Fetch one workspace-scoped PostgreSQL procedure contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/procedures/{routineName}` | workspace | postgres_procedure | Update one workspace-scoped PostgreSQL procedure through the bounded administrative surface |
 | GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables` | workspace | postgres_table | List workspace-scoped PostgreSQL tables inside one managed schema |
 | POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables` | workspace | postgres_table | Create one workspace-scoped PostgreSQL table inside a managed schema |
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}` | workspace | postgres_table | Delete one workspace-scoped PostgreSQL table through the bounded administrative surface |
@@ -212,6 +227,21 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}` | workspace | postgres_column | Delete one workspace-scoped PostgreSQL column through the bounded administrative surface |
 | GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}` | workspace | postgres_column | Fetch one workspace-scoped PostgreSQL column contract |
 | PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}` | workspace | postgres_column | Update one workspace-scoped PostgreSQL column through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/constraints` | workspace | postgres_constraint | List workspace-scoped PostgreSQL constraints inside one managed table |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/constraints` | workspace | postgres_constraint | Create one workspace-scoped PostgreSQL constraint inside a managed table |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/constraints/{constraintName}` | workspace | postgres_constraint | Delete one workspace-scoped PostgreSQL constraint through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/constraints/{constraintName}` | workspace | postgres_constraint | Fetch one workspace-scoped PostgreSQL constraint contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/constraints/{constraintName}` | workspace | postgres_constraint | Update one workspace-scoped PostgreSQL constraint through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes` | workspace | postgres_index | List workspace-scoped PostgreSQL indexes inside one managed table |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes` | workspace | postgres_index | Create one workspace-scoped PostgreSQL index inside a managed table |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes/{indexName}` | workspace | postgres_index | Delete one workspace-scoped PostgreSQL index through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes/{indexName}` | workspace | postgres_index | Fetch one workspace-scoped PostgreSQL index contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes/{indexName}` | workspace | postgres_index | Update one workspace-scoped PostgreSQL index through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views` | workspace | postgres_view | List workspace-scoped PostgreSQL views inside one managed schema |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views` | workspace | postgres_view | Create one workspace-scoped PostgreSQL view inside a managed schema |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views/{viewName}` | workspace | postgres_view | Delete one workspace-scoped PostgreSQL view through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views/{viewName}` | workspace | postgres_view | Fetch one workspace-scoped PostgreSQL view contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/views/{viewName}` | workspace | postgres_view | Update one workspace-scoped PostgreSQL view through the bounded administrative surface |
 | POST | `/v1/postgres/instances` | workspace | database | Submit a workspace-scoped PostgreSQL instance provisioning request through the unified postgres family |
 | GET | `/v1/postgres/instances/{resourceId}` | workspace | database | Fetch one workspace-scoped PostgreSQL instance contract under the postgres family |
 | GET | `/v1/postgres/roles` | workspace | postgres_role | List workspace-scoped PostgreSQL roles through the normalized administrative surface |

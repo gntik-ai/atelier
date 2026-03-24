@@ -13,7 +13,7 @@ import {
   postgresqlAdminAdapterPort
 } from '../../services/adapters/src/postgresql-admin.mjs';
 
-test('postgres admin service contracts and adapter capability baseline cover the PostgreSQL admin surface', () => {
+test('postgres admin service contracts and adapter capability baseline cover the expanded PostgreSQL admin surface', () => {
   const postgresAdminRequest = getContract('postgres_admin_request');
   const postgresAdminResult = getContract('postgres_admin_result');
   const postgresInventorySnapshot = getContract('postgres_inventory_snapshot');
@@ -37,16 +37,30 @@ test('postgres admin service contracts and adapter capability baseline cover the
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_user_update'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_database_delete'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_schema_list'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_constraint_create'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_index_delete'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_view_update'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_materialized_view_create'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_function_get'));
+  assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_procedure_delete'));
   assert.ok(postgresqlAdminAdapterPort.capabilities.includes('postgres_inventory_upsert'));
   assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.schema, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.index, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.function, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(SUPPORTED_POSTGRES_VERSION_RANGES.map((entry) => entry.range), ['15.x', '16.x', '17.x']);
 });
 
-test('postgres public routes publish the normalized family metadata, inventory, and operational guidance descriptors', () => {
+test('postgres public routes publish normalized family metadata, inventory, and advanced structural contracts', () => {
   const document = readJson(OPENAPI_PATH);
   const listRolesRoute = getPublicRoute('listPostgresRoles');
   const getInventoryRoute = getPublicRoute('getPostgresInventory');
   const createSchemaRoute = getPublicRoute('createPostgresSchema');
+  const createConstraintRoute = getPublicRoute('createPostgresConstraint');
+  const listIndexesRoute = getPublicRoute('listPostgresIndexes');
+  const createViewRoute = getPublicRoute('createPostgresView');
+  const listMaterializedViewsRoute = getPublicRoute('listPostgresMaterializedViews');
+  const createFunctionRoute = getPublicRoute('createPostgresFunction');
+  const getProcedureRoute = getPublicRoute('getPostgresProcedure');
 
   assert.equal(listRolesRoute.family, 'postgres');
   assert.equal(listRolesRoute.path, '/v1/postgres/roles');
@@ -55,6 +69,12 @@ test('postgres public routes publish the normalized family metadata, inventory, 
   assert.equal(createSchemaRoute.resourceType, 'postgres_schema');
   assert.equal(createSchemaRoute.supportsIdempotencyKey, true);
   assert.equal(getInventoryRoute.path, '/v1/postgres/workspaces/{workspaceId}/inventory');
+  assert.equal(createConstraintRoute.resourceType, 'postgres_constraint');
+  assert.equal(listIndexesRoute.path, '/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/indexes');
+  assert.equal(createViewRoute.resourceType, 'postgres_view');
+  assert.equal(listMaterializedViewsRoute.resourceType, 'postgres_materialized_view');
+  assert.equal(createFunctionRoute.resourceType, 'postgres_function');
+  assert.equal(getProcedureRoute.resourceType, 'postgres_procedure');
 
   assert.ok(document.components.schemas.PostgresProviderCompatibility);
   assert.ok(document.components.schemas.PostgresAdminEnginePolicy);
@@ -64,4 +84,12 @@ test('postgres public routes publish the normalized family metadata, inventory, 
   assert.ok(document.components.schemas.PostgresSchema.properties.accessPolicy);
   assert.ok(document.components.schemas.PostgresAdminInventory.properties.minimumEnginePolicy);
   assert.ok(document.components.schemas.PostgresAdminMutationAccepted);
+  assert.ok(document.components.schemas.PostgresConstraint.properties.constraintType);
+  assert.ok(document.components.schemas.PostgresIndex.properties.performanceProfile);
+  assert.ok(document.components.schemas.PostgresView.properties.dependencySummary);
+  assert.ok(document.components.schemas.PostgresMaterializedView.properties.integrityProfile);
+  assert.ok(document.components.schemas.PostgresFunction.properties.documentation);
+  assert.ok(document.components.schemas.PostgresProcedure.properties.securityMode);
+  assert.ok(document.components.schemas.PostgresAdminInventory.properties.constraintRefs);
+  assert.ok(document.components.schemas.PostgresAdminInventory.properties.materializedViewRefs);
 });
