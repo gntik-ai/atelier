@@ -260,6 +260,7 @@
       "supported_states": [
         "draft",
         "provisioning",
+        "pending_activation",
         "active",
         "suspended",
         "soft_deleted"
@@ -272,28 +273,39 @@
         "environment",
         "state",
         "timestamps",
-        "metadata"
+        "metadata",
+        "iamBoundary",
+        "resourceInheritance",
+        "apiSurface"
       ],
       "optional_fields": [
         "description",
         "runtimeNamespace",
         "resourceCounts",
-        "iamBoundary",
+        "cloneSource",
         "provisioning"
       ],
       "business_rules": [
         "Each workspace belongs to exactly one tenant and its tenantId is immutable after creation.",
-        "Workspace slug is unique within the tenant boundary.",
+        "Workspace slug and displayName are each unique within the tenant boundary.",
         "Workspace environment must align with the deployment topology environment catalog.",
         "A workspace cannot move to active when its parent tenant is not active.",
         "workspace.iamBoundary.clientNamespace must be unique within the tenant realm and namespaced from workspace slug metadata.",
+        "workspace.iamBoundary.keyPolicy must keep credential material reference-first and isolate secret paths per workspace.",
+        "Workspace apiSurface must resolve environment-safe control-plane, console, identity, realtime, and application base URLs.",
+        "resourceInheritance must describe whether logical resources are inherited from tenant defaults, cloned from another workspace, or specialized locally without duplicating tenant-shared resources.",
         "The first workspace created during tenant activation must keep per-resource provisioning state so partial bootstrap failures can be retried without duplicating already-provisioned resources."
       ],
       "openapi": {
         "read_schema": "Workspace",
         "write_schema": "WorkspaceWriteRequest",
         "read_path": "/v1/workspaces/{workspaceId}",
-        "write_path": "/v1/workspaces"
+        "write_path": "/v1/workspaces",
+        "collection_path": "/v1/workspaces",
+        "update_path": "/v1/workspaces/{workspaceId}",
+        "delete_path": "/v1/workspaces/{workspaceId}",
+        "clone_path": "/v1/workspaces/{workspaceId}/clone",
+        "api_surface_path": "/v1/workspaces/{workspaceId}/api-surface"
       }
     },
     {
@@ -337,7 +349,8 @@
         "attributeMappers",
         "federatedProviders",
         "planLimits",
-        "validation"
+        "validation",
+        "endpoints"
       ],
       "business_rules": [
         "Each external application belongs to exactly one workspace and inherits its tenant boundary.",
@@ -349,7 +362,8 @@
         "OIDC applications may only use approved login/logout redirect URIs and must keep post-logout redirects separate from interactive login callbacks.",
         "SAML federation requires validated metadata or explicit single sign-on endpoints plus at least one signing certificate before activation.",
         "Each federated provider alias must be unique within one external application and may only project approved attribute mappings into scopes, roles, or claims.",
-        "Starter templates for SPA, confidential backend, and B2B SAML patterns stay additive defaults and never bypass per-workspace validation or plan limits."
+        "Starter templates for SPA, confidential backend, and B2B SAML patterns stay additive defaults and never bypass per-workspace validation or plan limits.",
+        "External applications may expose workspace-specific endpoint bindings, but each binding must stay isolated to one canonical application record and one workspace-owned credential set."
       ],
       "openapi": {
         "read_schema": "ExternalApplication",
@@ -441,13 +455,19 @@
         "providerRef",
         "placementRef",
         "specVersion",
-        "provisioning"
+        "provisioning",
+        "logicalResourceKey",
+        "sharingScope",
+        "consumerWorkspaceIds",
+        "authorizedApplicationIds",
+        "authorizedServiceAccountIds"
       ],
       "business_rules": [
         "Managed resources represent tenant-safe canonical records for workspace-scoped BaaS assets and their provider references.",
         "AccessPolicy must reference only workspace roles and service-account ids from the same workspace namespace.",
         "Cross-product authorization for database, bucket, topic, and function resources is enforced by the shared accessPolicy plus the contextual authorization model.",
-        "Managed resources created by tenant bootstrap must persist provider reference lineage, per-resource provisioning status, and retry-safe attempt metadata for operator visibility."
+        "Managed resources created by tenant bootstrap must persist provider reference lineage, per-resource provisioning status, and retry-safe attempt metadata for operator visibility.",
+        "Tenant-shared managed resources may serve multiple workspaces only when consumerWorkspaceIds, authorized application ids, and authorized service-account ids remain workspace-scoped and independently managed."
       ],
       "supported_kinds": [
         "database",
@@ -1566,6 +1586,69 @@
         "CredentialStatus becomes rotation_due before hard expiry so a replacement credential can be issued and audited.",
         "Revoked or expired credentials cannot be reactivated in place; issuance creates a new credential reference.",
         "Rotation windows must respect workspace isolation and the configured credential policy."
+      ]
+    },
+    {
+      "id": "workspace_lifecycle",
+      "entity_type": "workspace",
+      "field": "state",
+      "initial_state": "draft",
+      "states": [
+        "draft",
+        "provisioning",
+        "pending_activation",
+        "active",
+        "suspended",
+        "soft_deleted"
+      ],
+      "terminal_states": [
+        "soft_deleted"
+      ],
+      "allowed_transitions": [
+        {
+          "from": "draft",
+          "to": "provisioning"
+        },
+        {
+          "from": "provisioning",
+          "to": "pending_activation"
+        },
+        {
+          "from": "pending_activation",
+          "to": "active"
+        },
+        {
+          "from": "active",
+          "to": "suspended"
+        },
+        {
+          "from": "suspended",
+          "to": "active"
+        },
+        {
+          "from": "draft",
+          "to": "soft_deleted"
+        },
+        {
+          "from": "provisioning",
+          "to": "soft_deleted"
+        },
+        {
+          "from": "pending_activation",
+          "to": "soft_deleted"
+        },
+        {
+          "from": "active",
+          "to": "soft_deleted"
+        },
+        {
+          "from": "suspended",
+          "to": "soft_deleted"
+        }
+      ],
+      "rules": [
+        "Activation requires the parent tenant to be active and all mandatory bootstrap resources to have converged.",
+        "Soft-deleted workspaces keep slug uniqueness reservations and clone lineage for auditability."
       ]
     }
   ],

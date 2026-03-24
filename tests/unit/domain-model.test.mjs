@@ -62,6 +62,7 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   const invitationStateMachine = getBusinessStateMachine('invitation_status');
   const serviceAccountCredentialStateMachine = getBusinessStateMachine('service_account_credential_status');
   const platformUserStateMachine = getBusinessStateMachine('platform_user_access_status');
+  const workspaceStateMachine = getBusinessStateMachine('workspace_lifecycle');
   const seedFixtures = readDomainSeedFixtures();
   const profileIds = seedFixtures.profiles.map((profile) => profile.id);
   const growthProfile = seedFixtures.profiles.find((profile) => profile.id === 'growth-multi-workspace');
@@ -82,6 +83,11 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   assert.equal(seedFixtures.profiles.every((profile) => profile.invitations.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.identityContext.platformRealm === 'in-atelier-platform'), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.iamBoundary.clientNamespace)), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.iamBoundary.keyPolicy?.secretPathPrefix)), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => Array.isArray(workspace.resourceInheritance?.logicalResources))), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.workspaces.every((workspace) => workspace.apiSurface?.applicationBaseUrlPattern)), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.externalApplications.every((application) => application.endpoints?.length >= 1)), true);
+  assert.equal(growthProfile.managedResources.some((resource) => resource.sharingScope === 'tenant_shared' && resource.consumerWorkspaceIds.length >= 2), true);
   assert.equal(growthProfile.externalApplications.filter((application) => application.workspaceId === 'wrk_01betaprod').length >= 2, true);
   assert.equal(growthProfile.externalApplications.some((application) => application.federatedProviders?.some((provider) => provider.protocol === 'oidc')), true);
   assert.equal(
@@ -94,6 +100,8 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   assert.deepEqual(serviceAccountCredentialStateMachine.states, ['active', 'rotation_due', 'revoked', 'expired']);
   assert.ok(platformUserStateMachine);
   assert.deepEqual(platformUserStateMachine.states, ['pending_activation', 'active', 'suspended', 'soft_deleted']);
+  assert.ok(workspaceStateMachine);
+  assert.deepEqual(workspaceStateMachine.states, ['draft', 'provisioning', 'pending_activation', 'active', 'suspended', 'soft_deleted']);
   assert.deepEqual(
     listCommercialPlans().map((plan) => plan.slug),
     ['starter', 'growth', 'regulated', 'enterprise']

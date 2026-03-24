@@ -448,6 +448,141 @@ export function resolveWorkspaceEffectiveCapabilities({
   };
 }
 
+function getWorkspaceApplicationBaseUrl({ workspaceSlug, workspaceEnvironment, applicationSlug }) {
+  const environmentProfile = getEnvironmentProfile(workspaceEnvironment);
+  const subdomainConfig = readDeploymentTopology().public_surface?.optional_workspace_subdomain ?? {};
+
+  if (!environmentProfile) {
+    throw new Error(`Unknown workspace environment ${workspaceEnvironment}.`);
+  }
+
+  const allowedEnvironments = new Set(subdomainConfig.allowed_environments ?? []);
+  if (allowedEnvironments.has(workspaceEnvironment)) {
+    return `https://${workspaceSlug}.apps.${workspaceEnvironment}.in-atelier.example.com/${applicationSlug}`;
+  }
+
+  return `https://${environmentProfile.hostnames.api}/workspaces/${workspaceSlug}/apps/${applicationSlug}`;
+}
+
+export function resolveWorkspaceApiSurface({
+  workspaceId,
+  workspaceSlug,
+  workspaceEnvironment,
+  iamRealm = null,
+  applications = []
+}) {
+  const environmentProfile = getEnvironmentProfile(workspaceEnvironment);
+
+  if (!environmentProfile) {
+    throw new Error(`Unknown workspace environment ${workspaceEnvironment}.`);
+  }
+
+  const controlApiBaseUrl = `https://${environmentProfile.hostnames.api}/v1/workspaces/${workspaceId}`;
+  const consoleBaseUrl = `https://${environmentProfile.hostnames.console}/workspaces/${workspaceId}`;
+  const identityBaseUrl = iamRealm
+    ? `https://${environmentProfile.hostnames.identity}/realms/${iamRealm}`
+    : `https://${environmentProfile.hostnames.identity}`;
+  const realtimeBaseUrl = `https://${environmentProfile.hostnames.realtime}/v1/websockets`;
+  const applicationBaseUrlPattern = getWorkspaceApplicationBaseUrl({
+    workspaceSlug,
+    workspaceEnvironment,
+    applicationSlug: '{applicationSlug}'
+  });
+
+  return {
+    workspaceId,
+    workspaceSlug,
+    environment: workspaceEnvironment,
+    controlApiBaseUrl,
+    consoleBaseUrl,
+    identityBaseUrl,
+    realtimeBaseUrl,
+    applicationBaseUrlPattern,
+    endpoints: [
+      { name: 'control-api', audience: 'control_plane', url: controlApiBaseUrl },
+      { name: 'console', audience: 'console', url: consoleBaseUrl },
+      { name: 'identity', audience: 'identity', url: identityBaseUrl },
+      { name: 'realtime', audience: 'realtime', url: realtimeBaseUrl }
+    ],
+    applicationEndpoints: applications.map((application) => {
+      const publicBaseUrl = getWorkspaceApplicationBaseUrl({
+        workspaceSlug,
+        workspaceEnvironment,
+        applicationSlug: application.slug
+      });
+
+      return {
+        applicationId: application.applicationId,
+        applicationSlug: application.slug,
+        protocol: application.protocol,
+        publicBaseUrl,
+        callbackBaseUrl: `${publicBaseUrl}/callback`
+      };
+    })
+  };
+}
+
+export function resolveWorkspaceResourceInheritance({
+  mode = 'tenant_defaults',
+  sourceWorkspaceId = null,
+  logicalResources = []
+} = {}) {
+  const sharedResourceKeys = [];
+  const specializedResourceKeys = [];
+
+  for (const resource of logicalResources) {
+    if (resource?.sharingScope === 'tenant_shared' || resource?.specializationMode === 'shared') {
+      sharedResourceKeys.push(resource.resourceKey);
+    } else {
+      specializedResourceKeys.push(resource.resourceKey);
+    }
+  }
+
+  return {
+    mode,
+    sourceWorkspaceId,
+    logicalResources,
+    sharedResourceKeys,
+    specializedResourceKeys,
+    requiresCloneLineage: mode === 'clone_workspace' && Boolean(sourceWorkspaceId)
+  };
+}
+
+export function buildWorkspaceCloneDraft({ sourceWorkspace, targetWorkspace = {}, clonePolicy = {} }) {
+  if (!sourceWorkspace?.workspaceId) {
+    throw new Error('sourceWorkspace.workspaceId is required to build a clone draft.');
+  }
+
+  const mergedClonePolicy = {
+    includeApplications: true,
+    includeServiceAccounts: true,
+    includeManagedResourceBindings: true,
+    resetCredentialReferences: true,
+    reuseTenantLogicalResources: true,
+    cloneMetadata: true,
+    ...clonePolicy
+  };
+
+  return {
+    entityType: 'workspace_clone',
+    slug: targetWorkspace.slug,
+    displayName: targetWorkspace.displayName,
+    description: targetWorkspace.description ?? sourceWorkspace.description,
+    environment: targetWorkspace.environment ?? sourceWorkspace.environment,
+    desiredState: targetWorkspace.desiredState ?? 'draft',
+    metadata: targetWorkspace.metadata ?? sourceWorkspace.metadata ?? {},
+    iamBoundary: targetWorkspace.iamBoundary ?? sourceWorkspace.iamBoundary,
+    resourceInheritance:
+      targetWorkspace.resourceInheritance ??
+      resolveWorkspaceResourceInheritance({
+        mode: 'clone_workspace',
+        sourceWorkspaceId: sourceWorkspace.workspaceId,
+        logicalResources: sourceWorkspace.resourceInheritance?.logicalResources ?? []
+      }),
+    clonePolicy: mergedClonePolicy
+  };
+}
+
 export function listInitialTenantBootstrapTemplates() {
   return readDomainModel().governance_catalogs?.initial_tenant_bootstrap_templates ?? [];
 }

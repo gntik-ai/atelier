@@ -49,6 +49,7 @@ erDiagram
 - Every non-platform entity carries `tenantId`.
 - `workspaceId` is mandatory for workspace-owned entities.
 - A workspace belongs to exactly one tenant and cannot migrate silently.
+- Workspace `slug` and `displayName` are unique inside the tenant boundary even when multiple environments coexist.
 - Cross-tenant or cross-workspace references are invalid even when raw identifiers exist.
 
 ### Lifecycle safety
@@ -70,7 +71,7 @@ The canonical model now carries explicit Keycloak-facing IAM descriptors:
 
 - `platform_user.iamBinding` keeps console operators in the platform realm only.
 - `tenant.identityContext` declares the tenant realm identifier, realm strategy, and console-vs-end-user boundary.
-- `workspace.iamBoundary` defines the workspace client namespace and default client-scope projection.
+- `workspace.iamBoundary` defines the workspace client namespace, default client-scope projection, and the workspace key-policy baseline used by descendant applications and service accounts.
 - `external_application.iamClient` maps one canonical application to one Keycloak client registration.
 - `service_account.iamBinding` maps non-human actors to confidential clients / service-account users plus secret references.
 
@@ -122,9 +123,13 @@ Every lifecycle event carries:
 - correlation id
 - timestamp
 
+The workspace entity additionally exposes a dedicated lifecycle state machine: `draft -> provisioning -> pending_activation -> active`, with `suspend` / `reactivate` transitions and soft-delete exits from every non-terminal state.
+
 ## OpenAPI contract mapping
 
 The control-plane contract provides a canonical read path and write path for each entity. Write operations are asynchronous-friendly and return one accepted mutation envelope instead of implying immediate provisioning completion.
+
+Workspace management is now full CRUD-plus-clone: list (`GET /v1/workspaces`), read (`GET /v1/workspaces/{workspaceId}`), create (`POST /v1/workspaces`), update (`PUT /v1/workspaces/{workspaceId}`), soft delete (`DELETE /v1/workspaces/{workspaceId}`), clone (`POST /v1/workspaces/{workspaceId}/clone`), and API-surface discovery (`GET /v1/workspaces/{workspaceId}/api-surface`).
 
 | Entity | Read path | Write path |
 | --- | --- | --- |
@@ -143,10 +148,11 @@ The baseline seed package in `tests/reference/domain-seed-fixtures.json` intenti
 2. `growth-multi-workspace` — one shared-schema tenant with dev/staging/prod workspaces
 3. `enterprise-dedicated` — one dedicated-database tenant with four workspaces and stricter operational shape
 
-The fixture set now also proves the IAM baseline:
+The fixture set now also proves the IAM and workspace-management baseline:
 
 - every tenant exposes a platform-to-tenant identity context
-- every workspace exposes a client namespace and default Keycloak scope projection
+- every workspace exposes a client namespace, workspace key policy, inheritance graph, and API surface projection
 - the growth profile includes multiple workspaces and multiple application/service-account clients inside one tenant
+- at least one managed resource is shared across multiple workspaces while applications and service accounts remain workspace-specific
 
 Use those profiles for contract tests, demo data planning, and future fixture builders before inventing new canonical examples.

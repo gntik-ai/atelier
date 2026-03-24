@@ -6,7 +6,8 @@ import {
   controlApiEntityReadContract,
   controlApiEntityWriteContract,
   controlApiLifecycleEventContract,
-  controlPlaneDomainEntities
+  controlPlaneDomainEntities,
+  controlPlaneWorkspaceStateMachine
 } from '../../apps/control-plane/src/domain-model.mjs';
 import { OPENAPI_PATH, readJson } from '../../scripts/lib/quality-gates.mjs';
 import {
@@ -36,12 +37,21 @@ test('domain model aligns with public OpenAPI schemas and paths', () => {
   }
 
   const resolutionDescriptor = getEffectiveCapabilityResolutionDescriptor();
+  const workspaceEntity = getDomainEntity('workspace');
   assert.ok(openapi.components.schemas.EffectiveCapabilityResolution);
   assert.ok(openapi.components.schemas.TenantIdentityContext);
   assert.ok(openapi.components.schemas.ExternalApplicationIamClient);
   assert.ok(openapi.components.schemas.ServiceAccountIamBinding);
+  assert.ok(openapi.components.schemas.WorkspaceApiSurface);
+  assert.ok(openapi.components.schemas.WorkspaceCloneRequest);
+  assert.ok(openapi.components.schemas.WorkspaceCloneAccepted);
   assert.ok(openapi.paths[resolutionDescriptor.paths.tenant]);
   assert.ok(openapi.paths[resolutionDescriptor.paths.workspace]);
+  assert.ok(openapi.paths[workspaceEntity.openapi.collection_path]);
+  assert.ok(openapi.paths[workspaceEntity.openapi.update_path]);
+  assert.ok(openapi.paths[workspaceEntity.openapi.clone_path]);
+  assert.ok(openapi.paths[workspaceEntity.openapi.api_surface_path]);
+  assert.deepEqual(controlPlaneWorkspaceStateMachine.states, ['draft', 'provisioning', 'pending_activation', 'active', 'suspended', 'soft_deleted']);
 });
 
 test('domain model preserves deployment, authorization, and governance alignment', () => {
@@ -61,6 +71,9 @@ test('domain model preserves deployment, authorization, and governance alignment
   }
 
   assert.equal(workspaceEntity.business_rules.some((rule) => rule.includes('deployment topology environment catalog')), true);
+  assert.equal(workspaceEntity.business_rules.some((rule) => rule.includes('slug and displayName')), true);
+  assert.equal(workspaceEntity.business_rules.some((rule) => rule.includes('apiSurface')), true);
+  assert.equal(workspaceEntity.required_fields.includes('resourceInheritance'), true);
   assert.equal(tenantEntity.business_rules.some((rule) => rule.includes('identityContext')), true);
   assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('iamClient.clientId')), true);
   assert.equal(applicationEntity.business_rules.some((rule) => rule.includes('authenticationFlows')), true);
@@ -68,6 +81,7 @@ test('domain model preserves deployment, authorization, and governance alignment
   assert.equal(serviceAccountEntity.business_rules.some((rule) => rule.includes('confidential Keycloak client')), true);
   assert.equal(serviceAccountEntity.required_fields.includes('credentialPolicy'), true);
   assert.equal(managedResourceEntity.required_fields.includes('accessPolicy'), true);
+  assert.equal(managedResourceEntity.optional_fields.includes('sharingScope'), true);
   assert.equal(
     deploymentProfileEntity.business_rules.some((rule) => rule.includes('control, data, identity, and observability plane separation')),
     true
@@ -86,5 +100,5 @@ test('domain model preserves deployment, authorization, and governance alignment
     }
   }
 
-  assert.equal(listBusinessStateMachines().length >= 6, true);
+  assert.equal(listBusinessStateMachines().length >= 7, true);
 });
