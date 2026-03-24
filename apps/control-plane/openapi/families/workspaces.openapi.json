@@ -3427,7 +3427,7 @@
     "description": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
     "title": "In Atelier Workspaces API",
-    "version": "1.12.0"
+    "version": "1.13.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

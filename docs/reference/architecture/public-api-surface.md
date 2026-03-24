@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.12.0)
+Version: v1 (header 2026-03-24, OpenAPI 1.13.0)
 
 ## Product API vs native passthrough
 
@@ -202,6 +202,16 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Delete one workspace-scoped PostgreSQL schema through the bounded administrative surface |
 | GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Fetch one workspace-scoped PostgreSQL schema contract |
 | PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}` | workspace | postgres_schema | Update one workspace-scoped PostgreSQL schema through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables` | workspace | postgres_table | List workspace-scoped PostgreSQL tables inside one managed schema |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables` | workspace | postgres_table | Create one workspace-scoped PostgreSQL table inside a managed schema |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}` | workspace | postgres_table | Delete one workspace-scoped PostgreSQL table through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}` | workspace | postgres_table | Fetch one workspace-scoped PostgreSQL table contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}` | workspace | postgres_table | Update one workspace-scoped PostgreSQL table through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns` | workspace | postgres_column | List workspace-scoped PostgreSQL columns inside one managed table |
+| POST | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns` | workspace | postgres_column | Create one workspace-scoped PostgreSQL column inside a managed table |
+| DELETE | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}` | workspace | postgres_column | Delete one workspace-scoped PostgreSQL column through the bounded administrative surface |
+| GET | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}` | workspace | postgres_column | Fetch one workspace-scoped PostgreSQL column contract |
+| PUT | `/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}` | workspace | postgres_column | Update one workspace-scoped PostgreSQL column through the bounded administrative surface |
 | POST | `/v1/postgres/instances` | workspace | database | Submit a workspace-scoped PostgreSQL instance provisioning request through the unified postgres family |
 | GET | `/v1/postgres/instances/{resourceId}` | workspace | database | Fetch one workspace-scoped PostgreSQL instance contract under the postgres family |
 | GET | `/v1/postgres/roles` | workspace | postgres_role | List workspace-scoped PostgreSQL roles through the normalized administrative surface |
@@ -215,6 +225,7 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, and i
 | GET | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Fetch one workspace-scoped PostgreSQL user contract |
 | PUT | `/v1/postgres/users/{postgresUserName}` | workspace | postgres_user | Update one workspace-scoped PostgreSQL user through the bounded administrative surface |
 | GET | `/v1/postgres/workspaces/{workspaceId}/inventory` | workspace | postgres_inventory | Fetch the persisted PostgreSQL administrative inventory projection for one workspace |
+| GET | `/v1/postgres/workspaces/{workspaceId}/types` | workspace | postgres_type | List PostgreSQL types currently allowed for one workspace and target cluster profile |
 
 ## Mongo
 

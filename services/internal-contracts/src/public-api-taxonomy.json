@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-24",
-    "openapi_semver": "1.12.0"
+    "openapi_semver": "1.13.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -637,6 +637,24 @@
     },
     {
       "resource_type": "postgres_inventory",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": null
+    },
+    {
+      "resource_type": "postgres_table",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_column",
+      "family": "postgres",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "postgres_type",
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": null

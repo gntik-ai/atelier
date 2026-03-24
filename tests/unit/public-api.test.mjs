@@ -25,7 +25,7 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
 
   assert.equal(taxonomy.release.path_version, 'v1');
   assert.equal(taxonomy.release.header_version, '2026-03-24');
-  assert.equal(taxonomy.release.openapi_semver, '1.12.0');
+  assert.equal(taxonomy.release.openapi_semver, '1.13.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/publish'));

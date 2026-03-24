@@ -39,6 +39,9 @@ test('control-plane and console route-catalog helpers expose the same generated 
   assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/roles'));
   assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/users'));
   assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/databases/{databaseName}/schemas/{schemaName}'));
+  assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables'));
+  assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns'));
+  assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/types'));
   assert.ok(controlPlanePostgresRoutes.some((route) => route.path === '/v1/postgres/workspaces/{workspaceId}/inventory'));
   assert.ok(controlPlaneAuthRoutes.some((route) => route.path === '/v1/auth/login-sessions'));
   assert.ok(controlPlaneAuthRoutes.some((route) => route.path === '/v1/auth/signups'));

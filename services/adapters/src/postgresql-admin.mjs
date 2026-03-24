@@ -4,13 +4,26 @@ import {
   getContract,
   getDeploymentProfileCatalogEntry
 } from '../../internal-contracts/src/index.mjs';
+import {
+  POSTGRES_STRUCTURAL_RESOURCE_KINDS,
+  buildAllowedPostgresTypeCatalog,
+  buildPostgresStructuralSqlPlan,
+  normalizePostgresStructuralResource,
+  validatePostgresStructuralRequest
+} from './postgresql-structural-admin.mjs';
 
 export const postgresqlAdminAdapterPort = getAdapterPort('postgresql');
 export const postgresAdminRequestContract = getContract('postgres_admin_request');
 export const postgresAdminResultContract = getContract('postgres_admin_result');
 export const postgresInventorySnapshotContract = getContract('postgres_inventory_snapshot');
 
-export const POSTGRES_ADMIN_RESOURCE_KINDS = Object.freeze(['role', 'user', 'database', 'schema']);
+export const POSTGRES_ADMIN_RESOURCE_KINDS = Object.freeze([
+  'role',
+  'user',
+  'database',
+  'schema',
+  ...POSTGRES_STRUCTURAL_RESOURCE_KINDS
+]);
 export const POSTGRES_ADMIN_ACTIONS = Object.freeze(['list', 'get', 'create', 'update', 'delete']);
 
 export const RESERVED_POSTGRES_ROLE_NAMES = Object.freeze([
@@ -52,7 +65,7 @@ export const SUPPORTED_POSTGRES_VERSION_RANGES = Object.freeze([
     supportedResources: POSTGRES_ADMIN_RESOURCE_KINDS,
     placementModes: ['schema_per_tenant', 'database_per_tenant'],
     guarantees: [
-      'Normalized CRUD/list coverage is available for roles, users, databases, and schemas.',
+      'Normalized CRUD/list coverage is available for roles, users, databases, schemas, tables, columns, and allowed type catalogs.',
       'Provider payloads remain secret-free and bounded by the BaaS contracts.',
       'Shared-schema and dedicated-database placement validation are contract-tested.'
     ]
@@ -64,7 +77,7 @@ export const SUPPORTED_POSTGRES_VERSION_RANGES = Object.freeze([
     supportedResources: POSTGRES_ADMIN_RESOURCE_KINDS,
     placementModes: ['schema_per_tenant', 'database_per_tenant'],
     guarantees: [
-      'Normalized CRUD/list coverage is available for roles, users, databases, and schemas.',
+      'Normalized CRUD/list coverage is available for roles, users, databases, schemas, tables, columns, and allowed type catalogs.',
       'Provider payloads remain secret-free and bounded by the BaaS contracts.',
       'Shared-schema and dedicated-database placement validation are contract-tested.'
     ]
@@ -76,7 +89,7 @@ export const SUPPORTED_POSTGRES_VERSION_RANGES = Object.freeze([
     supportedResources: POSTGRES_ADMIN_RESOURCE_KINDS,
     placementModes: ['schema_per_tenant', 'database_per_tenant'],
     guarantees: [
-      'Normalized CRUD/list coverage is available for roles, users, databases, and schemas.',
+      'Normalized CRUD/list coverage is available for roles, users, databases, schemas, tables, columns, and allowed type catalogs.',
       'Provider payloads remain secret-free and bounded by the BaaS contracts.',
       'Shared-schema and dedicated-database placement validation are contract-tested.'
     ]
@@ -87,7 +100,10 @@ export const POSTGRES_ADMIN_CAPABILITY_MATRIX = Object.freeze({
   role: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   user: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   database: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
-  schema: Object.freeze(['list', 'get', 'create', 'update', 'delete'])
+  schema: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  table: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  column: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
+  type: Object.freeze(['list', 'get'])
 });
 
 export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
@@ -95,25 +111,33 @@ export const POSTGRES_ADMIN_QUOTA_GUARDRAILS_BY_PLAN = Object.freeze({
     roles: { limit: 16, scope: 'workspace', metricKey: 'workspace.postgres.roles.max' },
     users: { limit: 24, scope: 'workspace', metricKey: 'workspace.postgres.users.max' },
     databases: { limit: 1, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
-    schemas: { limit: 8, scope: 'workspace', metricKey: 'workspace.postgres.schemas.max' }
+    schemas: { limit: 8, scope: 'workspace', metricKey: 'workspace.postgres.schemas.max' },
+    tables: { limit: 64, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
+    columns: { limit: 256, scope: 'table', metricKey: 'table.postgres.columns.max' }
   }),
   pln_01growth: Object.freeze({
     roles: { limit: 32, scope: 'workspace', metricKey: 'workspace.postgres.roles.max' },
     users: { limit: 64, scope: 'workspace', metricKey: 'workspace.postgres.users.max' },
     databases: { limit: 1, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
-    schemas: { limit: 24, scope: 'workspace', metricKey: 'workspace.postgres.schemas.max' }
+    schemas: { limit: 24, scope: 'workspace', metricKey: 'workspace.postgres.schemas.max' },
+    tables: { limit: 160, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
+    columns: { limit: 512, scope: 'table', metricKey: 'table.postgres.columns.max' }
   }),
   pln_01regulated: Object.freeze({
     roles: { limit: 64, scope: 'tenant', metricKey: 'tenant.postgres.roles.max' },
     users: { limit: 128, scope: 'tenant', metricKey: 'tenant.postgres.users.max' },
     databases: { limit: 3, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
-    schemas: { limit: 48, scope: 'database', metricKey: 'database.postgres.schemas.max' }
+    schemas: { limit: 48, scope: 'database', metricKey: 'database.postgres.schemas.max' },
+    tables: { limit: 320, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
+    columns: { limit: 1024, scope: 'table', metricKey: 'table.postgres.columns.max' }
   }),
   pln_01enterprise: Object.freeze({
     roles: { limit: 128, scope: 'tenant', metricKey: 'tenant.postgres.roles.max' },
     users: { limit: 256, scope: 'tenant', metricKey: 'tenant.postgres.users.max' },
     databases: { limit: 8, scope: 'tenant', metricKey: 'tenant.postgres.databases.max' },
-    schemas: { limit: 96, scope: 'database', metricKey: 'database.postgres.schemas.max' }
+    schemas: { limit: 96, scope: 'database', metricKey: 'database.postgres.schemas.max' },
+    tables: { limit: 640, scope: 'schema', metricKey: 'schema.postgres.tables.max' },
+    columns: { limit: 2048, scope: 'table', metricKey: 'table.postgres.columns.max' }
   })
 });
 
@@ -130,6 +154,13 @@ export const POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY = Object.freeze({
       'create_workspace_schemas',
       'alter_workspace_schemas',
       'drop_workspace_schemas',
+      'create_workspace_tables',
+      'alter_workspace_tables',
+      'drop_workspace_tables',
+      'create_workspace_columns',
+      'alter_workspace_columns',
+      'drop_workspace_columns',
+      'read_allowed_type_catalog',
       'grant_usage_and_object_privileges',
       'write_control_metadata_inventory'
     ]),
@@ -161,6 +192,13 @@ export const POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY = Object.freeze({
       'alter_tenant_databases',
       'drop_empty_tenant_databases',
       'create_workspace_schemas',
+      'create_workspace_tables',
+      'alter_workspace_tables',
+      'drop_workspace_tables',
+      'create_workspace_columns',
+      'alter_workspace_columns',
+      'drop_workspace_columns',
+      'read_allowed_type_catalog',
       'grant_usage_and_object_privileges',
       'write_control_metadata_inventory'
     ]),
@@ -298,7 +336,10 @@ function defaultProviderCompatibility(profile) {
     supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
     placementMode: profile.placementMode,
     deploymentProfileId: profile.deploymentProfileId,
-    databaseMutationsSupported: profile.databaseMutationsSupported
+    databaseMutationsSupported: profile.databaseMutationsSupported,
+    tableMutationsSupported: profile.tableMutationsSupported,
+    columnMutationsSupported: profile.columnMutationsSupported,
+    typeCatalogSupported: profile.typeCatalogSupported
   };
 }
 
@@ -354,6 +395,9 @@ export function resolvePostgresAdminProfile({ planId, deploymentProfileId } = {}
     supportedResourceKinds: POSTGRES_ADMIN_RESOURCE_KINDS,
     databaseMutationsSupported,
     schemaMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    tableMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    columnMutationsSupported: placementMode === 'schema_per_tenant' || placementMode === 'database_per_tenant',
+    typeCatalogSupported: true,
     quotaGuardrails,
     minimumEnginePolicy: enginePolicyForPlacement(placementMode),
     providerCompatibility: defaultProviderCompatibility({
@@ -449,7 +493,14 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
         metadata: payload.metadata ?? {}
       });
     default:
-      throw new Error(`Unsupported PostgreSQL resource kind ${resourceKind}.`);
+      return normalizePostgresStructuralResource(resourceKind, payload, {
+        ...context,
+        contractVersion: postgresAdminRequestContract?.version ?? '2026-03-24',
+        supportedVersions: SUPPORTED_POSTGRES_VERSION_RANGES.map(({ range }) => range),
+        deploymentProfileId: profile.deploymentProfileId,
+        placementMode: profile.placementMode,
+        databaseMutationsSupported: profile.databaseMutationsSupported
+      }, profile);
   }
 }
 
@@ -634,8 +685,20 @@ export function validatePostgresAdminRequest(request = {}) {
       }
       break;
     }
-    default:
+    default: {
+      const structuralValidation = validatePostgresStructuralRequest({
+        resourceKind,
+        action,
+        payload,
+        context: {
+          ...context,
+          allowedTypeCatalog: context.allowedTypeCatalog ?? buildAllowedPostgresTypeCatalog(context.clusterFeatures)
+        },
+        profile
+      });
+      violations.push(...structuralValidation.violations);
       break;
+    }
   }
 
   return {
@@ -708,6 +771,24 @@ export function buildPostgresAdminAdapterCall({
     throw error;
   }
 
+  const normalizedContext = {
+    ...context,
+    tenantId: context.tenantId ?? tenantId,
+    workspaceId: context.workspaceId ?? workspaceId,
+    planId: context.planId ?? planId,
+    profile: validation.profile,
+    allowedTypeCatalog: context.allowedTypeCatalog ?? buildAllowedPostgresTypeCatalog(context.clusterFeatures)
+  };
+  const ddlPlan =
+    (resourceKind === 'table' || resourceKind === 'column') && isMutation(action)
+      ? buildPostgresStructuralSqlPlan({
+          resourceKind,
+          action,
+          payload,
+          context: normalizedContext
+        })
+      : undefined;
+
   return {
     call_id: callId,
     tenant_id: tenantId,
@@ -718,12 +799,8 @@ export function buildPostgresAdminAdapterCall({
       resourceKind,
       action,
       placementProfile: validation.profile,
-      normalizedResource: normalizePostgresAdminResource(resourceKind, payload, {
-        ...context,
-        tenantId: context.tenantId ?? tenantId,
-        workspaceId: context.workspaceId ?? workspaceId,
-        planId: context.planId ?? planId
-      }),
+      normalizedResource: normalizePostgresAdminResource(resourceKind, payload, normalizedContext),
+      ddlPlan,
       providerPayload: payload
     },
     idempotency_key: idempotencyKey,
@@ -748,6 +825,8 @@ export function buildPostgresAdminInventorySnapshot({
   users = [],
   databases = [],
   schemas = [],
+  tables = [],
+  columns = [],
   observedAt = '2026-03-24T00:00:00Z'
 } = {}) {
   const profile = resolvePostgresAdminProfile({ planId, deploymentProfileId });
@@ -761,6 +840,15 @@ export function buildPostgresAdminInventorySnapshot({
       workspaceBindings: listUsage(schema.workspaceBindings)
     }))
     .filter((schema) => schema.databaseName && schema.schemaName);
+  const tableRefs = tables
+    .map((table) => ({
+      databaseName: table.databaseName,
+      schemaName: table.schemaName,
+      tableName: table.tableName ?? table.name,
+      columnCount: Number(table.columnCount ?? 0)
+    }))
+    .filter((table) => table.databaseName && table.schemaName && table.tableName);
+  const totalColumns = columns.length > 0 ? columns.length : tableRefs.reduce((count, table) => count + table.columnCount, 0);
 
   return {
     snapshotId: `pginv_${normalizeIdentifier(tenantId ?? 'tenant')}_${normalizeIdentifier(workspaceId ?? 'workspace')}`,
@@ -775,18 +863,23 @@ export function buildPostgresAdminInventorySnapshot({
       roles: roleNames.length,
       users: userNames.length,
       databases: databaseNames.length,
-      schemas: schemaRefs.length
+      schemas: schemaRefs.length,
+      tables: tableRefs.length,
+      columns: totalColumns
     },
     quotas: {
       roles: computeQuotaStatus(profile.quotaGuardrails.roles, roleNames.length),
       users: computeQuotaStatus(profile.quotaGuardrails.users, userNames.length),
       databases: computeQuotaStatus(profile.quotaGuardrails.databases, databaseNames.length),
-      schemas: computeQuotaStatus(profile.quotaGuardrails.schemas, schemaRefs.length)
+      schemas: computeQuotaStatus(profile.quotaGuardrails.schemas, schemaRefs.length),
+      tables: computeQuotaStatus(profile.quotaGuardrails.tables, tableRefs.length),
+      columns: computeQuotaStatus(profile.quotaGuardrails.columns, totalColumns)
     },
     roleNames,
     userNames,
     databaseNames,
     schemaRefs,
+    tableRefs,
     byDatabase: Object.fromEntries(
       databaseNames.map((databaseName) => [
         databaseName,
@@ -822,7 +915,14 @@ export function buildPostgresAdminMetadataRecord({
         resource?.roleName ??
         resource?.userName ??
         resource?.databaseName ??
-        (resource?.databaseName && resource?.schemaName ? `${resource.databaseName}.${resource.schemaName}` : resource?.schemaName),
+        (resource?.databaseName && resource?.schemaName && resource?.tableName
+          ? `${resource.databaseName}.${resource.schemaName}.${resource.tableName}`
+          : resource?.databaseName && resource?.schemaName
+            ? `${resource.databaseName}.${resource.schemaName}`
+            : resource?.schemaName) ??
+        resource?.tableName ??
+        resource?.columnName ??
+        resource?.fullName,
       placementMode: resource?.placementMode,
       ownerRoleName: resource?.ownerRoleName,
       provider: resource?.providerCompatibility?.provider ?? 'postgresql'
@@ -830,3 +930,5 @@ export function buildPostgresAdminMetadataRecord({
     resource
   };
 }
+
+export { buildAllowedPostgresTypeCatalog, buildPostgresStructuralSqlPlan };

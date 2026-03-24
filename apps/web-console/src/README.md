@@ -9,3 +9,4 @@ Expected future concerns:
 - rollout and health dashboards
 - public API route-catalog browsing and filtering through `public-api-catalog.mjs`
 - workspace CRUD, cloning, endpoint discovery, and inheritance visualization through `workspace-management.mjs`
+- PostgreSQL table/column/type exploration through `postgres-admin.mjs`

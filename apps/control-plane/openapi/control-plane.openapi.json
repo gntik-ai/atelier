@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, PostgreSQL administration and data control, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -19289,6 +19289,1648 @@
           "postgresql"
         ]
       }
+    },
+    "/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables": {
+      "get": {
+        "operationId": "listPostgresTables",
+        "summary": "List workspace-scoped PostgreSQL tables inside one managed schema",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresTableCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_table",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-read",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      },
+      "post": {
+        "operationId": "createPostgresTable",
+        "summary": "Create one workspace-scoped PostgreSQL table inside a managed schema",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "PostgreSQL table creation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates PostgreSQL administrative policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested change conflicts with existing PostgreSQL state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates placement, naming, type-catalog, or quota guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_table",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-control",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresTableWriteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}": {
+      "get": {
+        "operationId": "getPostgresTable",
+        "summary": "Fetch one workspace-scoped PostgreSQL table contract",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresTable"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_table",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-read",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      },
+      "put": {
+        "operationId": "updatePostgresTable",
+        "summary": "Update one workspace-scoped PostgreSQL table through the bounded administrative surface",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "PostgreSQL table update accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates PostgreSQL administrative policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested change conflicts with existing PostgreSQL state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates placement, naming, type-catalog, or quota guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_table",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-control",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresTableWriteRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePostgresTable",
+        "summary": "Delete one workspace-scoped PostgreSQL table through the bounded administrative surface",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "PostgreSQL table deletion accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates PostgreSQL administrative policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested change conflicts with existing PostgreSQL state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates placement, naming, type-catalog, or quota guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_table",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-control",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      }
+    },
+    "/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns": {
+      "get": {
+        "operationId": "listPostgresColumns",
+        "summary": "List workspace-scoped PostgreSQL columns inside one managed table",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresColumnCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_column",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-read",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      },
+      "post": {
+        "operationId": "createPostgresColumn",
+        "summary": "Create one workspace-scoped PostgreSQL column inside a managed table",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "PostgreSQL column creation accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates PostgreSQL administrative policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested change conflicts with existing PostgreSQL state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates placement, naming, type-catalog, or quota guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_column",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-control",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresColumnWriteRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}": {
+      "get": {
+        "operationId": "getPostgresColumn",
+        "summary": "Fetch one workspace-scoped PostgreSQL column contract",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          },
+          {
+            "$ref": "#/components/parameters/ColumnName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresColumn"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_column",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-read",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      },
+      "put": {
+        "operationId": "updatePostgresColumn",
+        "summary": "Update one workspace-scoped PostgreSQL column through the bounded administrative surface",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          },
+          {
+            "$ref": "#/components/parameters/ColumnName"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "PostgreSQL column update accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates PostgreSQL administrative policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested change conflicts with existing PostgreSQL state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates placement, naming, type-catalog, or quota guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_column",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-control",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostgresColumnWriteRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deletePostgresColumn",
+        "summary": "Delete one workspace-scoped PostgreSQL column through the bounded administrative surface",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/SchemaName"
+          },
+          {
+            "$ref": "#/components/parameters/TableName"
+          },
+          {
+            "$ref": "#/components/parameters/ColumnName"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "PostgreSQL column deletion accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresAdminMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates PostgreSQL administrative policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested change conflicts with existing PostgreSQL state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates placement, naming, type-catalog, or quota guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_column",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-control",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      }
+    },
+    "/v1/postgres/workspaces/{workspaceId}/types": {
+      "get": {
+        "operationId": "listPostgresTypes",
+        "summary": "List PostgreSQL types currently allowed for one workspace and target cluster profile",
+        "tags": [
+          "Postgres"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resource returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostgresTypeCollection"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-scope": "workspace",
+        "x-resource-type": "postgres_type",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-rate-limit-class": "data-read",
+        "x-family": "postgres",
+        "x-visibility": "public",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "postgresql"
+        ]
+      }
     }
   },
   "components": {
@@ -19913,6 +21555,30 @@
           "minLength": 3,
           "maxLength": 63,
           "pattern": "^[a-z][a-z0-9_]{2,62}$"
+        }
+      },
+      "TableName": {
+        "name": "tableName",
+        "in": "path",
+        "required": true,
+        "description": "Stable PostgreSQL table identifier managed through the BaaS contract.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$"
+        }
+      },
+      "ColumnName": {
+        "name": "columnName",
+        "in": "path",
+        "required": true,
+        "description": "Stable PostgreSQL column identifier managed through the BaaS contract.",
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 63,
+          "pattern": "^[a-z][a-z0-9_]{0,62}$"
         }
       }
     },
@@ -29589,7 +31255,10 @@
           "contractVersion",
           "supportedVersions",
           "placementMode",
-          "databaseMutationsSupported"
+          "databaseMutationsSupported",
+          "tableMutationsSupported",
+          "columnMutationsSupported",
+          "typeCatalogSupported"
         ],
         "properties": {
           "provider": {
@@ -29625,6 +31294,15 @@
             "pattern": "^dpf_[0-9a-z]+$"
           },
           "databaseMutationsSupported": {
+            "type": "boolean"
+          },
+          "tableMutationsSupported": {
+            "type": "boolean"
+          },
+          "columnMutationsSupported": {
+            "type": "boolean"
+          },
+          "typeCatalogSupported": {
             "type": "boolean"
           }
         }
@@ -29810,7 +31488,9 @@
           "roles",
           "users",
           "databases",
-          "schemas"
+          "schemas",
+          "tables",
+          "columns"
         ],
         "properties": {
           "roles": {
@@ -29826,6 +31506,14 @@
             "minimum": 0
           },
           "schemas": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tables": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "columns": {
             "type": "integer",
             "minimum": 0
           }
@@ -30513,7 +32201,9 @@
               "role",
               "user",
               "database",
-              "schema"
+              "schema",
+              "table",
+              "column"
             ]
           },
           "action": {
@@ -30613,7 +32303,9 @@
               "roles",
               "users",
               "databases",
-              "schemas"
+              "schemas",
+              "tables",
+              "columns"
             ],
             "properties": {
               "roles": {
@@ -30626,6 +32318,12 @@
                 "$ref": "#/components/schemas/PostgresQuotaStatus"
               },
               "schemas": {
+                "$ref": "#/components/schemas/PostgresQuotaStatus"
+              },
+              "tables": {
+                "$ref": "#/components/schemas/PostgresQuotaStatus"
+              },
+              "columns": {
                 "$ref": "#/components/schemas/PostgresQuotaStatus"
               }
             }
@@ -30671,6 +32369,563 @@
           },
           "providerCompatibility": {
             "$ref": "#/components/schemas/PostgresProviderCompatibility"
+          },
+          "tableRefs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "databaseName",
+                "schemaName",
+                "tableName",
+                "columnCount"
+              ],
+              "properties": {
+                "databaseName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 63
+                },
+                "schemaName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 63
+                },
+                "tableName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 63
+                },
+                "columnCount": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      },
+      "PostgresAllowedType": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaName",
+          "typeName",
+          "fullName",
+          "displayName",
+          "category",
+          "kind",
+          "typeClass",
+          "available"
+        ],
+        "properties": {
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "typeName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "fullName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "built_in",
+              "user_defined",
+              "extension"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "numeric",
+              "boolean",
+              "text",
+              "uuid",
+              "json",
+              "temporal",
+              "binary",
+              "network",
+              "range",
+              "text_search",
+              "array",
+              "enum",
+              "domain",
+              "scalar"
+            ]
+          },
+          "typeClass": {
+            "type": "string",
+            "enum": [
+              "base",
+              "range",
+              "enum",
+              "domain"
+            ]
+          },
+          "extensionName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "enumLabels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "arrayDimensions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "precision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "available": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PostgresColumnIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "generation"
+        ],
+        "properties": {
+          "generation": {
+            "type": "string",
+            "enum": [
+              "always",
+              "by_default"
+            ]
+          },
+          "startWith": {
+            "type": "integer"
+          },
+          "incrementBy": {
+            "type": "integer"
+          }
+        }
+      },
+      "PostgresGeneratedColumn": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "expression"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "stored"
+          },
+          "expression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      },
+      "PostgresColumnConstraints": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "primaryKey": {
+            "type": "boolean"
+          },
+          "unique": {
+            "type": "boolean"
+          },
+          "checkExpression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      },
+      "PostgresColumn": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "databaseName",
+          "schemaName",
+          "tableName",
+          "columnName",
+          "tenantId",
+          "workspaceId",
+          "dataType",
+          "nullable",
+          "providerCompatibility"
+        ],
+        "properties": {
+          "databaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tableName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "columnName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "ordinalPosition": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "dataType": {
+            "$ref": "#/components/schemas/PostgresAllowedType"
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "defaultExpression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "identity": {
+            "$ref": "#/components/schemas/PostgresColumnIdentity"
+          },
+          "generated": {
+            "$ref": "#/components/schemas/PostgresGeneratedColumn"
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/PostgresColumnConstraints"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "deleting"
+            ]
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/PostgresProviderCompatibility"
+          }
+        }
+      },
+      "PostgresColumnWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "databaseName",
+          "schemaName",
+          "tableName",
+          "columnName",
+          "dataType"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "databaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tableName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "columnName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "dataType": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              {
+                "$ref": "#/components/schemas/PostgresAllowedType"
+              }
+            ]
+          },
+          "nullable": {
+            "type": "boolean"
+          },
+          "defaultExpression": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "identity": {
+            "$ref": "#/components/schemas/PostgresColumnIdentity"
+          },
+          "generated": {
+            "$ref": "#/components/schemas/PostgresGeneratedColumn"
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "constraints": {
+            "$ref": "#/components/schemas/PostgresColumnConstraints"
+          }
+        }
+      },
+      "PostgresTable": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "databaseName",
+          "schemaName",
+          "tableName",
+          "tenantId",
+          "workspaceId",
+          "tableKind",
+          "state",
+          "columnCount",
+          "providerCompatibility"
+        ],
+        "properties": {
+          "databaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tableName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "tableKind": {
+            "type": "string",
+            "enum": [
+              "base_table"
+            ]
+          },
+          "ownerRoleName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "deleting"
+            ]
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "columnCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresColumn"
+            }
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/PostgresProviderCompatibility"
+          }
+        }
+      },
+      "PostgresTableWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "databaseName",
+          "schemaName",
+          "tableName"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "databaseName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "schemaName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tableName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63,
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "tableKind": {
+            "type": "string",
+            "enum": [
+              "base_table"
+            ]
+          },
+          "ownerRoleName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 63
+          },
+          "comment": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/PostgresColumnWriteRequest"
+            }
+          }
+        }
+      },
+      "PostgresTableCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "page"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresTable"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PostgresAdminPage"
+          }
+        }
+      },
+      "PostgresColumnCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "page"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresColumn"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PostgresAdminPage"
+          }
+        }
+      },
+      "PostgresTypeCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "page"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PostgresAllowedType"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PostgresAdminPage"
           }
         }
       }

@@ -121,6 +121,9 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(keycloakAdapter.capabilities.includes('iam_user_reset_credentials'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_role_create'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_database_delete'));
+  assert.ok(postgresqlAdapter.capabilities.includes('postgres_table_create'));
+  assert.ok(postgresqlAdapter.capabilities.includes('postgres_column_update'));
+  assert.ok(postgresqlAdapter.capabilities.includes('postgres_type_list'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_inventory_upsert'));
   assert.equal(getContract('adapter_call').required_fields.includes('provisioning_run_id'), true);
   assert.equal(getContract('adapter_call').required_fields.includes('resource_key'), true);

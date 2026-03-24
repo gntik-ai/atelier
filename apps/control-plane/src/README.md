@@ -21,4 +21,5 @@ Scaffolding added by `US-ARC-01-T01`, `US-ARC-03`, and `US-GW-01`:
 - `iam-admin.mjs` exposes the normalized `/v1/iam/*` administrative family metadata and compatibility summary for Keycloak-backed IAM resources
 - `console-auth.mjs` exposes the normalized `/v1/auth/*` login, signup, activation, recovery, and status-view surface for the console
 - `workspace-management.mjs` exposes the enriched `/v1/workspaces/*` CRUD, cloning, lifecycle, inheritance, and API-surface helpers
+- `postgres-admin.mjs` exposes the normalized `/v1/postgres/*` administrative family metadata, compatibility summary, and structural table/column/type surface
 - provider-specific implementation remains out of this workspace

@@ -6,8 +6,10 @@ import {
   POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY,
   RESERVED_POSTGRES_DATABASE_NAMES,
   SUPPORTED_POSTGRES_VERSION_RANGES,
+  buildAllowedPostgresTypeCatalog,
   buildPostgresAdminAdapterCall,
   buildPostgresAdminInventorySnapshot,
+  buildPostgresStructuralSqlPlan,
   isPostgresVersionSupported,
   normalizePostgresAdminError,
   normalizePostgresAdminResource,
@@ -19,7 +21,10 @@ test('postgres admin adapter exports the supported compatibility matrix and prof
   const growthProfile = resolvePostgresAdminProfile({ planId: 'pln_01growth' });
   const enterpriseProfile = resolvePostgresAdminProfile({ planId: 'pln_01enterprise' });
 
-  assert.deepEqual(Object.keys(POSTGRES_ADMIN_CAPABILITY_MATRIX), ['role', 'user', 'database', 'schema']);
+  assert.deepEqual(Object.keys(POSTGRES_ADMIN_CAPABILITY_MATRIX), ['role', 'user', 'database', 'schema', 'table', 'column', 'type']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.table, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.column, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(POSTGRES_ADMIN_CAPABILITY_MATRIX.type, ['list', 'get']);
   assert.equal(SUPPORTED_POSTGRES_VERSION_RANGES.length, 3);
   assert.equal(isPostgresVersionSupported('15.6'), true);
   assert.equal(isPostgresVersionSupported('16.3'), true);
@@ -27,9 +32,13 @@ test('postgres admin adapter exports the supported compatibility matrix and prof
   assert.equal(isPostgresVersionSupported('14.11'), false);
   assert.equal(growthProfile.placementMode, 'schema_per_tenant');
   assert.equal(growthProfile.databaseMutationsSupported, false);
+  assert.equal(growthProfile.tableMutationsSupported, true);
+  assert.equal(growthProfile.columnMutationsSupported, true);
+  assert.equal(growthProfile.typeCatalogSupported, true);
   assert.equal(enterpriseProfile.placementMode, 'database_per_tenant');
   assert.equal(enterpriseProfile.databaseMutationsSupported, true);
   assert.equal(POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY.database_per_tenant.requiresCreatedb, true);
+  assert.equal(POSTGRES_ADMIN_MINIMUM_ENGINE_POLICY.schema_per_tenant.allowedCapabilities.includes('create_workspace_tables'), true);
   assert.equal(RESERVED_POSTGRES_DATABASE_NAMES.includes('postgres'), true);
 });
 
@@ -47,28 +56,17 @@ test('postgres admin adapter normalizes provider payloads into safe BaaS resourc
       planId: 'pln_01growth'
     }
   );
-  const user = normalizePostgresAdminResource(
-    'user',
-    {
-      userName: 'alpha_dev_api',
-      memberOf: ['alpha_dev_readwrite'],
-      credentialBinding: {
-        secretRef: 'vault://postgres/alpha/dev/api',
-        rotationPolicy: '30d'
-      }
-    },
-    {
-      tenantId: 'ten_01starteralpha',
-      workspaceId: 'wrk_01alphadev',
-      planId: 'pln_01growth'
-    }
-  );
-  const database = normalizePostgresAdminResource(
-    'database',
+  const table = normalizePostgresAdminResource(
+    'table',
     {
       databaseName: 'tenant_alpha_main',
-      ownerRoleName: 'tenant_alpha_owner',
-      locale: { encoding: 'UTF8' }
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      comment: 'Bounded admin table',
+      columns: [
+        { columnName: 'id', dataType: 'uuid', nullable: false, defaultExpression: 'gen_random_uuid()', constraints: { primaryKey: true } },
+        { columnName: 'payload', dataType: 'jsonb', nullable: false, defaultExpression: "'{}'::jsonb" }
+      ]
     },
     {
       tenantId: 'ten_01enterprisealpha',
@@ -76,14 +74,29 @@ test('postgres admin adapter normalizes provider payloads into safe BaaS resourc
       planId: 'pln_01enterprise'
     }
   );
-  const schema = normalizePostgresAdminResource(
-    'schema',
+  const column = normalizePostgresAdminResource(
+    'column',
     {
       databaseName: 'tenant_alpha_main',
       schemaName: 'alpha_prod_app',
-      ownerRoleName: 'alpha_prod_owner',
-      workspaceBindings: ['wrk_01alphaprod'],
-      objectCounts: { tables: 12, views: 2 }
+      tableName: 'customer_orders',
+      columnName: 'status',
+      dataType: 'varchar(32)',
+      nullable: false,
+      comment: 'Order state',
+      constraints: { unique: true }
+    },
+    {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise'
+    }
+  );
+  const allowedType = normalizePostgresAdminResource(
+    'type',
+    {
+      schemaName: 'pg_catalog',
+      typeName: 'jsonb'
     },
     {
       tenantId: 'ten_01enterprisealpha',
@@ -96,20 +109,21 @@ test('postgres admin adapter normalizes provider payloads into safe BaaS resourc
   assert.deepEqual(role.memberOf, ['alpha_dev_runtime']);
   assert.equal(role.providerCompatibility.provider, 'postgresql');
 
-  assert.equal(user.resourceType, 'postgres_user');
-  assert.equal(user.loginEnabled, true);
-  assert.equal(user.credentialBinding.secretRef, 'vault://postgres/alpha/dev/api');
+  assert.equal(table.resourceType, 'postgres_table');
+  assert.equal(table.columnCount, 2);
+  assert.equal(table.columns[0].constraints.primaryKey, true);
+  assert.equal(table.columns[1].dataType.fullName, 'jsonb');
 
-  assert.equal(database.resourceType, 'postgres_database');
-  assert.equal(database.placementMode, 'database_per_tenant');
-  assert.equal(database.locale.encoding, 'UTF8');
+  assert.equal(column.resourceType, 'postgres_column');
+  assert.equal(column.comment, 'Order state');
+  assert.equal(column.dataType.fullName, 'varchar(32)');
 
-  assert.equal(schema.resourceType, 'postgres_schema');
-  assert.equal(schema.objectCounts.tables, 12);
-  assert.deepEqual(schema.workspaceBindings, ['wrk_01alphaprod']);
+  assert.equal(allowedType.resourceType, 'postgres_type');
+  assert.equal(allowedType.typeName, 'jsonb');
+  assert.equal(allowedType.category, 'built_in');
 });
 
-test('postgres admin adapter validates profile guardrails, unsafe engine details, and quotas', () => {
+test('postgres admin adapter validates profile guardrails, unsafe engine details, incompatible changes, and allowed types', () => {
   const sharedDatabaseMutation = validatePostgresAdminRequest({
     resourceKind: 'database',
     action: 'create',
@@ -144,27 +158,49 @@ test('postgres admin adapter validates profile guardrails, unsafe engine details
       password: 'plain-text-is-forbidden'
     }
   });
-  const invalidSchema = validatePostgresAdminRequest({
-    resourceKind: 'schema',
-    action: 'create',
+  const incompatibleColumnUpdate = validatePostgresAdminRequest({
+    resourceKind: 'column',
+    action: 'update',
     context: {
-      tenantId: 'ten_01starteralpha',
-      workspaceId: 'wrk_01alphadev',
-      planId: 'pln_01growth',
-      workspaceNamePrefix: 'alpha_dev_',
-      tenantDatabaseName: 'tenant_alpha_main',
-      currentInventory: {
-        schemasByDatabase: {
-          tenant_alpha_main: 24,
-          tenant_alpha_other: 24
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      currentTable: {
+        nullValueCountByColumn: {
+          status: 3
         }
+      },
+      currentColumn: {
+        columnName: 'status',
+        nullable: true,
+        dataType: { fullName: 'varchar(64)' }
       }
     },
     payload: {
-      databaseName: 'tenant_alpha_other',
+      databaseName: 'tenant_alpha_main',
       schemaName: 'alpha_prod_app',
-      ownerRoleName: 'alpha_dev_owner',
-      workspaceBindings: ['wrk_01alphadev', 'wrk_01other']
+      tableName: 'customer_orders',
+      columnName: 'status',
+      dataType: 'varchar(16)',
+      nullable: false
+    }
+  });
+  const disallowedType = validatePostgresAdminRequest({
+    resourceKind: 'column',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01enterprisealpha',
+      workspaceId: 'wrk_01alphaprod',
+      planId: 'pln_01enterprise',
+      allowedTypeCatalog: buildAllowedPostgresTypeCatalog({ enabledExtensions: [] })
+    },
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      columnName: 'embedding',
+      dataType: 'public.vector',
+      nullable: true
     }
   });
 
@@ -180,35 +216,61 @@ test('postgres admin adapter validates profile guardrails, unsafe engine details
   assert.equal(unsafeUser.violations.some((violation) => violation.includes('cannot target reserved platform or engine roles')), true);
   assert.equal(unsafeUser.violations.some((violation) => violation.includes('would be exceeded')), true);
 
-  assert.equal(invalidSchema.ok, false);
-  assert.equal(invalidSchema.violations.some((violation) => violation.includes('cannot escape the current workspace scope')), true);
-  assert.equal(invalidSchema.violations.some((violation) => violation.includes('only allows schemas inside tenant database tenant_alpha_main')), true);
-  assert.equal(invalidSchema.violations.some((violation) => violation.includes('would be exceeded')), true);
+  assert.equal(incompatibleColumnUpdate.ok, false);
+  assert.equal(incompatibleColumnUpdate.violations.some((violation) => violation.includes('narrower precision')), true);
+  assert.equal(incompatibleColumnUpdate.violations.some((violation) => violation.includes('while null values still exist')), true);
+
+  assert.equal(disallowedType.ok, false);
+  assert.equal(disallowedType.violations.some((violation) => violation.includes('allowed type catalog')), true);
 });
 
-test('postgres admin adapter builds stable adapter envelopes, inventory projections, and normalized dependency errors', () => {
+test('postgres admin adapter exposes common and advanced type catalogs when cluster features are enabled', () => {
+  const baseline = buildAllowedPostgresTypeCatalog();
+  const advanced = buildAllowedPostgresTypeCatalog({
+    enableRangeTypes: true,
+    enableNetworkTypes: true,
+    enableTextSearchTypes: true,
+    enabledExtensions: ['vector'],
+    extensionTypes: [{ schemaName: 'public', typeName: 'vector', extensionName: 'vector', kind: 'scalar', typeClass: 'base' }],
+    userDefinedTypes: [{ schemaName: 'alpha_prod_app', typeName: 'order_status', kind: 'enum', typeClass: 'enum', enumLabels: ['draft', 'paid'] }]
+  });
+
+  assert.equal(baseline.some((entry) => entry.typeName === 'uuid'), true);
+  assert.equal(baseline.some((entry) => entry.typeName === 'jsonb'), true);
+  assert.equal(baseline.some((entry) => entry.typeName === 'integer[]'), true);
+  assert.equal(advanced.some((entry) => entry.typeName === 'inet'), true);
+  assert.equal(advanced.some((entry) => entry.typeName === 'daterange'), true);
+  assert.equal(advanced.some((entry) => entry.typeName === 'tsvector'), true);
+  assert.equal(advanced.some((entry) => entry.fullName === 'public.vector'), true);
+  assert.equal(advanced.some((entry) => entry.fullName === 'alpha_prod_app.order_status'), true);
+});
+
+test('postgres admin adapter builds stable adapter envelopes, inventory projections, safe SQL plans, and normalized dependency errors', () => {
   const adapterCall = buildPostgresAdminAdapterCall({
-    resourceKind: 'schema',
+    resourceKind: 'table',
     action: 'create',
-    callId: 'call_01pgschemacreate',
+    callId: 'call_01pgtablecreate',
     tenantId: 'ten_01enterprisealpha',
     workspaceId: 'wrk_01alphaprod',
     planId: 'pln_01enterprise',
     correlationId: 'corr-pgadm-001',
     authorizationDecisionId: 'authz-pgadm-001',
     idempotencyKey: 'idem-pgadm-001',
-    targetRef: 'database:tenant_alpha_main/schema:alpha_prod_app',
+    targetRef: 'database:tenant_alpha_main/schema:alpha_prod_app/table:customer_orders',
     context: {
       tenantId: 'ten_01enterprisealpha',
       workspaceId: 'wrk_01alphaprod',
-      planId: 'pln_01enterprise',
-      workspaceNamePrefix: 'alpha_prod_'
+      planId: 'pln_01enterprise'
     },
     payload: {
       databaseName: 'tenant_alpha_main',
       schemaName: 'alpha_prod_app',
-      ownerRoleName: 'alpha_prod_owner',
-      workspaceBindings: ['wrk_01alphaprod']
+      tableName: 'customer_orders',
+      comment: 'Bounded admin table',
+      columns: [
+        { columnName: 'id', dataType: 'uuid', nullable: false, defaultExpression: 'gen_random_uuid()', constraints: { primaryKey: true } },
+        { columnName: 'payload', dataType: 'jsonb', nullable: false, defaultExpression: "'{}'::jsonb" }
+      ]
     },
     scopes: ['database.admin'],
     effectiveRoles: ['workspace_admin']
@@ -220,7 +282,29 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
     roles: [{ roleName: 'alpha_prod_owner' }],
     users: [{ userName: 'alpha_prod_api' }],
     databases: [{ databaseName: 'tenant_alpha_main' }],
-    schemas: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', workspaceBindings: ['wrk_01alphaprod'] }]
+    schemas: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', workspaceBindings: ['wrk_01alphaprod'] }],
+    tables: [{ databaseName: 'tenant_alpha_main', schemaName: 'alpha_prod_app', tableName: 'customer_orders', columnCount: 2 }]
+  });
+  const sqlPlan = buildPostgresStructuralSqlPlan({
+    resourceKind: 'column',
+    action: 'update',
+    payload: {
+      databaseName: 'tenant_alpha_main',
+      schemaName: 'alpha_prod_app',
+      tableName: 'customer_orders',
+      columnName: 'payload',
+      dataType: 'jsonb',
+      nullable: false,
+      comment: 'JSON payload'
+    },
+    context: {
+      profile: resolvePostgresAdminProfile({ planId: 'pln_01enterprise' }),
+      currentColumn: {
+        columnName: 'payload',
+        nullable: true,
+        dataType: { fullName: 'jsonb' }
+      }
+    }
   });
   const normalizedError = normalizePostgresAdminError(
     {
@@ -238,16 +322,23 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
   );
 
   assert.equal(adapterCall.adapter_id, 'postgresql');
-  assert.equal(adapterCall.capability, 'postgres_schema_create');
-  assert.equal(adapterCall.payload.resourceKind, 'schema');
+  assert.equal(adapterCall.capability, 'postgres_table_create');
+  assert.equal(adapterCall.payload.resourceKind, 'table');
   assert.equal(adapterCall.payload.placementProfile.placementMode, 'database_per_tenant');
-  assert.equal(adapterCall.payload.normalizedResource.resourceType, 'postgres_schema');
+  assert.equal(adapterCall.payload.normalizedResource.resourceType, 'postgres_table');
+  assert.equal(adapterCall.payload.ddlPlan.statements[0].includes('CREATE TABLE'), true);
   assert.equal(adapterCall.contract_version, '2026-03-24');
 
   assert.equal(inventory.placementMode, 'database_per_tenant');
   assert.equal(inventory.counts.schemas, 1);
+  assert.equal(inventory.counts.tables, 1);
+  assert.equal(inventory.counts.columns, 2);
   assert.equal(inventory.byDatabase.tenant_alpha_main.schemaCount, 1);
   assert.equal(inventory.minimumEnginePolicy.forbiddenAttributes.includes('SUPERUSER'), true);
+
+  assert.equal(sqlPlan.statements.some((statement) => statement.includes('SET NOT NULL')), true);
+  assert.equal(sqlPlan.statements.some((statement) => statement.includes('COMMENT ON COLUMN')), true);
+  assert.equal(sqlPlan.transactionMode, 'transactional_ddl');
 
   assert.equal(normalizedError.status, 422);
   assert.equal(normalizedError.code, 'GW_PGADM_QUOTA_EXCEEDED');

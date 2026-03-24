@@ -74,6 +74,11 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/postgres/databases/{databaseName}']);
   assert.ok(document.paths['/v1/postgres/databases/{databaseName}/schemas']);
   assert.ok(document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}']);
+  assert.ok(document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables']);
+  assert.ok(document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}']);
+  assert.ok(document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns']);
+  assert.ok(document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}']);
+  assert.ok(document.paths['/v1/postgres/workspaces/{workspaceId}/types']);
   assert.ok(document.paths['/v1/postgres/workspaces/{workspaceId}/inventory']);
   assert.ok(document.paths['/v1/mongo/databases/{resourceId}']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}']);
@@ -146,6 +151,11 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const getPostgresUser = document.paths['/v1/postgres/users/{postgresUserName}'].get;
   const createPostgresDatabase = document.paths['/v1/postgres/databases'].post;
   const createPostgresSchema = document.paths['/v1/postgres/databases/{databaseName}/schemas'].post;
+  const listPostgresTables = document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables'].get;
+  const createPostgresTable = document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables'].post;
+  const getPostgresColumn = document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns/{columnName}'].get;
+  const createPostgresColumn = document.paths['/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables/{tableName}/columns'].post;
+  const listPostgresTypes = document.paths['/v1/postgres/workspaces/{workspaceId}/types'].get;
   const getPostgresInventory = document.paths['/v1/postgres/workspaces/{workspaceId}/inventory'].get;
   const publishEvent = document.paths['/v1/events/topics/{resourceId}/publish'].post;
   const streamTopicEvents = document.paths['/v1/events/topics/{resourceId}/stream'].get;
@@ -153,7 +163,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.12.0');
+  assert.equal(document.info.version, '1.13.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -222,6 +232,11 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const getPostgresUserParameters = resolveParameters(document, getPostgresUser);
   const createPostgresDatabaseParameters = resolveParameters(document, createPostgresDatabase);
   const createPostgresSchemaParameters = resolveParameters(document, createPostgresSchema);
+  const listPostgresTablesParameters = resolveParameters(document, listPostgresTables);
+  const createPostgresTableParameters = resolveParameters(document, createPostgresTable);
+  const getPostgresColumnParameters = resolveParameters(document, getPostgresColumn);
+  const createPostgresColumnParameters = resolveParameters(document, createPostgresColumn);
+  const listPostgresTypesParameters = resolveParameters(document, listPostgresTypes);
   const getPostgresInventoryParameters = resolveParameters(document, getPostgresInventory);
   const publishEventParameters = resolveParameters(document, publishEvent);
   const streamTopicParameters = resolveParameters(document, streamTopicEvents);
@@ -571,9 +586,21 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(createPostgresDatabase['x-scope'], 'tenant');
   assert.equal(createPostgresDatabaseParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.equal(createPostgresSchemaParameters.some((parameter) => parameter.name === 'databaseName'), true);
+  assert.equal(listPostgresTables['x-resource-type'], 'postgres_table');
+  assert.equal(listPostgresTablesParameters.some((parameter) => parameter.name === 'schemaName'), true);
+  assert.equal(createPostgresTableParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(getPostgresColumn['x-resource-type'], 'postgres_column');
+  assert.equal(getPostgresColumnParameters.some((parameter) => parameter.name === 'columnName'), true);
+  assert.equal(createPostgresColumnParameters.some((parameter) => parameter.name === 'tableName'), true);
+  assert.equal(listPostgresTypes['x-resource-type'], 'postgres_type');
+  assert.equal(listPostgresTypesParameters.some((parameter) => parameter.name === 'workspaceId'), true);
   assert.equal(getPostgresInventory['x-resource-type'], 'postgres_inventory');
   assert.equal(getPostgresInventoryParameters.some((parameter) => parameter.name === 'workspaceId'), true);
   assert.ok(document.components.schemas.PostgresProviderCompatibility);
+  assert.ok(document.components.schemas.PostgresAllowedType);
+  assert.ok(document.components.schemas.PostgresTable);
+  assert.ok(document.components.schemas.PostgresColumn);
+  assert.ok(document.components.schemas.PostgresTypeCollection);
   assert.ok(document.components.schemas.PostgresAdminEnginePolicy);
   assert.ok(document.components.schemas.PostgresAdminMutationAccepted);
 
