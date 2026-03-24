@@ -58,6 +58,12 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(provisioningRequestContract.required_fields.includes('requested_resources'));
   assert.ok(provisioningRequestContract.required_fields.includes('authorization_decision_id'));
   assert.ok(provisioningRequestContract.required_fields.includes('identity_blueprint_ref'));
+  assert.ok(provisioningRequestContract.required_fields.includes('owner_user_id'));
+  assert.ok(provisioningRequestContract.required_fields.includes('default_workspace_environment'));
+  assert.ok(provisioningRequestContract.required_fields.includes('resource_blueprints'));
+  assert.ok(provisioningResultContract.required_fields.includes('resource_states'));
+  assert.ok(provisioningResultContract.required_fields.includes('owner_bindings'));
+  assert.ok(provisioningResultContract.required_fields.includes('retry'));
   assert.ok(provisioningResultContract.error_classes.includes('recovery_required'));
   assert.ok(eventGatewayBoundary.inbound_contracts.includes('iam_lifecycle_event'));
   assert.equal(auditLifecycleEventContract.version, '2026-03-24');
@@ -109,6 +115,11 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(keycloakAdapter.capabilities.includes('iam_realm_create'));
   assert.ok(keycloakAdapter.capabilities.includes('iam_client_update'));
   assert.ok(keycloakAdapter.capabilities.includes('iam_user_reset_credentials'));
+  assert.equal(getContract('adapter_call').required_fields.includes('provisioning_run_id'), true);
+  assert.equal(getContract('adapter_call').required_fields.includes('resource_key'), true);
+  assert.equal(getContract('adapter_result').required_fields.includes('resource_key'), true);
+  assert.equal(getContract('adapter_result').required_fields.includes('attempt_count'), true);
+  assert.ok(interactionFlowIds.has('signup_activation_bootstrap'));
   assert.ok(interactionFlowIds.has('tenant_provisioning'));
   assert.ok(interactionFlowIds.has('tenant_suspension'));
   assert.ok(interactionFlowIds.has('workspace_identity_registration'));

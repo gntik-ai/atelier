@@ -806,6 +806,9 @@
       "PlatformUser": {
         "additionalProperties": false,
         "properties": {
+          "activationProvisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
+          },
           "displayName": {
             "maxLength": 120,
             "minLength": 1,
@@ -1094,6 +1097,259 @@
           "disabled"
         ],
         "type": "string"
+      },
+      "ProvisioningFailureClass": {
+        "enum": [
+          "retryable_dependency_failure",
+          "terminal_dependency_failure",
+          "validation_error",
+          "authorization_error"
+        ],
+        "type": "string"
+      },
+      "ProvisioningGatingMode": {
+        "enum": [
+          "always",
+          "capability_gated"
+        ],
+        "type": "string"
+      },
+      "ProvisioningLifecycleTrigger": {
+        "enum": [
+          "signup_activation",
+          "activation_retry",
+          "operator_retry"
+        ],
+        "type": "string"
+      },
+      "ProvisioningOwnerBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bindingType": {
+            "enum": [
+              "tenant_membership",
+              "workspace_membership"
+            ],
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "active",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bindingType",
+          "role",
+          "userId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ProvisioningResourceState": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "failureClass": {
+            "$ref": "#/components/schemas/ProvisioningFailureClass"
+          },
+          "gatingMode": {
+            "$ref": "#/components/schemas/ProvisioningGatingMode"
+          },
+          "lastAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "providerReference": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "requiredCapabilityKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "resourceKey": {
+            "pattern": "^[a-z0-9](?:[a-z0-9_-]{1,62}[a-z0-9])?$",
+            "type": "string"
+          },
+          "resourceType": {
+            "enum": [
+              "tenant",
+              "tenant_membership",
+              "workspace",
+              "workspace_membership",
+              "identity_context",
+              "postgres_instance",
+              "storage_bucket",
+              "mongo_database",
+              "event_topic",
+              "function_action"
+            ],
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningResourceStatus"
+          },
+          "visibleInConsole": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resourceKey",
+          "resourceType",
+          "scope",
+          "gatingMode",
+          "status",
+          "attemptCount",
+          "visibleInConsole"
+        ],
+        "type": "object"
+      },
+      "ProvisioningResourceStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "provisioned",
+          "skipped",
+          "failed",
+          "retry_scheduled"
+        ],
+        "type": "string"
+      },
+      "ProvisioningRetryHint": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "maxLength": 160,
+            "minLength": 8,
+            "type": "string"
+          },
+          "nextRetryAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "resumeFromResourceKeys": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 3,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "retryable",
+          "attemptCount",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "ProvisioningRunStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "partially_failed",
+          "completed"
+        ],
+        "type": "string"
+      },
+      "ProvisioningSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "lifecycleTrigger": {
+            "$ref": "#/components/schemas/ProvisioningLifecycleTrigger"
+          },
+          "ownerBindings": {
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningOwnerBinding"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "provisioningRunId": {
+            "pattern": "^prn_[0-9a-z]+$",
+            "type": "string"
+          },
+          "resourceStates": {
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningResourceState"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/ProvisioningRetryHint"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningRunStatus"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provisioningRunId",
+          "lifecycleTrigger",
+          "status",
+          "ownerBindings",
+          "resourceStates",
+          "retry"
+        ],
+        "type": "object"
       },
       "QuotaEnforcementMode": {
         "enum": [
@@ -1594,7 +1850,7 @@
     "description": "Cross-tenant platform governance, catalog, and operator discovery surfaces. Generated from the unified public API contract for v1.",
     "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
     "title": "In Atelier Platform API",
-    "version": "1.7.0"
+    "version": "1.8.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

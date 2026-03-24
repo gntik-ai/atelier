@@ -448,6 +448,87 @@ export function resolveWorkspaceEffectiveCapabilities({
   };
 }
 
+export function listInitialTenantBootstrapTemplates() {
+  return readDomainModel().governance_catalogs?.initial_tenant_bootstrap_templates ?? [];
+}
+
+export function getInitialTenantBootstrapTemplate(resourceKey) {
+  return listInitialTenantBootstrapTemplates().find((template) => template.resourceKey === resourceKey);
+}
+
+export function resolveInitialTenantBootstrap({
+  tenantId = null,
+  ownerUserId = null,
+  workspaceId,
+  workspaceEnvironment = 'dev',
+  planId,
+  provisioningRunId = 'prn_bootstrappreview',
+  lifecycleTrigger = 'signup_activation',
+  resolvedAt = '2026-03-24T00:00:00Z'
+}) {
+  const tenantResolution = resolveTenantEffectiveCapabilities({ tenantId, planId, resolvedAt });
+  const workspaceResolution = resolveWorkspaceEffectiveCapabilities({
+    tenantId,
+    workspaceId,
+    workspaceEnvironment,
+    planId,
+    resolvedAt
+  });
+  const capabilityKeys = new Set([
+    ...tenantResolution.capabilities.map((capability) => capability.capabilityKey),
+    ...workspaceResolution.capabilities.map((capability) => capability.capabilityKey)
+  ]);
+  const resourceStates = listInitialTenantBootstrapTemplates().map((template) => {
+    const enabled =
+      template.provisioningMode === 'always' ||
+      (template.requiredCapabilityKey ? capabilityKeys.has(template.requiredCapabilityKey) : false);
+
+    return {
+      resourceKey: template.resourceKey,
+      resourceType: template.resourceType,
+      scope: template.scope,
+      displayName: template.displayName,
+      provider: template.provider,
+      gatingMode: template.provisioningMode,
+      requiredCapabilityKey: template.requiredCapabilityKey,
+      status: enabled ? 'pending' : 'skipped',
+      attemptCount: 0,
+      visibleInConsole: template.visibleInConsole === true
+    };
+  });
+
+  return {
+    provisioningRunId,
+    lifecycleTrigger,
+    status: 'pending',
+    startedAt: resolvedAt,
+    updatedAt: resolvedAt,
+    ownerBindings: [
+      {
+        bindingType: 'tenant_membership',
+        role: 'tenant_owner',
+        userId: ownerUserId,
+        tenantId,
+        status: 'pending'
+      },
+      {
+        bindingType: 'workspace_membership',
+        role: 'workspace_owner',
+        userId: ownerUserId,
+        tenantId,
+        workspaceId,
+        status: 'pending'
+      }
+    ],
+    resourceStates,
+    retry: {
+      retryable: false,
+      attemptCount: 0,
+      idempotencyKey: `signup-activation-${tenantId ?? 'tenant'}-${workspaceId ?? 'workspace'}`
+    }
+  };
+}
+
 export function evaluatePlanChange({ fromPlanId, toPlanId, currentUsage = {}, resolvedAt = '2026-03-24T00:00:00Z' }) {
   const fromResolution = resolveTenantEffectiveCapabilities({ planId: fromPlanId, resolvedAt });
   const toResolution = resolveTenantEffectiveCapabilities({ planId: toPlanId, resolvedAt });

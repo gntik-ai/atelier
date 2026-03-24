@@ -312,6 +312,9 @@
             ],
             "type": "string"
           },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
+          },
           "replayWindowHours": {
             "maximum": 720,
             "minimum": 1,
@@ -527,6 +530,114 @@
           "updatedAt"
         ],
         "type": "object"
+      },
+      "ProvisioningFailureClass": {
+        "enum": [
+          "retryable_dependency_failure",
+          "terminal_dependency_failure",
+          "validation_error",
+          "authorization_error"
+        ],
+        "type": "string"
+      },
+      "ProvisioningGatingMode": {
+        "enum": [
+          "always",
+          "capability_gated"
+        ],
+        "type": "string"
+      },
+      "ProvisioningResourceState": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "failureClass": {
+            "$ref": "#/components/schemas/ProvisioningFailureClass"
+          },
+          "gatingMode": {
+            "$ref": "#/components/schemas/ProvisioningGatingMode"
+          },
+          "lastAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "providerReference": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "requiredCapabilityKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "resourceKey": {
+            "pattern": "^[a-z0-9](?:[a-z0-9_-]{1,62}[a-z0-9])?$",
+            "type": "string"
+          },
+          "resourceType": {
+            "enum": [
+              "tenant",
+              "tenant_membership",
+              "workspace",
+              "workspace_membership",
+              "identity_context",
+              "postgres_instance",
+              "storage_bucket",
+              "mongo_database",
+              "event_topic",
+              "function_action"
+            ],
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningResourceStatus"
+          },
+          "visibleInConsole": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resourceKey",
+          "resourceType",
+          "scope",
+          "gatingMode",
+          "status",
+          "attemptCount",
+          "visibleInConsole"
+        ],
+        "type": "object"
+      },
+      "ProvisioningResourceStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "provisioned",
+          "skipped",
+          "failed",
+          "retry_scheduled"
+        ],
+        "type": "string"
       }
     }
   },
@@ -534,7 +645,7 @@
     "description": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.",
     "title": "In Atelier Events API",
-    "version": "1.7.0"
+    "version": "1.8.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

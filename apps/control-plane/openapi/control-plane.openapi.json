@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, data, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -11313,7 +11313,7 @@
         },
         "responses": {
           "202": {
-            "description": "The activation decision was accepted and normalized for downstream reconciliation.",
+            "description": "The activation decision was accepted, the initial tenant bootstrap was normalized, and owner/resource provisioning context can be tracked asynchronously.",
             "content": {
               "application/json": {
                 "schema": {
@@ -14848,6 +14848,9 @@
           },
           "iamBinding": {
             "$ref": "#/components/schemas/PlatformUserIamBinding"
+          },
+          "activationProvisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
           }
         },
         "additionalProperties": false
@@ -14985,6 +14988,9 @@
           },
           "identityAccessPolicy": {
             "$ref": "#/components/schemas/TenantIdentityAccessPolicy"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
           }
         },
         "additionalProperties": false
@@ -15113,6 +15119,9 @@
           },
           "iamBoundary": {
             "$ref": "#/components/schemas/WorkspaceIamBoundary"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
           }
         },
         "additionalProperties": false
@@ -15645,6 +15654,9 @@
           },
           "accessPolicy": {
             "$ref": "#/components/schemas/ManagedResourceAccessPolicy"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
           }
         },
         "additionalProperties": false
@@ -17365,6 +17377,9 @@
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
           }
         }
       },
@@ -17459,6 +17474,9 @@
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
           }
         }
       },
@@ -17600,6 +17618,9 @@
               "metadata_only",
               "headers_and_denials"
             ]
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
           }
         }
       },
@@ -17733,6 +17754,9 @@
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
           }
         }
       },
@@ -17816,6 +17840,9 @@
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
           }
         }
       },
@@ -20357,6 +20384,17 @@
             "type": "string",
             "minLength": 3,
             "maxLength": 280
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
           }
         }
       },
@@ -20424,6 +20462,21 @@
           "actorUserId": {
             "type": "string",
             "pattern": "^usr_[0-9a-z]+$"
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/Tenant"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/Workspace"
+          },
+          "tenantOwnerMembership": {
+            "$ref": "#/components/schemas/TenantMembershipRecord"
+          },
+          "workspaceOwnerMembership": {
+            "$ref": "#/components/schemas/WorkspaceMembershipRecord"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
           }
         }
       },
@@ -22062,6 +22115,259 @@
                 "format": "date-time"
               }
             }
+          }
+        }
+      },
+      "ProvisioningLifecycleTrigger": {
+        "type": "string",
+        "enum": [
+          "signup_activation",
+          "activation_retry",
+          "operator_retry"
+        ]
+      },
+      "ProvisioningRunStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "in_progress",
+          "partially_failed",
+          "completed"
+        ]
+      },
+      "ProvisioningResourceStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "in_progress",
+          "provisioned",
+          "skipped",
+          "failed",
+          "retry_scheduled"
+        ]
+      },
+      "ProvisioningFailureClass": {
+        "type": "string",
+        "enum": [
+          "retryable_dependency_failure",
+          "terminal_dependency_failure",
+          "validation_error",
+          "authorization_error"
+        ]
+      },
+      "ProvisioningGatingMode": {
+        "type": "string",
+        "enum": [
+          "always",
+          "capability_gated"
+        ]
+      },
+      "ProvisioningOwnerBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bindingType",
+          "role",
+          "userId",
+          "status"
+        ],
+        "properties": {
+          "bindingType": {
+            "type": "string",
+            "enum": [
+              "tenant_membership",
+              "workspace_membership"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 80
+          },
+          "userId": {
+            "type": "string",
+            "pattern": "^usr_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "active",
+              "failed"
+            ]
+          }
+        }
+      },
+      "ProvisioningRetryHint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "retryable",
+          "attemptCount",
+          "idempotencyKey"
+        ],
+        "properties": {
+          "retryable": {
+            "type": "boolean"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nextRetryAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resumeFromResourceKeys": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 120
+            }
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 160
+          }
+        }
+      },
+      "ProvisioningResourceState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceKey",
+          "resourceType",
+          "scope",
+          "gatingMode",
+          "status",
+          "attemptCount",
+          "visibleInConsole"
+        ],
+        "properties": {
+          "resourceKey": {
+            "type": "string",
+            "pattern": "^[a-z0-9](?:[a-z0-9_-]{1,62}[a-z0-9])?$"
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "tenant_membership",
+              "workspace",
+              "workspace_membership",
+              "identity_context",
+              "postgres_instance",
+              "storage_bucket",
+              "mongo_database",
+              "event_topic",
+              "function_action"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace"
+            ]
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 120
+          },
+          "gatingMode": {
+            "$ref": "#/components/schemas/ProvisioningGatingMode"
+          },
+          "requiredCapabilityKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningResourceStatus"
+          },
+          "attemptCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastAttemptAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "providerReference": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "failureClass": {
+            "$ref": "#/components/schemas/ProvisioningFailureClass"
+          },
+          "visibleInConsole": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProvisioningSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provisioningRunId",
+          "lifecycleTrigger",
+          "status",
+          "ownerBindings",
+          "resourceStates",
+          "retry"
+        ],
+        "properties": {
+          "provisioningRunId": {
+            "type": "string",
+            "pattern": "^prn_[0-9a-z]+$"
+          },
+          "lifecycleTrigger": {
+            "$ref": "#/components/schemas/ProvisioningLifecycleTrigger"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningRunStatus"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ownerBindings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningOwnerBinding"
+            }
+          },
+          "resourceStates": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningResourceState"
+            }
+          },
+          "retry": {
+            "$ref": "#/components/schemas/ProvisioningRetryHint"
           }
         }
       }

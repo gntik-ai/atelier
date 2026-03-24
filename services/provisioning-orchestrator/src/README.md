@@ -7,6 +7,9 @@ Initial responsibility boundaries:
 - accept versioned provisioning requests
 - correlate runs by stable idempotency keys
 - preserve tenant/workspace authorization context and plan guardrails across orchestration
+- normalize signup-activation bootstrap requests into one tenant/workspace owner-aware run
+- persist per-resource provisioning state so console/API consumers can inspect bootstrap progress
+- resume partially failed runs without replaying already converged resources
 - sequence provider-facing adapter calls
 - aggregate outcomes into shared provisioning-result envelopes
 - emit audit evidence for step changes and terminal outcomes

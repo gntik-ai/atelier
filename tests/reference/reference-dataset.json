@@ -17,6 +17,12 @@
       "slug": "atelier-gamma",
       "placement": "dedicated_database",
       "tier": "regulated"
+    },
+    {
+      "id": "tenant-bootstrap-starter",
+      "slug": "atelier-bootstrap",
+      "placement": "shared_schema",
+      "tier": "starter"
     }
   ],
   "users": [
@@ -95,6 +101,18 @@
       "workspace_ids": [
         "workspace-beta-dev"
       ]
+    },
+    {
+      "id": "user-bootstrap-owner",
+      "role": "tenant_admin",
+      "tenant_ids": [
+        "tenant-bootstrap-starter"
+      ]
+    },
+    {
+      "id": "user-bootstrap-pending",
+      "role": "pending_activation",
+      "tenant_ids": []
     }
   ],
   "workspaces": [
@@ -117,6 +135,11 @@
       "id": "workspace-gamma-prod",
       "tenant_id": "tenant-dedicated-a",
       "environment": "prod"
+    },
+    {
+      "id": "workspace-bootstrap-default",
+      "tenant_id": "tenant-bootstrap-starter",
+      "environment": "dev"
     }
   ],
   "adapters": [
@@ -160,6 +183,10 @@
     {
       "id": "event-workspace-document-updated",
       "type": "workspace.document.updated"
+    },
+    {
+      "id": "event-signup-activation-approved",
+      "type": "signup.activation.approved"
     }
   ],
   "resilience_cases": [
@@ -204,6 +231,10 @@
       "publish_attempts_per_second": 180,
       "publish_duration_seconds": 10,
       "max_in_flight": 48
+    },
+    {
+      "id": "resilience-partial-bootstrap",
+      "failure_mode": "partial_bootstrap_failure"
     }
   ],
   "console_routes": [

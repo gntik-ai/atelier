@@ -277,6 +277,17 @@ cross_domain_matrix:
         - tenant-shared-a
         - workspace-alpha-dev
       expected: Body-size enforcement fails fast, returns the standard error envelope, and preserves tenant-safe retry guidance.
+    - id: RS-DAT-004
+      level: resilience
+      domain: data
+      taxonomy: recovery
+      title: Partial tenant bootstrap retry resumes only failed resources and skips the ones that already converged.
+      fixtures:
+        - resilience-partial-bootstrap
+        - event-tenant-provision-requested
+        - tenant-bootstrap-starter
+        - workspace-bootstrap-default
+      expected: Recovery stays idempotent, skips already-provisioned resources, and retries only the failed bootstrap steps inside the same lineage.
     - id: CE-CON-002
       level: console_e2e
       domain: console
@@ -310,6 +321,24 @@ cross_domain_matrix:
       states:
         - account_suspended
       expected: Suspended accounts stay blocked from every tenant and platform surface until an operator reactivates them.
+    - id: CE-CON-005
+      level: console_e2e
+      domain: console
+      taxonomy: positive
+      title: Approved signup activation lands the new owner in an operational tenant with visible bootstrap resources.
+      fixtures:
+        - user-bootstrap-pending
+        - user-bootstrap-owner
+        - tenant-bootstrap-starter
+        - workspace-bootstrap-default
+        - route-login
+        - route-tenant-dashboard
+        - route-workspace-dashboard
+        - event-signup-activation-approved
+      states:
+        - pending_activation
+        - tenant_admin
+      expected: Approval creates the initial tenant/workspace, keeps bootstrap progress visible, and exposes the provisioned resources without requiring a second manual setup flow.
 scenario_taxonomy:
   categories:
     - id: positive

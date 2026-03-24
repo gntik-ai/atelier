@@ -76,6 +76,33 @@ The canonical model now carries explicit Keycloak-facing IAM descriptors:
 
 This keeps console access, tenant end-user access, and machine credentials separate while still letting the control plane reason about all of them through one shared domain vocabulary.
 
+## Initial tenant bootstrap baseline
+
+Signup activation now also owns the first tenant bootstrap contract:
+
+- activate one `platform_user` and create exactly one initial `tenant`
+- create one default `workspace`
+- assign the activating user as both `tenant_owner` and `workspace_owner`
+- persist one bootstrap `provisioning` summary on the platform user, tenant, workspace, and provisioned managed resources
+- distinguish **always-created** resources from **profile-gated** resources so console/API consumers can explain why a resource exists, was skipped, or needs retry
+
+The current baseline treats these as always-created:
+
+- tenant IAM context (`tenant.identityContext` + realm baseline)
+- tenant owner membership
+- default workspace
+- workspace owner membership
+- one baseline PostgreSQL instance
+- one baseline storage bucket
+
+The current profile-gated bootstrap resources are:
+
+- MongoDB database (`data.mongodb.database`)
+- Kafka topic (`data.kafka.topics`)
+- OpenWhisk action (`data.openwhisk.actions`)
+
+Each bootstrap resource carries its own provisioning status, attempt count, and retry lineage so partial failures can be resumed idempotently instead of replaying the whole tenant activation flow.
+
 ## Lifecycle events
 
 Each core entity publishes four baseline lifecycle events:

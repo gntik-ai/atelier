@@ -510,6 +510,9 @@
             ],
             "type": "string"
           },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
+          },
           "registrationId": {
             "pattern": "^reg_[0-9a-z]+$",
             "type": "string"
@@ -517,9 +520,21 @@
           "resultingState": {
             "$ref": "#/components/schemas/EntityState"
           },
+          "tenant": {
+            "$ref": "#/components/schemas/Tenant"
+          },
+          "tenantOwnerMembership": {
+            "$ref": "#/components/schemas/TenantMembershipRecord"
+          },
           "userId": {
             "pattern": "^usr_[0-9a-z]+$",
             "type": "string"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/Workspace"
+          },
+          "workspaceOwnerMembership": {
+            "$ref": "#/components/schemas/WorkspaceMembershipRecord"
           }
         },
         "required": [
@@ -617,6 +632,9 @@
             "minLength": 3,
             "type": "string"
           },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
+          },
           "registrationId": {
             "pattern": "^reg_[0-9a-z]+$",
             "type": "string"
@@ -627,8 +645,16 @@
           "statusView": {
             "$ref": "#/components/schemas/ConsoleStatusViewId"
           },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
           "userId": {
             "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
             "type": "string"
           }
         },
@@ -771,6 +797,14 @@
         "pattern": "^[0-9]+(?:s|m|h|d)$",
         "type": "string"
       },
+      "EntityMetadata": {
+        "additionalProperties": {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        "description": "Non-secret additive metadata for canonical entities.",
+        "type": "object"
+      },
       "EntityState": {
         "enum": [
           "draft",
@@ -886,6 +920,183 @@
           "recoveryTokenTtl"
         ],
         "type": "object"
+      },
+      "KeycloakProtocolMapper": {
+        "additionalProperties": false,
+        "properties": {
+          "claimName": {
+            "type": "string"
+          },
+          "mapperType": {
+            "enum": [
+              "user_attribute",
+              "hardcoded_claim",
+              "audience",
+              "script"
+            ],
+            "type": "string"
+          },
+          "multivalued": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sourceAttribute": {
+            "type": "string"
+          },
+          "tokenTargets": {
+            "items": {
+              "enum": [
+                "access_token",
+                "id_token",
+                "userinfo",
+                "saml_assertion"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "mapperType",
+          "claimName"
+        ],
+        "type": "object"
+      },
+      "LifecycleTimestamps": {
+        "additionalProperties": false,
+        "properties": {
+          "activatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "suspendedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MembershipPrincipalBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "clientId": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "iamGroupIds": {
+            "items": {
+              "maxLength": 160,
+              "minLength": 3,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "iamUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "realm": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "user",
+              "group"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceType",
+          "realm"
+        ],
+        "type": "object"
+      },
+      "MembershipRoleMapping": {
+        "additionalProperties": false,
+        "properties": {
+          "assignedRoles": {
+            "items": {
+              "maxLength": 80,
+              "minLength": 3,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "externalPrincipalId": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "externalPrincipalType": {
+            "enum": [
+              "user",
+              "group"
+            ],
+            "type": "string"
+          },
+          "precedence": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "direct_user",
+              "keycloak_group",
+              "invitation"
+            ],
+            "type": "string"
+          },
+          "syncedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "externalPrincipalType",
+          "externalPrincipalId",
+          "assignedRoles",
+          "source"
+        ],
+        "type": "object"
+      },
+      "MembershipStatus": {
+        "enum": [
+          "pending_activation",
+          "active",
+          "suspended",
+          "revoked"
+        ],
+        "type": "string"
       },
       "OwnershipContext": {
         "additionalProperties": false,
@@ -1047,6 +1258,259 @@
         ],
         "type": "string"
       },
+      "ProvisioningFailureClass": {
+        "enum": [
+          "retryable_dependency_failure",
+          "terminal_dependency_failure",
+          "validation_error",
+          "authorization_error"
+        ],
+        "type": "string"
+      },
+      "ProvisioningGatingMode": {
+        "enum": [
+          "always",
+          "capability_gated"
+        ],
+        "type": "string"
+      },
+      "ProvisioningLifecycleTrigger": {
+        "enum": [
+          "signup_activation",
+          "activation_retry",
+          "operator_retry"
+        ],
+        "type": "string"
+      },
+      "ProvisioningOwnerBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bindingType": {
+            "enum": [
+              "tenant_membership",
+              "workspace_membership"
+            ],
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 80,
+            "minLength": 3,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "active",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bindingType",
+          "role",
+          "userId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ProvisioningResourceState": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "failureClass": {
+            "$ref": "#/components/schemas/ProvisioningFailureClass"
+          },
+          "gatingMode": {
+            "$ref": "#/components/schemas/ProvisioningGatingMode"
+          },
+          "lastAttemptAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 120,
+            "minLength": 2,
+            "type": "string"
+          },
+          "providerReference": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "requiredCapabilityKey": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "resourceKey": {
+            "pattern": "^[a-z0-9](?:[a-z0-9_-]{1,62}[a-z0-9])?$",
+            "type": "string"
+          },
+          "resourceType": {
+            "enum": [
+              "tenant",
+              "tenant_membership",
+              "workspace",
+              "workspace_membership",
+              "identity_context",
+              "postgres_instance",
+              "storage_bucket",
+              "mongo_database",
+              "event_topic",
+              "function_action"
+            ],
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningResourceStatus"
+          },
+          "visibleInConsole": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resourceKey",
+          "resourceType",
+          "scope",
+          "gatingMode",
+          "status",
+          "attemptCount",
+          "visibleInConsole"
+        ],
+        "type": "object"
+      },
+      "ProvisioningResourceStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "provisioned",
+          "skipped",
+          "failed",
+          "retry_scheduled"
+        ],
+        "type": "string"
+      },
+      "ProvisioningRetryHint": {
+        "additionalProperties": false,
+        "properties": {
+          "attemptCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "maxLength": 160,
+            "minLength": 8,
+            "type": "string"
+          },
+          "nextRetryAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "resumeFromResourceKeys": {
+            "items": {
+              "maxLength": 120,
+              "minLength": 3,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "retryable",
+          "attemptCount",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "ProvisioningRunStatus": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "partially_failed",
+          "completed"
+        ],
+        "type": "string"
+      },
+      "ProvisioningSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "lifecycleTrigger": {
+            "$ref": "#/components/schemas/ProvisioningLifecycleTrigger"
+          },
+          "ownerBindings": {
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningOwnerBinding"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "provisioningRunId": {
+            "pattern": "^prn_[0-9a-z]+$",
+            "type": "string"
+          },
+          "resourceStates": {
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningResourceState"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "retry": {
+            "$ref": "#/components/schemas/ProvisioningRetryHint"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProvisioningRunStatus"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provisioningRunId",
+          "lifecycleTrigger",
+          "status",
+          "ownerBindings",
+          "resourceStates",
+          "retry"
+        ],
+        "type": "object"
+      },
       "QuotaContext": {
         "additionalProperties": false,
         "properties": {
@@ -1067,11 +1531,484 @@
         ],
         "type": "object"
       },
+      "RoleMappingStatus": {
+        "enum": [
+          "pending_sync",
+          "synced",
+          "degraded"
+        ],
+        "type": "string"
+      },
       "SignupPolicyMode": {
         "enum": [
           "disabled",
           "approval_required",
           "auto_activate"
+        ],
+        "type": "string"
+      },
+      "Tenant": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "tenant",
+            "type": "string"
+          },
+          "identityAccessPolicy": {
+            "$ref": "#/components/schemas/TenantIdentityAccessPolicy"
+          },
+          "identityContext": {
+            "$ref": "#/components/schemas/TenantIdentityContext"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/TenantPlacement"
+          },
+          "planId": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
+          },
+          "region": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "workspaceCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entityType",
+          "tenantId",
+          "slug",
+          "displayName",
+          "planId",
+          "placement",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "TenantIdentityAccessPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "appliesToHumanUsers": {
+            "type": "boolean"
+          },
+          "appliesToServiceAccounts": {
+            "type": "boolean"
+          },
+          "enforcementMode": {
+            "enum": [
+              "provider_enforced",
+              "gateway_enforced",
+              "provider_and_gateway_enforced"
+            ],
+            "type": "string"
+          },
+          "lastChangedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastChangedByUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "lifecycleEventId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "enforcementMode",
+          "appliesToHumanUsers",
+          "appliesToServiceAccounts"
+        ],
+        "type": "object"
+      },
+      "TenantIdentityContext": {
+        "additionalProperties": false,
+        "properties": {
+          "consoleUserRealm": {
+            "type": "string"
+          },
+          "endUserRealm": {
+            "type": "string"
+          },
+          "platformRealm": {
+            "type": "string"
+          },
+          "realmAttributes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "realmStrategy": {
+            "enum": [
+              "realm_per_tenant",
+              "shared_realm_partition",
+              "brokered_tenant_realm"
+            ],
+            "type": "string"
+          },
+          "requiredClaims": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenantRealm": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platformRealm",
+          "tenantRealm",
+          "realmStrategy",
+          "consoleUserRealm",
+          "endUserRealm"
+        ],
+        "type": "object"
+      },
+      "TenantMembershipRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "effectiveRoles": {
+            "items": {
+              "$ref": "#/components/schemas/TenantRole"
+            },
+            "type": "array"
+          },
+          "entityType": {
+            "const": "tenant_membership",
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "membershipStatus": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "principalBindings": {
+            "$ref": "#/components/schemas/MembershipPrincipalBinding"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TenantRole"
+          },
+          "roleMappingStatus": {
+            "$ref": "#/components/schemas/RoleMappingStatus"
+          },
+          "roleMappings": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipRoleMapping"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "tenantMembershipId": {
+            "pattern": "^tmb_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "tenantMembershipId",
+          "tenantId",
+          "userId",
+          "role",
+          "membershipStatus",
+          "state",
+          "timestamps",
+          "metadata",
+          "principalBindings",
+          "roleMappings",
+          "roleMappingStatus"
+        ],
+        "type": "object"
+      },
+      "TenantPlacement": {
+        "enum": [
+          "shared_schema",
+          "dedicated_database"
+        ],
+        "type": "string"
+      },
+      "TenantRole": {
+        "enum": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_operator",
+          "tenant_billing_admin",
+          "auditor"
+        ],
+        "type": "string"
+      },
+      "Workspace": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "entityType": {
+            "const": "workspace",
+            "type": "string"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/WorkspaceEnvironment"
+          },
+          "iamBoundary": {
+            "$ref": "#/components/schemas/WorkspaceIamBoundary"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningSummary"
+          },
+          "resourceCounts": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "runtimeNamespace": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "slug": {
+            "pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "workspaceId",
+          "tenantId",
+          "slug",
+          "displayName",
+          "environment",
+          "state",
+          "timestamps",
+          "metadata"
+        ],
+        "type": "object"
+      },
+      "WorkspaceEnvironment": {
+        "enum": [
+          "dev",
+          "sandbox",
+          "staging",
+          "prod"
+        ],
+        "type": "string"
+      },
+      "WorkspaceIamBoundary": {
+        "additionalProperties": false,
+        "properties": {
+          "clientNamespace": {
+            "type": "string"
+          },
+          "defaultClientScopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "protocolMappers": {
+            "items": {
+              "$ref": "#/components/schemas/KeycloakProtocolMapper"
+            },
+            "type": "array"
+          },
+          "realm": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "realm",
+          "clientNamespace",
+          "defaultClientScopes"
+        ],
+        "type": "object"
+      },
+      "WorkspaceMembershipRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "effectiveRoles": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRole"
+            },
+            "type": "array"
+          },
+          "entityType": {
+            "const": "workspace_membership",
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "invitationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "membershipStatus": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/EntityMetadata"
+          },
+          "principalBindings": {
+            "$ref": "#/components/schemas/MembershipPrincipalBinding"
+          },
+          "role": {
+            "$ref": "#/components/schemas/WorkspaceRole"
+          },
+          "roleMappingStatus": {
+            "$ref": "#/components/schemas/RoleMappingStatus"
+          },
+          "roleMappings": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipRoleMapping"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/EntityState"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "userId": {
+            "pattern": "^usr_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceMembershipId": {
+            "pattern": "^wmb_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "workspaceMembershipId",
+          "tenantId",
+          "workspaceId",
+          "userId",
+          "role",
+          "membershipStatus",
+          "state",
+          "timestamps",
+          "metadata",
+          "principalBindings",
+          "roleMappings",
+          "roleMappingStatus"
+        ],
+        "type": "object"
+      },
+      "WorkspaceRole": {
+        "enum": [
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_operator",
+          "workspace_auditor",
+          "workspace_viewer",
+          "workspace_owner",
+          "workspace_service_account"
         ],
         "type": "string"
       }
@@ -1081,7 +2018,7 @@
     "description": "Console login, signup, activation, password recovery, and contextual authorization decisions. Generated from the unified public API contract for v1.",
     "summary": "Console login, signup, activation, password recovery, and contextual authorization decisions.",
     "title": "In Atelier Auth API",
-    "version": "1.7.0"
+    "version": "1.8.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -2289,7 +3226,7 @@
                 }
               }
             },
-            "description": "The activation decision was accepted and normalized for downstream reconciliation."
+            "description": "The activation decision was accepted, the initial tenant bootstrap was normalized, and owner/resource provisioning context can be tracked asynchronously."
           },
           "400": {
             "content": {

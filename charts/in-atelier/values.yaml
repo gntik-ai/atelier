@@ -513,6 +513,7 @@ bootstrap:
             - data.postgresql.dedicated
             - data.storage.bucket
             - data.kafka.topics
+            - data.mongodb.database
             - data.openwhisk.actions
             - control.federated_clusters
             - observability.metrics.basic
@@ -745,6 +746,7 @@ bootstrap:
             - pvc_01keycloakoidc
             - pvc_01pgdedicated
             - pvc_01storagebucket
+            - pvc_01mongodbdatabase
             - pvc_01kafkatopics
             - pvc_01openwhiskactions
             - pvc_01metricsbasic

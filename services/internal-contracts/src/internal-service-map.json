@@ -19,6 +19,7 @@
         "Validate request shape, tenant context, and API version headers.",
         "Resolve contextual authorization with actor, tenant, workspace, plan, scopes, effective roles, and correlation metadata.",
         "Translate accepted operations into internal command envelopes.",
+        "Normalize signup-activation approvals into initial tenant bootstrap commands with owner binding context.",
         "Accept BaaS-native IAM administrative operations for realms, clients, roles, scopes, and users while keeping provider payload normalization stable.",
         "Emit audit evidence for request acceptance and synchronous rejection where required.",
         "Emit IAM lifecycle events with actor context for audit persistence and Kafka-compatible downstream delivery."
@@ -57,10 +58,13 @@
         "Aggregate provider outcomes into a shared provisioning result envelope.",
         "Preserve workspace-safe authorization context and plan guardrails across provider-facing adapter calls.",
         "Emit audit evidence for step transitions and final outcomes.",
-        "Preserve suspension/reactivation semantics for tenant-scoped users and service accounts when IAM access state changes."
+        "Preserve suspension/reactivation semantics for tenant-scoped users and service accounts when IAM access state changes.",
+        "Persist per-resource provisioning state for bootstrap visibility across API and console surfaces.",
+        "Resume partially failed tenant bootstrap runs without replaying resources that already converged successfully."
       ],
       "owned_resources": [
         "provisioning run state",
+        "resource provisioning ledger",
         "step plan",
         "retry classification",
         "propagated authorization context",
@@ -378,10 +382,13 @@
         "effective_roles",
         "authorization_decision_id",
         "identity_blueprint_ref",
-        "lifecycle_trigger"
+        "lifecycle_trigger",
+        "owner_user_id",
+        "default_workspace_environment",
+        "resource_blueprints"
       ],
-      "idempotency": "The orchestrator must create or resume one logical provisioning run per idempotency_key, including tenant IAM realm baseline reconciliation.",
-      "versioning": "Breaking changes require a new contract version and an explicit migration note; tenant IAM blueprint references must stay additive.",
+      "idempotency": "The orchestrator must create or resume one logical provisioning run per idempotency_key, including tenant IAM realm baseline reconciliation, owner bindings, and per-resource replay-safe bootstrap state.",
+      "versioning": "Breaking changes require a new contract version and an explicit migration note; tenant IAM blueprint references, owner-binding metadata, and bootstrap resource blueprints must stay additive.",
       "error_classes": [
         "invalid_request",
         "conflict",
@@ -399,9 +406,12 @@
         "failed_steps",
         "correlation_id",
         "contract_version",
-        "observed_at"
+        "observed_at",
+        "resource_states",
+        "owner_bindings",
+        "retry"
       ],
-      "idempotency": "Repeated emissions for the same provisioning_run_id must describe the same durable state progression rather than duplicate side effects.",
+      "idempotency": "Repeated emissions for the same provisioning_run_id must describe the same durable state progression, reusing successful bootstrap steps and highlighting only the resources that still require retry.",
       "versioning": "Status vocabulary evolves deliberately under contract versioning instead of ad hoc field drift.",
       "error_classes": [
         "retryable_dependency_failure",
@@ -428,9 +438,11 @@
         "scopes",
         "effective_roles",
         "authorization_decision_id",
-        "identity_blueprint_ref"
+        "identity_blueprint_ref",
+        "provisioning_run_id",
+        "resource_key"
       ],
-      "idempotency": "Each adapter call must be safe to retry with the same idempotency_key when the underlying provider supports idempotent upsert semantics.",
+      "idempotency": "Each adapter call must be safe to retry with the same idempotency_key when the underlying provider supports idempotent upsert semantics, and it must preserve the provisioning_run_id/resource_key lineage for replay-safe bootstrap recovery.",
       "versioning": "Provider-specific data lives inside payload while the shared envelope stays stable across adapters; identity_blueprint_ref pins the Keycloak baseline used for each call.",
       "error_classes": [
         "retryable_dependency_failure",
@@ -448,9 +460,11 @@
         "provider_reference",
         "correlation_id",
         "observed_at",
-        "contract_version"
+        "contract_version",
+        "resource_key",
+        "attempt_count"
       ],
-      "idempotency": "Multiple identical results for the same call_id must be treated as the same adapter observation, not a new side effect.",
+      "idempotency": "Multiple identical results for the same call_id and resource_key must be treated as the same adapter observation, not a new side effect.",
       "versioning": "Status and provider reference shape remain under the shared contract version even as provider payload details expand.",
       "error_classes": [
         "retryable_dependency_failure",
@@ -715,13 +729,24 @@
   },
   "interaction_flows": [
     {
+      "id": "signup_activation_bootstrap",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api accepts a superadmin activation decision for a pending signup and derives one stable idempotency key for the initial tenant bootstrap workflow.",
+        "control_api emits a provisioning_request that names the activating owner, the default workspace intent, the identity blueprint, and the bootstrap resource blueprints visible to console operators.",
+        "provisioning_orchestrator creates or reloads the tenant bootstrap run, upserts tenant/workspace ownership records, and persists per-resource state after every provider-facing step.",
+        "Partially failed bootstrap runs surface retry-safe resource_states so a later retry can skip converged resources and resume only the failed or pending ones.",
+        "audit_module appends evidence for the activation decision, bootstrap lineage, owner assignments, retries, and the terminal tenant readiness outcome."
+      ]
+    },
+    {
       "id": "tenant_provisioning",
       "entry_service": "control_api",
       "steps": [
         "control_api validates the request, resolves contextual authorization for actor/tenant/workspace scope, and emits control_api_command plus provisioning_request envelopes with one correlation_id.",
-        "provisioning_orchestrator creates or reloads a provisioning run by idempotency_key while preserving plan, role, workspace, and identity_blueprint_ref constraints.",
+        "provisioning_orchestrator creates or reloads a provisioning run by idempotency_key while preserving plan, role, workspace, identity_blueprint_ref constraints, and per-resource state for retry-safe bootstrap visibility.",
         "provisioning_orchestrator invokes Keycloak capabilities to ensure the tenant realm strategy, required realm roles, client scopes, protocol mappers, and baseline workspace client templates before data-plane setup continues.",
-        "provisioning_orchestrator invokes adapter ports for relational, document, event, functions, and storage setup using the same propagated authorization and tenant IAM metadata.",
+        "provisioning_orchestrator invokes adapter ports for relational, document, event, functions, and storage setup using the same propagated authorization and tenant IAM metadata, persisting step-level outcomes after every resource transition.",
         "audit_module appends evidence for the decision context, identity blueprint, step transitions, and the terminal outcome."
       ]
     },

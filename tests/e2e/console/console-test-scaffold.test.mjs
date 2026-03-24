@@ -17,11 +17,12 @@ test('console scaffold defines required actor states and route expectations', ()
     assert.equal(stateIds.has(state), true, `missing console state ${state}`);
   }
 
-  assert.equal(consoleScenarios.length >= 4, true);
+  assert.equal(consoleScenarios.length >= 5, true);
   assert.equal(consoleScenarios.some((scenario) => scenario.states?.includes('unauthenticated')), true);
   assert.equal(consoleScenarios.some((scenario) => scenario.states?.includes('tenant_admin')), true);
   assert.equal(consoleScenarios.some((scenario) => scenario.states?.includes('pending_activation')), true);
   assert.equal(consoleScenarios.some((scenario) => scenario.states?.includes('credentials_expired')), true);
+  assert.equal(consoleScenarios.some((scenario) => scenario.id === 'CE-CON-005'), true);
 
   for (const state of states) {
     assert.equal(state.visible_sections.length > 0, true, `${state.id} should expose at least one visible section`);

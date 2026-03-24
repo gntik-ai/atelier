@@ -20,6 +20,115 @@
           "consoleUserRealm": "in-atelier-platform",
           "endUserRealm": "tenant-starter-alpha",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}"
+        },
+        "provisioning": {
+          "provisioningRunId": "prn_01starteralphabootstrap",
+          "lifecycleTrigger": "signup_activation",
+          "status": "completed",
+          "startedAt": "2026-03-24T00:00:00Z",
+          "updatedAt": "2026-03-24T00:00:00Z",
+          "ownerBindings": [
+            {
+              "bindingType": "tenant_membership",
+              "role": "tenant_owner",
+              "userId": "usr_01platformadmin",
+              "tenantId": "ten_01starteralpha",
+              "status": "active"
+            },
+            {
+              "bindingType": "workspace_membership",
+              "role": "workspace_owner",
+              "userId": "usr_01platformadmin",
+              "tenantId": "ten_01starteralpha",
+              "workspaceId": "wrk_01starterdev",
+              "status": "active"
+            }
+          ],
+          "resourceStates": [
+            {
+              "resourceKey": "tenant_identity_context",
+              "resourceType": "identity_context",
+              "scope": "tenant",
+              "displayName": "Tenant IAM context",
+              "provider": "keycloak",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "tenant-starter-alpha",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "tenant_owner_membership",
+              "resourceType": "tenant_membership",
+              "scope": "tenant",
+              "displayName": "Tenant owner membership",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "tmb_01starteralice",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_workspace",
+              "resourceType": "workspace",
+              "scope": "workspace",
+              "displayName": "Default workspace",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "wrk_01starterdev",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "workspace_owner_membership",
+              "resourceType": "workspace_membership",
+              "scope": "workspace",
+              "displayName": "Workspace owner membership",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "wmb_01starterdiego",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_postgres",
+              "resourceType": "postgres_instance",
+              "scope": "workspace",
+              "displayName": "Alpha Db",
+              "provider": "postgresql",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01starterdb",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_storage_bucket",
+              "resourceType": "storage_bucket",
+              "scope": "workspace",
+              "displayName": "Alpha Assets",
+              "provider": "storage",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01starterbucket",
+              "visibleInConsole": true
+            }
+          ],
+          "retry": {
+            "retryable": false,
+            "attemptCount": 1,
+            "idempotencyKey": "signup-activation-ten_01starteralpha"
+          }
         }
       },
       "platformUsers": [
@@ -31,6 +140,115 @@
             "realm": "in-atelier-platform",
             "subjectType": "console_user",
             "preferredUsername": "paula-admin"
+          },
+          "activationProvisioning": {
+            "provisioningRunId": "prn_01starteralphabootstrap",
+            "lifecycleTrigger": "signup_activation",
+            "status": "completed",
+            "startedAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z",
+            "ownerBindings": [
+              {
+                "bindingType": "tenant_membership",
+                "role": "tenant_owner",
+                "userId": "usr_01platformadmin",
+                "tenantId": "ten_01starteralpha",
+                "status": "active"
+              },
+              {
+                "bindingType": "workspace_membership",
+                "role": "workspace_owner",
+                "userId": "usr_01platformadmin",
+                "tenantId": "ten_01starteralpha",
+                "workspaceId": "wrk_01starterdev",
+                "status": "active"
+              }
+            ],
+            "resourceStates": [
+              {
+                "resourceKey": "tenant_identity_context",
+                "resourceType": "identity_context",
+                "scope": "tenant",
+                "displayName": "Tenant IAM context",
+                "provider": "keycloak",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tenant-starter-alpha",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "tenant_owner_membership",
+                "resourceType": "tenant_membership",
+                "scope": "tenant",
+                "displayName": "Tenant owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tmb_01starteralice",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_workspace",
+                "resourceType": "workspace",
+                "scope": "workspace",
+                "displayName": "Default workspace",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wrk_01starterdev",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "workspace_owner_membership",
+                "resourceType": "workspace_membership",
+                "scope": "workspace",
+                "displayName": "Workspace owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wmb_01starterdiego",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_postgres",
+                "resourceType": "postgres_instance",
+                "scope": "workspace",
+                "displayName": "Alpha Db",
+                "provider": "postgresql",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01starterdb",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_storage_bucket",
+                "resourceType": "storage_bucket",
+                "scope": "workspace",
+                "displayName": "Alpha Assets",
+                "provider": "storage",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01starterbucket",
+                "visibleInConsole": true
+              }
+            ],
+            "retry": {
+              "retryable": false,
+              "attemptCount": 1,
+              "idempotencyKey": "signup-activation-ten_01starteralpha"
+            }
           }
         },
         {
@@ -75,6 +293,115 @@
               "tenant_id": "ten_01starteralpha",
               "workspace_id": "wrk_01starterdev",
               "workspace_slug": "alpha-dev"
+            }
+          },
+          "provisioning": {
+            "provisioningRunId": "prn_01starteralphabootstrap",
+            "lifecycleTrigger": "signup_activation",
+            "status": "completed",
+            "startedAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z",
+            "ownerBindings": [
+              {
+                "bindingType": "tenant_membership",
+                "role": "tenant_owner",
+                "userId": "usr_01platformadmin",
+                "tenantId": "ten_01starteralpha",
+                "status": "active"
+              },
+              {
+                "bindingType": "workspace_membership",
+                "role": "workspace_owner",
+                "userId": "usr_01platformadmin",
+                "tenantId": "ten_01starteralpha",
+                "workspaceId": "wrk_01starterdev",
+                "status": "active"
+              }
+            ],
+            "resourceStates": [
+              {
+                "resourceKey": "tenant_identity_context",
+                "resourceType": "identity_context",
+                "scope": "tenant",
+                "displayName": "Tenant IAM context",
+                "provider": "keycloak",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tenant-starter-alpha",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "tenant_owner_membership",
+                "resourceType": "tenant_membership",
+                "scope": "tenant",
+                "displayName": "Tenant owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tmb_01starteralice",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_workspace",
+                "resourceType": "workspace",
+                "scope": "workspace",
+                "displayName": "Default workspace",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wrk_01starterdev",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "workspace_owner_membership",
+                "resourceType": "workspace_membership",
+                "scope": "workspace",
+                "displayName": "Workspace owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wmb_01starterdiego",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_postgres",
+                "resourceType": "postgres_instance",
+                "scope": "workspace",
+                "displayName": "Alpha Db",
+                "provider": "postgresql",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01starterdb",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_storage_bucket",
+                "resourceType": "storage_bucket",
+                "scope": "workspace",
+                "displayName": "Alpha Assets",
+                "provider": "storage",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01starterbucket",
+                "visibleInConsole": true
+              }
+            ],
+            "retry": {
+              "retryable": false,
+              "attemptCount": 1,
+              "idempotencyKey": "signup-activation-ten_01starteralpha"
             }
           }
         }
@@ -246,6 +573,19 @@
             "serviceAccountIds": [
               "svc_01starterci"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_postgres",
+            "resourceType": "postgres_instance",
+            "scope": "workspace",
+            "displayName": "Alpha Db",
+            "provider": "postgresql",
+            "gatingMode": "always",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01starterdb",
+            "visibleInConsole": true
           }
         },
         {
@@ -274,6 +614,19 @@
             "serviceAccountIds": [
               "svc_01starterci"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_storage_bucket",
+            "resourceType": "storage_bucket",
+            "scope": "workspace",
+            "displayName": "Alpha Assets",
+            "provider": "storage",
+            "gatingMode": "always",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01starterbucket",
+            "visibleInConsole": true
           }
         }
       ],
@@ -389,6 +742,143 @@
           "consoleUserRealm": "in-atelier-platform",
           "endUserRealm": "tenant-growth-beta",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}"
+        },
+        "provisioning": {
+          "provisioningRunId": "prn_01growthbetabootstrap",
+          "lifecycleTrigger": "signup_activation",
+          "status": "completed",
+          "startedAt": "2026-03-24T00:00:00Z",
+          "updatedAt": "2026-03-24T00:00:00Z",
+          "ownerBindings": [
+            {
+              "bindingType": "tenant_membership",
+              "role": "tenant_owner",
+              "userId": "usr_01betatenantadmin",
+              "tenantId": "ten_01growthbeta",
+              "status": "active"
+            },
+            {
+              "bindingType": "workspace_membership",
+              "role": "workspace_owner",
+              "userId": "usr_01betatenantadmin",
+              "tenantId": "ten_01growthbeta",
+              "workspaceId": "wrk_01betadev",
+              "status": "active"
+            }
+          ],
+          "resourceStates": [
+            {
+              "resourceKey": "tenant_identity_context",
+              "resourceType": "identity_context",
+              "scope": "tenant",
+              "displayName": "Tenant IAM context",
+              "provider": "keycloak",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "tenant-growth-beta",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "tenant_owner_membership",
+              "resourceType": "tenant_membership",
+              "scope": "tenant",
+              "displayName": "Tenant owner membership",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "tmb_01growthbea",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_workspace",
+              "resourceType": "workspace",
+              "scope": "workspace",
+              "displayName": "Default workspace",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "wrk_01betadev",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "workspace_owner_membership",
+              "resourceType": "workspace_membership",
+              "scope": "workspace",
+              "displayName": "Workspace owner membership",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "wmb_01growthbruno",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_postgres",
+              "resourceType": "postgres_instance",
+              "scope": "workspace",
+              "displayName": "Beta Db",
+              "provider": "postgresql",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01betadb",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_event_topic",
+              "resourceType": "event_topic",
+              "scope": "workspace",
+              "displayName": "Events Topic",
+              "provider": "kafka",
+              "gatingMode": "capability_gated",
+              "requiredCapabilityKey": "data.kafka.topics",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01betatopic",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_storage_bucket",
+              "resourceType": "storage_bucket",
+              "scope": "workspace",
+              "displayName": "Beta Assets",
+              "provider": "storage",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01betabucket",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_function_action",
+              "resourceType": "function_action",
+              "scope": "workspace",
+              "displayName": "Preview Functions",
+              "provider": "openwhisk",
+              "gatingMode": "capability_gated",
+              "requiredCapabilityKey": "data.openwhisk.actions",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01betafn",
+              "visibleInConsole": true
+            }
+          ],
+          "retry": {
+            "retryable": false,
+            "attemptCount": 1,
+            "idempotencyKey": "signup-activation-ten_01growthbeta"
+          }
         }
       },
       "platformUsers": [
@@ -400,6 +890,143 @@
             "realm": "in-atelier-platform",
             "subjectType": "console_user",
             "preferredUsername": "bea-tenant"
+          },
+          "activationProvisioning": {
+            "provisioningRunId": "prn_01growthbetabootstrap",
+            "lifecycleTrigger": "signup_activation",
+            "status": "completed",
+            "startedAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z",
+            "ownerBindings": [
+              {
+                "bindingType": "tenant_membership",
+                "role": "tenant_owner",
+                "userId": "usr_01betatenantadmin",
+                "tenantId": "ten_01growthbeta",
+                "status": "active"
+              },
+              {
+                "bindingType": "workspace_membership",
+                "role": "workspace_owner",
+                "userId": "usr_01betatenantadmin",
+                "tenantId": "ten_01growthbeta",
+                "workspaceId": "wrk_01betadev",
+                "status": "active"
+              }
+            ],
+            "resourceStates": [
+              {
+                "resourceKey": "tenant_identity_context",
+                "resourceType": "identity_context",
+                "scope": "tenant",
+                "displayName": "Tenant IAM context",
+                "provider": "keycloak",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tenant-growth-beta",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "tenant_owner_membership",
+                "resourceType": "tenant_membership",
+                "scope": "tenant",
+                "displayName": "Tenant owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tmb_01growthbea",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_workspace",
+                "resourceType": "workspace",
+                "scope": "workspace",
+                "displayName": "Default workspace",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wrk_01betadev",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "workspace_owner_membership",
+                "resourceType": "workspace_membership",
+                "scope": "workspace",
+                "displayName": "Workspace owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wmb_01growthbruno",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_postgres",
+                "resourceType": "postgres_instance",
+                "scope": "workspace",
+                "displayName": "Beta Db",
+                "provider": "postgresql",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betadb",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_event_topic",
+                "resourceType": "event_topic",
+                "scope": "workspace",
+                "displayName": "Events Topic",
+                "provider": "kafka",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.kafka.topics",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betatopic",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_storage_bucket",
+                "resourceType": "storage_bucket",
+                "scope": "workspace",
+                "displayName": "Beta Assets",
+                "provider": "storage",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betabucket",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_function_action",
+                "resourceType": "function_action",
+                "scope": "workspace",
+                "displayName": "Preview Functions",
+                "provider": "openwhisk",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.openwhisk.actions",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betafn",
+                "visibleInConsole": true
+              }
+            ],
+            "retry": {
+              "retryable": false,
+              "attemptCount": 1,
+              "idempotencyKey": "signup-activation-ten_01growthbeta"
+            }
           }
         },
         {
@@ -444,6 +1071,143 @@
               "tenant_id": "ten_01growthbeta",
               "workspace_id": "wrk_01betadev",
               "workspace_slug": "beta-dev"
+            }
+          },
+          "provisioning": {
+            "provisioningRunId": "prn_01growthbetabootstrap",
+            "lifecycleTrigger": "signup_activation",
+            "status": "completed",
+            "startedAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z",
+            "ownerBindings": [
+              {
+                "bindingType": "tenant_membership",
+                "role": "tenant_owner",
+                "userId": "usr_01betatenantadmin",
+                "tenantId": "ten_01growthbeta",
+                "status": "active"
+              },
+              {
+                "bindingType": "workspace_membership",
+                "role": "workspace_owner",
+                "userId": "usr_01betatenantadmin",
+                "tenantId": "ten_01growthbeta",
+                "workspaceId": "wrk_01betadev",
+                "status": "active"
+              }
+            ],
+            "resourceStates": [
+              {
+                "resourceKey": "tenant_identity_context",
+                "resourceType": "identity_context",
+                "scope": "tenant",
+                "displayName": "Tenant IAM context",
+                "provider": "keycloak",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tenant-growth-beta",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "tenant_owner_membership",
+                "resourceType": "tenant_membership",
+                "scope": "tenant",
+                "displayName": "Tenant owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tmb_01growthbea",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_workspace",
+                "resourceType": "workspace",
+                "scope": "workspace",
+                "displayName": "Default workspace",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wrk_01betadev",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "workspace_owner_membership",
+                "resourceType": "workspace_membership",
+                "scope": "workspace",
+                "displayName": "Workspace owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wmb_01growthbruno",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_postgres",
+                "resourceType": "postgres_instance",
+                "scope": "workspace",
+                "displayName": "Beta Db",
+                "provider": "postgresql",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betadb",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_event_topic",
+                "resourceType": "event_topic",
+                "scope": "workspace",
+                "displayName": "Events Topic",
+                "provider": "kafka",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.kafka.topics",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betatopic",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_storage_bucket",
+                "resourceType": "storage_bucket",
+                "scope": "workspace",
+                "displayName": "Beta Assets",
+                "provider": "storage",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betabucket",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_function_action",
+                "resourceType": "function_action",
+                "scope": "workspace",
+                "displayName": "Preview Functions",
+                "provider": "openwhisk",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.openwhisk.actions",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01betafn",
+                "visibleInConsole": true
+              }
+            ],
+            "retry": {
+              "retryable": false,
+              "attemptCount": 1,
+              "idempotencyKey": "signup-activation-ten_01growthbeta"
             }
           }
         },
@@ -848,6 +1612,19 @@
             "serviceAccountIds": [
               "svc_01betadeploy"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_postgres",
+            "resourceType": "postgres_instance",
+            "scope": "workspace",
+            "displayName": "Beta Db",
+            "provider": "postgresql",
+            "gatingMode": "always",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01betadb",
+            "visibleInConsole": true
           }
         },
         {
@@ -876,6 +1653,20 @@
             "serviceAccountIds": [
               "svc_01betadeploy"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_event_topic",
+            "resourceType": "event_topic",
+            "scope": "workspace",
+            "displayName": "Events Topic",
+            "provider": "kafka",
+            "gatingMode": "capability_gated",
+            "requiredCapabilityKey": "data.kafka.topics",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01betatopic",
+            "visibleInConsole": true
           }
         },
         {
@@ -904,6 +1695,19 @@
             "serviceAccountIds": [
               "svc_01betadeploy"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_storage_bucket",
+            "resourceType": "storage_bucket",
+            "scope": "workspace",
+            "displayName": "Beta Assets",
+            "provider": "storage",
+            "gatingMode": "always",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01betabucket",
+            "visibleInConsole": true
           }
         },
         {
@@ -932,6 +1736,20 @@
             "serviceAccountIds": [
               "svc_01betadeploy"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_function_action",
+            "resourceType": "function_action",
+            "scope": "workspace",
+            "displayName": "Preview Functions",
+            "provider": "openwhisk",
+            "gatingMode": "capability_gated",
+            "requiredCapabilityKey": "data.openwhisk.actions",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01betafn",
+            "visibleInConsole": true
           }
         }
       ],
@@ -1081,6 +1899,157 @@
           "consoleUserRealm": "in-atelier-platform",
           "endUserRealm": "tenant-enterprise-delta",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}"
+        },
+        "provisioning": {
+          "provisioningRunId": "prn_01enterprisedeltabootstrap",
+          "lifecycleTrigger": "signup_activation",
+          "status": "completed",
+          "startedAt": "2026-03-24T00:00:00Z",
+          "updatedAt": "2026-03-24T00:00:00Z",
+          "ownerBindings": [
+            {
+              "bindingType": "tenant_membership",
+              "role": "tenant_owner",
+              "userId": "usr_01deltaplatformoperator",
+              "tenantId": "ten_01enterprisedelta",
+              "status": "active"
+            },
+            {
+              "bindingType": "workspace_membership",
+              "role": "workspace_owner",
+              "userId": "usr_01deltaplatformoperator",
+              "tenantId": "ten_01enterprisedelta",
+              "workspaceId": "wrk_01deltadev",
+              "status": "active"
+            }
+          ],
+          "resourceStates": [
+            {
+              "resourceKey": "tenant_identity_context",
+              "resourceType": "identity_context",
+              "scope": "tenant",
+              "displayName": "Tenant IAM context",
+              "provider": "keycloak",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "tenant-enterprise-delta",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "tenant_owner_membership",
+              "resourceType": "tenant_membership",
+              "scope": "tenant",
+              "displayName": "Tenant owner membership",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "tmb_01deltaemma",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_workspace",
+              "resourceType": "workspace",
+              "scope": "workspace",
+              "displayName": "Default workspace",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "wrk_01deltadev",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "workspace_owner_membership",
+              "resourceType": "workspace_membership",
+              "scope": "workspace",
+              "displayName": "Workspace owner membership",
+              "provider": "control_api",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "wmb_01deltanoah",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_postgres",
+              "resourceType": "postgres_instance",
+              "scope": "workspace",
+              "displayName": "Primary Db",
+              "provider": "postgresql",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01deltaprimarydb",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_mongo_database",
+              "resourceType": "mongo_database",
+              "scope": "workspace",
+              "displayName": "Document DB",
+              "provider": "mongodb",
+              "gatingMode": "capability_gated",
+              "requiredCapabilityKey": "data.mongodb.database",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "mongodb://enterprise/document-db",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_storage_bucket",
+              "resourceType": "storage_bucket",
+              "scope": "workspace",
+              "displayName": "Audit Bucket",
+              "provider": "storage",
+              "gatingMode": "always",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01deltaauditbucket",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_event_topic",
+              "resourceType": "event_topic",
+              "scope": "workspace",
+              "displayName": "Event Bus",
+              "provider": "kafka",
+              "gatingMode": "capability_gated",
+              "requiredCapabilityKey": "data.kafka.topics",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01deltabus",
+              "visibleInConsole": true
+            },
+            {
+              "resourceKey": "default_function_action",
+              "resourceType": "function_action",
+              "scope": "workspace",
+              "displayName": "Worker Functions",
+              "provider": "openwhisk",
+              "gatingMode": "capability_gated",
+              "requiredCapabilityKey": "data.openwhisk.actions",
+              "status": "provisioned",
+              "attemptCount": 1,
+              "lastAttemptAt": "2026-03-24T00:00:00Z",
+              "providerReference": "res_01deltaworkers",
+              "visibleInConsole": true
+            }
+          ],
+          "retry": {
+            "retryable": false,
+            "attemptCount": 1,
+            "idempotencyKey": "signup-activation-ten_01enterprisedelta"
+          }
         }
       },
       "platformUsers": [
@@ -1092,6 +2061,157 @@
             "realm": "in-atelier-platform",
             "subjectType": "console_user",
             "preferredUsername": "olivia-platform"
+          },
+          "activationProvisioning": {
+            "provisioningRunId": "prn_01enterprisedeltabootstrap",
+            "lifecycleTrigger": "signup_activation",
+            "status": "completed",
+            "startedAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z",
+            "ownerBindings": [
+              {
+                "bindingType": "tenant_membership",
+                "role": "tenant_owner",
+                "userId": "usr_01deltaplatformoperator",
+                "tenantId": "ten_01enterprisedelta",
+                "status": "active"
+              },
+              {
+                "bindingType": "workspace_membership",
+                "role": "workspace_owner",
+                "userId": "usr_01deltaplatformoperator",
+                "tenantId": "ten_01enterprisedelta",
+                "workspaceId": "wrk_01deltadev",
+                "status": "active"
+              }
+            ],
+            "resourceStates": [
+              {
+                "resourceKey": "tenant_identity_context",
+                "resourceType": "identity_context",
+                "scope": "tenant",
+                "displayName": "Tenant IAM context",
+                "provider": "keycloak",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tenant-enterprise-delta",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "tenant_owner_membership",
+                "resourceType": "tenant_membership",
+                "scope": "tenant",
+                "displayName": "Tenant owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tmb_01deltaemma",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_workspace",
+                "resourceType": "workspace",
+                "scope": "workspace",
+                "displayName": "Default workspace",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wrk_01deltadev",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "workspace_owner_membership",
+                "resourceType": "workspace_membership",
+                "scope": "workspace",
+                "displayName": "Workspace owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wmb_01deltanoah",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_postgres",
+                "resourceType": "postgres_instance",
+                "scope": "workspace",
+                "displayName": "Primary Db",
+                "provider": "postgresql",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltaprimarydb",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_mongo_database",
+                "resourceType": "mongo_database",
+                "scope": "workspace",
+                "displayName": "Document DB",
+                "provider": "mongodb",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.mongodb.database",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "mongodb://enterprise/document-db",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_storage_bucket",
+                "resourceType": "storage_bucket",
+                "scope": "workspace",
+                "displayName": "Audit Bucket",
+                "provider": "storage",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltaauditbucket",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_event_topic",
+                "resourceType": "event_topic",
+                "scope": "workspace",
+                "displayName": "Event Bus",
+                "provider": "kafka",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.kafka.topics",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltabus",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_function_action",
+                "resourceType": "function_action",
+                "scope": "workspace",
+                "displayName": "Worker Functions",
+                "provider": "openwhisk",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.openwhisk.actions",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltaworkers",
+                "visibleInConsole": true
+              }
+            ],
+            "retry": {
+              "retryable": false,
+              "attemptCount": 1,
+              "idempotencyKey": "signup-activation-ten_01enterprisedelta"
+            }
           }
         },
         {
@@ -1146,6 +2266,157 @@
               "tenant_id": "ten_01enterprisedelta",
               "workspace_id": "wrk_01deltadev",
               "workspace_slug": "delta-dev"
+            }
+          },
+          "provisioning": {
+            "provisioningRunId": "prn_01enterprisedeltabootstrap",
+            "lifecycleTrigger": "signup_activation",
+            "status": "completed",
+            "startedAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z",
+            "ownerBindings": [
+              {
+                "bindingType": "tenant_membership",
+                "role": "tenant_owner",
+                "userId": "usr_01deltaplatformoperator",
+                "tenantId": "ten_01enterprisedelta",
+                "status": "active"
+              },
+              {
+                "bindingType": "workspace_membership",
+                "role": "workspace_owner",
+                "userId": "usr_01deltaplatformoperator",
+                "tenantId": "ten_01enterprisedelta",
+                "workspaceId": "wrk_01deltadev",
+                "status": "active"
+              }
+            ],
+            "resourceStates": [
+              {
+                "resourceKey": "tenant_identity_context",
+                "resourceType": "identity_context",
+                "scope": "tenant",
+                "displayName": "Tenant IAM context",
+                "provider": "keycloak",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tenant-enterprise-delta",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "tenant_owner_membership",
+                "resourceType": "tenant_membership",
+                "scope": "tenant",
+                "displayName": "Tenant owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "tmb_01deltaemma",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_workspace",
+                "resourceType": "workspace",
+                "scope": "workspace",
+                "displayName": "Default workspace",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wrk_01deltadev",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "workspace_owner_membership",
+                "resourceType": "workspace_membership",
+                "scope": "workspace",
+                "displayName": "Workspace owner membership",
+                "provider": "control_api",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "wmb_01deltanoah",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_postgres",
+                "resourceType": "postgres_instance",
+                "scope": "workspace",
+                "displayName": "Primary Db",
+                "provider": "postgresql",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltaprimarydb",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_mongo_database",
+                "resourceType": "mongo_database",
+                "scope": "workspace",
+                "displayName": "Document DB",
+                "provider": "mongodb",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.mongodb.database",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "mongodb://enterprise/document-db",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_storage_bucket",
+                "resourceType": "storage_bucket",
+                "scope": "workspace",
+                "displayName": "Audit Bucket",
+                "provider": "storage",
+                "gatingMode": "always",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltaauditbucket",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_event_topic",
+                "resourceType": "event_topic",
+                "scope": "workspace",
+                "displayName": "Event Bus",
+                "provider": "kafka",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.kafka.topics",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltabus",
+                "visibleInConsole": true
+              },
+              {
+                "resourceKey": "default_function_action",
+                "resourceType": "function_action",
+                "scope": "workspace",
+                "displayName": "Worker Functions",
+                "provider": "openwhisk",
+                "gatingMode": "capability_gated",
+                "requiredCapabilityKey": "data.openwhisk.actions",
+                "status": "provisioned",
+                "attemptCount": 1,
+                "lastAttemptAt": "2026-03-24T00:00:00Z",
+                "providerReference": "res_01deltaworkers",
+                "visibleInConsole": true
+              }
+            ],
+            "retry": {
+              "retryable": false,
+              "attemptCount": 1,
+              "idempotencyKey": "signup-activation-ten_01enterprisedelta"
             }
           }
         },
@@ -1581,6 +2852,67 @@
             "serviceAccountIds": [
               "svc_01deltaprovisioner"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_postgres",
+            "resourceType": "postgres_instance",
+            "scope": "workspace",
+            "displayName": "Primary Db",
+            "provider": "postgresql",
+            "gatingMode": "always",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01deltaprimarydb",
+            "visibleInConsole": true
+          }
+        },
+        {
+          "entityType": "managed_resource",
+          "resourceId": "res_01deltadocdb",
+          "tenantId": "ten_01enterprise",
+          "workspaceId": "wrk_01deltaprod",
+          "slug": "document-db",
+          "displayName": "Document DB",
+          "kind": "database",
+          "provider": "mongodb",
+          "providerRef": "mongodb://enterprise/document-db",
+          "placementRef": "prod/mongodb/document-db",
+          "specVersion": "2026-03-24",
+          "state": "active",
+          "timestamps": {
+            "createdAt": "2026-03-24T00:00:00Z",
+            "updatedAt": "2026-03-24T00:00:00Z"
+          },
+          "metadata": {
+            "labels": {
+              "profile": "enterprise-dedicated",
+              "bootstrap": "true"
+            },
+            "annotations": {
+              "in-atelier.io/bootstrap-resource": "default_mongo_database"
+            }
+          },
+          "accessPolicy": {
+            "allowedRoles": [
+              "workspace_owner",
+              "workspace_admin"
+            ],
+            "allowedServiceAccountIds": []
+          },
+          "provisioning": {
+            "resourceKey": "default_mongo_database",
+            "resourceType": "mongo_database",
+            "scope": "workspace",
+            "displayName": "Document DB",
+            "provider": "mongodb",
+            "gatingMode": "capability_gated",
+            "requiredCapabilityKey": "data.mongodb.database",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "mongodb://enterprise/document-db",
+            "visibleInConsole": true
           }
         },
         {
@@ -1609,6 +2941,19 @@
             "serviceAccountIds": [
               "svc_01deltaprovisioner"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_storage_bucket",
+            "resourceType": "storage_bucket",
+            "scope": "workspace",
+            "displayName": "Audit Bucket",
+            "provider": "storage",
+            "gatingMode": "always",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01deltaauditbucket",
+            "visibleInConsole": true
           }
         },
         {
@@ -1637,6 +2982,20 @@
             "serviceAccountIds": [
               "svc_01deltaprovisioner"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_event_topic",
+            "resourceType": "event_topic",
+            "scope": "workspace",
+            "displayName": "Event Bus",
+            "provider": "kafka",
+            "gatingMode": "capability_gated",
+            "requiredCapabilityKey": "data.kafka.topics",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01deltabus",
+            "visibleInConsole": true
           }
         },
         {
@@ -1665,6 +3024,20 @@
             "serviceAccountIds": [
               "svc_01deltaprovisioner"
             ]
+          },
+          "provisioning": {
+            "resourceKey": "default_function_action",
+            "resourceType": "function_action",
+            "scope": "workspace",
+            "displayName": "Worker Functions",
+            "provider": "openwhisk",
+            "gatingMode": "capability_gated",
+            "requiredCapabilityKey": "data.openwhisk.actions",
+            "status": "provisioned",
+            "attemptCount": 1,
+            "lastAttemptAt": "2026-03-24T00:00:00Z",
+            "providerReference": "res_01deltaworkers",
+            "visibleInConsole": true
           }
         }
       ],

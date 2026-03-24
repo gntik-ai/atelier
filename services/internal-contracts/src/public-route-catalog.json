@@ -2,7 +2,7 @@
   "generatedFrom": "apps/control-plane/openapi/control-plane.openapi.json",
   "release": {
     "header_version": "2026-03-24",
-    "openapi_semver": "1.7.0",
+    "openapi_semver": "1.8.0",
     "path_version": "v1"
   },
   "routes": [

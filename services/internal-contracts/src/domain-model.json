@@ -181,7 +181,8 @@
       "optional_fields": [
         "tenantMemberships",
         "workspaceMemberships",
-        "iamBinding"
+        "iamBinding",
+        "activationProvisioning"
       ],
       "business_rules": [
         "identitySubject is globally unique across credential sources.",
@@ -189,7 +190,8 @@
         "Suspended or soft-deleted users cannot receive new membership grants.",
         "platform_user.iamBinding.realm must stay bound to the platform realm and cannot be reused as a tenant end-user identity.",
         "Self-service signup creates platform_user records in pending_activation until the effective signup policy resolves to auto_activate or a superadmin approves the account.",
-        "Password-recovery and credential-expiry UX may block console access even when the canonical platform_user state remains active."
+        "Password-recovery and credential-expiry UX may block console access even when the canonical platform_user state remains active.",
+        "Activating an approved pending_activation platform user must create or resume one idempotent initial-tenant bootstrap run that binds the user as tenant and workspace owner before console access is considered operational."
       ],
       "openapi": {
         "read_schema": "PlatformUser",
@@ -228,14 +230,16 @@
         "billingAccountRef",
         "region",
         "workspaceCount",
-        "identityContext"
+        "identityContext",
+        "provisioning"
       ],
       "business_rules": [
         "placement must follow the hybrid PostgreSQL tenant placement policy from ADR 0002.",
         "Tenant slug is globally unique and remains reserved after soft delete until a purge workflow exists.",
         "A tenant cannot be activated until at least one ownership-capable platform or tenant administrator binding exists.",
         "tenant.identityContext must declare the platform realm, tenant realm identifier, and realmStrategy before the tenant can transition to active.",
-        "tenant activation must provision or attach the configured Keycloak tenant realm context before workspace or end-user access is enabled."
+        "tenant activation must provision or attach the configured Keycloak tenant realm context before workspace or end-user access is enabled.",
+        "Tenant activation triggered from signup approval must create the initial workspace, owner memberships, tenant IAM context, and baseline bootstrap resources inside one traceable provisioning run."
       ],
       "openapi": {
         "read_schema": "Tenant",
@@ -274,14 +278,16 @@
         "description",
         "runtimeNamespace",
         "resourceCounts",
-        "iamBoundary"
+        "iamBoundary",
+        "provisioning"
       ],
       "business_rules": [
         "Each workspace belongs to exactly one tenant and its tenantId is immutable after creation.",
         "Workspace slug is unique within the tenant boundary.",
         "Workspace environment must align with the deployment topology environment catalog.",
         "A workspace cannot move to active when its parent tenant is not active.",
-        "workspace.iamBoundary.clientNamespace must be unique within the tenant realm and namespaced from workspace slug metadata."
+        "workspace.iamBoundary.clientNamespace must be unique within the tenant realm and namespaced from workspace slug metadata.",
+        "The first workspace created during tenant activation must keep per-resource provisioning state so partial bootstrap failures can be retried without duplicating already-provisioned resources."
       ],
       "openapi": {
         "read_schema": "Workspace",
@@ -434,12 +440,14 @@
         "serviceAccountId",
         "providerRef",
         "placementRef",
-        "specVersion"
+        "specVersion",
+        "provisioning"
       ],
       "business_rules": [
         "Managed resources represent tenant-safe canonical records for workspace-scoped BaaS assets and their provider references.",
         "AccessPolicy must reference only workspace roles and service-account ids from the same workspace namespace.",
-        "Cross-product authorization for database, bucket, topic, and function resources is enforced by the shared accessPolicy plus the contextual authorization model."
+        "Cross-product authorization for database, bucket, topic, and function resources is enforced by the shared accessPolicy plus the contextual authorization model.",
+        "Managed resources created by tenant bootstrap must persist provider reference lineage, per-resource provisioning status, and retry-safe attempt metadata for operator visibility."
       ],
       "supported_kinds": [
         "database",
@@ -1630,6 +1638,7 @@
           "data.postgresql.dedicated",
           "data.storage.bucket",
           "data.kafka.topics",
+          "data.mongodb.database",
           "data.openwhisk.actions",
           "control.federated_clusters",
           "observability.metrics.basic",
@@ -1947,6 +1956,7 @@
           "pvc_01keycloakoidc",
           "pvc_01pgdedicated",
           "pvc_01storagebucket",
+          "pvc_01mongodbdatabase",
           "pvc_01kafkatopics",
           "pvc_01openwhiskactions",
           "pvc_01metricsbasic",
@@ -2023,6 +2033,25 @@
           "sandbox",
           "staging",
           "prod"
+        ]
+      },
+      {
+        "providerCapabilityId": "pvc_01mongodbdatabase",
+        "provider": "mongodb",
+        "capabilityKey": "data.mongodb.database",
+        "plane": "data",
+        "capabilityStatus": "available",
+        "supportLevel": "ga",
+        "allowedEnvironments": [
+          "dev",
+          "sandbox",
+          "staging",
+          "prod"
+        ],
+        "business_rules": [
+          "MongoDB bootstrap remains tenant-safe by creating one logical database namespace per workspace and never exposing cluster-admin credentials through canonical contracts.",
+          "Document-database capability is profile-gated and may be omitted from lower tiers without changing tenant or workspace bootstrap identifiers.",
+          "All MongoDB bootstrap metadata must stay secret-free and auditable like the rest of the provider-capability catalog."
         ]
       },
       {
@@ -2637,6 +2666,110 @@
           "Large multi-provider federations are supported within the documented quotas."
         ]
       }
+    ],
+    "initial_tenant_bootstrap_templates": [
+      {
+        "resourceKey": "tenant_identity_context",
+        "resourceType": "identity_context",
+        "scope": "tenant",
+        "displayName": "Tenant IAM context",
+        "provider": "keycloak",
+        "provisioningMode": "always",
+        "visibleInConsole": true,
+        "retryClassification": "reconcile",
+        "description": "Create or reconcile the tenant realm baseline, roles, scopes, and attributes required before user access is enabled."
+      },
+      {
+        "resourceKey": "tenant_owner_membership",
+        "resourceType": "tenant_membership",
+        "scope": "tenant",
+        "displayName": "Tenant owner membership",
+        "provider": "control_api",
+        "provisioningMode": "always",
+        "visibleInConsole": true,
+        "retryClassification": "idempotent_upsert",
+        "description": "Bind the activating user as the first tenant owner with auditable role mappings."
+      },
+      {
+        "resourceKey": "default_workspace",
+        "resourceType": "workspace",
+        "scope": "workspace",
+        "displayName": "Default workspace",
+        "provider": "control_api",
+        "provisioningMode": "always",
+        "visibleInConsole": true,
+        "retryClassification": "idempotent_upsert",
+        "description": "Create the initial workspace that hosts the bootstrap resource portfolio for the new tenant."
+      },
+      {
+        "resourceKey": "workspace_owner_membership",
+        "resourceType": "workspace_membership",
+        "scope": "workspace",
+        "displayName": "Workspace owner membership",
+        "provider": "control_api",
+        "provisioningMode": "always",
+        "visibleInConsole": true,
+        "retryClassification": "idempotent_upsert",
+        "description": "Bind the activating user as the first workspace owner for the initial workspace."
+      },
+      {
+        "resourceKey": "default_postgres",
+        "resourceType": "postgres_instance",
+        "scope": "workspace",
+        "displayName": "Bootstrap PostgreSQL instance",
+        "provider": "postgresql",
+        "provisioningMode": "always",
+        "visibleInConsole": true,
+        "retryClassification": "reconcile",
+        "description": "Provision the initial relational data store using the plan-selected shared or dedicated PostgreSQL baseline."
+      },
+      {
+        "resourceKey": "default_storage_bucket",
+        "resourceType": "storage_bucket",
+        "scope": "workspace",
+        "displayName": "Bootstrap object-storage bucket",
+        "provider": "storage",
+        "provisioningMode": "always",
+        "visibleInConsole": true,
+        "retryClassification": "reconcile",
+        "description": "Provision the initial object-storage bucket required for assets, backups, and audit attachments."
+      },
+      {
+        "resourceKey": "default_mongo_database",
+        "resourceType": "mongo_database",
+        "scope": "workspace",
+        "displayName": "Bootstrap MongoDB database",
+        "provider": "mongodb",
+        "provisioningMode": "capability_gated",
+        "requiredCapabilityKey": "data.mongodb.database",
+        "visibleInConsole": true,
+        "retryClassification": "reconcile",
+        "description": "Provision an optional document-database workspace baseline when the deployment profile exposes MongoDB."
+      },
+      {
+        "resourceKey": "default_event_topic",
+        "resourceType": "event_topic",
+        "scope": "workspace",
+        "displayName": "Bootstrap event topic",
+        "provider": "kafka",
+        "provisioningMode": "capability_gated",
+        "requiredCapabilityKey": "data.kafka.topics",
+        "visibleInConsole": true,
+        "retryClassification": "reconcile",
+        "description": "Provision the initial Kafka-compatible topic when event capability is enabled for the plan/profile."
+      },
+      {
+        "resourceKey": "default_function_action",
+        "resourceType": "function_action",
+        "scope": "workspace",
+        "displayName": "Bootstrap function action",
+        "provider": "openwhisk",
+        "provisioningMode": "capability_gated",
+        "requiredCapabilityKey": "data.openwhisk.actions",
+        "visibleInConsole": true,
+        "retryClassification": "reconcile",
+        "description": "Provision an optional OpenWhisk action stub so the tenant can execute backend logic without manual first-run setup."
+      }
     ]
   },
   "effective_capability_resolution": {
@@ -2768,6 +2901,7 @@
         "status": "compatible",
         "addedCapabilities": [
           "control.federated_clusters",
+          "data.mongodb.database",
           "data.openwhisk.actions",
           "observability.logs.extended",
           "observability.traces.long_retention"
