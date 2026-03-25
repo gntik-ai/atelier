@@ -8,6 +8,7 @@ import {
   MONGO_SHARED_CLUSTER_ALLOWED_ROLE_BINDINGS,
   SUPPORTED_MONGO_VERSION_RANGES,
   buildMongoAdminAdapterCall,
+  buildMongoAdminMetadataRecord,
   buildMongoInventorySnapshot,
   isMongoVersionSupported,
   normalizeMongoAdminError,
@@ -137,7 +138,13 @@ test('mongodb admin adapter normalizes databases, collections, indexes, views, t
     {
       databaseName: '01starterdev_app',
       username: '01starterdev_reader',
-      passwordBinding: { mode: 'managed_secret_ref', secretRef: 'sec_mongo_reader' },
+      passwordBinding: {
+        mode: 'managed_secret_ref',
+        credentialScope: 'internal',
+        serviceAccountId: 'svc_wrk_01starterdev_mongo_reader',
+        secretRef: 'sec_mongo_reader',
+        lifecycle: { lifecycleState: 'active', maxLifetimeHours: 72 }
+      },
       roleBindings: [{ roleName: 'readWrite', databaseName: '01starterdev_app' }]
     },
     {
@@ -189,6 +196,8 @@ test('mongodb admin adapter normalizes databases, collections, indexes, views, t
 
   assert.equal(user.resourceType, 'mongo_user');
   assert.equal(user.passwordBinding.secretRef, 'sec_mongo_reader');
+  assert.equal(user.passwordBinding.credentialScope, 'internal');
+  assert.equal(user.passwordBinding.lifecycle.maxLifetimeHours, 72);
   assert.equal(user.roleBindings[0].roleName, 'readWrite');
   assert.equal(roleBinding.resourceType, 'mongo_role_binding');
   assert.equal(roleBinding.scope, 'collection');
@@ -274,6 +283,8 @@ test('mongodb admin adapter validates bounded collection options, TTL/index rebu
     payload: {
       databaseName: '01starterdev_app',
       username: 'reader',
+      password: 'plain-text-not-allowed',
+      passwordBinding: { mode: 'managed_secret_ref', credentialScope: 'internal', lifecycle: { maxLifetimeHours: 999 } },
       roleBindings: [{ roleName: 'dbOwner', databaseName: '01starterdev_app' }]
     }
   });
@@ -318,7 +329,9 @@ test('mongodb admin adapter validates bounded collection options, TTL/index rebu
   assert.equal(invalidTemplate.violations.some((violation) => violation.includes('cannot combine time-series collections with explicit clustered options')), true);
 
   assert.equal(invalidUser.ok, false);
-  assert.equal(invalidUser.violations.some((violation) => violation.includes('passwordBinding or rotatePassword')), true);
+  assert.equal(invalidUser.violations.some((violation) => violation.includes('Raw passwords are not allowed')), true);
+  assert.equal(invalidUser.violations.some((violation) => violation.includes('passwordBinding.serviceAccountId is required')), true);
+  assert.equal(invalidUser.violations.some((violation) => violation.includes('passwordBinding.lifecycle.maxLifetimeHours exceeds')), true);
   assert.equal(invalidUser.violations.some((violation) => violation.includes('must start with prefix 01starterdev_')), true);
   assert.equal(invalidUser.violations.some((violation) => violation.includes('role dbOwner is not allowed')), true);
 
@@ -338,6 +351,7 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
     correlationId: 'corr-mongo-001',
     authorizationDecisionId: 'authz-mongo-001',
     idempotencyKey: 'idem-mongo-001',
+    requestedAt: '2026-03-25T10:15:00Z',
     context: {
       scope: 'workspace',
       tenantId: 'ten_01enterprisealpha',
@@ -348,7 +362,15 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
       segregationModel: 'tenant_database',
       databaseName: '01enterprisealpha_shared',
       collectionName: '01enterpriseprod_customer_profiles',
-      providerVersion: '8.0.0'
+      providerVersion: '8.0.0',
+      adminCredential: {
+        credentialScope: 'tenant',
+        serviceAccountRef: 'svc:ten_01enterprisealpha:mongo-admin',
+        secretRef: 'sec_mongo_admin_enterprise',
+        lifecycleState: 'rotation_required',
+        maxLifetimeHours: 120,
+        rotationPolicy: 'scheduled'
+      }
     },
     payload: {
       databaseName: '01enterprisealpha_shared',
@@ -396,6 +418,21 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
     users: [{ databaseName: '01enterprisealpha_shared', username: '01enterpriseprod_admin' }],
     roleBindings: [{ roleName: 'dbOwner' }]
   });
+  const metadataRecord = buildMongoAdminMetadataRecord({
+    resourceKind: 'index',
+    action: 'rebuild',
+    resource: adapterCall.payload.normalizedResource,
+    adminCredentialBinding: adapterCall.payload.adminCredentialBinding,
+    preExecutionWarnings: adapterCall.payload.preExecutionWarnings,
+    auditSummary: adapterCall.payload.auditSummary,
+    correlationContext: adapterCall.payload.correlationContext,
+    adminEvent: adapterCall.payload.adminEvent,
+    recoveryGuidance: adapterCall.payload.recoveryGuidance,
+    minimumPermissionGuidance: adapterCall.payload.minimumPermissionGuidance,
+    tenantId: 'ten_01enterprisealpha',
+    workspaceId: 'wrk_01enterpriseprod',
+    observedAt: '2026-03-25T10:15:01Z'
+  });
   const normalizedError = normalizeMongoAdminError(
     {
       classification: 'conflict',
@@ -420,6 +457,15 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
   assert.equal(adapterCall.payload.context.clusterTopology, 'sharded_cluster');
   assert.equal(adapterCall.payload.context.segregationModel, 'tenant_database');
   assert.equal(adapterCall.contract_version, '2026-03-25');
+  assert.equal(adapterCall.requested_at, '2026-03-25T10:15:00Z');
+  assert.equal(adapterCall.target_tenant_id, 'ten_01enterprisealpha');
+  assert.equal(adapterCall.payload.adminCredentialBinding.credentialScope, 'tenant');
+  assert.equal(adapterCall.payload.adminCredentialBinding.lifecycleState, 'rotation_required');
+  assert.equal(adapterCall.payload.auditSummary.capturesCredentialBinding, true);
+  assert.equal(adapterCall.payload.preExecutionWarnings.some((warning) => warning.includes('credential rotation is requested')), true);
+  assert.equal(adapterCall.payload.adminEvent.eventType, 'mongo.admin.index.accepted');
+  assert.equal(adapterCall.payload.recoveryGuidance.recoveryClass, 'rotation');
+  assert.equal(adapterCall.payload.minimumPermissionGuidance.executionIdentity, 'tenant_scoped_internal_service_account');
 
   assert.equal(inventory.counts.databases, 1);
   assert.equal(inventory.counts.collections, 1);
@@ -429,7 +475,14 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
   assert.equal(inventory.clusterTopology, 'sharded_cluster');
   assert.equal(inventory.segregationModel, 'tenant_database');
   assert.equal(inventory.minimumEnginePolicy.forbiddenBuiltinRoles.includes('root'), true);
+  assert.equal(inventory.minimumEnginePolicy.executionIdentity, 'tenant_scoped_internal_service_account');
+  assert.equal(inventory.credentialPosture.adminCredentialBinding.lifecycleState, 'active');
+  assert.equal(inventory.auditCoverage.correlationRichEvents, true);
   assert.equal(inventory.collectionRefs[0].validationEnabled, true);
+
+  assert.equal(metadataRecord.metadata.credentialLifecycleState, 'rotation_required');
+  assert.equal(metadataRecord.adminEvent.eventType, 'mongo.admin.index.accepted');
+  assert.equal(metadataRecord.minimumPermissionGuidance.maximumCredentialLifetimeHours, 336);
 
   assert.equal(normalizedError.status, 409);
   assert.equal(normalizedError.code, 'GW_MONGO_CONFLICT');

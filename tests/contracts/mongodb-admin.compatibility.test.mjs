@@ -17,26 +17,38 @@ test('mongo admin service contracts and adapter capability baseline cover the ex
   const mongoAdminRequest = getContract('mongo_admin_request');
   const mongoAdminResult = getContract('mongo_admin_result');
   const mongoInventorySnapshot = getContract('mongo_inventory_snapshot');
+  const mongoAdminEvent = getContract('mongo_admin_event');
   const controlApi = getService('control_api');
   const provisioning = getService('provisioning_orchestrator');
+  const eventGateway = getService('event_gateway');
 
   assert.ok(controlApi.outbound_contracts.includes('mongo_admin_request'));
   assert.ok(provisioning.inbound_contracts.includes('mongo_admin_request'));
   assert.ok(provisioning.outbound_contracts.includes('mongo_admin_result'));
+  assert.ok(provisioning.outbound_contracts.includes('mongo_admin_event'));
+  assert.ok(eventGateway.inbound_contracts.includes('mongo_admin_event'));
   assert.equal(mongoAdminRequest.owner, 'control_api');
   assert.equal(mongoAdminResult.owner, 'provisioning_orchestrator');
   assert.equal(mongoInventorySnapshot.owner, 'provisioning_orchestrator');
+  assert.equal(mongoAdminEvent.owner, 'provisioning_orchestrator');
   assert.ok(mongoAdminRequest.required_fields.includes('resource_kind'));
   assert.ok(mongoAdminRequest.required_fields.includes('isolation_mode'));
   assert.ok(mongoAdminRequest.required_fields.includes('cluster_topology'));
   assert.ok(mongoAdminRequest.required_fields.includes('segregation_model'));
+  assert.ok(mongoAdminRequest.required_fields.includes('admin_credential_binding'));
   assert.ok(mongoAdminResult.required_fields.includes('normalized_resource'));
   assert.ok(mongoAdminResult.required_fields.includes('inventory_projection'));
   assert.ok(mongoAdminResult.required_fields.includes('segregation_model'));
+  assert.ok(mongoAdminResult.required_fields.includes('recovery_guidance'));
+  assert.ok(mongoAdminResult.required_fields.includes('minimum_permission_guidance'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('counts'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('minimum_engine_policy'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('tenant_isolation'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('segregation_model'));
+  assert.ok(mongoInventorySnapshot.required_fields.includes('credential_posture'));
+  assert.ok(mongoInventorySnapshot.required_fields.includes('audit_coverage'));
+  assert.ok(mongoAdminEvent.required_fields.includes('correlation_context'));
+  assert.ok(mongoAdminEvent.required_fields.includes('audit_record_id'));
 
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_database_create'));
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_collection_update'));
@@ -54,7 +66,7 @@ test('mongo admin service contracts and adapter capability baseline cover the ex
   assert.deepEqual(SUPPORTED_MONGO_VERSION_RANGES.map((entry) => entry.range), ['6.x', '7.x', '8.x']);
 });
 
-test('mongo public routes publish normalized family metadata, inventory, and structural administration contracts for indexes, views, templates, and segregation metadata', () => {
+test('mongo public routes publish normalized family metadata, inventory, and structural administration contracts for secure credentials, audit evidence, and recovery metadata', () => {
   const document = readJson(OPENAPI_PATH);
   const listDatabasesRoute = getPublicRoute('listMongoDatabases');
   const getInventoryRoute = getPublicRoute('getMongoInventory');
@@ -87,6 +99,8 @@ test('mongo public routes publish normalized family metadata, inventory, and str
   assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/templates/{templateId}']);
 
   assert.ok(document.components.schemas.MongoProviderCompatibility.properties.supportedSegregationModels);
+  assert.ok(document.components.schemas.MongoProviderCompatibility.properties.supportedCredentialScopes);
+  assert.ok(document.components.schemas.MongoProviderCompatibility.properties.supportedCredentialBindingTypes);
   assert.ok(document.components.schemas.MongoAdminEnginePolicy);
   assert.ok(document.components.schemas.MongoDatabase.properties.stats);
   assert.ok(document.components.schemas.MongoDatabase.properties.tenantIsolation);
@@ -103,12 +117,25 @@ test('mongo public routes publish normalized family metadata, inventory, and str
   assert.ok(document.components.schemas.MongoCollectionTemplateWriteRequest);
   assert.ok(document.components.schemas.MongoUser.properties.passwordBinding);
   assert.ok(document.components.schemas.MongoUser.properties.roleBindings);
+  assert.ok(document.components.schemas.MongoUserPasswordBinding.properties.credentialScope);
+  assert.ok(document.components.schemas.MongoUserPasswordBinding.properties.lifecycle);
+  assert.ok(document.components.schemas.MongoCredentialLifecycle);
   assert.ok(document.components.schemas.MongoRoleBinding);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.minimumEnginePolicy);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.segregationModel);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.indexRefs);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.viewRefs);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.templateRefs);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.credentialPosture);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.auditCoverage);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.inventoryRef);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.segregationModel);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.auditSummary);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.correlationContext);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.adminEvent);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.recoveryGuidance);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.minimumPermissionGuidance);
+  assert.ok(document.components.schemas.MongoAdminEvent);
+  assert.ok(document.components.schemas.MongoAdminRecoveryGuidance);
+  assert.ok(document.components.schemas.MongoAdminCorrelationContext);
 });

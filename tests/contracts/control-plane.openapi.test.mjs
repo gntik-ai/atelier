@@ -192,7 +192,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.16.0');
+  assert.equal(document.info.version, '1.17.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -617,7 +617,18 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.MongoAdminInventory.properties.indexRefs);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.viewRefs);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.templateRefs);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.credentialPosture);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.auditCoverage);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.segregationModel);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.correlationContext);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.adminEvent);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.recoveryGuidance);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.minimumPermissionGuidance);
+  assert.ok(document.components.schemas.MongoUserPasswordBinding.properties.credentialScope);
+  assert.ok(document.components.schemas.MongoUserPasswordBinding.properties.lifecycle);
+  assert.ok(document.components.schemas.MongoCredentialLifecycle);
+  assert.ok(document.components.schemas.MongoAdminCredentialBinding);
+  assert.ok(document.components.schemas.MongoAdminEvent);
   assert.ok(document.components.schemas.EventTopic.properties.provisioning);
   assert.ok(document.components.schemas.FunctionAction.properties.provisioning);
   assert.ok(document.components.schemas.StorageBucket.properties.provisioning);

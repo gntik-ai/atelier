@@ -5,7 +5,8 @@ import {
   getMongoAdminRoute,
   getMongoCompatibilitySummary,
   listMongoAdminRoutes,
-  summarizeMongoAdminSurface
+  summarizeMongoAdminSurface,
+  summarizeMongoAuditCoverage
 } from '../../apps/control-plane/src/mongo-admin.mjs';
 
 test('mongo admin control-plane helper exposes the expanded structural administrative route surface', () => {
@@ -32,6 +33,7 @@ test('mongo admin control-plane helper exposes the expanded structural administr
 });
 
 test('mongo admin control-plane helper resolves compatibility summaries for shared and dedicated segregation profiles', () => {
+  const auditCoverage = summarizeMongoAuditCoverage();
   const sharedSummary = getMongoCompatibilitySummary({
     tenantId: 'ten_01starteralpha',
     workspaceId: 'wrk_01starterdev',
@@ -53,6 +55,10 @@ test('mongo admin control-plane helper resolves compatibility summaries for shar
   assert.equal(sharedSummary.indexMutationsSupported, true);
   assert.equal(sharedSummary.templateCatalogSupported, true);
   assert.equal(sharedSummary.namingPolicy.databasePrefix, '01starterdev_');
+  assert.equal(sharedSummary.adminCredentialStrategy, 'tenant_scoped_internal_service_account');
+  assert.equal(sharedSummary.maximumCredentialLifetimeHours, 168);
+  assert.equal(sharedSummary.auditCoverage.capturesCredentialLifecycle, true);
+  assert.equal(auditCoverage.adminContextFields.some((entry) => entry.field === 'origin_surface' && entry.requestContract), true);
 
   assert.equal(dedicatedSummary.isolationMode, 'dedicated_cluster');
   assert.equal(dedicatedSummary.clusterTopology, 'sharded_cluster');
@@ -60,4 +66,6 @@ test('mongo admin control-plane helper resolves compatibility summaries for shar
   assert.equal(dedicatedSummary.allowedRoleBindings.includes('dbOwner'), true);
   assert.equal(dedicatedSummary.supportedVersions.some((entry) => entry.range === '8.x' && entry.segregationModels.includes('tenant_database')), true);
   assert.equal(dedicatedSummary.minimumEnginePolicy.forbiddenBuiltinRoles.includes('root'), true);
+  assert.equal(dedicatedSummary.minimumEnginePolicy.auditEvidence.includes('recovery_guidance'), true);
+  assert.equal(dedicatedSummary.maximumCredentialLifetimeHours, 336);
 });

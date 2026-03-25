@@ -27,6 +27,7 @@ import {
 import {
   auditModuleBoundary,
   iamLifecycleEventContract as auditLifecycleEventContract,
+  mongoAdminEventContract as auditMongoAdminEventContract,
   auditPersistenceAdapters,
   auditRecordContract
 } from '../../services/audit/src/contract-boundary.mjs';
@@ -34,6 +35,7 @@ import { auditContextProjection } from '../../services/audit/src/authorization-c
 import {
   eventGatewayBoundary,
   iamLifecycleEventContract as eventGatewayLifecycleEventContract,
+  mongoAdminEventContract as eventGatewayMongoAdminEventContract,
   eventGatewayPublishRequestContract,
   eventGatewayPublishResultContract,
   eventGatewaySubscriptionRequestContract,
@@ -66,9 +68,13 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(provisioningResultContract.required_fields.includes('retry'));
   assert.ok(provisioningResultContract.error_classes.includes('recovery_required'));
   assert.ok(eventGatewayBoundary.inbound_contracts.includes('iam_lifecycle_event'));
+  assert.ok(eventGatewayBoundary.inbound_contracts.includes('mongo_admin_event'));
   assert.equal(auditLifecycleEventContract.version, '2026-03-24');
   assert.equal(eventGatewayLifecycleEventContract.version, '2026-03-24');
+  assert.equal(auditMongoAdminEventContract.version, '2026-03-25');
+  assert.equal(eventGatewayMongoAdminEventContract.version, '2026-03-25');
   assert.ok(auditLifecycleEventContract.required_fields.includes('audit_record_id'));
+  assert.ok(auditMongoAdminEventContract.required_fields.includes('correlation_context'));
   assert.ok(auditLifecycleEventContract.required_fields.includes('origin_surface'));
   assert.ok(eventGatewayPublishRequestContract.required_fields.includes('idempotency_key'));
   assert.ok(eventGatewayPublishRequestContract.required_fields.includes('authorization_decision_id'));
@@ -87,12 +93,17 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(getContract('mongo_admin_request').required_fields.includes('isolation_mode'));
   assert.ok(getContract('mongo_admin_request').required_fields.includes('cluster_topology'));
   assert.ok(getContract('mongo_admin_request').required_fields.includes('segregation_model'));
+  assert.ok(getContract('mongo_admin_request').required_fields.includes('admin_credential_binding'));
   assert.ok(getContract('mongo_admin_result').required_fields.includes('inventory_projection'));
   assert.ok(getContract('mongo_admin_result').required_fields.includes('minimum_engine_policy'));
   assert.ok(getContract('mongo_admin_result').required_fields.includes('segregation_model'));
+  assert.ok(getContract('mongo_admin_result').required_fields.includes('recovery_guidance'));
+  assert.ok(getContract('mongo_admin_result').required_fields.includes('minimum_permission_guidance'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('quotas'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('segregation_model'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('tenant_isolation'));
+  assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('credential_posture'));
+  assert.ok(getContract('mongo_admin_event').required_fields.includes('audit_record_id'));
   assert.equal(auditRecordContract.write_mode, 'append_only');
   assert.ok(auditRecordContract.required_fields.includes('evidence_pointer'));
   assert.ok(auditRecordContract.required_fields.includes('authorization_decision_id'));

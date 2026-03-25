@@ -286,14 +286,272 @@
         ],
         "type": "object"
       },
+      "MongoAdminAuditCoverage": {
+        "additionalProperties": false,
+        "properties": {
+          "capturesActorContext": {
+            "type": "boolean"
+          },
+          "capturesCorrelationContext": {
+            "type": "boolean"
+          },
+          "capturesCredentialBinding": {
+            "type": "boolean"
+          },
+          "capturesRecoveryGuidance": {
+            "type": "boolean"
+          },
+          "correlationRichEvents": {
+            "type": "boolean"
+          },
+          "minimumPermissionGuidance": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "MongoAdminAuditSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "actorScope": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "capturesActorContext": {
+            "type": "boolean"
+          },
+          "capturesCorrelationContext": {
+            "type": "boolean"
+          },
+          "capturesCredentialBinding": {
+            "type": "boolean"
+          },
+          "capturesMinimumPermissionGuidance": {
+            "type": "boolean"
+          },
+          "capturesRecoveryGuidance": {
+            "type": "boolean"
+          },
+          "capturesTenantContext": {
+            "type": "boolean"
+          },
+          "capturesWarnings": {
+            "type": "boolean"
+          },
+          "capturesWorkspaceContext": {
+            "type": "boolean"
+          },
+          "credentialLifecycleState": {
+            "enum": [
+              "active",
+              "rotation_required",
+              "rotating",
+              "revoked",
+              "recovery_required"
+            ],
+            "type": "string"
+          },
+          "evidenceClass": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "minimumPrivilegePrinciple": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "operationClass": {
+            "enum": [
+              "structural_admin",
+              "identity_admin"
+            ],
+            "type": "string"
+          },
+          "warningCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MongoAdminCorrelationContext": {
+        "additionalProperties": false,
+        "properties": {
+          "authorizationDecisionId": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MongoAdminCredentialBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bindingType": {
+            "enum": [
+              "managed_secret_ref",
+              "generated_secret_ref",
+              "internal_service_account"
+            ],
+            "type": "string"
+          },
+          "credentialScope": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "generatedCredentialRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "lastRotatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lifecycleState": {
+            "enum": [
+              "active",
+              "rotation_required",
+              "rotating",
+              "revoked",
+              "recovery_required"
+            ],
+            "type": "string"
+          },
+          "maxLifetimeHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "recoveryWindowMinutes": {
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "revokedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "rotationPolicy": {
+            "enum": [
+              "manual",
+              "scheduled",
+              "on_demand",
+              "immutable_per_run"
+            ],
+            "type": "string"
+          },
+          "secretRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "serviceAccountRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "bindingType",
+          "credentialScope"
+        ],
+        "type": "object"
+      },
+      "MongoAdminCredentialPosture": {
+        "additionalProperties": false,
+        "properties": {
+          "adminCredentialBinding": {
+            "$ref": "#/components/schemas/MongoAdminCredentialBinding"
+          },
+          "lifecycleState": {
+            "enum": [
+              "active",
+              "rotation_required",
+              "rotating",
+              "revoked",
+              "recovery_required"
+            ],
+            "type": "string"
+          },
+          "maxLifetimeHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "recoverySupported": {
+            "type": "boolean"
+          },
+          "rotationPolicy": {
+            "enum": [
+              "manual",
+              "scheduled",
+              "on_demand",
+              "immutable_per_run"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "MongoAdminEnginePolicy": {
         "additionalProperties": false,
         "properties": {
+          "auditEvidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "credentialScope": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "executionIdentity": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
           "forbiddenBuiltinRoles": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "maximumCredentialLifetimeHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
           },
           "notes": {
             "items": {
@@ -317,13 +575,177 @@
           "principle",
           "requiredBuiltinRoles",
           "forbiddenBuiltinRoles",
-          "notes"
+          "notes",
+          "executionIdentity",
+          "credentialScope",
+          "maximumCredentialLifetimeHours",
+          "auditEvidence"
+        ],
+        "type": "object"
+      },
+      "MongoAdminEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "create",
+              "update",
+              "delete",
+              "assign",
+              "revoke",
+              "rebuild"
+            ],
+            "type": "string"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/MongoAdminEventActor"
+          },
+          "contractVersion": {
+            "pattern": "^2026-03-25$",
+            "type": "string"
+          },
+          "correlationContext": {
+            "$ref": "#/components/schemas/MongoAdminCorrelationContext"
+          },
+          "credentialLifecycleState": {
+            "enum": [
+              "active",
+              "rotation_required",
+              "rotating",
+              "revoked",
+              "recovery_required"
+            ],
+            "type": "string"
+          },
+          "eventId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "eventType": {
+            "enum": [
+              "mongo.admin.database.accepted",
+              "mongo.admin.collection.accepted",
+              "mongo.admin.index.accepted",
+              "mongo.admin.view.accepted",
+              "mongo.admin.template.accepted",
+              "mongo.admin.user.accepted",
+              "mongo.admin.role_binding.accepted"
+            ],
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "accepted",
+              "applied",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "resourceKind": {
+            "enum": [
+              "database",
+              "collection",
+              "index",
+              "view",
+              "template",
+              "user",
+              "role_binding"
+            ],
+            "type": "string"
+          },
+          "streamDelivery": {
+            "$ref": "#/components/schemas/MongoAdminEventStreamDelivery"
+          },
+          "targetRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventId",
+          "eventType",
+          "action",
+          "outcome",
+          "resourceKind",
+          "targetRef",
+          "streamDelivery",
+          "occurredAt",
+          "contractVersion"
+        ],
+        "type": "object"
+      },
+      "MongoAdminEventActor": {
+        "additionalProperties": false,
+        "properties": {
+          "actorId": {
+            "maxLength": 128,
+            "minLength": 3,
+            "type": "string"
+          },
+          "actorType": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          },
+          "originSurface": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MongoAdminEventStreamDelivery": {
+        "additionalProperties": false,
+        "properties": {
+          "deliveryMode": {
+            "enum": [
+              "audit_and_kafka"
+            ],
+            "type": "string"
+          },
+          "partitionKey": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "replayToken": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "topic": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliveryMode",
+          "topic",
+          "partitionKey",
+          "replayToken"
         ],
         "type": "object"
       },
       "MongoAdminInventory": {
         "additionalProperties": false,
         "properties": {
+          "auditCoverage": {
+            "$ref": "#/components/schemas/MongoAdminAuditCoverage"
+          },
           "clusterProfile": {
             "maxLength": 160,
             "minLength": 3,
@@ -418,6 +840,9 @@
               "roleBindings"
             ],
             "type": "object"
+          },
+          "credentialPosture": {
+            "$ref": "#/components/schemas/MongoAdminCredentialPosture"
           },
           "databaseRefs": {
             "items": {
@@ -582,8 +1007,69 @@
           "minimumEnginePolicy",
           "observedAt",
           "contractVersion",
-          "tenantIsolation"
+          "tenantIsolation",
+          "credentialPosture",
+          "auditCoverage"
         ],
+        "type": "object"
+      },
+      "MongoAdminMinimumPermissionGuidance": {
+        "additionalProperties": false,
+        "properties": {
+          "allowedApplicationRoles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "auditEvidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "credentialScope": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "internal"
+            ],
+            "type": "string"
+          },
+          "executionIdentity": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "forbiddenBuiltinRoles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "maximumCredentialLifetimeHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "principle": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "requiredBuiltinRoles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "MongoAdminMutationAccepted": {
@@ -604,21 +1090,11 @@
             ],
             "type": "string"
           },
+          "adminEvent": {
+            "$ref": "#/components/schemas/MongoAdminEvent"
+          },
           "auditSummary": {
-            "additionalProperties": false,
-            "properties": {
-              "actorScope": {
-                "maxLength": 120,
-                "minLength": 3,
-                "type": "string"
-              },
-              "evidenceClass": {
-                "maxLength": 120,
-                "minLength": 3,
-                "type": "string"
-              }
-            },
-            "type": "object"
+            "$ref": "#/components/schemas/MongoAdminAuditSummary"
           },
           "clusterTopology": {
             "enum": [
@@ -627,10 +1103,16 @@
             ],
             "type": "string"
           },
+          "correlationContext": {
+            "$ref": "#/components/schemas/MongoAdminCorrelationContext"
+          },
           "correlationId": {
             "maxLength": 128,
             "minLength": 8,
             "type": "string"
+          },
+          "credentialBinding": {
+            "$ref": "#/components/schemas/MongoAdminCredentialBinding"
           },
           "inventoryRef": {
             "maxLength": 255,
@@ -644,11 +1126,17 @@
             ],
             "type": "string"
           },
+          "minimumPermissionGuidance": {
+            "$ref": "#/components/schemas/MongoAdminMinimumPermissionGuidance"
+          },
           "preExecutionWarnings": {
             "items": {
               "type": "string"
             },
             "type": "array"
+          },
+          "recoveryGuidance": {
+            "$ref": "#/components/schemas/MongoAdminRecoveryGuidance"
           },
           "requestId": {
             "maxLength": 128,
@@ -687,6 +1175,51 @@
           "correlationId",
           "acceptedAt"
         ],
+        "type": "object"
+      },
+      "MongoAdminRecoveryGuidance": {
+        "additionalProperties": false,
+        "properties": {
+          "evidenceRequired": {
+            "type": "boolean"
+          },
+          "fallbackSecretRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "maxLifetimeHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "recoveryClass": {
+            "enum": [
+              "rotation",
+              "revocation",
+              "provider_retry",
+              "manual_rebind"
+            ],
+            "type": "string"
+          },
+          "recoveryRequired": {
+            "type": "boolean"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "revocationDetected": {
+            "type": "boolean"
+          },
+          "rotationRequired": {
+            "type": "boolean"
+          },
+          "runbookRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "MongoAuthenticationRestriction": {
@@ -1254,6 +1787,56 @@
         ],
         "type": "object"
       },
+      "MongoCredentialLifecycle": {
+        "additionalProperties": false,
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastRotatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lifecycleState": {
+            "enum": [
+              "active",
+              "rotation_required",
+              "rotating",
+              "revoked",
+              "recovery_required"
+            ],
+            "type": "string"
+          },
+          "maxLifetimeHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "recoveryWindowMinutes": {
+            "maximum": 10080,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "revokedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "rotationPolicy": {
+            "enum": [
+              "manual",
+              "scheduled",
+              "on_demand",
+              "immutable_per_run"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "lifecycleState"
+        ],
+        "type": "object"
+      },
       "MongoDatabase": {
         "additionalProperties": false,
         "properties": {
@@ -1771,6 +2354,11 @@
           "activeSegregationModel": {
             "$ref": "#/components/schemas/MongoSegregationModel"
           },
+          "adminCredentialStrategy": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
           "contractVersion": {
             "maxLength": 32,
             "minLength": 8,
@@ -1781,6 +2369,28 @@
               "mongodb"
             ],
             "type": "string"
+          },
+          "supportedCredentialBindingTypes": {
+            "items": {
+              "enum": [
+                "managed_secret_ref",
+                "generated_secret_ref",
+                "internal_service_account"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "supportedCredentialScopes": {
+            "items": {
+              "enum": [
+                "tenant",
+                "workspace",
+                "internal"
+              ],
+              "type": "string"
+            },
+            "type": "array"
           },
           "supportedIsolationModes": {
             "items": {
@@ -1820,7 +2430,9 @@
           "contractVersion",
           "supportedVersions",
           "supportedTopologies",
-          "supportedIsolationModes"
+          "supportedIsolationModes",
+          "supportedCredentialScopes",
+          "supportedCredentialBindingTypes"
         ],
         "type": "object"
       },
@@ -2202,10 +2814,21 @@
       "MongoUserPasswordBinding": {
         "additionalProperties": false,
         "properties": {
+          "credentialScope": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "internal"
+            ],
+            "type": "string"
+          },
           "generatedCredentialRef": {
             "maxLength": 255,
             "minLength": 3,
             "type": "string"
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/MongoCredentialLifecycle"
           },
           "mode": {
             "enum": [
@@ -2223,6 +2846,11 @@
             "type": "string"
           },
           "secretRef": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "serviceAccountId": {
             "maxLength": 255,
             "minLength": 3,
             "type": "string"
@@ -2554,7 +3182,7 @@
     "description": "Workspace-scoped document database control and discovery routes exposed through the public gateway. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped document database control and discovery routes exposed through the public gateway.",
     "title": "In Atelier Mongo API",
-    "version": "1.16.0"
+    "version": "1.17.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
