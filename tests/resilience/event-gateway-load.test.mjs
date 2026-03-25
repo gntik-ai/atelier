@@ -4,6 +4,11 @@ import assert from 'node:assert/strict';
 import { readGatewayPolicyValues } from '../../scripts/lib/gateway-policy.mjs';
 import { OPENAPI_PATH, readJson } from '../../scripts/lib/quality-gates.mjs';
 import { readReferenceDataset } from '../../scripts/lib/testing-strategy.mjs';
+import {
+  buildReconnectResumePlan,
+  resolveEventGatewayProfile,
+  summarizeRelativeOrdering
+} from '../../services/event-gateway/src/runtime.mjs';
 
 function tokenBucket({ ratePerSecond, burst, seconds, attemptsPerSecond }) {
   const capacity = ratePerSecond + burst;
@@ -66,4 +71,48 @@ test('event gateway publish load fixture rejects excess sustained traffic instea
   assert.equal(result.accepted, 1248);
   assert.equal(result.rejected, 552);
   assert.ok(result.rejected > 0, 'excess publishes should be rejected under bounded load');
+});
+
+test('event gateway replay and reconnect fixtures keep resume windows bounded and surface relative-order violations', () => {
+  const dataset = readReferenceDataset();
+  const replayFixture = dataset.resilience_cases.find((entry) => entry.id === 'resilience-event-replay');
+  const reconnectFixture = dataset.resilience_cases.find((entry) => entry.id === 'resilience-event-reconnect-order');
+  const profile = resolveEventGatewayProfile(
+    {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth'
+    },
+    {
+      resourceId: 'res_01billing',
+      replayWindowHours: replayFixture.topic_replay_window_hours,
+      maxConcurrentSubscriptions: 400
+    }
+  );
+  const resumePlan = buildReconnectResumePlan({
+    disconnectedAt: '2026-03-25T10:00:00Z',
+    reconnectAt: `2026-03-25T10:01:${String(reconnectFixture.disconnect_gap_seconds - 60).padStart(2, '0')}Z`,
+    profile,
+    lastEventId: reconnectFixture.last_event_id,
+    lastSequence: reconnectFixture.last_sequence,
+    retainedEvents: reconnectFixture.retained_events,
+    replay: {
+      mode: 'window',
+      windowHours: replayFixture.requested_window_hours,
+      maxEvents: replayFixture.requested_max_events
+    }
+  });
+  const ordering = summarizeRelativeOrdering(reconnectFixture.deliveries);
+
+  assert.ok(replayFixture, 'missing resilience-event-replay fixture');
+  assert.ok(reconnectFixture, 'missing resilience-event-reconnect-order fixture');
+  assert.equal(replayFixture.requested_window_hours <= replayFixture.topic_replay_window_hours, true);
+  assert.equal(resumePlan.canResume, true);
+  assert.equal(resumePlan.gapSeconds, reconnectFixture.disconnect_gap_seconds);
+  assert.equal(resumePlan.graceSeconds, reconnectFixture.reconnect_grace_seconds);
+  assert.equal(resumePlan.relativeOrderScope, replayFixture.relative_order_scope);
+  assert.equal(ordering.ok, false);
+  assert.equal(ordering.violations.length, 1);
+  assert.equal(ordering.violations[0].eventId, 'evt_03');
 });

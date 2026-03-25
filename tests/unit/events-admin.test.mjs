@@ -5,6 +5,7 @@ import {
   getEventsAdminRoute,
   getKafkaCompatibilitySummary,
   listEventsAdminRoutes,
+  summarizeEventGatewayRuntime,
   summarizeEventsAdminSurface,
   summarizeEventsAuditCoverage
 } from '../../apps/control-plane/src/events-admin.mjs';
@@ -32,8 +33,21 @@ test('events admin control-plane helper exposes Kafka topic governance, ACL, inv
   assert.equal(surface.find((entry) => entry.resourceKind === 'runtime_publish').routeCount, 1);
 });
 
-test('events admin helper summarizes KRaft compatibility, quotas, naming governance, and audit coverage', () => {
+test('events admin helper summarizes KRaft compatibility, quotas, naming governance, and runtime gateway policy', () => {
   const auditCoverage = summarizeEventsAuditCoverage();
+  const runtimeSummary = summarizeEventGatewayRuntime(
+    {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth'
+    },
+    {
+      resourceId: 'res_01billing',
+      replayWindowHours: 24,
+      allowedTransports: ['http_publish', 'sse', 'websocket']
+    }
+  );
   const growthSummary = getKafkaCompatibilitySummary({
     tenantId: 'ten_01growthalpha',
     workspaceId: 'wrk_01alphadev',
@@ -51,6 +65,12 @@ test('events admin helper summarizes KRaft compatibility, quotas, naming governa
     providerVersion: '3.8.1'
   });
 
+  assert.equal(runtimeSummary.transports.includes('sse'), true);
+  assert.equal(runtimeSummary.payloadEncodings.includes('base64'), true);
+  assert.equal(runtimeSummary.queueTypes.includes('workspace'), true);
+  assert.equal(runtimeSummary.replay.maxWindowHours, 24);
+  assert.equal(runtimeSummary.observability.relativeOrderScope, 'key_within_partition');
+
   assert.equal(growthSummary.brokerMode, 'kraft');
   assert.equal(growthSummary.isolationMode, 'shared_cluster');
   assert.equal(growthSummary.namingPolicy.topicPrefix, 'ia.01growthalpha.alpha.dev.dev');
@@ -58,6 +78,7 @@ test('events admin helper summarizes KRaft compatibility, quotas, naming governa
   assert.equal(growthSummary.quotaGuardrails.maxTopicsPerWorkspace, 20);
   assert.equal(growthSummary.quotaGuardrails.maxPartitionsPerTopic, 12);
   assert.equal(growthSummary.auditCoverage.capturesQuotaVisibility, true);
+  assert.equal(growthSummary.eventGatewayRuntime.queueTypes.includes('session'), true);
   assert.equal(auditCoverage.adminContextFields.some((entry) => entry.field === 'origin_surface' && entry.requestContract), true);
 
   assert.equal(enterpriseSummary.isolationMode, 'dedicated_cluster');

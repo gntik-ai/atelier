@@ -11,6 +11,15 @@ import {
   isKafkaVersionSupported,
   resolveKafkaAdminProfile
 } from '../../../services/adapters/src/kafka-admin.mjs';
+import {
+  EVENT_GATEWAY_NOTIFICATION_QUEUE_TYPES,
+  EVENT_GATEWAY_PAYLOAD_ENCODINGS,
+  EVENT_GATEWAY_RELATIVE_ORDER_SCOPE,
+  EVENT_GATEWAY_REPLAY_MODES,
+  EVENT_GATEWAY_REQUIRED_METRICS,
+  EVENT_GATEWAY_TRANSPORTS,
+  resolveEventGatewayProfile
+} from '../../../services/event-gateway/src/runtime.mjs';
 
 export const eventsApiFamily = getApiFamily('events');
 export const kafkaAdminRequestContract = getContract('kafka_admin_request');
@@ -58,8 +67,34 @@ export function summarizeEventsAdminSurface() {
       resourceKind: 'runtime_stream',
       actions: ['stream'],
       routeCount: eventsAdminRoutes.filter((route) => route.resourceType === 'event_stream').length
+    },
+    {
+      resourceKind: 'runtime_websocket',
+      actions: ['subscribe'],
+      routeCount: filterPublicRoutes({ family: 'websockets' }).filter((route) => route.resourceType === 'websocket_session').length
     }
   ]);
+}
+
+export function summarizeEventGatewayRuntime(context = {}, topic = {}) {
+  const profile = resolveEventGatewayProfile(context, topic);
+
+  return {
+    contractVersion: profile.contractVersion,
+    transports: EVENT_GATEWAY_TRANSPORTS,
+    payloadEncodings: EVENT_GATEWAY_PAYLOAD_ENCODINGS,
+    replayModes: EVENT_GATEWAY_REPLAY_MODES,
+    queueTypes: EVENT_GATEWAY_NOTIFICATION_QUEUE_TYPES,
+    payloadLimits: profile.payload,
+    streamLimits: profile.stream,
+    replay: profile.replay,
+    notification: profile.notification,
+    observability: {
+      ...profile.observability,
+      requiredMetrics: EVENT_GATEWAY_REQUIRED_METRICS,
+      relativeOrderScope: EVENT_GATEWAY_RELATIVE_ORDER_SCOPE
+    }
+  };
 }
 
 export function summarizeEventsAuditCoverage() {
@@ -98,6 +133,7 @@ export function getKafkaCompatibilitySummary(context = {}) {
     quotaGuardrails: profile.quotaGuardrails,
     minimumEnginePolicy: profile.minimumEnginePolicy,
     auditCoverage: summarizeEventsAuditCoverage(),
+    eventGatewayRuntime: summarizeEventGatewayRuntime(context),
     topicMutationsSupported: profile.topicMutationsSupported,
     aclMutationsSupported: profile.aclMutationsSupported,
     inventorySupported: profile.inventorySupported,
