@@ -27,7 +27,8 @@
         "Expose PostgreSQL administrative inventory projections and minimum-privilege operational guidance without leaking unsafe engine details.",
         "Accept bounded MongoDB administrative operations for databases, collections, users, and role bindings while preserving tenant ownership, quota, and isolation guardrails.",
         "Expose MongoDB administrative inventory projections and minimum-privilege operational guidance without live engine enumeration for every console read.",
-        "Accept workspace-scoped PostgreSQL Data API CRUD and query requests with dynamic table routing, filter validation, effective-role resolution, and RLS-safe query semantics."
+        "Accept workspace-scoped PostgreSQL Data API CRUD and query requests with dynamic table routing, filter validation, effective-role resolution, and RLS-safe query semantics.",
+        "Accept MongoDB administrative operations through tenant-scoped or internal service-account credential indirection while preserving bounded credential lifecycle and recovery metadata."
       ],
       "owned_resources": [
         "public route contract",
@@ -40,7 +41,8 @@
         "postgres administrative inventory projection",
         "postgres data request envelope",
         "mongo administrative request envelope",
-        "mongo administrative inventory projection"
+        "mongo administrative inventory projection",
+        "mongo admin audit summary"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -79,7 +81,8 @@
         "Persist PostgreSQL metadata and inventory snapshots for console-safe reads and profile-aware validation.",
         "Coordinate MongoDB administrative operations for databases, collections, users, and role bindings without letting control_api call adapters directly.",
         "Persist MongoDB metadata and inventory snapshots for console-safe reads across supported isolation modes and cluster topologies.",
-        "Coordinate PostgreSQL Data API reads and mutations through parameterized adapter calls while preserving effective role, grants, and RLS constraints."
+        "Coordinate PostgreSQL Data API reads and mutations through parameterized adapter calls while preserving effective role, grants, and RLS constraints.",
+        "Emit correlation-rich MongoDB admin events with credential-lifecycle and recovery metadata for audit and stream consumers."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -92,7 +95,8 @@
         "postgres metadata inventory snapshot",
         "postgres data query result",
         "mongo admin orchestration result",
-        "mongo metadata inventory snapshot"
+        "mongo metadata inventory snapshot",
+        "mongo admin event envelope"
       ],
       "service_dependencies": [
         "audit_module"
@@ -124,7 +128,8 @@
         "postgres_data_result",
         "postgres_admin_sql_result",
         "mongo_admin_result",
-        "mongo_inventory_snapshot"
+        "mongo_inventory_snapshot",
+        "mongo_admin_event"
       ]
     },
     {
@@ -136,7 +141,8 @@
         "Translate authenticated publish and subscribe requests into Kafka producer/consumer operations while preserving tenant and workspace isolation.",
         "Apply transport-safe backpressure, throughput ceilings, replay windows, and message-format guardrails before broker interaction.",
         "Emit audit evidence and operational telemetry for publish acceptance, delivery lag, auth denials, and stream lifecycle changes.",
-        "Forward IAM lifecycle events into Kafka-compatible streams without dropping audit or correlation metadata."
+        "Forward IAM lifecycle events into Kafka-compatible streams without dropping audit or correlation metadata.",
+        "Forward MongoDB admin events into Kafka-compatible streams without dropping audit, credential-lifecycle, or correlation metadata."
       ],
       "owned_resources": [
         "event publication acceptance record",
@@ -144,7 +150,8 @@
         "gateway backpressure policy",
         "delivery cursor and replay watermark",
         "gateway realtime metrics projection",
-        "iam lifecycle stream publication"
+        "iam lifecycle stream publication",
+        "mongo admin stream publication"
       ],
       "service_dependencies": [
         "audit_module"
@@ -155,7 +162,8 @@
       "inbound_contracts": [
         "iam_lifecycle_event",
         "event_gateway_publish_request",
-        "event_gateway_subscription_request"
+        "event_gateway_subscription_request",
+        "mongo_admin_event"
       ],
       "outbound_contracts": [
         "event_gateway_publish_result",
@@ -173,7 +181,8 @@
         "Attach correlation metadata and evidence pointers to audit records.",
         "Persist authorization decision identifiers, effective roles, and delegation-chain evidence without storing raw credentials.",
         "Apply redaction and retention policy in later tasks without changing callers.",
-        "Preserve actor, origin, and tenant/workspace context for BaaS-managed IAM administrative evidence."
+        "Preserve actor, origin, and tenant/workspace context for BaaS-managed IAM administrative evidence.",
+        "Preserve append-only evidence for MongoDB admin credential rotation, revocation, and recovery guidance without storing live secrets."
       ],
       "owned_resources": [
         "audit append log",
@@ -1134,10 +1143,12 @@
         "actor_type",
         "origin_surface",
         "target_tenant_id",
-        "target_workspace_id"
+        "target_workspace_id",
+        "admin_credential_binding",
+        "correlation_context"
       ],
       "idempotency": "MongoDB admin mutations coalesce by target_ref, isolation_mode, segregation_model, cluster_topology, action, and idempotency_key so safe retries do not duplicate structural engine changes, template application, index rebuilds, or inventory writes.",
-      "versioning": "The BaaS MongoDB administrative request envelope stays stable while provider payloads, topology support, segregation models, and structural metadata expand inside the compatibility matrix.",
+      "versioning": "The BaaS MongoDB administrative request envelope stays stable while provider payloads, topology support, segregation models, secure service-account credential binding, and structural metadata expand inside the compatibility matrix.",
       "error_classes": [
         "validation_error",
         "conflict",
@@ -1166,10 +1177,14 @@
         "segregation_model",
         "minimum_engine_policy",
         "risk_profile",
-        "audit_summary"
+        "audit_summary",
+        "recovery_guidance",
+        "minimum_permission_guidance",
+        "admin_event",
+        "correlation_context"
       ],
       "idempotency": "Repeated reads of the same MongoDB admin result describe one logical structural change, one inventory projection update, and one segregation-aware audit outcome.",
-      "versioning": "Result contracts expose normalized, secret-free MongoDB resource shapes while topology, segregation, metadata, and template coverage expand additively.",
+      "versioning": "Result contracts expose normalized, secret-free MongoDB resource shapes while topology, segregation, metadata, audit evidence, credential lifecycle recovery, and event coverage expand additively.",
       "error_classes": [
         "not_found",
         "conflict",
@@ -1195,13 +1210,41 @@
         "minimum_engine_policy",
         "observed_at",
         "contract_version",
-        "tenant_isolation"
+        "tenant_isolation",
+        "credential_posture",
+        "audit_coverage"
       ],
       "idempotency": "Inventory refreshes for the same tenant/workspace/isolation/topology/segregation combination replace the previous durable projection instead of multiplying console-visible records.",
-      "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand with indexes, views, quotas, templates, and collection metadata without exposing unsafe engine details.",
+      "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand with indexes, views, quotas, templates, credential posture, and collection metadata without exposing unsafe engine details.",
       "error_classes": [
         "storage_unavailable",
         "schema_validation_error"
+      ]
+    },
+    "mongo_admin_event": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "action",
+        "resource_kind",
+        "tenant_id",
+        "workspace_id",
+        "target_ref",
+        "audit_record_id",
+        "correlation_id",
+        "correlation_context",
+        "partition_key",
+        "contract_version",
+        "occurred_at"
+      ],
+      "idempotency": "MongoDB admin events must coalesce by event_id and correlation_id so retries do not duplicate downstream audit links, Kafka-compatible publications, or credential-rotation recovery notifications.",
+      "versioning": "The MongoDB admin event envelope stays additive while preserving stable actor, target, credential-lifecycle, and stream-routing metadata for audit and observability consumers.",
+      "error_classes": [
+        "schema_validation_error",
+        "audit_unavailable",
+        "dependency_failure"
       ]
     }
   },
@@ -1360,6 +1403,10 @@
         "services/adapters performs bounded database, collection, index, view, template, user, or role-binding operations through the structural MongoDB administration surface, then returns normalized secret-free resources and metadata.",
         "provisioning_orchestrator persists a mongo_inventory_snapshot so console surfaces can answer fast inventory queries without live engine enumeration for every read.",
         "audit_module records actor, scope, target resource, isolation mode, segregation model, topology, and minimum-privilege evidence without persisting raw credentials or unrestricted engine detail."
+      ],
+      "guarantees": [
+        "Administrative mutations preserve tenant-scoped/internal service-account credential indirection with bounded lifetime and recovery metadata.",
+        "Each successful MongoDB admin mutation can emit one correlation-rich mongo_admin_event envelope linked to append-only audit evidence."
       ]
     }
   ]
