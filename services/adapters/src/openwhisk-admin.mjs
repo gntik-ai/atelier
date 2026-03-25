@@ -4,29 +4,45 @@ const functionAdminRequestContract = getContract('function_admin_request');
 const functionAdminResultContract = getContract('function_admin_result');
 const functionInventorySnapshotContract = getContract('function_inventory_snapshot');
 
-export const OPENWHISK_ADMIN_RESOURCE_KINDS = Object.freeze(['package', 'trigger', 'rule']);
+export const OPENWHISK_ADMIN_RESOURCE_KINDS = Object.freeze(['action', 'package', 'trigger', 'rule']);
 export const OPENWHISK_ADMIN_CAPABILITY_MATRIX = Object.freeze({
+  action: Object.freeze(['list', 'get', 'create', 'update', 'delete', 'invoke']),
   package: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   trigger: Object.freeze(['list', 'get', 'create', 'update', 'delete']),
   rule: Object.freeze(['list', 'get', 'create', 'update', 'delete'])
 });
+export const OPENWHISK_ACTION_SOURCE_KINDS = Object.freeze(['inline_code', 'packaged_artifact', 'stored_reference', 'runtime_image']);
+export const OPENWHISK_SUPPORTED_TRIGGER_KINDS = Object.freeze(['http', 'kafka', 'storage', 'cron']);
+export const OPENWHISK_SUPPORTED_ACTION_RUNTIMES = Object.freeze([
+  Object.freeze({ runtime: 'nodejs:20', sourceKinds: ['inline_code', 'packaged_artifact', 'stored_reference'], webActionSupported: true }),
+  Object.freeze({ runtime: 'python:3.11', sourceKinds: ['inline_code', 'packaged_artifact', 'stored_reference'], webActionSupported: true }),
+  Object.freeze({ runtime: 'php:8.2', sourceKinds: ['inline_code', 'packaged_artifact', 'stored_reference'], webActionSupported: true }),
+  Object.freeze({ runtime: 'go:1.22', sourceKinds: ['packaged_artifact', 'stored_reference'], webActionSupported: false }),
+  Object.freeze({ runtime: 'java:21', sourceKinds: ['packaged_artifact', 'stored_reference'], webActionSupported: false }),
+  Object.freeze({ runtime: 'container:image', sourceKinds: ['runtime_image'], webActionSupported: true })
+]);
 export const OPENWHISK_ALLOWED_TRIGGER_SOURCE_TYPES = Object.freeze(['manual', 'event_topic', 'cron', 'http']);
 export const OPENWHISK_ALLOWED_PACKAGE_VISIBILITY = Object.freeze(['private', 'workspace_shared']);
 export const OPENWHISK_ALLOWED_RULE_STATES = Object.freeze(['active', 'inactive']);
+export const OPENWHISK_ALLOWED_HTTP_AUTH_MODES = Object.freeze(['workspace_token', 'signed_url', 'public_readonly']);
+export const OPENWHISK_ALLOWED_HTTP_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+export const OPENWHISK_ALLOWED_STORAGE_EVENT_TYPES = Object.freeze(['object_created', 'object_deleted', 'object_archived', 'object_restored']);
+export const OPENWHISK_ALLOWED_CRON_OVERLAP_POLICIES = Object.freeze(['allow', 'skip', 'queue_one']);
+export const OPENWHISK_ALLOWED_ACTIVATION_STATUSES = Object.freeze(['running', 'succeeded', 'failed', 'timed_out', 'cancelled']);
 export const SUPPORTED_OPENWHISK_VERSION_RANGES = Object.freeze([
   Object.freeze({
     range: '2.0.x',
     label: 'Apache OpenWhisk 2.0 baseline',
     namespaceStrategy: 'logical_namespace_per_workspace',
     subjectProvisioning: 'internal_only',
-    resourceSurface: ['package', 'trigger', 'rule']
+    resourceSurface: ['action', 'package', 'trigger', 'rule', 'activation', 'http_exposure']
   }),
   Object.freeze({
     range: '2.1.x',
     label: 'Apache OpenWhisk 2.1 recommended',
     namespaceStrategy: 'logical_namespace_per_workspace',
     subjectProvisioning: 'internal_only',
-    resourceSurface: ['package', 'trigger', 'rule']
+    resourceSurface: ['action', 'package', 'trigger', 'rule', 'activation', 'http_exposure']
   })
 ]);
 export const OPENWHISK_MINIMUM_ENGINE_POLICY = Object.freeze({
@@ -36,7 +52,17 @@ export const OPENWHISK_MINIMUM_ENGINE_POLICY = Object.freeze({
     packageVisibility: 'private_by_default',
     packageBindingIsolation: 'workspace_prefix',
     nativeAdminCrudExposed: false,
-    forbiddenUserFields: ['namespaceName', 'subjectRef', 'authKey', 'apiHost', 'physicalPackageName', 'physicalTriggerName', 'physicalRuleName'],
+    forbiddenUserFields: [
+      'namespaceName',
+      'subjectRef',
+      'authKey',
+      'apiHost',
+      'physicalActionName',
+      'physicalPackageName',
+      'physicalTriggerName',
+      'physicalRuleName',
+      'apisixRouteRef'
+    ],
     evidence: ['serverless_context', 'naming_policy', 'tenant_isolation', 'provisioning_state'],
     workspaceIsolationBoundary: 'namespace_plus_subject'
   })
@@ -44,19 +70,25 @@ export const OPENWHISK_MINIMUM_ENGINE_POLICY = Object.freeze({
 
 const QUOTA_DEFAULTS = Object.freeze({
   starter: Object.freeze({
+    maxActionsPerWorkspace: 0,
     maxPackagesPerWorkspace: 0,
     maxTriggersPerWorkspace: 0,
-    maxRulesPerWorkspace: 0
+    maxRulesPerWorkspace: 0,
+    maxHttpExposuresPerWorkspace: 0
   }),
   growth: Object.freeze({
+    maxActionsPerWorkspace: 24,
     maxPackagesPerWorkspace: 12,
     maxTriggersPerWorkspace: 48,
-    maxRulesPerWorkspace: 96
+    maxRulesPerWorkspace: 96,
+    maxHttpExposuresPerWorkspace: 12
   }),
   enterprise: Object.freeze({
+    maxActionsPerWorkspace: 240,
     maxPackagesPerWorkspace: 120,
     maxTriggersPerWorkspace: 480,
-    maxRulesPerWorkspace: 960
+    maxRulesPerWorkspace: 960,
+    maxHttpExposuresPerWorkspace: 120
   })
 });
 
@@ -140,24 +172,32 @@ function getQuotaMetric(resolution, metricKey) {
 
 function getOpenWhiskQuotaGuardrails(planTier, resolution, context = {}) {
   const defaults = QUOTA_DEFAULTS[planTier] ?? QUOTA_DEFAULTS.starter;
+  const actionQuota = getQuotaMetric(resolution, 'workspace.functions.actions.max');
   const packageQuota = getQuotaMetric(resolution, 'workspace.functions.packages.max');
   const triggerQuota = getQuotaMetric(resolution, 'workspace.functions.triggers.max');
   const ruleQuota = getQuotaMetric(resolution, 'workspace.functions.rules.max');
+  const httpExposureQuota = getQuotaMetric(resolution, 'workspace.functions.http_exposures.max');
 
   const currentCounts = context.currentInventory?.counts ?? {};
 
   return {
     metricKeys: {
+      actions: 'workspace.functions.actions.max',
       packages: 'workspace.functions.packages.max',
       triggers: 'workspace.functions.triggers.max',
-      rules: 'workspace.functions.rules.max'
+      rules: 'workspace.functions.rules.max',
+      httpExposures: 'workspace.functions.http_exposures.max'
     },
+    maxActionsPerWorkspace: actionQuota?.limit ?? defaults.maxActionsPerWorkspace,
     maxPackagesPerWorkspace: packageQuota?.limit ?? defaults.maxPackagesPerWorkspace,
     maxTriggersPerWorkspace: triggerQuota?.limit ?? defaults.maxTriggersPerWorkspace,
     maxRulesPerWorkspace: ruleQuota?.limit ?? defaults.maxRulesPerWorkspace,
+    maxHttpExposuresPerWorkspace: httpExposureQuota?.limit ?? defaults.maxHttpExposuresPerWorkspace,
+    usedActions: actionQuota?.used ?? currentCounts.actions ?? context.currentActionCount ?? 0,
     usedPackages: packageQuota?.used ?? currentCounts.packages ?? context.currentPackageCount ?? 0,
     usedTriggers: triggerQuota?.used ?? currentCounts.triggers ?? context.currentTriggerCount ?? 0,
-    usedRules: ruleQuota?.used ?? currentCounts.rules ?? context.currentRuleCount ?? 0
+    usedRules: ruleQuota?.used ?? currentCounts.rules ?? context.currentRuleCount ?? 0,
+    usedHttpExposures: httpExposureQuota?.used ?? currentCounts.httpExposures ?? context.currentHttpExposureCount ?? 0
   };
 }
 
@@ -168,6 +208,7 @@ function buildNamingPolicy({ tenantId, workspaceId, tenantSlug, workspaceSlug, w
 
   const namespaceSegments = ['ia', tenantSegment, workspaceSegment, environmentSegment].filter(Boolean);
   const namespaceName = trimSegment(namespaceSegments.join('-'), 80);
+  const actionPrefix = trimSegment(`act-${workspaceSegment}-${environmentSegment}`, 48);
   const packagePrefix = trimSegment(`pkg-${workspaceSegment}-${environmentSegment}`, 48);
   const triggerPrefix = trimSegment(`trg-${workspaceSegment}-${environmentSegment}`, 48);
   const rulePrefix = trimSegment(`rul-${workspaceSegment}-${environmentSegment}`, 48);
@@ -175,6 +216,7 @@ function buildNamingPolicy({ tenantId, workspaceId, tenantSlug, workspaceSlug, w
   return {
     namespaceName,
     subjectRef: `ia:${tenantSegment}:${workspaceSegment}:${environmentSegment}`,
+    actionPrefix,
     packagePrefix,
     triggerPrefix,
     rulePrefix,
@@ -195,6 +237,7 @@ function buildTenantIsolation(namingPolicy) {
     subjectRef: namingPolicy.subjectRef,
     crossTenantAccessPrevented: true,
     userManagedNativeAdminSupported: false,
+    actionPrefixIsolation: namingPolicy.actionPrefix,
     packagePrefixIsolation: namingPolicy.packagePrefix,
     triggerPrefixIsolation: namingPolicy.triggerPrefix,
     rulePrefixIsolation: namingPolicy.rulePrefix
@@ -218,6 +261,7 @@ export function buildOpenWhiskServerlessContext(context = {}) {
     namespaceName: namingPolicy.namespaceName,
     subjectRef: namingPolicy.subjectRef,
     packageBindingRef: namingPolicy.packageBindingRef,
+    actionPrefix: namingPolicy.actionPrefix,
     packagePrefix: namingPolicy.packagePrefix,
     triggerPrefix: namingPolicy.triggerPrefix,
     rulePrefix: namingPolicy.rulePrefix,
@@ -232,6 +276,7 @@ export function buildOpenWhiskServerlessContext(context = {}) {
     namingPolicy: {
       namespacePattern: namingPolicy.namespacePattern,
       subjectPattern: namingPolicy.subjectPattern,
+      actionPrefix: namingPolicy.actionPrefix,
       packagePrefix: namingPolicy.packagePrefix,
       triggerPrefix: namingPolicy.triggerPrefix,
       rulePrefix: namingPolicy.rulePrefix,
@@ -245,13 +290,38 @@ export function buildOpenWhiskServerlessContext(context = {}) {
   };
 }
 
+export function buildOpenWhiskActivationPolicy(input = {}) {
+  return {
+    logsAccess: input.logsAccess ?? 'workspace_developers',
+    resultAccess: input.resultAccess ?? 'workspace_developers',
+    rerunPolicy: input.rerunPolicy ?? 'manual_only',
+    retentionHours: input.retentionHours ?? 168,
+    redactionMode: input.redactionMode ?? 'metadata_only'
+  };
+}
+
+export function buildOpenWhiskRuntimeCoverageSummary() {
+  return OPENWHISK_SUPPORTED_ACTION_RUNTIMES.map((runtime) => ({
+    runtime: runtime.runtime,
+    sourceKinds: [...runtime.sourceKinds],
+    webActionSupported: runtime.webActionSupported
+  }));
+}
+
 function buildProviderCompatibility(profile) {
   return {
     provider: 'openwhisk',
     namespaceStrategy: profile.namespaceStrategy,
     subjectProvisioning: profile.subjectProvisioning,
     nativeAdminCrudExposed: false,
-    supportedVersions: profile.supportedVersions.map(({ range, label }) => ({ range, label }))
+    supportedVersions: profile.supportedVersions.map(({ range, label }) => ({ range, label })),
+    supportedRuntimes: buildOpenWhiskRuntimeCoverageSummary(),
+    supportedSourceKinds: [...OPENWHISK_ACTION_SOURCE_KINDS],
+    supportedTriggerKinds: [...OPENWHISK_SUPPORTED_TRIGGER_KINDS],
+    apisixHttpExposure: {
+      managedByGateway: true,
+      productRouteFamily: 'functions'
+    }
   };
 }
 
@@ -303,20 +373,31 @@ export function resolveOpenWhiskAdminProfile(context = {}) {
     namespaceStrategy: 'logical_namespace_per_workspace',
     subjectProvisioning: 'internal_only',
     logicalContextMutationsSupported: true,
+    actionMutationsSupported: serverlessCapabilityEnabled,
     packageMutationsSupported: serverlessCapabilityEnabled,
     triggerMutationsSupported: serverlessCapabilityEnabled,
     ruleMutationsSupported: serverlessCapabilityEnabled,
+    invocationSupported: serverlessCapabilityEnabled,
+    activationReadsSupported: serverlessCapabilityEnabled,
+    httpExposureSupported: serverlessCapabilityEnabled,
+    storageTriggersSupported: serverlessCapabilityEnabled,
+    cronTriggersSupported: serverlessCapabilityEnabled,
     serverlessCapabilityEnabled,
     namingPolicy,
     quotaGuardrails: getOpenWhiskQuotaGuardrails(planTier, resolution, context),
     minimumEnginePolicy: OPENWHISK_MINIMUM_ENGINE_POLICY.logical_namespace_subject,
     supportedVersions: SUPPORTED_OPENWHISK_VERSION_RANGES,
+    supportedRuntimes: buildOpenWhiskRuntimeCoverageSummary(),
+    supportedSourceKinds: OPENWHISK_ACTION_SOURCE_KINDS,
+    supportedTriggerKinds: OPENWHISK_SUPPORTED_TRIGGER_KINDS,
     serverlessContext,
     auditCoverage: {
       capturesServerlessContext: true,
       capturesProvisioningState: true,
       capturesTenantIsolation: true,
-      capturesNativeAdminSuppression: true
+      capturesNativeAdminSuppression: true,
+      capturesActivationPolicy: true,
+      capturesHttpExposure: true
     }
   };
 }
@@ -355,6 +436,79 @@ function collectBaseViolations(resourceKind, action, payload, context, profile) 
     if (payload[forbiddenField] !== undefined) {
       violations.push(`${forbiddenField} is internal-only and cannot be supplied through the governed functions surface.`);
     }
+  }
+
+  return violations;
+}
+
+function validateActionRequest(action, payload, context, profile) {
+  const violations = [];
+  const actionName = payload.actionName ?? context.actionName;
+  const runtime = payload.execution?.runtime ?? payload.runtime;
+  const entrypoint = payload.execution?.entrypoint ?? payload.entrypoint;
+  const sourceKind = payload.source?.kind;
+  const activationPolicy = payload.activationPolicy ?? {};
+
+  if (action !== 'list') {
+    validateLogicalName('actionName', actionName, violations);
+  }
+
+  if ((actionName ?? '').startsWith(`${profile.namingPolicy.actionPrefix}-`)) {
+    violations.push('actionName must stay logical; the physical OpenWhisk action prefix is generated by the control plane.');
+  }
+
+  if (action === 'create' && profile.quotaGuardrails.usedActions >= profile.quotaGuardrails.maxActionsPerWorkspace) {
+    violations.push(`Quota ${profile.quotaGuardrails.metricKeys.actions} would be exceeded by creating another action.`);
+  }
+
+  if (!runtime && action !== 'list') {
+    violations.push('runtime is required for governed OpenWhisk actions.');
+  }
+
+  if (runtime && !OPENWHISK_SUPPORTED_ACTION_RUNTIMES.some((candidate) => candidate.runtime === runtime)) {
+    violations.push(`runtime ${runtime} is unsupported for governed OpenWhisk actions.`);
+  }
+
+  if (!entrypoint && action !== 'list') {
+    violations.push('entrypoint is required for governed OpenWhisk actions.');
+  }
+
+  if (sourceKind && !OPENWHISK_ACTION_SOURCE_KINDS.includes(sourceKind)) {
+    violations.push(`source.kind ${sourceKind} is unsupported; allowed values: ${OPENWHISK_ACTION_SOURCE_KINDS.join(', ')}.`);
+  }
+
+  if (runtime && sourceKind) {
+    const runtimeSupport = OPENWHISK_SUPPORTED_ACTION_RUNTIMES.find((candidate) => candidate.runtime === runtime);
+    if (runtimeSupport && !runtimeSupport.sourceKinds.includes(sourceKind)) {
+      violations.push(`runtime ${runtime} does not support source kind ${sourceKind}.`);
+    }
+  }
+
+  if ((payload.execution?.webAction?.enabled ?? false) === true && runtime) {
+    const runtimeSupport = OPENWHISK_SUPPORTED_ACTION_RUNTIMES.find((candidate) => candidate.runtime === runtime);
+    if (runtimeSupport && !runtimeSupport.webActionSupported) {
+      violations.push(`runtime ${runtime} does not support managed web actions.`);
+    }
+  }
+
+  if ((payload.execution?.limits?.timeoutSeconds ?? 0) > 900) {
+    violations.push('timeoutSeconds must be 900 seconds or lower for governed OpenWhisk actions.');
+  }
+
+  if ((payload.execution?.limits?.memoryMb ?? 0) > 2048) {
+    violations.push('memoryMb must be 2048 MB or lower for governed OpenWhisk actions.');
+  }
+
+  if (payload.execution?.environment && typeof payload.execution.environment !== 'object') {
+    violations.push('execution.environment must be an object when provided.');
+  }
+
+  if (payload.execution?.parameters && typeof payload.execution.parameters !== 'object') {
+    violations.push('execution.parameters must be an object when provided.');
+  }
+
+  if (activationPolicy.logsAccess === 'disabled' && activationPolicy.resultAccess !== 'disabled') {
+    violations.push('resultAccess cannot remain enabled when logsAccess is disabled for the governed activation policy.');
   }
 
   return violations;
@@ -470,6 +624,10 @@ export function validateOpenWhiskAdminRequest({ resourceKind, action, context = 
   });
   const violations = collectBaseViolations(resourceKind, action, payload, context, profile);
 
+  if (resourceKind === 'action') {
+    violations.push(...validateActionRequest(action, payload, context, profile));
+  }
+
   if (resourceKind === 'package') {
     violations.push(...validatePackageRequest(action, payload, context, profile));
   }
@@ -495,13 +653,83 @@ function buildPhysicalName(prefix, logicalName, resourcePrefix) {
 
 function buildQuotaStatus(profile) {
   return {
+    maxActionsPerWorkspace: profile.quotaGuardrails.maxActionsPerWorkspace,
     maxPackagesPerWorkspace: profile.quotaGuardrails.maxPackagesPerWorkspace,
     maxTriggersPerWorkspace: profile.quotaGuardrails.maxTriggersPerWorkspace,
     maxRulesPerWorkspace: profile.quotaGuardrails.maxRulesPerWorkspace,
+    maxHttpExposuresPerWorkspace: profile.quotaGuardrails.maxHttpExposuresPerWorkspace,
+    usedActions: profile.quotaGuardrails.usedActions,
     usedPackages: profile.quotaGuardrails.usedPackages,
     usedTriggers: profile.quotaGuardrails.usedTriggers,
     usedRules: profile.quotaGuardrails.usedRules,
+    usedHttpExposures: profile.quotaGuardrails.usedHttpExposures,
     visibleInConsole: true
+  };
+}
+
+export function buildOpenWhiskHttpExposure(payload = {}, context = {}) {
+  return {
+    exposureId: payload.exposureId ?? context.exposureId ?? `exp_${slugify(context.resourceId ?? payload.actionName ?? 'fnexposure').replace(/-/g, '')}`,
+    status: payload.status ?? 'active',
+    authMode: OPENWHISK_ALLOWED_HTTP_AUTH_MODES.includes(payload.authMode) ? payload.authMode : 'workspace_token',
+    methods: (payload.methods ?? ['POST']).filter((method) => OPENWHISK_ALLOWED_HTTP_METHODS.includes(method)),
+    path: payload.path ?? `/functions/${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
+    publicUrl: payload.publicUrl ?? `https://api.in-atelier.example/functions/${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
+    apisixRouteRef: payload.apisixRouteRef ?? `apisix:functions:${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
+    cors: {
+      enabled: payload.cors?.enabled ?? true,
+      allowOrigins: payload.cors?.allowOrigins ?? ['https://console.in-atelier.example']
+    },
+    rateLimitProfile: payload.rateLimitProfile ?? 'functions-http-default'
+  };
+}
+
+export function buildOpenWhiskStorageTrigger(payload = {}, context = {}) {
+  return {
+    triggerId: payload.triggerId ?? context.triggerId ?? `trg_${slugify(context.resourceId ?? payload.bucketRef ?? 'storage').replace(/-/g, '')}`,
+    bucketRef: payload.bucketRef,
+    eventTypes: (payload.eventTypes ?? ['object_created']).filter((eventType) => OPENWHISK_ALLOWED_STORAGE_EVENT_TYPES.includes(eventType)),
+    prefix: payload.prefix,
+    suffix: payload.suffix,
+    deliveryMode: payload.deliveryMode ?? 'managed_bridge',
+    status: payload.status ?? 'active'
+  };
+}
+
+export function buildOpenWhiskCronTrigger(payload = {}, context = {}) {
+  return {
+    triggerId: payload.triggerId ?? context.triggerId ?? `trg_${slugify(payload.schedule ?? context.resourceId ?? 'cron').replace(/-/g, '')}`,
+    schedule: payload.schedule,
+    timezone: payload.timezone ?? 'UTC',
+    catchUpMode: payload.catchUpMode ?? 'none',
+    overlapPolicy: OPENWHISK_ALLOWED_CRON_OVERLAP_POLICIES.includes(payload.overlapPolicy) ? payload.overlapPolicy : 'skip',
+    status: payload.status ?? 'active'
+  };
+}
+
+export function buildOpenWhiskInvocationRequest(payload = {}, context = {}) {
+  return {
+    invocationId: payload.invocationId ?? context.invocationId ?? `inv_${slugify(context.resourceId ?? context.actionName ?? 'invoke').replace(/-/g, '')}`,
+    resourceId: context.resourceId,
+    status: payload.status ?? 'accepted',
+    acceptedAt: payload.acceptedAt ?? context.acceptedAt ?? '2026-03-25T00:00:00Z',
+    activationPolicy: buildOpenWhiskActivationPolicy(payload.activationPolicy ?? context.activationPolicy)
+  };
+}
+
+export function buildOpenWhiskActivationProjection(payload = {}, context = {}) {
+  return {
+    activationId: payload.activationId ?? context.activationId ?? `act_${slugify(context.resourceId ?? context.actionName ?? 'activation').replace(/-/g, '')}`,
+    resourceId: context.resourceId,
+    invocationId: payload.invocationId,
+    status: OPENWHISK_ALLOWED_ACTIVATION_STATUSES.includes(payload.status) ? payload.status : 'succeeded',
+    startedAt: payload.startedAt ?? '2026-03-25T00:00:00Z',
+    finishedAt: payload.finishedAt,
+    durationMs: payload.durationMs ?? 0,
+    memoryMb: payload.memoryMb ?? 256,
+    triggerKind: payload.triggerKind ?? 'direct',
+    statusCode: payload.statusCode,
+    policy: buildOpenWhiskActivationPolicy(payload.policy ?? context.activationPolicy)
   };
 }
 
@@ -514,6 +742,65 @@ export function normalizeOpenWhiskAdminResource(resourceKind, payload = {}, cont
   const serverlessContext = profile.serverlessContext;
   const providerCompatibility = buildProviderCompatibility(profile);
   const quotaStatus = buildQuotaStatus(profile);
+
+  if (resourceKind === 'action') {
+    const actionName = normalizeLogicalName(payload.actionName ?? context.actionName, 'action');
+    const activationPolicy = buildOpenWhiskActivationPolicy(payload.activationPolicy);
+    return {
+      resourceType: 'function_action',
+      resourceId: context.resourceId,
+      tenantId: context.tenantId ?? payload.tenantId,
+      workspaceId: context.workspaceId ?? payload.workspaceId,
+      actionName,
+      physicalActionName: buildPhysicalName(serverlessContext.actionPrefix, actionName, 'action'),
+      packageName: payload.packageName ? normalizeLogicalName(payload.packageName, 'package') : undefined,
+      namespaceName: serverlessContext.namespaceName,
+      subjectRef: serverlessContext.subjectRef,
+      source: compactDefined({
+        kind: payload.source?.kind,
+        language: payload.source?.language,
+        inlineCode: payload.source?.inlineCode,
+        artifactRef: payload.source?.artifactRef,
+        storedObjectRef: payload.source?.storedObjectRef,
+        imageRef: payload.source?.imageRef,
+        digest: payload.source?.digest,
+        entryFile: payload.source?.entryFile,
+        imageEntrypoint: payload.source?.imageEntrypoint
+      }),
+      execution: compactDefined({
+        runtime: payload.execution?.runtime ?? payload.runtime,
+        entrypoint: payload.execution?.entrypoint ?? payload.entrypoint,
+        parameters: normalizeObjectKeys(payload.execution?.parameters ?? {}),
+        environment: normalizeObjectKeys(payload.execution?.environment ?? {}),
+        limits: compactDefined({
+          timeoutSeconds: payload.execution?.limits?.timeoutSeconds ?? 60,
+          memoryMb: payload.execution?.limits?.memoryMb ?? 256,
+          concurrency: payload.execution?.limits?.concurrency,
+          logLineLimit: payload.execution?.limits?.logLineLimit,
+          resultByteLimit: payload.execution?.limits?.resultByteLimit
+        }),
+        webAction: compactDefined({
+          enabled: payload.execution?.webAction?.enabled ?? false,
+          requireAuthentication: payload.execution?.webAction?.requireAuthentication ?? true,
+          rawHttpResponse: payload.execution?.webAction?.rawHttpResponse ?? false,
+          responseMode: payload.execution?.webAction?.responseMode ?? 'json'
+        })
+      }),
+      activationPolicy,
+      quotaStatus,
+      tenantIsolation: serverlessContext.tenantIsolation,
+      providerCompatibility,
+      httpExposure: payload.httpExposure ? buildOpenWhiskHttpExposure(payload.httpExposure, { ...context, actionName }) : undefined,
+      storageTriggers: Array.isArray(payload.storageTriggers)
+        ? payload.storageTriggers.map((trigger, index) => buildOpenWhiskStorageTrigger(trigger, { ...context, actionName, triggerId: trigger.triggerId ?? `trg_${index + 1}` }))
+        : undefined,
+      cronTriggers: Array.isArray(payload.cronTriggers)
+        ? payload.cronTriggers.map((trigger, index) => buildOpenWhiskCronTrigger(trigger, { ...context, actionName, triggerId: trigger.triggerId ?? `trg_${index + 1}` }))
+        : undefined,
+      deploymentDigest: payload.deploymentDigest,
+      status: payload.status ?? 'provisioning'
+    };
+  }
 
   if (resourceKind === 'package') {
     const packageName = normalizeLogicalName(payload.packageName ?? context.packageName, 'package');
@@ -593,6 +880,10 @@ function buildCapabilityName(resourceKind, action) {
 }
 
 function deriveTargetRef(resourceKind, normalizedResource, serverlessContext) {
+  if (resourceKind === 'action') {
+    return `namespace:${serverlessContext.namespaceName}/action:${normalizedResource.physicalActionName}`;
+  }
+
   if (resourceKind === 'package') {
     return `namespace:${serverlessContext.namespaceName}/package:${normalizedResource.physicalPackageName}`;
   }
@@ -746,9 +1037,12 @@ export function buildOpenWhiskAdminMetadataRecord({
     observedAt,
     metadata: compactDefined({
       primaryRef:
+        resource?.physicalActionName ??
         resource?.physicalPackageName ??
         resource?.physicalTriggerName ??
         resource?.physicalRuleName ??
+        resource?.apisixRouteRef ??
+        resource?.actionName ??
         resource?.packageName ??
         resource?.triggerName ??
         resource?.ruleName,
@@ -772,18 +1066,22 @@ export function buildOpenWhiskInventorySnapshot({
   workspaceId,
   planId,
   context = {},
+  actions = [],
   packages = [],
   triggers = [],
   rules = [],
+  httpExposures = [],
   observedAt = '2026-03-25T00:00:00Z'
 }) {
   const profile = resolveOpenWhiskAdminProfile({ ...context, tenantId, workspaceId, planId });
   const provisioningState = {
     namespace: profile.serverlessContext.namespaceProvisioning.state,
     subject: profile.serverlessContext.subjectProvisioning.state,
+    actionProjection: actions.length > 0 ? 'reconciled' : 'ready',
     packageProjection: packages.length > 0 ? 'reconciled' : 'ready',
     triggerProjection: triggers.length > 0 ? 'reconciled' : 'ready',
-    ruleProjection: rules.length > 0 ? 'reconciled' : 'ready'
+    ruleProjection: rules.length > 0 ? 'reconciled' : 'ready',
+    httpExposureProjection: httpExposures.length > 0 ? 'reconciled' : 'ready'
   };
 
   return {
@@ -792,9 +1090,11 @@ export function buildOpenWhiskInventorySnapshot({
     workspaceId,
     provider: 'openwhisk',
     counts: {
+      actions: actions.length,
       packages: packages.length,
       triggers: triggers.length,
-      rules: rules.length
+      rules: rules.length,
+      httpExposures: httpExposures.length
     },
     quotas: buildQuotaStatus(profile),
     namingPolicy: profile.serverlessContext.namingPolicy,
@@ -804,9 +1104,11 @@ export function buildOpenWhiskInventorySnapshot({
     contractVersion: functionInventorySnapshotContract?.version ?? '2026-03-25',
     tenantIsolation: profile.serverlessContext.tenantIsolation,
     provisioningState,
+    actionRefs: actions.map((entry) => entry.physicalActionName ?? entry.actionName ?? entry),
     packageRefs: packages.map((entry) => entry.physicalPackageName ?? entry.packageName ?? entry),
     triggerRefs: triggers.map((entry) => entry.physicalTriggerName ?? entry.triggerName ?? entry),
-    ruleRefs: rules.map((entry) => entry.physicalRuleName ?? entry.ruleName ?? entry)
+    ruleRefs: rules.map((entry) => entry.physicalRuleName ?? entry.ruleName ?? entry),
+    httpExposureRefs: httpExposures.map((entry) => entry.apisixRouteRef ?? entry.publicUrl ?? entry)
   };
 }
 

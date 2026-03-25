@@ -588,7 +588,22 @@
         "openwhisk_inventory_upsert",
         "openwhisk_inventory_get",
         "invoke_action",
-        "publish_activation_event"
+        "publish_activation_event",
+        "openwhisk_action_list",
+        "openwhisk_action_get",
+        "openwhisk_action_create",
+        "openwhisk_action_update",
+        "openwhisk_action_delete",
+        "openwhisk_action_invoke",
+        "openwhisk_activation_list",
+        "openwhisk_activation_get",
+        "openwhisk_activation_get_logs",
+        "openwhisk_activation_get_result",
+        "openwhisk_activation_rerun",
+        "openwhisk_http_exposure_upsert",
+        "openwhisk_http_exposure_delete",
+        "openwhisk_storage_trigger_upsert",
+        "openwhisk_cron_trigger_upsert"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -1656,10 +1671,14 @@
         "naming_policy",
         "subject_binding",
         "quota_snapshot",
-        "provisioning_state"
+        "provisioning_state",
+        "deployment_source",
+        "execution_policy",
+        "trigger_bindings",
+        "http_exposure"
       ],
-      "idempotency": "OpenWhisk administrative mutations coalesce by target_ref, isolation_mode, action, and idempotency_key so safe retries do not duplicate logical context provisioning or workspace-scoped package, trigger, and rule reconciliation.",
-      "versioning": "The OpenWhisk administrative request envelope remains stable while logical namespace, subject, package, trigger, and rule metadata evolve additively inside the governed serverless compatibility matrix.",
+      "idempotency": "OpenWhisk administrative mutations coalesce by target_ref, isolation_mode, action, and idempotency_key so safe retries do not duplicate logical context provisioning, action deployment, trigger binding, or HTTP exposure reconciliation.",
+      "versioning": "The OpenWhisk administrative request envelope remains stable while logical namespace, subject, action, package, trigger, rule, source, and policy metadata evolve additively inside the governed serverless compatibility matrix.",
       "error_classes": [
         "validation_error",
         "conflict",
@@ -1689,10 +1708,13 @@
         "naming_policy",
         "subject_binding",
         "provisioning_state",
-        "audit_summary"
+        "audit_summary",
+        "activation_policy",
+        "trigger_projection",
+        "http_exposure_projection"
       ],
-      "idempotency": "Repeated reads of the same OpenWhisk administrative result describe one logical package, trigger, or rule mutation and one durable inventory projection update.",
-      "versioning": "Result contracts expose normalized secret-free OpenWhisk serverless resources while logical context, tenancy metadata, and provisioning state expand additively.",
+      "idempotency": "Repeated reads of the same OpenWhisk administrative result describe one logical action, package, trigger, rule, or exposure mutation and one durable inventory projection update.",
+      "versioning": "Result contracts expose normalized secret-free OpenWhisk serverless resources while logical context, tenancy metadata, execution policy, and exposure state expand additively.",
       "error_classes": [
         "not_found",
         "conflict",
@@ -1719,10 +1741,12 @@
         "observed_at",
         "contract_version",
         "tenant_isolation",
-        "provisioning_state"
+        "provisioning_state",
+        "action_refs",
+        "http_exposure_refs"
       ],
       "idempotency": "Inventory refreshes for the same tenant and workspace replace the previous logical serverless projection instead of multiplying console-visible resources.",
-      "versioning": "Inventory snapshots remain additive and secret-free so workspace consoles can expand package, trigger, rule, quota, and logical-context visibility without exposing unsafe native OpenWhisk administration.",
+      "versioning": "Inventory snapshots remain additive and secret-free so workspace consoles can expand action, package, trigger, rule, exposure, quota, and logical-context visibility without exposing unsafe native OpenWhisk administration.",
       "error_classes": [
         "storage_unavailable",
         "schema_validation_error"
@@ -2081,15 +2105,16 @@
       "id": "function_administration",
       "entry_service": "control_api",
       "steps": [
-        "control_api validates the governed OpenWhisk administrative request, resolves contextual tenant and workspace authorization, and emits one function_admin_request envelope with logical serverless context, idempotency, and audit linkage.",
-        "provisioning_orchestrator resolves the deployment profile, provisions or reloads the internal namespace and subject binding, applies package, trigger, and rule guardrails, and translates the normalized intent into one openwhisk adapter_call.",
-        "services/adapters performs bounded package, trigger, and rule operations through the governed OpenWhisk administration surface while suppressing unsafe native namespace or subject CRUD exposure, then returns normalized secret-free resources and metadata.",
+        "control_api validates the governed OpenWhisk administrative request, resolves contextual tenant and workspace authorization, and emits one function_admin_request envelope with logical serverless context, deployment source, execution policy, idempotency, and audit linkage.",
+        "provisioning_orchestrator resolves the deployment profile, provisions or reloads the internal namespace and subject binding, applies action, package, trigger, rule, and APISIX HTTP exposure guardrails, and translates the normalized intent into one openwhisk adapter_call.",
+        "services/adapters performs bounded action deployment, invocation, activation retrieval, package, trigger, rule, and exposure operations through the governed OpenWhisk administration surface while suppressing unsafe native namespace or subject CRUD exposure, then returns normalized secret-free resources and metadata.",
         "provisioning_orchestrator persists a function_inventory_snapshot so console and control-plane reads can answer workspace inventory queries without live native enumeration for every request.",
-        "audit_module records actor, scope, logical context, target resource, tenancy isolation, and provisioning state evidence without persisting raw auth keys or unrestricted native admin detail."
+        "audit_module records actor, scope, logical context, target resource, execution policy, tenancy isolation, HTTP exposure lineage, and provisioning state evidence without persisting raw auth keys or unrestricted native admin detail."
       ],
       "guarantees": [
-        "Administrative mutations preserve tenant and workspace isolation by deriving logical namespace and subject context internally for every package, trigger, and rule.",
-        "No public product route exposes unsafe native OpenWhisk namespace or subject CRUD even though internal provisioning can reconcile them."
+        "Administrative mutations preserve tenant and workspace isolation by deriving logical namespace and subject context internally for every action, package, trigger, rule, invocation, and exposure.",
+        "No public product route exposes unsafe native OpenWhisk namespace or subject CRUD even though internal provisioning can reconcile them.",
+        "Execution telemetry, logs, results, and reruns remain policy-scoped so control-plane reads can stay auditable without leaking raw provider credentials or bypassing plan guardrails."
       ]
     },
     {

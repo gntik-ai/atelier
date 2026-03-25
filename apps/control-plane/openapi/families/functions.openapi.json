@@ -1,6 +1,16 @@
 {
   "components": {
     "parameters": {
+      "FunctionActivationId": {
+        "description": "Stable activation identifier assigned to one governed function execution.",
+        "in": "path",
+        "name": "activationId",
+        "required": true,
+        "schema": {
+          "pattern": "^act_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
       "FunctionPackageName": {
         "description": "Logical function package name scoped to the workspace serverless context.",
         "in": "path",
@@ -232,21 +242,38 @@
       "FunctionAction": {
         "additionalProperties": false,
         "properties": {
+          "actionName": {
+            "pattern": "^[a-z][a-z0-9-]{1,62}$",
+            "type": "string"
+          },
+          "activationPolicy": {
+            "$ref": "#/components/schemas/FunctionActivationPolicy"
+          },
+          "cronTriggers": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionCronTrigger"
+            },
+            "type": "array"
+          },
           "deploymentDigest": {
             "maxLength": 255,
             "minLength": 12,
             "type": "string"
           },
-          "entrypoint": {
-            "maxLength": 120,
-            "minLength": 3,
-            "type": "string"
+          "execution": {
+            "$ref": "#/components/schemas/FunctionExecutionConfiguration"
+          },
+          "httpExposure": {
+            "$ref": "#/components/schemas/FunctionHttpExposure"
           },
           "kafkaTriggers": {
             "items": {
               "$ref": "#/components/schemas/FunctionKafkaTriggerSummary"
             },
             "type": "array"
+          },
+          "latestActivation": {
+            "$ref": "#/components/schemas/FunctionActivation"
           },
           "namespaceName": {
             "maxLength": 80,
@@ -267,19 +294,25 @@
             "pattern": "^res_[0-9a-z]+$",
             "type": "string"
           },
-          "runtime": {
-            "maxLength": 40,
-            "minLength": 3,
-            "type": "string"
+          "source": {
+            "$ref": "#/components/schemas/FunctionDeploymentSource"
           },
           "status": {
             "enum": [
               "draft",
               "deploying",
               "active",
-              "suspended"
+              "suspended",
+              "failed",
+              "deleting"
             ],
             "type": "string"
+          },
+          "storageTriggers": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionStorageTrigger"
+            },
+            "type": "array"
           },
           "subjectRef": {
             "maxLength": 120,
@@ -302,37 +335,70 @@
           "resourceId",
           "tenantId",
           "workspaceId",
-          "runtime",
-          "entrypoint",
+          "actionName",
+          "source",
+          "execution",
+          "activationPolicy",
           "status",
           "timestamps"
+        ],
+        "type": "object"
+      },
+      "FunctionActionCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionAction"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/FunctionAdminPage"
+          }
+        },
+        "required": [
+          "items",
+          "page"
         ],
         "type": "object"
       },
       "FunctionActionWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "actionName": {
+            "pattern": "^[a-z][a-z0-9-]{1,62}$",
+            "type": "string"
+          },
+          "activationPolicy": {
+            "$ref": "#/components/schemas/FunctionActivationPolicy"
+          },
+          "defaultCronTriggerPolicy": {
+            "$ref": "#/components/schemas/FunctionCronTriggerWriteRequest"
+          },
+          "defaultHttpExposure": {
+            "$ref": "#/components/schemas/FunctionHttpExposureWriteRequest"
+          },
           "defaultKafkaTriggerPolicy": {
             "$ref": "#/components/schemas/FunctionKafkaTriggerWriteRequest"
+          },
+          "defaultStorageTriggerPolicy": {
+            "$ref": "#/components/schemas/FunctionStorageTriggerWriteRequest"
           },
           "deploymentDigest": {
             "maxLength": 255,
             "minLength": 12,
             "type": "string"
           },
-          "entrypoint": {
-            "maxLength": 120,
-            "minLength": 3,
-            "type": "string"
+          "execution": {
+            "$ref": "#/components/schemas/FunctionExecutionConfiguration"
           },
           "packageName": {
             "pattern": "^[a-z][a-z0-9-]{1,62}$",
             "type": "string"
           },
-          "runtime": {
-            "maxLength": 40,
-            "minLength": 3,
-            "type": "string"
+          "source": {
+            "$ref": "#/components/schemas/FunctionDeploymentSource"
           },
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
@@ -346,8 +412,259 @@
         "required": [
           "tenantId",
           "workspaceId",
-          "runtime",
-          "entrypoint"
+          "actionName",
+          "source",
+          "execution",
+          "activationPolicy"
+        ],
+        "type": "object"
+      },
+      "FunctionActivation": {
+        "additionalProperties": false,
+        "properties": {
+          "activationId": {
+            "pattern": "^act_[0-9a-z]+$",
+            "type": "string"
+          },
+          "durationMs": {
+            "maximum": 900000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invocationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "memoryMb": {
+            "maximum": 2048,
+            "minimum": 128,
+            "type": "integer"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/FunctionActivationPolicy"
+          },
+          "resourceId": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "succeeded",
+              "failed",
+              "timed_out",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "statusCode": {
+            "maximum": 599,
+            "minimum": 100,
+            "type": "integer"
+          },
+          "triggerKind": {
+            "enum": [
+              "direct",
+              "http",
+              "kafka",
+              "storage",
+              "cron"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "activationId",
+          "resourceId",
+          "status",
+          "startedAt",
+          "durationMs",
+          "triggerKind",
+          "policy"
+        ],
+        "type": "object"
+      },
+      "FunctionActivationCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionActivation"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/FunctionAdminPage"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "type": "object"
+      },
+      "FunctionActivationLog": {
+        "additionalProperties": false,
+        "properties": {
+          "activationId": {
+            "pattern": "^act_[0-9a-z]+$",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/FunctionActivationPolicy"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "activationId",
+          "lines",
+          "truncated",
+          "policy"
+        ],
+        "type": "object"
+      },
+      "FunctionActivationPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "logsAccess": {
+            "enum": [
+              "workspace_developers",
+              "workspace_admins",
+              "service_accounts",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "redactionMode": {
+            "enum": [
+              "metadata_only",
+              "logs_only",
+              "logs_and_results"
+            ],
+            "type": "string"
+          },
+          "rerunPolicy": {
+            "enum": [
+              "manual_only",
+              "blocked",
+              "idempotent_only"
+            ],
+            "type": "string"
+          },
+          "resultAccess": {
+            "enum": [
+              "workspace_developers",
+              "workspace_admins",
+              "service_accounts",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "retentionHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "logsAccess",
+          "resultAccess",
+          "rerunPolicy",
+          "retentionHours"
+        ],
+        "type": "object"
+      },
+      "FunctionActivationRerunAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "activationId": {
+            "pattern": "^act_[0-9a-z]+$",
+            "type": "string"
+          },
+          "rerunInvocationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "blocked_policy",
+              "queued"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "activationId",
+          "rerunInvocationId",
+          "status",
+          "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "FunctionActivationResult": {
+        "additionalProperties": false,
+        "properties": {
+          "activationId": {
+            "pattern": "^act_[0-9a-z]+$",
+            "type": "string"
+          },
+          "contentType": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/FunctionActivationPolicy"
+          },
+          "result": {
+            "type": [
+              "object",
+              "array",
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "available",
+              "redacted",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "activationId",
+          "status",
+          "policy"
         ],
         "type": "object"
       },
@@ -370,12 +687,419 @@
         ],
         "type": "object"
       },
+      "FunctionCronTrigger": {
+        "additionalProperties": false,
+        "properties": {
+          "catchUpMode": {
+            "enum": [
+              "none",
+              "single",
+              "replay_window"
+            ],
+            "type": "string"
+          },
+          "overlapPolicy": {
+            "enum": [
+              "allow",
+              "skip",
+              "queue_one"
+            ],
+            "type": "string"
+          },
+          "schedule": {
+            "maxLength": 120,
+            "minLength": 5,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "provisioning",
+              "active",
+              "paused",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          },
+          "triggerId": {
+            "pattern": "^trg_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "triggerId",
+          "schedule",
+          "timezone",
+          "status",
+          "overlapPolicy"
+        ],
+        "type": "object"
+      },
+      "FunctionCronTriggerWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "catchUpMode": {
+            "enum": [
+              "none",
+              "single",
+              "replay_window"
+            ],
+            "type": "string"
+          },
+          "overlapPolicy": {
+            "enum": [
+              "allow",
+              "skip",
+              "queue_one"
+            ],
+            "type": "string"
+          },
+          "schedule": {
+            "maxLength": 120,
+            "minLength": 5,
+            "type": "string"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "schedule",
+          "timezone"
+        ],
+        "type": "object"
+      },
+      "FunctionDeploymentSource": {
+        "additionalProperties": false,
+        "properties": {
+          "artifactRef": {
+            "description": "Opaque package or artifact reference managed by the control plane.",
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          },
+          "digest": {
+            "maxLength": 255,
+            "minLength": 12,
+            "type": "string"
+          },
+          "entryFile": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "imageEntrypoint": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "imageRef": {
+            "description": "Container image reference used when runtime supports image-backed actions.",
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          },
+          "inlineCode": {
+            "description": "Inline source payload used when kind=inline_code.",
+            "maxLength": 262144,
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "inline_code",
+              "packaged_artifact",
+              "stored_reference",
+              "runtime_image"
+            ],
+            "type": "string"
+          },
+          "language": {
+            "maxLength": 32,
+            "minLength": 2,
+            "type": "string"
+          },
+          "storedObjectRef": {
+            "description": "Stored source reference such as a bucket object URI or managed asset key.",
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "type": "object"
+      },
+      "FunctionExecutionConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "entrypoint": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "environment": {
+            "additionalProperties": {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/FunctionExecutionLimits"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "integer",
+                "boolean",
+                "object",
+                "array",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "runtime": {
+            "enum": [
+              "nodejs:20",
+              "python:3.11",
+              "php:8.2",
+              "go:1.22",
+              "java:21",
+              "container:image"
+            ],
+            "maxLength": 40,
+            "minLength": 3,
+            "type": "string"
+          },
+          "webAction": {
+            "$ref": "#/components/schemas/FunctionWebActionConfiguration"
+          }
+        },
+        "required": [
+          "runtime",
+          "entrypoint",
+          "parameters",
+          "environment",
+          "limits",
+          "webAction"
+        ],
+        "type": "object"
+      },
+      "FunctionExecutionLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "concurrency": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "logLineLimit": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "memoryMb": {
+            "maximum": 2048,
+            "minimum": 128,
+            "type": "integer"
+          },
+          "resultByteLimit": {
+            "maximum": 1048576,
+            "minimum": 1024,
+            "type": "integer"
+          },
+          "timeoutSeconds": {
+            "maximum": 900,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "timeoutSeconds",
+          "memoryMb"
+        ],
+        "type": "object"
+      },
+      "FunctionHttpExposure": {
+        "additionalProperties": false,
+        "properties": {
+          "apisixRouteRef": {
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          },
+          "authMode": {
+            "enum": [
+              "workspace_token",
+              "signed_url",
+              "public_readonly"
+            ],
+            "type": "string"
+          },
+          "cors": {
+            "additionalProperties": false,
+            "properties": {
+              "allowOrigins": {
+                "items": {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "type": "object"
+          },
+          "exposureId": {
+            "pattern": "^exp_[0-9a-z]+$",
+            "type": "string"
+          },
+          "methods": {
+            "items": {
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "path": {
+            "maxLength": 255,
+            "minLength": 2,
+            "type": "string"
+          },
+          "publicUrl": {
+            "format": "uri",
+            "type": "string"
+          },
+          "rateLimitProfile": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "provisioning",
+              "active",
+              "disabled",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "exposureId",
+          "status",
+          "authMode",
+          "methods",
+          "path",
+          "publicUrl",
+          "apisixRouteRef"
+        ],
+        "type": "object"
+      },
+      "FunctionHttpExposureWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "authMode": {
+            "enum": [
+              "workspace_token",
+              "signed_url",
+              "public_readonly"
+            ],
+            "type": "string"
+          },
+          "cors": {
+            "additionalProperties": false,
+            "properties": {
+              "allowOrigins": {
+                "items": {
+                  "maxLength": 255,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "methods": {
+            "items": {
+              "enum": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "path": {
+            "maxLength": 255,
+            "minLength": 2,
+            "type": "string"
+          },
+          "rateLimitProfile": {
+            "maxLength": 64,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "authMode",
+          "methods",
+          "path"
+        ],
+        "type": "object"
+      },
       "FunctionInventory": {
         "additionalProperties": false,
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionAction"
+            },
+            "type": "array"
+          },
           "counts": {
             "additionalProperties": false,
             "properties": {
+              "actions": {
+                "maximum": 5000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "httpExposures": {
+                "maximum": 5000,
+                "minimum": 0,
+                "type": "integer"
+              },
               "packages": {
                 "maximum": 5000,
                 "minimum": 0,
@@ -393,9 +1117,11 @@
               }
             },
             "required": [
+              "actions",
               "packages",
               "triggers",
-              "rules"
+              "rules",
+              "httpExposures"
             ],
             "type": "object"
           },
@@ -439,12 +1165,104 @@
           "serverlessContext",
           "counts",
           "quotaStatus",
+          "actions",
           "packages",
           "triggers",
           "rules",
           "providerCompatibility",
           "tenantIsolation"
         ],
+        "type": "object"
+      },
+      "FunctionInvocationAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "activationPolicy": {
+            "$ref": "#/components/schemas/FunctionActivationPolicy"
+          },
+          "invocationId": {
+            "pattern": "^inv_[0-9a-z]+$",
+            "type": "string"
+          },
+          "resourceId": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "queued",
+              "running"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "invocationId",
+          "resourceId",
+          "status",
+          "acceptedAt",
+          "activationPolicy"
+        ],
+        "type": "object"
+      },
+      "FunctionInvocationWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "idempotencyScope": {
+            "enum": [
+              "request",
+              "payload_digest"
+            ],
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "integer",
+                "boolean",
+                "object",
+                "array",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "responseMode": {
+            "enum": [
+              "accepted",
+              "wait_for_result"
+            ],
+            "type": "string"
+          },
+          "triggerContext": {
+            "additionalProperties": false,
+            "properties": {
+              "correlationKey": {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "direct",
+                  "http",
+                  "kafka",
+                  "storage",
+                  "cron"
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
         "type": "object"
       },
       "FunctionKafkaTrigger": {
@@ -782,6 +1600,16 @@
       "FunctionQuotaStatus": {
         "additionalProperties": false,
         "properties": {
+          "maxActionsPerWorkspace": {
+            "maximum": 5000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxHttpExposuresPerWorkspace": {
+            "maximum": 5000,
+            "minimum": 0,
+            "type": "integer"
+          },
           "maxPackagesPerWorkspace": {
             "maximum": 5000,
             "minimum": 0,
@@ -793,6 +1621,16 @@
             "type": "integer"
           },
           "maxTriggersPerWorkspace": {
+            "maximum": 5000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "usedActions": {
+            "maximum": 5000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "usedHttpExposures": {
             "maximum": 5000,
             "minimum": 0,
             "type": "integer"
@@ -817,12 +1655,16 @@
           }
         },
         "required": [
+          "maxActionsPerWorkspace",
           "maxPackagesPerWorkspace",
           "maxTriggersPerWorkspace",
           "maxRulesPerWorkspace",
+          "maxHttpExposuresPerWorkspace",
+          "usedActions",
           "usedPackages",
           "usedTriggers",
           "usedRules",
+          "usedHttpExposures",
           "visibleInConsole"
         ],
         "type": "object"
@@ -984,6 +1826,11 @@
       "FunctionServerlessContext": {
         "additionalProperties": false,
         "properties": {
+          "actionPrefix": {
+            "maxLength": 48,
+            "minLength": 3,
+            "type": "string"
+          },
           "namespaceName": {
             "maxLength": 80,
             "minLength": 3,
@@ -1110,6 +1957,11 @@
       "FunctionServerlessNamingPolicy": {
         "additionalProperties": false,
         "properties": {
+          "actionPrefix": {
+            "maxLength": 48,
+            "minLength": 3,
+            "type": "string"
+          },
           "namespacePattern": {
             "maxLength": 120,
             "minLength": 3,
@@ -1163,13 +2015,121 @@
           "physicalNamePolicy",
           "userManagedNamespacesAllowed",
           "userManagedSubjectsAllowed",
-          "userProvidedPhysicalNamesAllowed"
+          "userProvidedPhysicalNamesAllowed",
+          "actionPrefix"
+        ],
+        "type": "object"
+      },
+      "FunctionStorageTrigger": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketRef": {
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          },
+          "deliveryMode": {
+            "enum": [
+              "direct",
+              "managed_bridge"
+            ],
+            "type": "string"
+          },
+          "eventTypes": {
+            "items": {
+              "enum": [
+                "object_created",
+                "object_deleted",
+                "object_archived",
+                "object_restored"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "prefix": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "provisioning",
+              "active",
+              "paused",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "suffix": {
+            "maxLength": 120,
+            "type": "string"
+          },
+          "triggerId": {
+            "pattern": "^trg_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "triggerId",
+          "bucketRef",
+          "eventTypes",
+          "status",
+          "deliveryMode"
+        ],
+        "type": "object"
+      },
+      "FunctionStorageTriggerWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketRef": {
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          },
+          "deliveryMode": {
+            "enum": [
+              "direct",
+              "managed_bridge"
+            ],
+            "type": "string"
+          },
+          "eventTypes": {
+            "items": {
+              "enum": [
+                "object_created",
+                "object_deleted",
+                "object_archived",
+                "object_restored"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "prefix": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "suffix": {
+            "maxLength": 120,
+            "type": "string"
+          }
+        },
+        "required": [
+          "bucketRef",
+          "eventTypes"
         ],
         "type": "object"
       },
       "FunctionTenantIsolation": {
         "additionalProperties": false,
         "properties": {
+          "actionPrefixIsolation": {
+            "maxLength": 48,
+            "minLength": 3,
+            "type": "string"
+          },
           "crossTenantAccessPrevented": {
             "const": true,
             "type": "boolean"
@@ -1383,6 +2343,34 @@
         ],
         "type": "object"
       },
+      "FunctionWebActionConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "rawHttpResponse": {
+            "type": "boolean"
+          },
+          "requireAuthentication": {
+            "type": "boolean"
+          },
+          "responseMode": {
+            "enum": [
+              "json",
+              "raw",
+              "http_envelope"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "requireAuthentication",
+          "rawHttpResponse"
+        ],
+        "type": "object"
+      },
       "GatewayMutationAccepted": {
         "additionalProperties": false,
         "properties": {
@@ -1461,6 +2449,23 @@
       "OpenWhiskProviderCompatibility": {
         "additionalProperties": false,
         "properties": {
+          "apisixHttpExposure": {
+            "additionalProperties": false,
+            "properties": {
+              "managedByGateway": {
+                "type": "boolean"
+              },
+              "productRouteFamily": {
+                "const": "functions",
+                "type": "string"
+              }
+            },
+            "required": [
+              "managedByGateway",
+              "productRouteFamily"
+            ],
+            "type": "object"
+          },
           "namespaceStrategy": {
             "enum": [
               "logical_namespace_per_workspace"
@@ -1480,6 +2485,68 @@
               "internal_only"
             ],
             "type": "string"
+          },
+          "supportedRuntimes": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "runtime": {
+                  "maxLength": 40,
+                  "minLength": 3,
+                  "type": "string"
+                },
+                "sourceKinds": {
+                  "items": {
+                    "enum": [
+                      "inline_code",
+                      "packaged_artifact",
+                      "stored_reference",
+                      "runtime_image"
+                    ],
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "webActionSupported": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "runtime",
+                "sourceKinds",
+                "webActionSupported"
+              ],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "supportedSourceKinds": {
+            "items": {
+              "enum": [
+                "inline_code",
+                "packaged_artifact",
+                "stored_reference",
+                "runtime_image"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "supportedTriggerKinds": {
+            "items": {
+              "enum": [
+                "http",
+                "kafka",
+                "storage",
+                "cron"
+              ],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
           },
           "supportedVersions": {
             "items": {
@@ -1511,7 +2578,11 @@
           "namespaceStrategy",
           "subjectProvisioning",
           "nativeAdminCrudExposed",
-          "supportedVersions"
+          "supportedVersions",
+          "supportedRuntimes",
+          "supportedSourceKinds",
+          "supportedTriggerKinds",
+          "apisixHttpExposure"
         ],
         "type": "object"
       },
@@ -1689,6 +2760,16 @@
             },
             "description": "The caller is authenticated but not authorized for this scope."
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
           "413": {
             "content": {
               "application/json": {
@@ -1698,6 +2779,16 @@
               }
             },
             "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
           },
           "429": {
             "content": {
@@ -1745,7 +2836,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Submit a workspace-scoped function action provisioning request through the unified functions family",
+        "summary": "Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs",
         "tags": [
           "Functions"
         ],
@@ -1761,13 +2852,166 @@
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
-        "x-rate-limit-class": "data-control",
-        "x-resource-type": "function",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_action",
         "x-scope": "workspace",
         "x-visibility": "public"
       }
     },
     "/v1/functions/actions/{resourceId}": {
+      "delete": {
+        "operationId": "deleteFunctions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function action deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one governed function action and its managed exposure bindings from the workspace serverless context",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_action",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
       "get": {
         "operationId": "getFunctions",
         "parameters": [
@@ -1790,7 +3034,7 @@
                 }
               }
             },
-            "description": "Resource returned."
+            "description": "Function action returned."
           },
           "400": {
             "content": {
@@ -1868,7 +3112,7 @@
             "bearerAuth": []
           }
         ],
-        "summary": "Fetch one workspace-scoped function action contract under the functions family",
+        "summary": "Fetch one governed function action with normalized source, execution, policy, and trigger state",
         "tags": [
           "Functions"
         ],
@@ -1887,7 +3131,1908 @@
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "data-read",
-        "x-resource-type": "function",
+        "x-resource-type": "function_action",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "patch": {
+        "operationId": "updateFunctions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionActionWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function action update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one governed function action without exposing native namespace, subject, or unrestricted provider administration",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_action",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/activations": {
+      "get": {
+        "operationId": "listFunctionActivations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionActivationCollection"
+                }
+              }
+            },
+            "description": "Function activations returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List activation summaries for one governed function action under the declared execution policy",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "function_activation",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/activations/{activationId}": {
+      "get": {
+        "operationId": "getFunctionActivation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionActivationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionActivation"
+                }
+              }
+            },
+            "description": "Function activation returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one activation summary for a governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "function_activation",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/activations/{activationId}/logs": {
+      "get": {
+        "operationId": "getFunctionActivationLogs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionActivationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionActivationLog"
+                }
+              }
+            },
+            "description": "Function activation logs returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch redacted activation logs for one governed function action execution when policy allows it",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "function_activation_log",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/activations/{activationId}/rerun": {
+      "post": {
+        "operationId": "rerunFunctionActivation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionActivationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionInvocationWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionActivationRerunAccepted"
+                }
+              }
+            },
+            "description": "Function activation rerun accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Request one governed rerun for an existing function activation when the action policy permits it",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "function_invocation",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/activations/{activationId}/result": {
+      "get": {
+        "operationId": "getFunctionActivationResult",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionActivationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionActivationResult"
+                }
+              }
+            },
+            "description": "Function activation result returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch the result envelope for one governed function action activation when policy allows it",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "function_activation_result",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/cron-triggers": {
+      "post": {
+        "operationId": "createFunctionCronTrigger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionCronTriggerWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function cron trigger accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Register one cron trigger for a governed function action when scheduled delivery is enabled",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_cron_trigger",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/cron-triggers/{triggerId}": {
+      "get": {
+        "operationId": "getFunctionCronTrigger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/TriggerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionCronTrigger"
+                }
+              }
+            },
+            "description": "Function cron trigger returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one cron trigger bound to a governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "function_cron_trigger",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/http-exposure": {
+      "delete": {
+        "operationId": "deleteFunctionHttpExposure",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function HTTP exposure deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one APISIX-managed HTTP exposure for a governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_http_exposure",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getFunctionHttpExposure",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionHttpExposure"
+                }
+              }
+            },
+            "description": "Function HTTP exposure returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch the APISIX-managed HTTP exposure for one governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "function_http_exposure",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "patch": {
+        "operationId": "updateFunctionHttpExposure",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionHttpExposureWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function HTTP exposure update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one APISIX-managed HTTP exposure for a governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_http_exposure",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createFunctionHttpExposure",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionHttpExposureWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function HTTP exposure accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one APISIX-managed HTTP exposure for a governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_http_exposure",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/invocations": {
+      "post": {
+        "operationId": "invokeFunctionAction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionInvocationWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionInvocationAccepted"
+                }
+              }
+            },
+            "description": "Function invocation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Invoke one governed function action directly through the control-plane abstraction",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "function_invocation",
         "x-scope": "workspace",
         "x-visibility": "public"
       }
@@ -2142,6 +5287,424 @@
         "x-owning-service": "event_gateway",
         "x-rate-limit-class": "observability",
         "x-resource-type": "function_kafka_trigger",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/storage-triggers": {
+      "post": {
+        "operationId": "createFunctionStorageTrigger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionStorageTriggerWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Function storage trigger accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing OpenWhisk state or an existing governed exposure."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates logical-context, tenant-isolation, runtime, or policy guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Register one storage event trigger for a governed function action when storage delivery is enabled",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage",
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "provisioning",
+        "x-resource-type": "function_storage_trigger",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/storage-triggers/{triggerId}": {
+      "get": {
+        "operationId": "getFunctionStorageTrigger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/TriggerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionStorageTrigger"
+                }
+              }
+            },
+            "description": "Function storage trigger returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one storage trigger bound to a governed function action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage",
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "function_storage_trigger",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/workspaces/{workspaceId}/actions": {
+      "get": {
+        "operationId": "listFunctionActions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionActionCollection"
+                }
+              }
+            },
+            "description": "Workspace function action collection returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List governed function actions for one workspace including runtime, source, policy, and exposure summaries",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "function_action",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

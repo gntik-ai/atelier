@@ -386,10 +386,27 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/functions/actions` | workspace | function | Submit a workspace-scoped function action provisioning request through the unified functions family |
-| GET | `/v1/functions/actions/{resourceId}` | workspace | function | Fetch one workspace-scoped function action contract under the functions family |
+| POST | `/v1/functions/actions` | workspace | function_action | Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs |
+| DELETE | `/v1/functions/actions/{resourceId}` | workspace | function_action | Delete one governed function action and its managed exposure bindings from the workspace serverless context |
+| GET | `/v1/functions/actions/{resourceId}` | workspace | function_action | Fetch one governed function action with normalized source, execution, policy, and trigger state |
+| PATCH | `/v1/functions/actions/{resourceId}` | workspace | function_action | Update one governed function action without exposing native namespace, subject, or unrestricted provider administration |
+| GET | `/v1/functions/actions/{resourceId}/activations` | workspace | function_activation | List activation summaries for one governed function action under the declared execution policy |
+| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}` | workspace | function_activation | Fetch one activation summary for a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/logs` | workspace | function_activation_log | Fetch redacted activation logs for one governed function action execution when policy allows it |
+| POST | `/v1/functions/actions/{resourceId}/activations/{activationId}/rerun` | workspace | function_invocation | Request one governed rerun for an existing function activation when the action policy permits it |
+| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/result` | workspace | function_activation_result | Fetch the result envelope for one governed function action activation when policy allows it |
+| POST | `/v1/functions/actions/{resourceId}/cron-triggers` | workspace | function_cron_trigger | Register one cron trigger for a governed function action when scheduled delivery is enabled |
+| GET | `/v1/functions/actions/{resourceId}/cron-triggers/{triggerId}` | workspace | function_cron_trigger | Fetch one cron trigger bound to a governed function action |
+| DELETE | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Delete one APISIX-managed HTTP exposure for a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Fetch the APISIX-managed HTTP exposure for one governed function action |
+| PATCH | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Update one APISIX-managed HTTP exposure for a governed function action |
+| POST | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Create one APISIX-managed HTTP exposure for a governed function action |
+| POST | `/v1/functions/actions/{resourceId}/invocations` | workspace | function_invocation | Invoke one governed function action directly through the control-plane abstraction |
 | POST | `/v1/functions/actions/{resourceId}/kafka-triggers` | workspace | function_kafka_trigger | Register a Kafka-triggered OpenWhisk execution policy for one managed action |
 | GET | `/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}` | workspace | function_kafka_trigger | Fetch one normalized Kafka-triggered function execution policy |
+| POST | `/v1/functions/actions/{resourceId}/storage-triggers` | workspace | function_storage_trigger | Register one storage event trigger for a governed function action when storage delivery is enabled |
+| GET | `/v1/functions/actions/{resourceId}/storage-triggers/{triggerId}` | workspace | function_storage_trigger | Fetch one storage trigger bound to a governed function action |
+| GET | `/v1/functions/workspaces/{workspaceId}/actions` | workspace | function_action | List governed function actions for one workspace including runtime, source, policy, and exposure summaries |
 | GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
 | GET | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | List governed OpenWhisk packages for one workspace logical serverless context |
 | POST | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | Create one governed OpenWhisk package inside the workspace logical serverless context |
