@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-25, OpenAPI 1.18.0)
+Version: v1 (header 2026-03-25, OpenAPI 1.19.0)
 
 ## Product API vs native passthrough
 
@@ -309,7 +309,7 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, inven
 
 ## Mongo
 
-Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, and collection-validation-aware mutation semantics.
+Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
@@ -340,13 +340,18 @@ Workspace-scoped document database control, discovery, and tenant-safe Data API 
 | DELETE | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Delete one MongoDB view from a managed database |
 | GET | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Fetch one normalized MongoDB view contract |
 | PUT | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Update one MongoDB view pipeline while preserving read-only safeguards |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/aggregations` | workspace | mongo_data_aggregation | Execute one controlled MongoDB aggregation pipeline with tenant-aware stage injection and bounded planner limits |
 | POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write` | workspace | mongo_data_bulk | Execute one bounded MongoDB bulk write request with configurable operation-count and payload-size limits |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/change-streams` | workspace | mongo_data_change_stream | Register one topology-aware MongoDB change-stream bridge request for gateway-managed realtime delivery |
 | GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | List workspace-scoped MongoDB documents with validated JSON filters, projection, deterministic sorting, and cursor pagination |
 | POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | Insert one tenant-scoped MongoDB document while preserving collection validation and logical tenant segregation |
 | DELETE | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Delete one tenant-scoped MongoDB document by identifier |
 | GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Fetch one tenant-scoped MongoDB document by identifier with optional projection |
 | PATCH | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Apply one bounded partial-update document against one tenant-scoped MongoDB document |
 | PUT | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Replace one tenant-scoped MongoDB document with full collection-validation-aware payload checks |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/exports` | workspace | mongo_data_export | Export one bounded JSON document set from a MongoDB collection with restore-ready manifest metadata |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/imports` | workspace | mongo_data_import | Import one bounded JSON document batch into a MongoDB collection with validation-first restore semantics |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/transactions` | workspace | mongo_data_transaction | Execute one topology-aware MongoDB multi-collection transaction with bounded tenant-safe document operations |
 | GET | `/v1/mongo/workspaces/{workspaceId}/inventory` | workspace | mongo_inventory | Fetch the persisted MongoDB administrative inventory projection for one workspace |
 | GET | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | List MongoDB collection onboarding templates for one workspace |
 | POST | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | Create one MongoDB collection onboarding template with bounded defaults and variables |

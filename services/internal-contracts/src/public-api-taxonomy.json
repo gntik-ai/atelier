@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-25",
-    "openapi_semver": "1.18.0"
+    "openapi_semver": "1.19.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -277,14 +277,15 @@
       "id": "mongo",
       "title": "Mongo",
       "prefix": "/v1/mongo",
-      "summary": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, and collection-validation-aware mutation semantics.",
+      "summary": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "provisioning_request",
         "adapter_call",
         "audit_record",
         "mongo_data_request",
-        "mongo_data_result"
+        "mongo_data_result",
+        "mongo_change_stream_event"
       ],
       "downstream_adapters": [
         "mongodb"
@@ -828,6 +829,36 @@
     },
     {
       "resource_type": "mongo_data_bulk",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_aggregation",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_import",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_export",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_transaction",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_change_stream",
       "family": "mongo",
       "scope": "workspace",
       "authorization_resource": "database"

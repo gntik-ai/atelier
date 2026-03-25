@@ -11,14 +11,19 @@ import {
   validateMongoDocumentAgainstCollectionRules
 } from '../../services/adapters/src/mongodb-data-api.mjs';
 
-test('mongodb data adapter publishes CRUD and bulk capabilities for document operations', () => {
+test('mongodb data adapter publishes CRUD, advanced data, and realtime bridge capabilities for document operations', () => {
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_query'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_insert'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_update'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_replace'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_delete'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_bulk_write'));
-  assert.equal(summarizeMongoDataApiCapabilityMatrix().length, 7);
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_aggregate'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_import'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_export'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_transaction'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_change_stream'));
+  assert.equal(summarizeMongoDataApiCapabilityMatrix().length, 12);
   assert.equal(MONGO_DATA_DEFAULT_BULK_LIMITS.maxPayloadBytes > 0, true);
 });
 
@@ -158,6 +163,70 @@ test('mongodb data adapter builds a controlled bulk-write plan with tenant scopi
         }
       }),
     (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_bulk_limit_exceeded'
+  );
+});
+
+test('mongodb data adapter validates aggregation, transfer, transaction, and change-stream planners', () => {
+  const aggregationPlan = buildMongoDataApiPlan({
+    operation: 'aggregate',
+    workspaceId: 'ws_orders',
+    databaseName: 'tenant_shared',
+    collectionName: 'orders',
+    tenantId: 'ten_alpha',
+    payload: {
+      pipeline: [
+        { $match: { status: 'open' } },
+        { $group: { _id: '$status', total: { $sum: 1 } } },
+        { $limit: 20 }
+      ]
+    }
+  });
+  const transactionPlan = buildMongoDataApiPlan({
+    operation: 'transaction',
+    workspaceId: 'ws_orders',
+    databaseName: 'tenant_shared',
+    tenantId: 'ten_alpha',
+    topology: { clusterTopology: 'replica_set', supportsTransactions: true },
+    payload: {
+      operations: [
+        {
+          kind: 'insert',
+          collectionName: 'orders',
+          document: { _id: 'ord_010', status: 'open' }
+        }
+      ]
+    }
+  });
+  const changeStreamPlan = buildMongoDataApiPlan({
+    operation: 'change_stream',
+    workspaceId: 'ws_orders',
+    databaseName: 'tenant_shared',
+    collectionName: 'orders',
+    tenantId: 'ten_alpha',
+    topology: { clusterTopology: 'replica_set', supportsChangeStreams: true },
+    bridge: { available: true, provider: 'event_gateway' },
+    payload: {
+      pipeline: [{ $project: { fullDocument: 1, operationType: 1 } }]
+    }
+  });
+
+  assert.equal(aggregationPlan.aggregation.summary.stageNames.includes('$group'), true);
+  assert.equal(transactionPlan.transaction.operationCount, 1);
+  assert.equal(changeStreamPlan.changeStream.bridge.status, 'ready');
+
+  assert.throws(
+    () =>
+      buildMongoDataApiPlan({
+        operation: 'aggregate',
+        workspaceId: 'ws_orders',
+        databaseName: 'tenant_shared',
+        collectionName: 'orders',
+        tenantId: 'ten_alpha',
+        payload: {
+          pipeline: [{ $merge: { into: 'archive' } }]
+        }
+      }),
+    (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_pipeline_stage_blocked'
   );
 });
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.18.0",
+    "version": "1.19.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, PostgreSQL administration and data control, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -38892,6 +38892,880 @@
         "x-scope": "workspace",
         "x-visibility": "public"
       }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/aggregations": {
+      "post": {
+        "operationId": "aggregateMongoDataDocuments",
+        "summary": "Execute one controlled MongoDB aggregation pipeline with tenant-aware stage injection and bounded planner limits",
+        "tags": [
+          "Mongo"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDataAggregationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aggregation completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoDataAggregationResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates supported Mongo Data API constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this workspace collection or tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database, collection, or document was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request targets a capability that is unavailable for the current MongoDB topology or conflicts with current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body, pipeline, or transfer payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates validation, planner, or bounded execution rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_data_aggregation",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/imports": {
+      "post": {
+        "operationId": "importMongoDataDocuments",
+        "summary": "Import one bounded JSON document batch into a MongoDB collection with validation-first restore semantics",
+        "tags": [
+          "Mongo"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDataImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Import accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoDataImportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates supported Mongo Data API constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this workspace collection or tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database, collection, or document was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request targets a capability that is unavailable for the current MongoDB topology or conflicts with current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body, pipeline, or transfer payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates validation, planner, or bounded execution rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "mongo_data_import",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/exports": {
+      "post": {
+        "operationId": "exportMongoDataDocuments",
+        "summary": "Export one bounded JSON document set from a MongoDB collection with restore-ready manifest metadata",
+        "tags": [
+          "Mongo"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDataExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Export completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoDataExportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates supported Mongo Data API constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this workspace collection or tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database, collection, or document was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request targets a capability that is unavailable for the current MongoDB topology or conflicts with current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body, pipeline, or transfer payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates validation, planner, or bounded execution rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_data_export",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/transactions": {
+      "post": {
+        "operationId": "executeMongoDataTransaction",
+        "summary": "Execute one topology-aware MongoDB multi-collection transaction with bounded tenant-safe document operations",
+        "tags": [
+          "Mongo"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDataTransactionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoDataTransactionResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates supported Mongo Data API constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this workspace collection or tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database, collection, or document was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request targets a capability that is unavailable for the current MongoDB topology or conflicts with current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body, pipeline, or transfer payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates validation, planner, or bounded execution rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "mongo_data_transaction",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/change-streams": {
+      "post": {
+        "operationId": "createMongoDataChangeStream",
+        "summary": "Register one topology-aware MongoDB change-stream bridge request for gateway-managed realtime delivery",
+        "tags": [
+          "Mongo"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoDataChangeStreamRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Change stream bridge accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoDataChangeStreamResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or violates supported Mongo Data API constraints.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this workspace collection or tenant scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested logical database, collection, or document was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request targets a capability that is unavailable for the current MongoDB topology or conflicts with current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body, pipeline, or transfer payload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is valid JSON but violates validation, planner, or bounded execution rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "mongo_data_change_stream",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
     }
   },
   "components": {
@@ -57676,7 +58550,8 @@
           "contractVersion",
           "tenantIsolation",
           "credentialPosture",
-          "auditCoverage"
+          "auditCoverage",
+          "dataApiCompatibility"
         ],
         "properties": {
           "snapshotId": {
@@ -57929,6 +58804,9 @@
           },
           "auditCoverage": {
             "$ref": "#/components/schemas/MongoAdminAuditCoverage"
+          },
+          "dataApiCompatibility": {
+            "$ref": "#/components/schemas/MongoDataApiCompatibilityMatrix"
           }
         }
       },
@@ -59911,6 +60789,791 @@
           },
           "trace": {
             "$ref": "#/components/schemas/MongoDataTraceContext"
+          }
+        }
+      },
+      "MongoDataFeatureCompatibility": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "feature",
+          "capability",
+          "supported",
+          "status"
+        ],
+        "properties": {
+          "feature": {
+            "type": "string",
+            "enum": [
+              "list",
+              "get",
+              "insert",
+              "update",
+              "replace",
+              "delete",
+              "bulk_write",
+              "aggregate",
+              "import",
+              "export",
+              "transaction",
+              "change_stream"
+            ]
+          },
+          "capability": {
+            "type": "string"
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "available",
+              "topology_unknown",
+              "topology_unsupported",
+              "bridge_unavailable"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "clusterTopology": {
+            "type": "string",
+            "enum": [
+              "replica_set",
+              "sharded_cluster",
+              "standalone"
+            ]
+          },
+          "requiredTopologies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "replica_set",
+                "sharded_cluster"
+              ]
+            }
+          },
+          "bridge": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "provider": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "available": {
+                "type": "boolean"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ready",
+                  "unavailable",
+                  "blocked"
+                ]
+              },
+              "transport": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "MongoDataPipelineStage": {
+        "type": "object",
+        "minProperties": 1,
+        "maxProperties": 1,
+        "additionalProperties": true
+      },
+      "MongoDataAggregationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pipeline"
+        ],
+        "properties": {
+          "pipeline": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/MongoDataPipelineStage"
+            }
+          },
+          "allowDiskUse": {
+            "type": "boolean"
+          },
+          "maxTimeMs": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30000
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "maxStages": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxPayloadBytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxResultWindow": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      },
+      "MongoDataAggregationSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stageCount",
+          "stageNames",
+          "tenantMatchInjected",
+          "lookupStages",
+          "maxTimeMs",
+          "allowDiskUse"
+        ],
+        "properties": {
+          "stageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stageNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tenantMatchInjected": {
+            "type": "boolean"
+          },
+          "lookupStages": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maxTimeMs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "allowDiskUse": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MongoDataAggregationResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "documents",
+          "counts",
+          "page",
+          "summary",
+          "compatibility"
+        ],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MongoDataDocument"
+            }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/MongoDataCounts"
+          },
+          "page": {
+            "$ref": "#/components/schemas/MongoDataPage"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MongoDataAggregationSummary"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/MongoDataFeatureCompatibility"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/MongoDataTraceContext"
+          }
+        }
+      },
+      "MongoDataExportManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "databaseName",
+          "collectionName",
+          "tenantScope",
+          "exportedAt"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "databaseName": {
+            "type": "string"
+          },
+          "collectionName": {
+            "type": "string"
+          },
+          "tenantScope": {
+            "$ref": "#/components/schemas/MongoDataTenantScope"
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "consistency": {
+            "type": "string",
+            "enum": [
+              "snapshot",
+              "majority",
+              "best_effort"
+            ]
+          },
+          "restoreMode": {
+            "type": "string"
+          }
+        }
+      },
+      "MongoDataImportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "mode",
+          "documents"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "insert",
+              "replace",
+              "upsert"
+            ]
+          },
+          "ordered": {
+            "type": "boolean"
+          },
+          "documents": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/MongoDataDocument"
+            }
+          },
+          "restoreManifest": {
+            "$ref": "#/components/schemas/MongoDataExportManifest"
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "maxDocuments": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxPayloadBytes": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      },
+      "MongoDataImportResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "format",
+          "mode",
+          "documentCount",
+          "ordered",
+          "validationSummary",
+          "compatibility"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "completed"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "insert",
+              "replace",
+              "upsert"
+            ]
+          },
+          "documentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ordered": {
+            "type": "boolean"
+          },
+          "validationSummary": {
+            "$ref": "#/components/schemas/MongoDataValidationSummary"
+          },
+          "bulkSummary": {
+            "$ref": "#/components/schemas/MongoDataBulkSummary"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/MongoDataFeatureCompatibility"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/MongoDataTraceContext"
+          }
+        }
+      },
+      "MongoDataExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "filter": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "projection": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "sort": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "consistency": {
+            "type": "string",
+            "enum": [
+              "snapshot",
+              "majority",
+              "best_effort"
+            ]
+          },
+          "includeRestoreManifest": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MongoDataExportResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "format",
+          "documentCount",
+          "documents",
+          "compatibility"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "json"
+            ]
+          },
+          "documentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MongoDataDocument"
+            }
+          },
+          "manifest": {
+            "$ref": "#/components/schemas/MongoDataExportManifest"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/MongoDataFeatureCompatibility"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/MongoDataTraceContext"
+          }
+        }
+      },
+      "MongoDataTransactionOperation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "collectionName"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "insert",
+              "update",
+              "replace",
+              "delete"
+            ]
+          },
+          "collectionName": {
+            "type": "string"
+          },
+          "documentId": {
+            "type": "string"
+          },
+          "filter": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "document": {
+            "$ref": "#/components/schemas/MongoDataDocument"
+          },
+          "replacement": {
+            "$ref": "#/components/schemas/MongoDataDocument"
+          },
+          "update": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "upsert": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MongoDataTransactionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operations"
+        ],
+        "properties": {
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/MongoDataTransactionOperation"
+            }
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "maxOperations": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxPayloadBytes": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxCommitTimeMs": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "readConcern": {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "majority",
+                  "snapshot"
+                ]
+              },
+              "writeConcern": {
+                "type": "string",
+                "enum": [
+                  "majority",
+                  "journaled",
+                  "w1"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "MongoDataTransactionSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationCount",
+          "collections",
+          "atomicity"
+        ],
+        "properties": {
+          "operationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "atomicity": {
+            "type": "string",
+            "enum": [
+              "all_or_nothing"
+            ]
+          },
+          "payloadBytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "MongoDataTransactionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "summary",
+          "compatibility"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "accepted"
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MongoDataTransactionSummary"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/MongoDataCounts"
+          },
+          "validationSummary": {
+            "$ref": "#/components/schemas/MongoDataValidationSummary"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/MongoDataFeatureCompatibility"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/MongoDataTraceContext"
+          }
+        }
+      },
+      "MongoDataChangeStreamRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transport"
+        ],
+        "properties": {
+          "transport": {
+            "type": "string",
+            "enum": [
+              "event_gateway"
+            ]
+          },
+          "pipeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MongoDataPipelineStage"
+            }
+          },
+          "fullDocument": {
+            "type": "string",
+            "enum": [
+              "default",
+              "whenAvailable",
+              "required",
+              "updateLookup"
+            ]
+          },
+          "fullDocumentBeforeChange": {
+            "type": "string",
+            "enum": [
+              "off",
+              "whenAvailable",
+              "required"
+            ]
+          },
+          "replayWindowSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "resumeAfter": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "startAtOperationTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MongoDataChangeStreamBridge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "available",
+          "status",
+          "transport",
+          "topicRef",
+          "channel"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable",
+              "blocked"
+            ]
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "event_gateway"
+            ]
+          },
+          "topicRef": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          }
+        }
+      },
+      "MongoDataChangeStreamSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "stageCount",
+          "stageNames",
+          "tenantMatchInjected",
+          "lookupStages",
+          "replayWindowSeconds",
+          "fullDocument"
+        ],
+        "properties": {
+          "stageCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stageNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tenantMatchInjected": {
+            "type": "boolean"
+          },
+          "lookupStages": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "replayWindowSeconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fullDocument": {
+            "type": "string"
+          }
+        }
+      },
+      "MongoDataChangeStreamResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "streamId",
+          "compatibility",
+          "bridge",
+          "summary"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "ready"
+            ]
+          },
+          "streamId": {
+            "type": "string"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/MongoDataFeatureCompatibility"
+          },
+          "bridge": {
+            "$ref": "#/components/schemas/MongoDataChangeStreamBridge"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/MongoDataChangeStreamSummary"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/MongoDataTraceContext"
+          }
+        }
+      },
+      "MongoDataApiCompatibilityMatrix": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "features"
+        ],
+        "properties": {
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MongoDataFeatureCompatibility"
+            }
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

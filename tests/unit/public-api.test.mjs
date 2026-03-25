@@ -25,7 +25,7 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
 
   assert.equal(taxonomy.release.path_version, 'v1');
   assert.equal(taxonomy.release.header_version, '2026-03-25');
-  assert.equal(taxonomy.release.openapi_semver, '1.18.0');
+  assert.equal(taxonomy.release.openapi_semver, '1.19.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/publish'));
@@ -54,6 +54,11 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/aggregations'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/imports'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/exports'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/transactions'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/change-streams'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/tenants/{tenantId}/invitations/{invitationId}/acceptance'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/tenants/{tenantId}/ownership-transfers'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/tenants/{tenantId}/permission-recalculations/{permissionRecalculationId}'));

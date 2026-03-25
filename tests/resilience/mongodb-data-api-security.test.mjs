@@ -54,3 +54,36 @@ test('mongodb data API rejects write payloads that attempt to switch tenant owne
     (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_tenant_scope_violation'
   );
 });
+
+test('mongodb data API rejects blocked aggregation stages and missing bridge support for change streams', () => {
+  assert.throws(
+    () =>
+      buildMongoDataApiPlan({
+        operation: 'aggregate',
+        workspaceId: 'ws_profiles',
+        databaseName: 'tenant_shared',
+        collectionName: 'profiles',
+        tenantId: 'ten_alpha',
+        payload: {
+          pipeline: [{ $out: 'shadow_copy' }]
+        }
+      }),
+    (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_pipeline_stage_blocked'
+  );
+
+  assert.throws(
+    () =>
+      buildMongoDataApiPlan({
+        operation: 'change_stream',
+        workspaceId: 'ws_profiles',
+        databaseName: 'tenant_shared',
+        collectionName: 'profiles',
+        tenantId: 'ten_alpha',
+        topology: { clusterTopology: 'replica_set', supportsChangeStreams: true },
+        payload: {
+          pipeline: [{ $project: { fullDocument: 1 } }]
+        }
+      }),
+    (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_capability_unavailable'
+  );
+});

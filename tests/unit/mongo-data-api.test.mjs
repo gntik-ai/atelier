@@ -25,17 +25,26 @@ import {
 } from '../../services/adapters/src/mongodb-data-api.mjs';
 
 test('mongo data API surface publishes the expected family, contracts, and route inventory', () => {
-  const summary = summarizeMongoDataApiSurface();
+  const summary = summarizeMongoDataApiSurface({
+    topology: { clusterTopology: 'replica_set', supportsTransactions: true, supportsChangeStreams: true },
+    bridge: { available: true, provider: 'event_gateway' }
+  });
 
   assert.equal(mongoDataApiFamily?.id, 'mongo');
   assert.equal(mongoDataRequestContract?.owner, 'control_api');
   assert.equal(mongoDataResultContract?.owner, 'provisioning_orchestrator');
-  assert.equal(mongoDataApiRoutes.length, 7);
+  assert.equal(mongoDataApiRoutes.length, 12);
   assert.equal(listMongoDataApiRoutes({ method: 'GET' }).length, 2);
   assert.equal(getMongoDataApiRoute('bulkWriteMongoDataDocuments')?.resourceType, 'mongo_data_bulk');
-  assert.equal(summary.routeCount, 7);
+  assert.equal(getMongoDataApiRoute('aggregateMongoDataDocuments')?.resourceType, 'mongo_data_aggregation');
+  assert.equal(getMongoDataApiRoute('executeMongoDataTransaction')?.resourceType, 'mongo_data_transaction');
+  assert.equal(summary.routeCount, 12);
   assert.equal(summary.operations.find((entry) => entry.operation === 'bulk_write')?.routeCount, 1);
+  assert.equal(summary.operations.find((entry) => entry.operation === 'aggregate')?.routeCount, 1);
+  assert.equal(summary.operations.find((entry) => entry.operation === 'change_stream')?.compatibility.supported, true);
   assert.deepEqual(summary.filterOperators.slice(0, 4), ['$eq', '$ne', '$gt', '$gte']);
+  assert.ok(summary.aggregationStages.includes('$lookup'));
+  assert.ok(summary.changeStreamStages.includes('$match'));
 });
 
 test('mongo data API normalizes nested filters, projection, sort, and cursor pagination', () => {
@@ -188,6 +197,131 @@ test('mongo data API guards tenant overrides and supports update document helper
   );
 });
 
+test('mongo data API builds aggregation, import/export, transaction, and change stream plans', () => {
+  const aggregationPlan = buildMongoDataApiPlan({
+    operation: 'aggregate',
+    workspaceId: 'ws_analytics',
+    databaseName: 'tenant_shared',
+    collectionName: 'profiles',
+    tenantId: 'ten_alpha',
+    payload: {
+      pipeline: [
+        { $match: { status: 'active' } },
+        { $group: { _id: '$status', total: { $sum: 1 } } },
+        { $limit: 10 }
+      ],
+      maxTimeMs: 5000
+    }
+  });
+  const importPlan = buildMongoDataApiPlan({
+    operation: 'import',
+    workspaceId: 'ws_analytics',
+    databaseName: 'tenant_shared',
+    collectionName: 'profiles',
+    tenantId: 'ten_alpha',
+    payload: {
+      format: 'json',
+      mode: 'upsert',
+      documents: [
+        { _id: 'doc_001', status: 'active' },
+        { _id: 'doc_002', status: 'paused' }
+      ]
+    }
+  });
+  const exportPlan = buildMongoDataApiPlan({
+    operation: 'export',
+    workspaceId: 'ws_analytics',
+    databaseName: 'tenant_shared',
+    collectionName: 'profiles',
+    tenantId: 'ten_alpha',
+    filter: { status: 'active' },
+    sort: { updatedAt: 'desc' },
+    payload: {
+      format: 'json',
+      limit: 20,
+      consistency: 'snapshot',
+      includeRestoreManifest: true
+    }
+  });
+  const transactionPlan = buildMongoDataApiPlan({
+    operation: 'transaction',
+    workspaceId: 'ws_analytics',
+    databaseName: 'tenant_shared',
+    tenantId: 'ten_alpha',
+    topology: { clusterTopology: 'replica_set', supportsTransactions: true },
+    payload: {
+      operations: [
+        {
+          kind: 'insert',
+          collectionName: 'profiles',
+          document: { _id: 'doc_003', status: 'active' }
+        },
+        {
+          kind: 'update',
+          collectionName: 'profiles',
+          documentId: 'doc_001',
+          update: { $set: { status: 'paused' } },
+          existingDocument: { _id: 'doc_001', tenantId: 'ten_alpha', status: 'active' }
+        }
+      ]
+    }
+  });
+  const changeStreamPlan = buildMongoDataApiPlan({
+    operation: 'change_stream',
+    workspaceId: 'ws_analytics',
+    databaseName: 'tenant_shared',
+    collectionName: 'profiles',
+    tenantId: 'ten_alpha',
+    topology: { clusterTopology: 'replica_set', supportsChangeStreams: true },
+    bridge: { available: true, provider: 'event_gateway' },
+    payload: {
+      transport: 'event_gateway',
+      pipeline: [{ $project: { fullDocument: 1, operationType: 1 } }],
+      replayWindowSeconds: 900
+    }
+  });
+
+  assert.equal(aggregationPlan.aggregation.summary.maxTimeMs, 5000);
+  assert.equal(aggregationPlan.aggregation.pipeline[0].$match.$and[0].tenantId, 'ten_alpha');
+  assert.equal(importPlan.transfer.direction, 'import');
+  assert.equal(importPlan.transfer.documentCount, 2);
+  assert.equal(importPlan.transfer.operationPreview[0].kind, 'replaceOne');
+  assert.equal(exportPlan.transfer.direction, 'export');
+  assert.equal(exportPlan.transfer.query.filter.$and[0].tenantId, 'ten_alpha');
+  assert.equal(transactionPlan.transaction.operationCount, 2);
+  assert.equal(transactionPlan.transaction.collections[0], 'profiles');
+  assert.equal(changeStreamPlan.changeStream.bridge.status, 'ready');
+  assert.match(changeStreamPlan.changeStream.bridge.topicRef, /^mongo\.change-stream\./);
+});
+
+test('mongo data API blocks unsupported topology- or bridge-dependent operations', () => {
+  assert.throws(
+    () =>
+      buildMongoDataApiPlan({
+        operation: 'transaction',
+        workspaceId: 'ws_analytics',
+        databaseName: 'tenant_shared',
+        tenantId: 'ten_alpha',
+        payload: { operations: [{ kind: 'delete', collectionName: 'profiles', documentId: 'doc_001' }] }
+      }),
+    (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_capability_unavailable'
+  );
+
+  assert.throws(
+    () =>
+      buildMongoDataApiPlan({
+        operation: 'change_stream',
+        workspaceId: 'ws_analytics',
+        databaseName: 'tenant_shared',
+        collectionName: 'profiles',
+        tenantId: 'ten_alpha',
+        topology: { clusterTopology: 'replica_set', supportsChangeStreams: true },
+        payload: { pipeline: [{ $project: { fullDocument: 1 } }] }
+      }),
+    (error) => error instanceof MongoDataApiError && error.code === 'mongo_data_capability_unavailable'
+  );
+});
+
 test('mongo data API normalizes provider errors and bulk limits', () => {
   const conflict = normalizeMongoDataError({ code: 11000, message: 'E11000 duplicate key error' });
   const validation = normalizeMongoDataError({ code: 121, codeName: 'DocumentValidationFailure', message: 'failed validation' });
@@ -196,5 +330,5 @@ test('mongo data API normalizes provider errors and bulk limits', () => {
   assert.equal(conflict.status, 409);
   assert.equal(validation.status, 422);
   assert.equal(generic.status, 502);
-  assert.equal(MONGO_DATA_DEFAULT_BULK_LIMITS.maxOperations > 0, true);
+  assert.equal(MONGO_DATA_DEFAULT_BULK_LIMITS.maxPayloadBytes > 0, true);
 });

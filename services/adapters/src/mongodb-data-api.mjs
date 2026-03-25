@@ -15,12 +15,46 @@ const DIRECTION_MAP = new Map([
   [1, 1],
   [-1, -1]
 ]);
+const SUPPORTED_TOPOLOGIES = Object.freeze(['replica_set', 'sharded_cluster']);
+const AGGREGATION_ALLOWED_STAGES = new Set([
+  '$match',
+  '$project',
+  '$sort',
+  '$limit',
+  '$skip',
+  '$group',
+  '$unwind',
+  '$lookup',
+  '$count',
+  '$facet',
+  '$addFields',
+  '$set',
+  '$unset',
+  '$replaceRoot',
+  '$replaceWith'
+]);
+const AGGREGATION_BLOCKED_STAGES = new Set(['$out', '$merge', '$geoNear']);
+const CHANGE_STREAM_ALLOWED_STAGES = new Set(['$match', '$project', '$addFields', '$set', '$unset', '$replaceRoot', '$replaceWith']);
+const TRANSACTION_ACTIONS = new Set(['insert', 'update', 'replace', 'delete']);
 
 export const mongodbDataAdapterPort = getAdapterPort('mongodb');
 export const mongoDataRequestContract = getContract('mongo_data_request');
 export const mongoDataResultContract = getContract('mongo_data_result');
 
-export const MONGO_DATA_API_OPERATIONS = Object.freeze(['list', 'get', 'insert', 'update', 'replace', 'delete', 'bulk_write']);
+export const MONGO_DATA_API_OPERATIONS = Object.freeze([
+  'list',
+  'get',
+  'insert',
+  'update',
+  'replace',
+  'delete',
+  'bulk_write',
+  'aggregate',
+  'import',
+  'export',
+  'transaction',
+  'change_stream'
+]);
 export const MONGO_DATA_FILTER_OPERATORS = Object.freeze([
   '$eq',
   '$ne',
@@ -39,12 +73,50 @@ export const MONGO_DATA_FILTER_OPERATORS = Object.freeze([
 export const MONGO_DATA_UPDATE_OPERATORS = Object.freeze([...ALLOWED_UPDATE_OPERATORS]);
 export const MONGO_DATA_BULK_ACTIONS = Object.freeze(['insertOne', 'updateOne', 'updateMany', 'replaceOne', 'deleteOne', 'deleteMany']);
 export const MONGO_DATA_SORT_DIRECTIONS = Object.freeze(['asc', 'desc']);
+export const MONGO_DATA_IMPORT_MODES = Object.freeze(['insert', 'replace', 'upsert']);
+export const MONGO_DATA_EXPORT_FORMATS = Object.freeze(['json']);
+export const MONGO_DATA_TRANSACTION_ACTIONS = Object.freeze([...TRANSACTION_ACTIONS]);
+export const MONGO_DATA_SUPPORTED_TOPOLOGIES = SUPPORTED_TOPOLOGIES;
+export const MONGO_DATA_AGGREGATION_STAGES = Object.freeze([...AGGREGATION_ALLOWED_STAGES]);
+export const MONGO_DATA_CHANGE_STREAM_STAGES = Object.freeze([...CHANGE_STREAM_ALLOWED_STAGES]);
 export const MONGO_DATA_DEFAULT_PAGE_SIZE = 25;
 export const MONGO_DATA_MAX_PAGE_SIZE = 100;
 export const MONGO_DATA_DEFAULT_BULK_LIMITS = Object.freeze({
   maxOperations: 100,
   maxPayloadBytes: 262144,
   ordered: true
+});
+export const MONGO_DATA_DEFAULT_AGGREGATION_LIMITS = Object.freeze({
+  maxStages: 12,
+  maxPayloadBytes: 65536,
+  maxTimeMs: 30000,
+  maxResultWindow: 1000,
+  maxSkip: 10000,
+  maxLookupStages: 1,
+  maxFacetBranches: 4,
+  maxSortKeys: 6,
+  allowDiskUse: false
+});
+export const MONGO_DATA_DEFAULT_TRANSFER_LIMITS = Object.freeze({
+  maxDocuments: 500,
+  maxPayloadBytes: 524288,
+  maxExportDocuments: 1000,
+  exportConsistency: 'snapshot',
+  ordered: true
+});
+export const MONGO_DATA_DEFAULT_TRANSACTION_LIMITS = Object.freeze({
+  maxOperations: 25,
+  maxPayloadBytes: 262144,
+  maxCommitTimeMs: 10000,
+  readConcern: 'snapshot',
+  writeConcern: 'majority'
+});
+export const MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS = Object.freeze({
+  maxStages: 6,
+  maxPayloadBytes: 16384,
+  replayWindowSeconds: 3600,
+  fullDocument: 'whenAvailable',
+  transport: 'event_gateway'
 });
 export const MONGO_DATA_API_CAPABILITIES = Object.freeze({
   list: 'mongo_data_query',
@@ -53,7 +125,12 @@ export const MONGO_DATA_API_CAPABILITIES = Object.freeze({
   update: 'mongo_data_update',
   replace: 'mongo_data_replace',
   delete: 'mongo_data_delete',
-  bulk_write: 'mongo_data_bulk_write'
+  bulk_write: 'mongo_data_bulk_write',
+  aggregate: 'mongo_data_aggregate',
+  import: 'mongo_data_import',
+  export: 'mongo_data_export',
+  transaction: 'mongo_data_transaction',
+  change_stream: 'mongo_data_change_stream'
 });
 
 export class MongoDataApiError extends Error {
@@ -117,6 +194,45 @@ function normalizeFieldPath(value, fieldName = 'fieldPath') {
   return normalized;
 }
 
+function normalizePositiveInteger(value, { fieldName, minimum = 1, maximum } = {}) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < minimum || (maximum !== undefined && numeric > maximum)) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_limit',
+      status: 400,
+      message: `${fieldName} must be an integer between ${minimum} and ${maximum ?? 'Infinity'}.`
+    });
+  }
+
+  return numeric;
+}
+
+function normalizeNonNegativeInteger(value, { fieldName, maximum } = {}) {
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < 0 || (maximum !== undefined && numeric > maximum)) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_limit',
+      status: 400,
+      message: `${fieldName} must be an integer between 0 and ${maximum ?? 'Infinity'}.`
+    });
+  }
+
+  return numeric;
+}
+
+function normalizeEnumValue(value, allowedValues, fieldName) {
+  const normalized = normalizeNonEmptyString(value, fieldName);
+  if (!allowedValues.includes(normalized)) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_option',
+      status: 400,
+      message: `${fieldName} must be one of ${allowedValues.join(', ')}.`
+    });
+  }
+
+  return normalized;
+}
+
 function pathSegments(path) {
   return normalizeFieldPath(path).split('.');
 }
@@ -126,6 +242,13 @@ function setPathValue(target, path, value) {
   let cursor = target;
   while (segments.length > 1) {
     const segment = segments.shift();
+    if (!FIELD_SEGMENT_PATTERN.test(segment)) {
+      throw new MongoDataApiError({
+        code: 'mongo_data_invalid_field_path',
+        status: 400,
+        message: `Invalid field path segment ${segment}.`
+      });
+    }
     cursor[segment] ??= {};
     if (!isPlainObject(cursor[segment])) {
       cursor[segment] = {};
@@ -246,7 +369,9 @@ function normalizeFieldFilterObject(node, fieldPath) {
 
   const containsOperator = entries.some(([key]) => key.startsWith('$'));
   if (!containsOperator) {
-    return Object.fromEntries(entries.map(([key, value]) => [normalizeFieldPath(key, `filter.${fieldPath}.${key}`), normalizeFilterScalar(value, `${fieldPath}.${key}`)]));
+    return Object.fromEntries(
+      entries.map(([key, value]) => [normalizeFieldPath(key, `filter.${fieldPath}.${key}`), normalizeFilterScalar(value, `${fieldPath}.${key}`)])
+    );
   }
 
   return Object.fromEntries(
@@ -875,13 +1000,755 @@ function validateCandidateDocument({ collectionMetadata = {}, validationContext 
   return { applied: Boolean(collectionMetadata.validationRules), violations: [] };
 }
 
-export function summarizeMongoDataApiCapabilityMatrix() {
-  return MONGO_DATA_API_OPERATIONS.map((operation) => ({
-    operation,
+function normalizeTopologyProfile(topology = {}) {
+  if (!topology || Object.keys(topology).length === 0) {
+    return {};
+  }
+
+  const clusterTopology = topology.clusterTopology ?? topology.topology;
+  return compactDefined({
+    clusterTopology: clusterTopology ? normalizeNonEmptyString(clusterTopology, 'clusterTopology') : undefined,
+    supportsTransactions:
+      topology.supportsTransactions === undefined ? undefined : Boolean(topology.supportsTransactions),
+    supportsChangeStreams:
+      topology.supportsChangeStreams === undefined ? undefined : Boolean(topology.supportsChangeStreams)
+  });
+}
+
+function normalizeBridgeProfile(bridge = {}) {
+  if (!bridge || Object.keys(bridge).length === 0) {
+    return {};
+  }
+
+  return compactDefined({
+    provider: bridge.provider ? normalizeNonEmptyString(bridge.provider, 'bridge.provider') : 'event_gateway',
+    available: bridge.available === undefined ? undefined : Boolean(bridge.available),
+    transport: bridge.transport ? normalizeNonEmptyString(bridge.transport, 'bridge.transport') : undefined,
+    reason: bridge.reason ? normalizeNonEmptyString(bridge.reason, 'bridge.reason') : undefined
+  });
+}
+
+export function resolveMongoDataCapabilityCompatibility({ operation, topology = {}, bridge = {} } = {}) {
+  const normalizedTopology = normalizeTopologyProfile(topology);
+  const normalizedBridge = normalizeBridgeProfile(bridge);
+  const requiresTopology = operation === 'transaction' || operation === 'change_stream';
+  const requiresBridge = operation === 'change_stream';
+
+  const compatibility = {
+    feature: operation,
     capability: MONGO_DATA_API_CAPABILITIES[operation],
-    filterable: operation === 'list' || operation === 'bulk_write',
-    idempotentMutation: ['insert', 'update', 'replace', 'delete', 'bulk_write'].includes(operation)
-  }));
+    supported: true,
+    status: 'available',
+    requiredTopologies: requiresTopology ? SUPPORTED_TOPOLOGIES : [],
+    clusterTopology: normalizedTopology.clusterTopology,
+    reason: undefined,
+    bridge: requiresBridge
+      ? {
+          provider: normalizedBridge.provider ?? 'event_gateway',
+          required: true,
+          available: normalizedBridge.available ?? false,
+          status: normalizedBridge.available === true ? 'ready' : 'unavailable',
+          transport: normalizedBridge.transport ?? 'event_gateway',
+          reason: normalizedBridge.reason
+        }
+      : undefined
+  };
+
+  if (requiresTopology) {
+    if (!normalizedTopology.clusterTopology) {
+      compatibility.supported = false;
+      compatibility.status = 'topology_unknown';
+      compatibility.reason = 'Cluster topology must be known before evaluating this MongoDB Data API capability.';
+      return compatibility;
+    }
+
+    if (!SUPPORTED_TOPOLOGIES.includes(normalizedTopology.clusterTopology)) {
+      compatibility.supported = false;
+      compatibility.status = 'topology_unsupported';
+      compatibility.reason = `This capability requires one of: ${SUPPORTED_TOPOLOGIES.join(', ')}.`;
+      return compatibility;
+    }
+  }
+
+  if (operation === 'transaction' && normalizedTopology.supportsTransactions === false) {
+    compatibility.supported = false;
+    compatibility.status = 'topology_unsupported';
+    compatibility.reason = 'Transactions are disabled for the current MongoDB deployment profile.';
+    return compatibility;
+  }
+
+  if (operation === 'change_stream') {
+    if (normalizedTopology.supportsChangeStreams === false) {
+      compatibility.supported = false;
+      compatibility.status = 'topology_unsupported';
+      compatibility.reason = 'Change streams are disabled for the current MongoDB deployment profile.';
+      compatibility.bridge.status = 'blocked';
+      return compatibility;
+    }
+
+    if (normalizedBridge.available !== true) {
+      compatibility.supported = false;
+      compatibility.status = 'bridge_unavailable';
+      compatibility.reason = normalizedBridge.reason ?? 'Change streams require the realtime/event gateway bridge to be available.';
+      compatibility.bridge.status = 'unavailable';
+      return compatibility;
+    }
+  }
+
+  return compatibility;
+}
+
+function assertCapabilityCompatibility(compatibility) {
+  if (compatibility.supported) {
+    return compatibility;
+  }
+
+  throw new MongoDataApiError({
+    code: 'mongo_data_capability_unavailable',
+    status: compatibility.status === 'bridge_unavailable' ? 503 : 409,
+    message: compatibility.reason ?? 'MongoDB capability is not available for the current deployment.',
+    meta: { compatibility }
+  });
+}
+
+function normalizeAggregationLimits(limits = {}, defaults = MONGO_DATA_DEFAULT_AGGREGATION_LIMITS) {
+  return {
+    maxStages: normalizePositiveInteger(limits.maxStages ?? defaults.maxStages, { fieldName: 'aggregation.maxStages' }),
+    maxPayloadBytes: normalizePositiveInteger(limits.maxPayloadBytes ?? defaults.maxPayloadBytes, { fieldName: 'aggregation.maxPayloadBytes' }),
+    maxTimeMs: normalizePositiveInteger(limits.maxTimeMs ?? defaults.maxTimeMs, { fieldName: 'aggregation.maxTimeMs' }),
+    maxResultWindow: normalizePositiveInteger(limits.maxResultWindow ?? defaults.maxResultWindow, { fieldName: 'aggregation.maxResultWindow' }),
+    maxSkip: normalizeNonNegativeInteger(limits.maxSkip ?? defaults.maxSkip, { fieldName: 'aggregation.maxSkip' }),
+    maxLookupStages: normalizeNonNegativeInteger(limits.maxLookupStages ?? defaults.maxLookupStages, { fieldName: 'aggregation.maxLookupStages' }),
+    maxFacetBranches: normalizePositiveInteger(limits.maxFacetBranches ?? defaults.maxFacetBranches, { fieldName: 'aggregation.maxFacetBranches' }),
+    maxSortKeys: normalizePositiveInteger(limits.maxSortKeys ?? defaults.maxSortKeys, { fieldName: 'aggregation.maxSortKeys' }),
+    allowDiskUse: limits.allowDiskUse ?? defaults.allowDiskUse ?? false
+  };
+}
+
+function buildTenantMatchFilter(tenantScope) {
+  const tenantMatch = {};
+  setPathValue(tenantMatch, tenantScope.fieldPath, tenantScope.value);
+  return tenantMatch;
+}
+
+function buildChangeStreamTenantMatch(tenantScope) {
+  return {
+    $or: [
+      { [`fullDocument.${tenantScope.fieldPath}`]: tenantScope.value },
+      { [`fullDocumentBeforeChange.${tenantScope.fieldPath}`]: tenantScope.value },
+      { [`updateDescription.updatedFields.${tenantScope.fieldPath}`]: tenantScope.value }
+    ]
+  };
+}
+
+function normalizePipelineStage(stage, { kind, stagePath, limits, state, tenantScope } = {}) {
+  if (!isPlainObject(stage) || Object.keys(stage).length !== 1) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_pipeline',
+      status: 400,
+      message: `${stagePath} must contain exactly one aggregation stage.`
+    });
+  }
+
+  const [stageName, stageValue] = Object.entries(stage)[0];
+  const allowedStages = kind === 'change_stream' ? CHANGE_STREAM_ALLOWED_STAGES : AGGREGATION_ALLOWED_STAGES;
+  if (AGGREGATION_BLOCKED_STAGES.has(stageName)) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_pipeline_stage_blocked',
+      status: 400,
+      message: `${stageName} is blocked for the MongoDB Data API ${kind} surface.`
+    });
+  }
+
+  if (!allowedStages.has(stageName)) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_pipeline',
+      status: 400,
+      message: `${stageName} is not supported for ${kind} pipelines.`
+    });
+  }
+
+  state.stageNames.push(stageName);
+
+  switch (stageName) {
+    case '$match':
+      return { $match: normalizeMongoDataFilter(stageValue) };
+    case '$project':
+      return { $project: normalizeMongoDataProjection(stageValue) };
+    case '$sort': {
+      const normalizedSort = normalizeMongoDataSort(stageValue);
+      if (Object.keys(normalizedSort).length > limits.maxSortKeys + 1) {
+        throw new MongoDataApiError({
+          code: 'mongo_data_pipeline_too_costly',
+          status: 400,
+          message: `${stagePath} exceeds the configured maximum number of sort keys.`
+        });
+      }
+      return { $sort: normalizedSort };
+    }
+    case '$limit': {
+      const limit = normalizePositiveInteger(stageValue, {
+        fieldName: `${stagePath}.$limit`,
+        maximum: limits.maxResultWindow
+      });
+      return { $limit: limit };
+    }
+    case '$skip': {
+      const skip = normalizeNonNegativeInteger(stageValue, {
+        fieldName: `${stagePath}.$skip`,
+        maximum: limits.maxSkip
+      });
+      return { $skip: skip };
+    }
+    case '$lookup': {
+      state.lookupStages += 1;
+      if (state.lookupStages > limits.maxLookupStages) {
+        throw new MongoDataApiError({
+          code: 'mongo_data_pipeline_too_costly',
+          status: 400,
+          message: `The aggregation pipeline exceeds the configured maximum of ${limits.maxLookupStages} $lookup stages.`
+        });
+      }
+      if (!isPlainObject(stageValue)) {
+        throw new MongoDataApiError({
+          code: 'mongo_data_invalid_pipeline',
+          status: 400,
+          message: `${stagePath}.$lookup must be an object.`
+        });
+      }
+      return { $lookup: cloneJson(stageValue) };
+    }
+    case '$facet': {
+      if (!isPlainObject(stageValue) || Object.keys(stageValue).length === 0) {
+        throw new MongoDataApiError({
+          code: 'mongo_data_invalid_pipeline',
+          status: 400,
+          message: `${stagePath}.$facet must be a non-empty object.`
+        });
+      }
+      if (Object.keys(stageValue).length > limits.maxFacetBranches) {
+        throw new MongoDataApiError({
+          code: 'mongo_data_pipeline_too_costly',
+          status: 400,
+          message: `${stagePath} exceeds the configured maximum number of facet branches.`
+        });
+      }
+      return {
+        $facet: Object.fromEntries(
+          Object.entries(stageValue).map(([facetName, facetPipeline]) => {
+            if (!Array.isArray(facetPipeline)) {
+              throw new MongoDataApiError({
+                code: 'mongo_data_invalid_pipeline',
+                status: 400,
+                message: `${stagePath}.${facetName} must be an array of pipeline stages.`
+              });
+            }
+            return [
+              facetName,
+              normalizeMongoDataPipeline(facetPipeline, {
+                kind,
+                tenantScope,
+                limits,
+                injectTenantScope: false,
+                nested: true
+              }).pipeline
+            ];
+          })
+        )
+      };
+    }
+    default:
+      if (!isPlainObject(stageValue) && !Array.isArray(stageValue) && typeof stageValue !== 'number' && typeof stageValue !== 'string') {
+        throw new MongoDataApiError({
+          code: 'mongo_data_invalid_pipeline',
+          status: 400,
+          message: `${stagePath}.${stageName} must be JSON-compatible.`
+        });
+      }
+      return { [stageName]: cloneJson(stageValue) };
+  }
+}
+
+export function normalizeMongoDataPipeline(
+  pipeline = [],
+  {
+    kind = 'aggregation',
+    tenantScope,
+    limits = MONGO_DATA_DEFAULT_AGGREGATION_LIMITS,
+    injectTenantScope = true,
+    nested = false
+  } = {}
+) {
+  if (!Array.isArray(pipeline) || pipeline.length === 0) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_pipeline',
+      status: 400,
+      message: `${kind}.pipeline must be a non-empty array.`
+    });
+  }
+
+  if (pipeline.length > limits.maxStages) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_pipeline_too_costly',
+      status: 400,
+      message: `${kind}.pipeline exceeds the configured maximum of ${limits.maxStages} stages.`
+    });
+  }
+
+  const payloadBytes = estimateMongoPayloadBytes(pipeline);
+  if (payloadBytes > limits.maxPayloadBytes) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_pipeline_too_costly',
+      status: 413,
+      message: `${kind}.pipeline exceeds the configured maximum size of ${limits.maxPayloadBytes} bytes.`
+    });
+  }
+
+  const state = {
+    lookupStages: 0,
+    stageNames: []
+  };
+  const normalizedPipeline = pipeline.map((stage, index) =>
+    normalizePipelineStage(stage, {
+      kind,
+      stagePath: `${kind}.pipeline[${index}]`,
+      limits,
+      state,
+      tenantScope
+    })
+  );
+
+  let tenantMatchInjected = false;
+  if (injectTenantScope && tenantScope) {
+    const tenantFilter = kind === 'change_stream' ? buildChangeStreamTenantMatch(tenantScope) : buildTenantMatchFilter(tenantScope);
+    if (normalizedPipeline[0]?.$match) {
+      normalizedPipeline[0] = {
+        $match: mergeFilters(tenantFilter, normalizedPipeline[0].$match)
+      };
+    } else {
+      normalizedPipeline.unshift({ $match: tenantFilter });
+    }
+    tenantMatchInjected = true;
+  }
+
+  return {
+    pipeline: normalizedPipeline,
+    payloadBytes,
+    summary: {
+      stageCount: normalizedPipeline.length,
+      stageNames: tenantMatchInjected && !nested ? ['$match', ...state.stageNames] : [...state.stageNames],
+      tenantMatchInjected,
+      lookupStages: state.lookupStages
+    }
+  };
+}
+
+function normalizeTransferLimits(limits = {}, defaults = MONGO_DATA_DEFAULT_TRANSFER_LIMITS) {
+  return {
+    maxDocuments: normalizePositiveInteger(limits.maxDocuments ?? defaults.maxDocuments, { fieldName: 'transfer.maxDocuments' }),
+    maxPayloadBytes: normalizePositiveInteger(limits.maxPayloadBytes ?? defaults.maxPayloadBytes, { fieldName: 'transfer.maxPayloadBytes' }),
+    maxExportDocuments: normalizePositiveInteger(limits.maxExportDocuments ?? defaults.maxExportDocuments, { fieldName: 'transfer.maxExportDocuments' }),
+    exportConsistency: normalizeEnumValue(limits.exportConsistency ?? defaults.exportConsistency, ['snapshot', 'majority', 'best_effort'], 'transfer.exportConsistency'),
+    ordered: limits.ordered ?? defaults.ordered ?? true
+  };
+}
+
+function normalizeMongoImportPayload({ payload = {}, tenantScope, collectionMetadata = {} }) {
+  const limits = normalizeTransferLimits(payload.limits, collectionMetadata.transferLimits);
+  const format = normalizeEnumValue(payload.format ?? 'json', MONGO_DATA_EXPORT_FORMATS, 'payload.format');
+  const mode = normalizeEnumValue(payload.mode ?? 'insert', MONGO_DATA_IMPORT_MODES, 'payload.mode');
+  const documents = payload.documents;
+
+  if (!Array.isArray(documents) || documents.length === 0) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_import',
+      status: 400,
+      message: 'payload.documents must contain at least one document for import.'
+    });
+  }
+
+  if (documents.length > limits.maxDocuments) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_transfer_limit_exceeded',
+      status: 413,
+      message: `payload.documents exceeds the configured limit of ${limits.maxDocuments}.`
+    });
+  }
+
+  const normalizedDocuments = documents.map((document, index) => {
+    const scopedDocument = injectTenantIntoDocument(normalizeWriteDocument(document, `payload.documents[${index}]`), tenantScope);
+    validateCandidateDocument({
+      collectionMetadata,
+      validationContext: { candidateDocument: scopedDocument, partial: false }
+    });
+    return scopedDocument;
+  });
+
+  if (mode !== 'insert' && normalizedDocuments.some((document) => document._id === undefined || document._id === null || document._id === '')) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_import',
+      status: 400,
+      message: 'Replace and upsert imports require every document to carry a stable _id.'
+    });
+  }
+
+  const payloadBytes = estimateMongoPayloadBytes(normalizedDocuments);
+  if (payloadBytes > limits.maxPayloadBytes) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_transfer_limit_exceeded',
+      status: 413,
+      message: `Import payload exceeds the configured limit of ${limits.maxPayloadBytes} bytes.`
+    });
+  }
+
+  const operationPreview = normalizedDocuments.map((document) => {
+    if (mode === 'insert') {
+      return { kind: 'insertOne', document };
+    }
+    return {
+      kind: 'replaceOne',
+      filter: mergeFilters(buildTenantMatchFilter(tenantScope), { _id: document._id }),
+      replacement: document,
+      upsert: mode === 'upsert'
+    };
+  });
+
+  const uniqueIndexConflicts = detectMongoRequestUniqueIndexConflicts({
+    documents: normalizedDocuments,
+    indexes: collectionMetadata.indexes ?? []
+  });
+  if (uniqueIndexConflicts.length > 0) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_conflict',
+      status: 409,
+      message: 'import payload conflicts with declared unique indexes.',
+      details: uniqueIndexConflicts.map((conflict) => `${conflict.indexName} duplicated between documents ${conflict.firstDocumentIndex} and ${conflict.conflictingDocumentIndex}.`),
+      meta: { uniqueIndexConflicts }
+    });
+  }
+
+  return {
+    format,
+    mode,
+    ordered: payload.ordered ?? limits.ordered,
+    documents: normalizedDocuments,
+    documentCount: normalizedDocuments.length,
+    payloadBytes,
+    limits,
+    restoreManifest: cloneJson(payload.restoreManifest),
+    operationPreview
+  };
+}
+
+function normalizeMongoExportPayload({ payload = {}, filter, projection, sort, page = {}, tenantScope, collectionMetadata = {} }) {
+  const limits = normalizeTransferLimits(payload.limits, collectionMetadata.transferLimits);
+  const format = normalizeEnumValue(payload.format ?? 'json', MONGO_DATA_EXPORT_FORMATS, 'payload.format');
+  const requestedLimit = payload.limit ?? page.size ?? limits.maxExportDocuments;
+  const limit = normalizePositiveInteger(requestedLimit, {
+    fieldName: 'payload.limit',
+    maximum: limits.maxExportDocuments
+  });
+  const normalizedSort = normalizeMongoDataSort(sort);
+  const normalizedProjection = normalizeMongoDataProjection(projection);
+  const { filter: scopedFilter } = applyTenantScopeToFilter({
+    filter,
+    tenantId: tenantScope.value,
+    tenantFieldPath: tenantScope.fieldPath
+  });
+
+  return {
+    format,
+    includeRestoreManifest: payload.includeRestoreManifest !== false,
+    consistency: normalizeEnumValue(payload.consistency ?? limits.exportConsistency, ['snapshot', 'majority', 'best_effort'], 'payload.consistency'),
+    limit,
+    query: {
+      filter: scopedFilter,
+      projection: normalizedProjection,
+      sort: normalizedSort,
+      limit
+    },
+    manifest: payload.includeRestoreManifest === false
+      ? undefined
+      : compactDefined({
+          format,
+          collectionName: payload.collectionName,
+          exportConsistency: payload.consistency ?? limits.exportConsistency,
+          restoreMode: 'mongo_json_documents'
+        })
+  };
+}
+
+function normalizeTransactionLimits(limits = {}, defaults = MONGO_DATA_DEFAULT_TRANSACTION_LIMITS) {
+  return {
+    maxOperations: normalizePositiveInteger(limits.maxOperations ?? defaults.maxOperations, { fieldName: 'transaction.maxOperations' }),
+    maxPayloadBytes: normalizePositiveInteger(limits.maxPayloadBytes ?? defaults.maxPayloadBytes, { fieldName: 'transaction.maxPayloadBytes' }),
+    maxCommitTimeMs: normalizePositiveInteger(limits.maxCommitTimeMs ?? defaults.maxCommitTimeMs, { fieldName: 'transaction.maxCommitTimeMs' }),
+    readConcern: normalizeEnumValue(limits.readConcern ?? defaults.readConcern, ['local', 'majority', 'snapshot'], 'transaction.readConcern'),
+    writeConcern: normalizeEnumValue(limits.writeConcern ?? defaults.writeConcern, ['majority', 'journaled', 'w1'], 'transaction.writeConcern')
+  };
+}
+
+function resolveCollectionMetadataForTransaction(collectionName, collectionMetadataByName = {}, operation = {}) {
+  if (operation.collectionMetadata) {
+    return operation.collectionMetadata;
+  }
+
+  if (collectionMetadataByName instanceof Map) {
+    return collectionMetadataByName.get(collectionName) ?? {};
+  }
+
+  return collectionMetadataByName?.[collectionName] ?? {};
+}
+
+function normalizeTransactionOperation({ operation, tenantScope, collectionMetadataByName, transactionIndex }) {
+  const kind = normalizeEnumValue(operation.kind ?? operation.action, MONGO_DATA_TRANSACTION_ACTIONS, `payload.operations[${transactionIndex}].kind`);
+  const collectionName = normalizeScopedName(operation.collectionName, `payload.operations[${transactionIndex}].collectionName`);
+  const collectionMetadata = resolveCollectionMetadataForTransaction(collectionName, collectionMetadataByName, operation);
+  const target = {
+    collectionName,
+    documentId: operation.documentId ? normalizeNonEmptyString(operation.documentId, `payload.operations[${transactionIndex}].documentId`) : undefined
+  };
+
+  switch (kind) {
+    case 'insert': {
+      const document = injectTenantIntoDocument(normalizeWriteDocument(operation.document, `payload.operations[${transactionIndex}].document`), tenantScope);
+      validateCandidateDocument({ collectionMetadata, validationContext: { candidateDocument: document, partial: false } });
+      return { kind, target, document, collectionMetadata };
+    }
+    case 'replace': {
+      const replacement = injectTenantIntoDocument(normalizeWriteDocument(operation.replacement, `payload.operations[${transactionIndex}].replacement`), tenantScope);
+      validateCandidateDocument({ collectionMetadata, validationContext: { candidateDocument: replacement, partial: false } });
+      return {
+        kind,
+        target,
+        filter: mergeFilters(
+          applyTenantScopeToFilter({ filter: operation.filter, tenantId: tenantScope.value, tenantFieldPath: tenantScope.fieldPath }).filter,
+          operation.documentId ? { _id: target.documentId } : {}
+        ),
+        replacement,
+        upsert: operation.upsert === true,
+        collectionMetadata
+      };
+    }
+    case 'update': {
+      const filter = mergeFilters(
+        applyTenantScopeToFilter({ filter: operation.filter, tenantId: tenantScope.value, tenantFieldPath: tenantScope.fieldPath }).filter,
+        operation.documentId ? { _id: target.documentId } : {}
+      );
+      const update = normalizeMongoDataUpdateDocument(operation.update);
+      const existingDocument = operation.existingDocument ? normalizeWriteDocument(operation.existingDocument, `payload.operations[${transactionIndex}].existingDocument`) : undefined;
+      const candidateDocument = existingDocument ? injectTenantIntoDocument(applyMongoDataUpdateDocument(existingDocument, update), tenantScope) : undefined;
+      validateCandidateDocument({
+        collectionMetadata,
+        validationContext: candidateDocument ? { candidateDocument, partial: false } : { partial: true }
+      });
+      return {
+        kind,
+        target,
+        filter,
+        update,
+        upsert: operation.upsert === true,
+        collectionMetadata
+      };
+    }
+    case 'delete': {
+      return {
+        kind,
+        target,
+        filter: mergeFilters(
+          applyTenantScopeToFilter({ filter: operation.filter, tenantId: tenantScope.value, tenantFieldPath: tenantScope.fieldPath }).filter,
+          operation.documentId ? { _id: target.documentId } : {}
+        ),
+        collectionMetadata
+      };
+    }
+    default:
+      throw new MongoDataApiError({
+        code: 'mongo_data_invalid_transaction',
+        status: 400,
+        message: `Unsupported transaction operation ${kind}.`
+      });
+  }
+}
+
+function normalizeMongoTransactionPayload({ payload = {}, tenantScope, collectionMetadataByName = {} }) {
+  const limits = normalizeTransactionLimits(payload.options, payload.limits);
+  const operations = payload.operations;
+  if (!Array.isArray(operations) || operations.length === 0) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_invalid_transaction',
+      status: 400,
+      message: 'payload.operations must contain at least one transactional operation.'
+    });
+  }
+
+  if (operations.length > limits.maxOperations) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_transfer_limit_exceeded',
+      status: 413,
+      message: `payload.operations exceeds the configured transaction limit of ${limits.maxOperations}.`
+    });
+  }
+
+  const normalizedOperations = operations.map((operation, transactionIndex) =>
+    normalizeTransactionOperation({
+      operation,
+      tenantScope,
+      collectionMetadataByName,
+      transactionIndex
+    })
+  );
+
+  const payloadBytes = estimateMongoPayloadBytes(normalizedOperations);
+  if (payloadBytes > limits.maxPayloadBytes) {
+    throw new MongoDataApiError({
+      code: 'mongo_data_transfer_limit_exceeded',
+      status: 413,
+      message: `Transaction payload exceeds the configured limit of ${limits.maxPayloadBytes} bytes.`
+    });
+  }
+
+  const documentsByCollection = new Map();
+  normalizedOperations.forEach((operation) => {
+    const previewDocument = operation.document ?? operation.replacement;
+    if (!previewDocument) {
+      return;
+    }
+    const current = documentsByCollection.get(operation.target.collectionName) ?? [];
+    current.push(previewDocument);
+    documentsByCollection.set(operation.target.collectionName, current);
+  });
+
+  for (const [collectionName, documents] of documentsByCollection.entries()) {
+    const collectionMetadata = resolveCollectionMetadataForTransaction(collectionName, collectionMetadataByName);
+    const uniqueIndexConflicts = detectMongoRequestUniqueIndexConflicts({
+      documents,
+      indexes: collectionMetadata.indexes ?? []
+    });
+    if (uniqueIndexConflicts.length > 0) {
+      throw new MongoDataApiError({
+        code: 'mongo_data_conflict',
+        status: 409,
+        message: `Transaction payload conflicts with declared unique indexes for ${collectionName}.`,
+        details: uniqueIndexConflicts.map((conflict) => `${collectionName}.${conflict.indexName} duplicated between operations ${conflict.firstDocumentIndex} and ${conflict.conflictingDocumentIndex}.`),
+        meta: { collectionName, uniqueIndexConflicts }
+      });
+    }
+  }
+
+  return {
+    options: limits,
+    operations: normalizedOperations,
+    operationCount: normalizedOperations.length,
+    payloadBytes,
+    collections: [...new Set(normalizedOperations.map((operation) => operation.target.collectionName))]
+  };
+}
+
+function normalizeMongoChangeStreamPayload({
+  payload = {},
+  tenantScope,
+  workspaceId,
+  databaseName,
+  collectionName,
+  bridge = {}
+}) {
+  const limits = {
+    ...MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS,
+    ...cloneJson(payload.limits ?? {})
+  };
+  const pipelineNormalization = normalizeMongoDataPipeline(payload.pipeline ?? [{ $project: { fullDocument: 1, operationType: 1 } }], {
+    kind: 'change_stream',
+    tenantScope,
+    limits: {
+      ...MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS,
+      maxStages: normalizePositiveInteger(limits.maxStages ?? MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS.maxStages, { fieldName: 'change_stream.maxStages' }),
+      maxPayloadBytes: normalizePositiveInteger(limits.maxPayloadBytes ?? MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS.maxPayloadBytes, { fieldName: 'change_stream.maxPayloadBytes' }),
+      maxLookupStages: 0,
+      maxFacetBranches: 1,
+      maxResultWindow: 100,
+      maxSkip: 0,
+      maxSortKeys: 4
+    }
+  });
+  const transport = normalizeEnumValue(payload.transport ?? bridge.transport ?? MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS.transport, ['event_gateway'], 'payload.transport');
+  const replayWindowSeconds = normalizePositiveInteger(
+    payload.replayWindowSeconds ?? MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS.replayWindowSeconds,
+    { fieldName: 'payload.replayWindowSeconds', maximum: 86400 }
+  );
+  const fullDocument = normalizeEnumValue(
+    payload.fullDocument ?? MONGO_DATA_DEFAULT_CHANGE_STREAM_LIMITS.fullDocument,
+    ['default', 'whenAvailable', 'required', 'updateLookup'],
+    'payload.fullDocument'
+  );
+  const fullDocumentBeforeChange = payload.fullDocumentBeforeChange
+    ? normalizeEnumValue(payload.fullDocumentBeforeChange, ['off', 'whenAvailable', 'required'], 'payload.fullDocumentBeforeChange')
+    : undefined;
+
+  const topicRef = `mongo.change-stream.${workspaceId}.${databaseName}.${collectionName}.${tenantScope.value}`;
+  return {
+    transport,
+    replayWindowSeconds,
+    fullDocument,
+    fullDocumentBeforeChange,
+    resumeAfter: cloneJson(payload.resumeAfter),
+    startAtOperationTime: payload.startAtOperationTime,
+    pipeline: pipelineNormalization.pipeline,
+    summary: {
+      ...pipelineNormalization.summary,
+      replayWindowSeconds,
+      fullDocument
+    },
+    bridge: {
+      provider: bridge.provider ?? 'event_gateway',
+      available: bridge.available ?? false,
+      status: bridge.available === true ? 'ready' : 'unavailable',
+      transport,
+      topicRef,
+      channel: topicRef
+    }
+  };
+}
+
+function buildBasePlan({
+  operation,
+  workspaceId,
+  databaseName,
+  collectionName,
+  documentId,
+  tenantScope,
+  trace,
+  compatibility
+}) {
+  return {
+    adapterId: mongodbDataAdapterPort?.id ?? 'mongodb',
+    capability: MONGO_DATA_API_CAPABILITIES[operation],
+    operation,
+    target: {
+      workspaceId,
+      databaseName,
+      collectionName,
+      documentId
+    },
+    tenantScope,
+    trace,
+    compatibility
+  };
+}
+
+export function summarizeMongoDataApiCapabilityMatrix({ topology = {}, bridge = {} } = {}) {
+  return MONGO_DATA_API_OPERATIONS.map((operation) => {
+    const compatibility = resolveMongoDataCapabilityCompatibility({ operation, topology, bridge });
+    return {
+      operation,
+      capability: MONGO_DATA_API_CAPABILITIES[operation],
+      filterable: ['list', 'bulk_write', 'aggregate', 'export', 'transaction'].includes(operation),
+      idempotentMutation: ['insert', 'update', 'replace', 'delete', 'bulk_write', 'import', 'transaction', 'change_stream'].includes(operation),
+      topologyDependent: ['transaction', 'change_stream'].includes(operation),
+      bridgeDependent: operation === 'change_stream',
+      compatibility
+    };
+  });
 }
 
 export function normalizeMongoDataError(error, context = {}) {
@@ -904,6 +1771,26 @@ export function normalizeMongoDataError(error, context = {}) {
       code: 'mongo_data_validation_failed',
       status: 422,
       message: 'MongoDB collection validation rejected the document payload.',
+      details: [error.message],
+      meta: context
+    });
+  }
+
+  if (/Transaction numbers are only allowed|replica set member or mongos|cannot run a transaction/i.test(error?.message ?? '')) {
+    return new MongoDataApiError({
+      code: 'mongo_data_capability_unavailable',
+      status: 409,
+      message: 'MongoDB transactions are not available for the current deployment topology.',
+      details: [error.message],
+      meta: context
+    });
+  }
+
+  if (/change streams are not supported|The \$changeStream stage is only supported/i.test(error?.message ?? '')) {
+    return new MongoDataApiError({
+      code: 'mongo_data_capability_unavailable',
+      status: 409,
+      message: 'MongoDB change streams are not available for the current deployment topology.',
       details: [error.message],
       meta: context
     });
@@ -942,12 +1829,15 @@ export function buildMongoDataApiPlan({
   page = {},
   payload = {},
   collectionMetadata = {},
+  collectionMetadataByName = {},
   effectiveRoleName,
   correlationId,
   originSurface,
   actorId,
   requestedAt,
-  idempotencyKey
+  idempotencyKey,
+  topology = {},
+  bridge = {}
 }) {
   if (!MONGO_DATA_API_OPERATIONS.includes(operation)) {
     throw new MongoDataApiError({
@@ -959,7 +1849,7 @@ export function buildMongoDataApiPlan({
 
   const normalizedWorkspaceId = normalizeNonEmptyString(workspaceId, 'workspaceId');
   const normalizedDatabaseName = normalizeScopedName(databaseName, 'databaseName');
-  const normalizedCollectionName = normalizeScopedName(collectionName, 'collectionName');
+  const normalizedCollectionName = collectionName ? normalizeScopedName(collectionName, 'collectionName') : undefined;
   const normalizedSort = normalizeMongoDataSort(sort);
   const normalizedProjection = normalizeMongoDataProjection(projection);
   const cursor = parseMongoDataCursor(page.after);
@@ -967,6 +1857,7 @@ export function buildMongoDataApiPlan({
   const { tenantScope, filter: scopedFilter } = applyTenantScopeToFilter({ filter, tenantId, tenantFieldPath });
   const cursorPredicate = buildMongoCursorPredicate(normalizedSort, cursor);
   const queryFilter = cursorPredicate ? mergeFilters(scopedFilter, cursorPredicate) : scopedFilter;
+  const compatibility = resolveMongoDataCapabilityCompatibility({ operation, topology, bridge });
   const trace = compactDefined({
     correlationId,
     originSurface,
@@ -977,19 +1868,16 @@ export function buildMongoDataApiPlan({
     contractVersion: mongoDataRequestContract?.version
   });
 
-  const basePlan = {
-    adapterId: mongodbDataAdapterPort?.id ?? 'mongodb',
-    capability: MONGO_DATA_API_CAPABILITIES[operation],
+  const basePlan = buildBasePlan({
     operation,
-    target: {
-      workspaceId: normalizedWorkspaceId,
-      databaseName: normalizedDatabaseName,
-      collectionName: normalizedCollectionName,
-      documentId: documentId ? normalizeNonEmptyString(documentId, 'documentId') : undefined
-    },
+    workspaceId: normalizedWorkspaceId,
+    databaseName: normalizedDatabaseName,
+    collectionName: normalizedCollectionName,
+    documentId: documentId ? normalizeNonEmptyString(documentId, 'documentId') : undefined,
     tenantScope,
-    trace
-  };
+    trace,
+    compatibility
+  });
 
   if (operation === 'list') {
     return {
@@ -1140,6 +2028,102 @@ export function buildMongoDataApiPlan({
         payloadBytes,
         operations
       }
+    };
+  }
+
+  if (operation === 'aggregate') {
+    const limits = normalizeAggregationLimits(payload.limits, collectionMetadata.aggregationLimits);
+    const pipelineNormalization = normalizeMongoDataPipeline(payload.pipeline, {
+      kind: 'aggregation',
+      tenantScope,
+      limits,
+      injectTenantScope: true
+    });
+
+    return {
+      ...basePlan,
+      aggregation: {
+        pipeline: pipelineNormalization.pipeline,
+        summary: {
+          ...pipelineNormalization.summary,
+          maxTimeMs: normalizePositiveInteger(payload.maxTimeMs ?? limits.maxTimeMs, {
+            fieldName: 'payload.maxTimeMs',
+            maximum: limits.maxTimeMs
+          }),
+          allowDiskUse: payload.allowDiskUse ?? limits.allowDiskUse
+        },
+        query: {
+          projection: normalizedProjection,
+          sort: normalizedSort,
+          page: compactDefined({ size: pageSize, after: cursor })
+        }
+      }
+    };
+  }
+
+  if (operation === 'import') {
+    const transfer = normalizeMongoImportPayload({ payload, tenantScope, collectionMetadata });
+    return {
+      ...basePlan,
+      transfer: {
+        direction: 'import',
+        ...transfer
+      }
+    };
+  }
+
+  if (operation === 'export') {
+    const transfer = normalizeMongoExportPayload({
+      payload,
+      filter,
+      projection,
+      sort,
+      page,
+      tenantScope,
+      collectionMetadata
+    });
+    return {
+      ...basePlan,
+      transfer: {
+        direction: 'export',
+        ...transfer
+      }
+    };
+  }
+
+  if (operation === 'transaction') {
+    assertCapabilityCompatibility(compatibility);
+    const transaction = normalizeMongoTransactionPayload({
+      payload,
+      tenantScope,
+      collectionMetadataByName
+    });
+    return {
+      ...basePlan,
+      transaction
+    };
+  }
+
+  if (operation === 'change_stream') {
+    assertCapabilityCompatibility(compatibility);
+    if (!normalizedCollectionName) {
+      throw new MongoDataApiError({
+        code: 'mongo_data_invalid_identifier',
+        status: 400,
+        message: 'collectionName is required for change_stream operations.'
+      });
+    }
+    const normalizedBridge = normalizeBridgeProfile(bridge);
+    return {
+      ...basePlan,
+      changeStream: normalizeMongoChangeStreamPayload({
+        payload,
+        tenantScope,
+        workspaceId: normalizedWorkspaceId,
+        databaseName: normalizedDatabaseName,
+        collectionName: normalizedCollectionName,
+        bridge: normalizedBridge
+      })
     };
   }
 

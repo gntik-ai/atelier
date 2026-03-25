@@ -128,6 +128,7 @@ test('mongo public routes publish normalized family metadata, inventory, and str
   assert.ok(document.components.schemas.MongoAdminInventory.properties.templateRefs);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.credentialPosture);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.auditCoverage);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.dataApiCompatibility);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.inventoryRef);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.segregationModel);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.auditSummary);

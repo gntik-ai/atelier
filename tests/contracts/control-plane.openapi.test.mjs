@@ -195,7 +195,7 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.18.0');
+  assert.equal(document.info.version, '1.19.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-25');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',

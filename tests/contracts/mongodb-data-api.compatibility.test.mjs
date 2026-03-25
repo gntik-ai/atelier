@@ -27,6 +27,11 @@ test('mongo data API service contracts and adapter capability baseline are publi
   assert.ok(mongoDataRequest.required_fields.includes('page'));
   assert.ok(mongoDataRequest.required_fields.includes('bulk_limits'));
   assert.ok(mongoDataRequest.required_fields.includes('collection_validation'));
+  assert.ok(mongoDataRequest.required_fields.includes('aggregation'));
+  assert.ok(mongoDataRequest.required_fields.includes('transfer'));
+  assert.ok(mongoDataRequest.required_fields.includes('transaction'));
+  assert.ok(mongoDataRequest.required_fields.includes('change_stream'));
+  assert.ok(mongoDataRequest.required_fields.includes('capability_compatibility'));
   assert.ok(mongoDataRequest.required_fields.includes('trace_context'));
   assert.ok(mongoDataResult.required_fields.includes('documents'));
   assert.ok(mongoDataResult.required_fields.includes('counts'));
@@ -34,6 +39,11 @@ test('mongo data API service contracts and adapter capability baseline are publi
   assert.ok(mongoDataResult.required_fields.includes('tenant_scope'));
   assert.ok(mongoDataResult.required_fields.includes('bulk_summary'));
   assert.ok(mongoDataResult.required_fields.includes('validation_summary'));
+  assert.ok(mongoDataResult.required_fields.includes('aggregation_summary'));
+  assert.ok(mongoDataResult.required_fields.includes('transfer_summary'));
+  assert.ok(mongoDataResult.required_fields.includes('transaction_summary'));
+  assert.ok(mongoDataResult.required_fields.includes('change_stream'));
+  assert.ok(mongoDataResult.required_fields.includes('capability_compatibility'));
   assert.ok(mongoDataResult.required_fields.includes('trace_context'));
   assert.ok(mongoDataResult.required_fields.includes('audit_record_id'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_query'));
@@ -42,9 +52,14 @@ test('mongo data API service contracts and adapter capability baseline are publi
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_replace'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_delete'));
   assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_bulk_write'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_aggregate'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_import'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_export'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_transaction'));
+  assert.ok(mongodbDataAdapterPort.capabilities.includes('mongo_data_change_stream'));
 });
 
-test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped document metadata', () => {
+test('mongo data API public routes publish CRUD/query, transfer, transaction, and topology-aware change-stream metadata', () => {
   const document = readJson(OPENAPI_PATH);
   const listDocumentsRoute = getPublicRoute('listMongoDataDocuments');
   const createDocumentRoute = getPublicRoute('createMongoDataDocument');
@@ -53,6 +68,11 @@ test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped d
   const replaceDocumentRoute = getPublicRoute('replaceMongoDataDocument');
   const deleteDocumentRoute = getPublicRoute('deleteMongoDataDocument');
   const bulkWriteRoute = getPublicRoute('bulkWriteMongoDataDocuments');
+  const aggregateRoute = getPublicRoute('aggregateMongoDataDocuments');
+  const importRoute = getPublicRoute('importMongoDataDocuments');
+  const exportRoute = getPublicRoute('exportMongoDataDocuments');
+  const transactionRoute = getPublicRoute('executeMongoDataTransaction');
+  const changeStreamRoute = getPublicRoute('createMongoDataChangeStream');
 
   const listOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents'].get;
   const createOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents'].post;
@@ -60,12 +80,22 @@ test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped d
   const updateOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}'].patch;
   const replaceOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}'].put;
   const bulkOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write'].post;
+  const aggregateOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/aggregations'].post;
+  const importOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/imports'].post;
+  const exportOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/exports'].post;
+  const transactionOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/transactions'].post;
+  const changeStreamOperation = document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/change-streams'].post;
   const listParameters = resolveParameters(document, listOperation);
   const createParameters = resolveParameters(document, createOperation);
   const getParameters = resolveParameters(document, getOperation);
   const updateParameters = resolveParameters(document, updateOperation);
   const replaceParameters = resolveParameters(document, replaceOperation);
   const bulkParameters = resolveParameters(document, bulkOperation);
+  const aggregateParameters = resolveParameters(document, aggregateOperation);
+  const importParameters = resolveParameters(document, importOperation);
+  const exportParameters = resolveParameters(document, exportOperation);
+  const transactionParameters = resolveParameters(document, transactionOperation);
+  const changeStreamParameters = resolveParameters(document, changeStreamOperation);
 
   assert.equal(listDocumentsRoute.family, 'mongo');
   assert.equal(listDocumentsRoute.resourceType, 'mongo_data_documents');
@@ -78,6 +108,14 @@ test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped d
   assert.equal(deleteDocumentRoute.supportsIdempotencyKey, true);
   assert.equal(bulkWriteRoute.resourceType, 'mongo_data_bulk');
   assert.equal(bulkWriteRoute.supportsIdempotencyKey, true);
+  assert.equal(aggregateRoute.resourceType, 'mongo_data_aggregation');
+  assert.equal(importRoute.resourceType, 'mongo_data_import');
+  assert.equal(importRoute.supportsIdempotencyKey, true);
+  assert.equal(exportRoute.resourceType, 'mongo_data_export');
+  assert.equal(transactionRoute.resourceType, 'mongo_data_transaction');
+  assert.equal(transactionRoute.supportsIdempotencyKey, true);
+  assert.equal(changeStreamRoute.resourceType, 'mongo_data_change_stream');
+  assert.equal(changeStreamRoute.supportsIdempotencyKey, true);
 
   assert.equal(listOperation['x-resource-type'], 'mongo_data_documents');
   assert.equal(createOperation['x-resource-type'], 'mongo_data_documents');
@@ -85,6 +123,11 @@ test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped d
   assert.equal(updateOperation['x-resource-type'], 'mongo_data_document');
   assert.equal(replaceOperation['x-resource-type'], 'mongo_data_document');
   assert.equal(bulkOperation['x-resource-type'], 'mongo_data_bulk');
+  assert.equal(aggregateOperation['x-resource-type'], 'mongo_data_aggregation');
+  assert.equal(importOperation['x-resource-type'], 'mongo_data_import');
+  assert.equal(exportOperation['x-resource-type'], 'mongo_data_export');
+  assert.equal(transactionOperation['x-resource-type'], 'mongo_data_transaction');
+  assert.equal(changeStreamOperation['x-resource-type'], 'mongo_data_change_stream');
 
   assert.equal(listParameters.some((parameter) => parameter.name === 'filter'), true);
   assert.equal(listParameters.some((parameter) => parameter.name === 'projection'), true);
@@ -95,6 +138,11 @@ test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped d
   assert.equal(updateParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.equal(replaceParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
   assert.equal(bulkParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(aggregateParameters.some((parameter) => parameter.name === 'collectionName'), true);
+  assert.equal(importParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(exportParameters.some((parameter) => parameter.name === 'collectionName'), true);
+  assert.equal(transactionParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(changeStreamParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
 
   assert.ok(document.components.schemas.MongoDataDocumentCollection);
   assert.ok(document.components.schemas.MongoDataDocumentEnvelope);
@@ -108,4 +156,15 @@ test('mongo data API public routes publish CRUD/query, bulk, and tenant-scoped d
   assert.ok(document.components.schemas.MongoDataTenantScope);
   assert.ok(document.components.schemas.MongoDataValidationSummary);
   assert.ok(document.components.schemas.MongoDataTraceContext);
+  assert.ok(document.components.schemas.MongoDataFeatureCompatibility);
+  assert.ok(document.components.schemas.MongoDataAggregationRequest);
+  assert.ok(document.components.schemas.MongoDataAggregationResult);
+  assert.ok(document.components.schemas.MongoDataImportRequest);
+  assert.ok(document.components.schemas.MongoDataImportResult);
+  assert.ok(document.components.schemas.MongoDataExportRequest);
+  assert.ok(document.components.schemas.MongoDataExportResult);
+  assert.ok(document.components.schemas.MongoDataTransactionRequest);
+  assert.ok(document.components.schemas.MongoDataTransactionResult);
+  assert.ok(document.components.schemas.MongoDataChangeStreamRequest);
+  assert.ok(document.components.schemas.MongoDataChangeStreamResult);
 });
