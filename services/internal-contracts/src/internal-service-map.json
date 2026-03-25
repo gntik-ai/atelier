@@ -400,6 +400,22 @@
         "mongo_collection_create",
         "mongo_collection_update",
         "mongo_collection_delete",
+        "mongo_index_list",
+        "mongo_index_get",
+        "mongo_index_create",
+        "mongo_index_update",
+        "mongo_index_delete",
+        "mongo_index_rebuild",
+        "mongo_view_list",
+        "mongo_view_get",
+        "mongo_view_create",
+        "mongo_view_update",
+        "mongo_view_delete",
+        "mongo_template_list",
+        "mongo_template_get",
+        "mongo_template_create",
+        "mongo_template_update",
+        "mongo_template_delete",
         "mongo_user_list",
         "mongo_user_get",
         "mongo_user_create",
@@ -1091,7 +1107,7 @@
     },
     "mongo_admin_request": {
       "owner": "control_api",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "command_id",
         "request_id",
@@ -1103,6 +1119,7 @@
         "target_ref",
         "isolation_mode",
         "cluster_topology",
+        "segregation_model",
         "deployment_profile_id",
         "payload",
         "provider_version",
@@ -1119,8 +1136,8 @@
         "target_tenant_id",
         "target_workspace_id"
       ],
-      "idempotency": "MongoDB admin mutations coalesce by target_ref, isolation_mode, cluster_topology, action, and idempotency_key so safe retries do not duplicate structural engine changes or inventory writes.",
-      "versioning": "The BaaS MongoDB administrative request envelope stays stable while provider payloads, topology support, and isolation profiles evolve inside the compatibility matrix.",
+      "idempotency": "MongoDB admin mutations coalesce by target_ref, isolation_mode, segregation_model, cluster_topology, action, and idempotency_key so safe retries do not duplicate structural engine changes, template application, index rebuilds, or inventory writes.",
+      "versioning": "The BaaS MongoDB administrative request envelope stays stable while provider payloads, topology support, segregation models, and structural metadata expand inside the compatibility matrix.",
       "error_classes": [
         "validation_error",
         "conflict",
@@ -1132,7 +1149,7 @@
     },
     "mongo_admin_result": {
       "owner": "provisioning_orchestrator",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "request_id",
         "resource_kind",
@@ -1146,12 +1163,13 @@
         "contract_version",
         "observed_at",
         "audit_record_id",
+        "segregation_model",
         "minimum_engine_policy",
         "risk_profile",
         "audit_summary"
       ],
-      "idempotency": "Repeated reads of the same MongoDB admin result describe one logical structural change and one inventory projection update.",
-      "versioning": "Result contracts expose normalized, secret-free MongoDB resource shapes while topology and inventory metadata expand additively.",
+      "idempotency": "Repeated reads of the same MongoDB admin result describe one logical structural change, one inventory projection update, and one segregation-aware audit outcome.",
+      "versioning": "Result contracts expose normalized, secret-free MongoDB resource shapes while topology, segregation, metadata, and template coverage expand additively.",
       "error_classes": [
         "not_found",
         "conflict",
@@ -1164,13 +1182,14 @@
     },
     "mongo_inventory_snapshot": {
       "owner": "provisioning_orchestrator",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "snapshot_id",
         "tenant_id",
         "workspace_id",
         "isolation_mode",
         "cluster_topology",
+        "segregation_model",
         "counts",
         "quotas",
         "minimum_engine_policy",
@@ -1178,8 +1197,8 @@
         "contract_version",
         "tenant_isolation"
       ],
-      "idempotency": "Inventory refreshes for the same tenant/workspace/isolation/topology combination replace the previous durable projection instead of multiplying console-visible records.",
-      "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand without exposing unsafe engine metadata.",
+      "idempotency": "Inventory refreshes for the same tenant/workspace/isolation/topology/segregation combination replace the previous durable projection instead of multiplying console-visible records.",
+      "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand with indexes, views, quotas, templates, and collection metadata without exposing unsafe engine details.",
       "error_classes": [
         "storage_unavailable",
         "schema_validation_error"
@@ -1336,11 +1355,11 @@
       "id": "mongo_administration",
       "entry_service": "control_api",
       "steps": [
-        "control_api validates the MongoDB administrative request, resolves contextual tenant/workspace authorization, and emits one mongo_admin_request envelope with isolation metadata, idempotency, and audit linkage.",
-        "provisioning_orchestrator resolves the deployment profile, applies naming and quota guardrails for shared_cluster or dedicated_cluster mode, and translates the normalized intent into one mongodb adapter_call.",
-        "services/adapters performs database, collection, user, or role-binding operations through the bounded MongoDB administrative surface, then returns normalized secret-free resources and inventory metadata.",
+        "control_api validates the MongoDB administrative request, resolves contextual tenant/workspace authorization, and emits one mongo_admin_request envelope with isolation, segregation, idempotency, and audit linkage.",
+        "provisioning_orchestrator resolves the deployment profile, applies naming, segregation, and quota guardrails for shared_cluster or dedicated_cluster mode, and translates the normalized intent into one mongodb adapter_call.",
+        "services/adapters performs bounded database, collection, index, view, template, user, or role-binding operations through the structural MongoDB administration surface, then returns normalized secret-free resources and metadata.",
         "provisioning_orchestrator persists a mongo_inventory_snapshot so console surfaces can answer fast inventory queries without live engine enumeration for every read.",
-        "audit_module records actor, scope, target resource, isolation mode, topology, and minimum-privilege evidence without persisting raw credentials or unrestricted engine detail."
+        "audit_module records actor, scope, target resource, isolation mode, segregation model, topology, and minimum-privilege evidence without persisting raw credentials or unrestricted engine detail."
       ]
     }
   ]

@@ -46,22 +46,30 @@ export function getMongoCompatibilitySummary(context = {}) {
 
   return {
     provider: 'mongodb',
-    contractVersion: mongoAdminRequestContract?.version ?? '2026-03-24',
+    contractVersion: mongoAdminRequestContract?.version ?? '2026-03-25',
     clusterProfile: profile.clusterProfile,
     isolationMode: profile.isolationMode,
     clusterTopology: profile.clusterTopology,
+    segregationModel: profile.segregationModel,
+    supportedSegregationModels: profile.supportedSegregationModels,
     deploymentProfileId: profile.deploymentProfileId,
     quotaGuardrails: profile.quotaGuardrails,
     namingPolicy: profile.namingPolicy,
     minimumEnginePolicy: profile.minimumEnginePolicy,
     allowedRoleBindings: profile.allowedRoleBindings,
-    supportedVersions: SUPPORTED_MONGO_VERSION_RANGES.map(({ range, label, adminApiStability, topologies, isolationModes }) => ({
-      range,
-      label,
-      adminApiStability,
-      topologies,
-      isolationModes
-    }))
+    indexMutationsSupported: profile.indexMutationsSupported,
+    viewMutationsSupported: profile.viewMutationsSupported,
+    templateCatalogSupported: profile.templateCatalogSupported,
+    supportedVersions: SUPPORTED_MONGO_VERSION_RANGES.map(
+      ({ range, label, adminApiStability, topologies, isolationModes, segregationModels }) => ({
+        range,
+        label,
+        adminApiStability,
+        topologies,
+        isolationModes,
+        segregationModels
+      })
+    )
   };
 }
 

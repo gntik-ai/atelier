@@ -86,9 +86,12 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(getContract('postgres_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.ok(getContract('mongo_admin_request').required_fields.includes('isolation_mode'));
   assert.ok(getContract('mongo_admin_request').required_fields.includes('cluster_topology'));
+  assert.ok(getContract('mongo_admin_request').required_fields.includes('segregation_model'));
   assert.ok(getContract('mongo_admin_result').required_fields.includes('inventory_projection'));
   assert.ok(getContract('mongo_admin_result').required_fields.includes('minimum_engine_policy'));
+  assert.ok(getContract('mongo_admin_result').required_fields.includes('segregation_model'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('quotas'));
+  assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('segregation_model'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.equal(auditRecordContract.write_mode, 'append_only');
   assert.ok(auditRecordContract.required_fields.includes('evidence_pointer'));
@@ -142,6 +145,9 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_admin_sql_execute'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_database_create'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_collection_update'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_index_rebuild'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_view_create'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_template_update'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_user_delete'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_role_binding_assign'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_inventory_upsert'));

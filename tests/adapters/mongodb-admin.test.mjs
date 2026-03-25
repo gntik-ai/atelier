@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MONGO_ADMIN_CAPABILITY_MATRIX,
+  MONGO_ADMIN_SEGREGATION_MODELS,
   MONGO_DEDICATED_CLUSTER_ALLOWED_ROLE_BINDINGS,
   MONGO_SHARED_CLUSTER_ALLOWED_ROLE_BINDINGS,
   SUPPORTED_MONGO_VERSION_RANGES,
@@ -15,7 +16,7 @@ import {
   validateMongoAdminRequest
 } from '../../services/adapters/src/mongodb-admin.mjs';
 
-test('mongodb admin adapter exports supported versions, resource coverage, and profile guardrails', () => {
+test('mongodb admin adapter exports supported versions, structural resource coverage, and segregation-aware profile guardrails', () => {
   const sharedProfile = resolveMongoAdminProfile({
     tenantId: 'ten_01starteralpha',
     workspaceId: 'wrk_01starterdev',
@@ -26,10 +27,12 @@ test('mongodb admin adapter exports supported versions, resource coverage, and p
     workspaceId: 'wrk_01enterpriseprod',
     planId: 'pln_01enterprise',
     isolationMode: 'dedicated_cluster',
-    clusterTopology: 'sharded_cluster'
+    clusterTopology: 'sharded_cluster',
+    segregationModel: 'tenant_database'
   });
 
-  assert.deepEqual(Object.keys(MONGO_ADMIN_CAPABILITY_MATRIX), ['database', 'collection', 'user', 'role_binding']);
+  assert.deepEqual(Object.keys(MONGO_ADMIN_CAPABILITY_MATRIX), ['database', 'collection', 'index', 'view', 'template', 'user', 'role_binding']);
+  assert.deepEqual(MONGO_ADMIN_SEGREGATION_MODELS, ['workspace_database', 'tenant_database']);
   assert.equal(SUPPORTED_MONGO_VERSION_RANGES.length, 3);
   assert.equal(isMongoVersionSupported('6.0.15'), true);
   assert.equal(isMongoVersionSupported('7.0.9'), true);
@@ -37,15 +40,19 @@ test('mongodb admin adapter exports supported versions, resource coverage, and p
   assert.equal(isMongoVersionSupported('5.0.20'), false);
   assert.deepEqual(sharedProfile.allowedRoleBindings, MONGO_SHARED_CLUSTER_ALLOWED_ROLE_BINDINGS);
   assert.deepEqual(dedicatedProfile.allowedRoleBindings, MONGO_DEDICATED_CLUSTER_ALLOWED_ROLE_BINDINGS);
+  assert.equal(sharedProfile.segregationModel, 'workspace_database');
+  assert.equal(dedicatedProfile.segregationModel, 'tenant_database');
   assert.equal(dedicatedProfile.supportedClusterTopologies.includes('sharded_cluster'), true);
+  assert.equal(dedicatedProfile.supportedSegregationModels.includes('tenant_database'), true);
 });
 
-test('mongodb admin adapter normalizes databases, collections, users, and role bindings into stable BaaS-native shapes', () => {
+test('mongodb admin adapter normalizes databases, collections, indexes, views, templates, users, and role bindings into stable BaaS-native shapes', () => {
   const database = normalizeMongoAdminResource(
     'database',
     {
       databaseName: '01starterdev_app',
-      stats: { collections: 4, users: 2, documents: 3210, storageBytes: 524288 },
+      segregationModel: 'workspace_database',
+      stats: { collections: 4, views: 1, indexes: 6, users: 2, documents: 3210, storageBytes: 524288 },
       metadata: { owner: 'workspace-admin' }
     },
     {
@@ -60,15 +67,69 @@ test('mongodb admin adapter normalizes databases, collections, users, and role b
       databaseName: '01starterdev_app',
       collectionName: 'customer_profiles',
       collectionType: 'standard',
-      capped: false,
       validation: { level: 'strict', action: 'error', schemaRef: 'schema://customer-profile/v1' },
-      indexes: [{ name: 'idx_customer_email', key: { email: 1 }, unique: true }]
+      clustered: { enabled: true, key: { _id: 1 } },
+      prePostImages: { enabled: true, captureMode: 'when_available' },
+      indexes: [
+        { name: 'idx_customer_email', key: { email: 1 }, unique: true },
+        { name: 'idx_customer_expiry', key: { expiresAt: 1 }, ttlSeconds: 3600 }
+      ],
+      templateBinding: { templateId: 'CustomerProfile', version: '2026-03-25' },
+      metadataSummary: { size: { documentCount: 123, storageBytes: 4096, indexBytes: 1024 } }
     },
     {
       tenantId: 'ten_01starteralpha',
       workspaceId: 'wrk_01starterdev',
       planId: 'pln_01growth',
-      databaseName: '01starterdev_app'
+      providerVersion: '7.0.9'
+    }
+  );
+  const index = normalizeMongoAdminResource(
+    'index',
+    {
+      databaseName: '01starterdev_app',
+      collectionName: 'customer_profiles',
+      indexName: 'idx_customer_expiry',
+      key: { expiresAt: 1 },
+      ttlSeconds: 3600,
+      rebuild: { strategy: 'rolling_shadow', approvalToken: 'approve-ttl-1', maxParallelCollections: 1 },
+      metadataSummary: { lastRebuildOutcome: 'success' }
+    },
+    {
+      tenantId: 'ten_01starteralpha',
+      workspaceId: 'wrk_01starterdev',
+      planId: 'pln_01growth'
+    }
+  );
+  const view = normalizeMongoAdminResource(
+    'view',
+    {
+      databaseName: '01starterdev_app',
+      viewName: 'customer_profiles_public',
+      sourceCollectionName: 'customer_profiles',
+      pipeline: [{ $project: { email: 1, country: 1 } }]
+    },
+    {
+      tenantId: 'ten_01starteralpha',
+      workspaceId: 'wrk_01starterdev',
+      planId: 'pln_01growth'
+    }
+  );
+  const template = normalizeMongoAdminResource(
+    'template',
+    {
+      templateId: 'CustomerProfile',
+      description: 'Onboard customer profile collections with TTL and validation.',
+      defaults: {
+        validation: { level: 'strict', action: 'error', schemaRef: 'schema://customer-profile/v1' },
+        indexes: [{ name: 'idx_customer_email', key: { email: 1 }, unique: true }]
+      },
+      variables: [{ name: 'collectionSuffix', required: true }]
+    },
+    {
+      tenantId: 'ten_01starteralpha',
+      workspaceId: 'wrk_01starterdev',
+      planId: 'pln_01growth'
     }
   );
   const user = normalizeMongoAdminResource(
@@ -102,10 +163,30 @@ test('mongodb admin adapter normalizes databases, collections, users, and role b
 
   assert.equal(database.resourceType, 'mongo_database');
   assert.equal(database.stats.collectionCount, 4);
+  assert.equal(database.stats.viewCount, 1);
+  assert.equal(database.segregationModel, 'workspace_database');
   assert.equal(database.providerCompatibility.provider, 'mongodb');
+
   assert.equal(collection.resourceType, 'mongo_collection');
   assert.equal(collection.configuration.validation.schemaRef, 'schema://customer-profile/v1');
-  assert.equal(collection.indexDefinitions[0].name, 'idx_customer_email');
+  assert.equal(collection.configuration.clustered.enabled, true);
+  assert.equal(collection.configuration.prePostImages.enabled, true);
+  assert.equal(collection.indexDefinitions[1].ttlSeconds, 3600);
+  assert.equal(collection.metadataSummary.indexSummary.ttlManagedCount, 1);
+  assert.equal(collection.tenantIsolation.segregationModel, 'workspace_database');
+
+  assert.equal(index.resourceType, 'mongo_index');
+  assert.equal(index.definition.ttlSeconds, 3600);
+  assert.equal(index.rebuildPolicy.strategy, 'rolling_shadow');
+
+  assert.equal(view.resourceType, 'mongo_view');
+  assert.equal(view.metadataSummary.stageCount, 1);
+  assert.equal(view.readonly, true);
+
+  assert.equal(template.resourceType, 'mongo_collection_template');
+  assert.equal(template.defaults.indexes[0].name, 'idx_customer_email');
+  assert.equal(template.variables[0].name, 'collectionSuffix');
+
   assert.equal(user.resourceType, 'mongo_user');
   assert.equal(user.passwordBinding.secretRef, 'sec_mongo_reader');
   assert.equal(user.roleBindings[0].roleName, 'readWrite');
@@ -113,20 +194,7 @@ test('mongodb admin adapter normalizes databases, collections, users, and role b
   assert.equal(roleBinding.scope, 'collection');
 });
 
-test('mongodb admin adapter validates naming, quota, topology, and privilege guardrails before building provider calls', () => {
-  const invalidDatabase = validateMongoAdminRequest({
-    resourceKind: 'database',
-    action: 'create',
-    context: {
-      tenantId: 'ten_01starteralpha',
-      workspaceId: 'wrk_01starterdev',
-      planId: 'pln_01growth',
-      currentDatabaseCount: 3
-    },
-    payload: {
-      databaseName: 'admin'
-    }
-  });
+test('mongodb admin adapter validates bounded collection options, TTL/index rebuilds, views, templates, quotas, and privilege guardrails before building provider calls', () => {
   const invalidCollection = validateMongoAdminRequest({
     resourceKind: 'collection',
     action: 'create',
@@ -134,14 +202,64 @@ test('mongodb admin adapter validates naming, quota, topology, and privilege gua
       tenantId: 'ten_01starteralpha',
       workspaceId: 'wrk_01starterdev',
       planId: 'pln_01growth',
-      databaseName: '01starterdev_app'
+      databaseName: '01starterdev_app',
+      providerVersion: '7.0.9',
+      currentTenantCollectionCount: 96
     },
     payload: {
       databaseName: '01starterdev_app',
-      collectionName: 'system.profile',
+      collectionName: 'system_profile',
       collectionType: 'timeseries',
       capped: true,
+      timeseries: {},
+      clustered: { enabled: true },
+      prePostImages: { enabled: true },
       indexes: [{ name: 'idx_dup', key: { a: 1 } }, { name: 'idx_dup', key: { b: 1 } }]
+    }
+  });
+  const invalidIndex = validateMongoAdminRequest({
+    resourceKind: 'index',
+    action: 'rebuild',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01growthdev',
+      planId: 'pln_01growth',
+      databaseName: '01growthdev_app',
+      collectionName: 'events'
+    },
+    payload: {
+      indexName: 'idx_events_ttl',
+      rebuild: { strategy: 'foreground', maxParallelCollections: 2 }
+    }
+  });
+  const invalidView = validateMongoAdminRequest({
+    resourceKind: 'view',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01growthdev',
+      planId: 'pln_01growth',
+      databaseName: '01growthdev_app'
+    },
+    payload: {
+      viewName: 'events_unsafe',
+      sourceCollectionName: 'events',
+      pipeline: [{ $merge: { into: 'events_archive' } }]
+    }
+  });
+  const invalidTemplate = validateMongoAdminRequest({
+    resourceKind: 'template',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01growthdev',
+      planId: 'pln_01growth',
+      currentTemplateCount: 12
+    },
+    payload: {
+      templateId: '1bad-template',
+      variables: [{ name: 'suffix' }, { name: 'suffix' }],
+      defaults: { collectionType: 'timeseries', clustered: { enabled: true } }
     }
   });
   const invalidUser = validateMongoAdminRequest({
@@ -177,14 +295,27 @@ test('mongodb admin adapter validates naming, quota, topology, and privilege gua
     }
   });
 
-  assert.equal(invalidDatabase.ok, false);
-  assert.equal(invalidDatabase.violations.some((violation) => violation.includes('reserved')), true);
-  assert.equal(invalidDatabase.violations.some((violation) => violation.includes('database quota exceeded')), true);
-
   assert.equal(invalidCollection.ok, false);
-  assert.equal(invalidCollection.violations.some((violation) => violation.includes('system.* collections')), true);
-  assert.equal(invalidCollection.violations.some((violation) => violation.includes('cannot also be configured as capped')), true);
+  assert.equal(invalidCollection.violations.some((violation) => violation.includes('timeseries collections cannot also be configured as capped')), true);
+  assert.equal(invalidCollection.violations.some((violation) => violation.includes('timeseries.timeField is required')), true);
+  assert.equal(invalidCollection.violations.some((violation) => violation.includes('cannot declare clustered collection options explicitly')), true);
+  assert.equal(invalidCollection.violations.some((violation) => violation.includes('pre/post images are not supported')), true);
   assert.equal(invalidCollection.violations.some((violation) => violation.includes('unique names')), true);
+  assert.equal(invalidCollection.violations.some((violation) => violation.includes('tenant collection quota exceeded')), true);
+
+  assert.equal(invalidIndex.ok, false);
+  assert.equal(invalidIndex.violations.some((violation) => violation.includes('controlled index rebuilds require approvalToken')), true);
+  assert.equal(invalidIndex.violations.some((violation) => violation.includes('allowed values: drop_and_recreate, rolling_shadow')), true);
+  assert.equal(invalidIndex.violations.some((violation) => violation.includes('serialize one collection at a time')), true);
+
+  assert.equal(invalidView.ok, false);
+  assert.equal(invalidView.violations.some((violation) => violation.includes('not allowed through the tenant control surface')), true);
+
+  assert.equal(invalidTemplate.ok, false);
+  assert.equal(invalidTemplate.violations.some((violation) => violation.includes('templateId must start with a letter')), true);
+  assert.equal(invalidTemplate.violations.some((violation) => violation.includes('template quota exceeded')), true);
+  assert.equal(invalidTemplate.violations.some((violation) => violation.includes('variables must use unique names')), true);
+  assert.equal(invalidTemplate.violations.some((violation) => violation.includes('cannot combine time-series collections with explicit clustered options')), true);
 
   assert.equal(invalidUser.ok, false);
   assert.equal(invalidUser.violations.some((violation) => violation.includes('passwordBinding or rotatePassword')), true);
@@ -196,11 +327,11 @@ test('mongodb admin adapter validates naming, quota, topology, and privilege gua
   assert.equal(invalidRoleBinding.violations.some((violation) => violation.includes('role dbOwner is not allowed')), true);
 });
 
-test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots, and normalized dependency errors', () => {
+test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots, and normalized dependency errors for structural resources', () => {
   const adapterCall = buildMongoAdminAdapterCall({
-    resourceKind: 'user',
-    action: 'create',
-    callId: 'call_01mongousercreate',
+    resourceKind: 'index',
+    action: 'rebuild',
+    callId: 'call_01mongoindexrebuild',
     tenantId: 'ten_01enterprisealpha',
     workspaceId: 'wrk_01enterpriseprod',
     planId: 'pln_01enterprise',
@@ -214,14 +345,23 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
       planId: 'pln_01enterprise',
       isolationMode: 'dedicated_cluster',
       clusterTopology: 'sharded_cluster',
-      databaseName: '01enterpriseprod_app',
+      segregationModel: 'tenant_database',
+      databaseName: '01enterprisealpha_shared',
+      collectionName: '01enterpriseprod_customer_profiles',
       providerVersion: '8.0.0'
     },
     payload: {
-      databaseName: '01enterpriseprod_app',
-      username: '01enterpriseprod_admin',
-      passwordBinding: { mode: 'managed_secret_ref', secretRef: 'sec_mongo_admin' },
-      roleBindings: [{ roleName: 'dbOwner', databaseName: '01enterpriseprod_app' }]
+      databaseName: '01enterprisealpha_shared',
+      collectionName: '01enterpriseprod_customer_profiles',
+      indexName: 'idx_customer_expiry',
+      key: { expiresAt: 1 },
+      ttlSeconds: 3600,
+      rebuild: {
+        strategy: 'rolling_shadow',
+        approvalToken: 'approve-idx-rebuild',
+        maxParallelCollections: 1,
+        allowWritesDuringBuild: true
+      }
     },
     scopes: ['data.mongodb.admin.write'],
     effectiveRoles: ['workspace_admin']
@@ -233,43 +373,67 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
     planId: 'pln_01enterprise',
     context: {
       isolationMode: 'dedicated_cluster',
-      clusterTopology: 'sharded_cluster'
+      clusterTopology: 'sharded_cluster',
+      segregationModel: 'tenant_database'
     },
-    databases: [{ databaseName: '01enterpriseprod_app' }],
-    collections: [{ databaseName: '01enterpriseprod_app', collectionName: 'customer_profiles' }],
-    users: [{ databaseName: '01enterpriseprod_app', username: '01enterpriseprod_admin' }],
+    databases: [{ databaseName: '01enterprisealpha_shared' }],
+    collections: [
+      {
+        databaseName: '01enterprisealpha_shared',
+        collectionName: '01enterpriseprod_customer_profiles',
+        collectionType: 'standard',
+        configuration: { validation: { level: 'strict' } },
+        metadataSummary: { size: { documentCount: 42, storageBytes: 2048 } }
+      }
+    ],
+    indexes: [
+      { databaseName: '01enterprisealpha_shared', collectionName: '01enterpriseprod_customer_profiles', indexName: 'idx_customer_expiry', ttlSeconds: 3600 }
+    ],
+    views: [
+      { databaseName: '01enterprisealpha_shared', viewName: 'customer_profiles_public', sourceCollectionName: '01enterpriseprod_customer_profiles' }
+    ],
+    templates: [{ templateId: 'CustomerProfile', state: 'active' }],
+    users: [{ databaseName: '01enterprisealpha_shared', username: '01enterpriseprod_admin' }],
     roleBindings: [{ roleName: 'dbOwner' }]
   });
   const normalizedError = normalizeMongoAdminError(
     {
       classification: 'conflict',
       status: 409,
-      message: 'MongoDB user already exists.',
-      providerError: 'DuplicateUser'
+      message: 'MongoDB index already exists.',
+      providerError: 'IndexOptionsConflict'
     },
     {
-      resourceKind: 'user',
+      resourceKind: 'index',
       action: 'create',
-      targetRef: 'user:01enterpriseprod_app.01enterpriseprod_admin',
-      databaseName: '01enterpriseprod_app',
-      username: '01enterpriseprod_admin'
+      targetRef: 'index:01enterprisealpha_shared.01enterpriseprod_customer_profiles.idx_customer_expiry',
+      databaseName: '01enterprisealpha_shared',
+      collectionName: '01enterpriseprod_customer_profiles',
+      indexName: 'idx_customer_expiry'
     }
   );
 
   assert.equal(adapterCall.ok, undefined);
   assert.equal(adapterCall.adapter_id, 'mongodb');
-  assert.equal(adapterCall.capability, 'mongo_user_create');
-  assert.equal(adapterCall.payload.normalizedResource.resourceType, 'mongo_user');
+  assert.equal(adapterCall.capability, 'mongo_index_rebuild');
+  assert.equal(adapterCall.payload.normalizedResource.resourceType, 'mongo_index');
   assert.equal(adapterCall.payload.context.clusterTopology, 'sharded_cluster');
-  assert.equal(adapterCall.contract_version, '2026-03-24');
+  assert.equal(adapterCall.payload.context.segregationModel, 'tenant_database');
+  assert.equal(adapterCall.contract_version, '2026-03-25');
 
   assert.equal(inventory.counts.databases, 1);
   assert.equal(inventory.counts.collections, 1);
+  assert.equal(inventory.counts.indexes, 1);
+  assert.equal(inventory.counts.views, 1);
+  assert.equal(inventory.counts.templates, 1);
   assert.equal(inventory.clusterTopology, 'sharded_cluster');
+  assert.equal(inventory.segregationModel, 'tenant_database');
   assert.equal(inventory.minimumEnginePolicy.forbiddenBuiltinRoles.includes('root'), true);
+  assert.equal(inventory.collectionRefs[0].validationEnabled, true);
 
   assert.equal(normalizedError.status, 409);
   assert.equal(normalizedError.code, 'GW_MONGO_CONFLICT');
-  assert.equal(normalizedError.detail.resourceKind, 'user');
+  assert.equal(normalizedError.detail.resourceKind, 'index');
+  assert.equal(normalizedError.detail.indexName, 'idx_customer_expiry');
   assert.equal(normalizedError.retryable, false);
 });

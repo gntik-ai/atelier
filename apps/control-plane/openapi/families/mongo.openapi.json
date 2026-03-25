@@ -35,6 +35,30 @@
           "type": "string"
         }
       },
+      "MongoIndexName": {
+        "description": "Normalized MongoDB index name constrained by the tenant naming policy.",
+        "in": "path",
+        "name": "indexName",
+        "required": true,
+        "schema": {
+          "maxLength": 120,
+          "minLength": 3,
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{2,119}$",
+          "type": "string"
+        }
+      },
+      "MongoTemplateId": {
+        "description": "Stable MongoDB onboarding template identifier.",
+        "in": "path",
+        "name": "templateId",
+        "required": true,
+        "schema": {
+          "maxLength": 81,
+          "minLength": 3,
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{2,80}$",
+          "type": "string"
+        }
+      },
       "MongoUserName": {
         "description": "Workspace-scoped MongoDB username constrained by the tenant naming policy.",
         "in": "path",
@@ -42,6 +66,16 @@
         "required": true,
         "schema": {
           "pattern": "^[a-z0-9][a-z0-9_.-]{2,63}$",
+          "type": "string"
+        }
+      },
+      "MongoViewName": {
+        "description": "Normalized MongoDB view name constrained by the tenant naming policy.",
+        "in": "path",
+        "name": "viewName",
+        "required": true,
+        "schema": {
+          "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
           "type": "string"
         }
       },
@@ -309,8 +343,24 @@
                 "collectionName": {
                   "type": "string"
                 },
+                "collectionType": {
+                  "enum": [
+                    "standard",
+                    "timeseries"
+                  ],
+                  "type": "string"
+                },
                 "databaseName": {
                   "type": "string"
+                },
+                "size": {
+                  "$ref": "#/components/schemas/MongoCollectionSizeSummary"
+                },
+                "timeseries": {
+                  "type": "boolean"
+                },
+                "validationEnabled": {
+                  "type": "boolean"
                 }
               },
               "required": [
@@ -337,11 +387,23 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "indexes": {
+                "minimum": 0,
+                "type": "integer"
+              },
               "roleBindings": {
                 "minimum": 0,
                 "type": "integer"
               },
+              "templates": {
+                "minimum": 0,
+                "type": "integer"
+              },
               "users": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "views": {
                 "minimum": 0,
                 "type": "integer"
               }
@@ -349,6 +411,9 @@
             "required": [
               "databases",
               "collections",
+              "indexes",
+              "views",
+              "templates",
               "users",
               "roleBindings"
             ],
@@ -357,6 +422,33 @@
           "databaseRefs": {
             "items": {
               "type": "string"
+            },
+            "type": "array"
+          },
+          "indexRefs": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "collectionName": {
+                  "type": "string"
+                },
+                "databaseName": {
+                  "type": "string"
+                },
+                "indexName": {
+                  "type": "string"
+                },
+                "ttlSeconds": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "databaseName",
+                "collectionName",
+                "indexName"
+              ],
+              "type": "object"
             },
             "type": "array"
           },
@@ -378,31 +470,21 @@
             "type": "string"
           },
           "quotas": {
-            "additionalProperties": false,
-            "properties": {
-              "maxCollectionsPerDatabase": {
-                "minimum": 0,
-                "type": "integer"
-              },
-              "maxDatabasesPerWorkspace": {
-                "minimum": 0,
-                "type": "integer"
-              },
-              "maxRoleBindingsPerUser": {
-                "minimum": 0,
-                "type": "integer"
-              },
-              "maxUsersPerDatabase": {
-                "minimum": 0,
-                "type": "integer"
-              }
-            },
-            "type": "object"
+            "$ref": "#/components/schemas/MongoQuotaGuardrails"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
           },
           "snapshotId": {
             "maxLength": 160,
             "minLength": 6,
             "type": "string"
+          },
+          "supportedSegregationModels": {
+            "items": {
+              "$ref": "#/components/schemas/MongoSegregationModel"
+            },
+            "type": "array"
           },
           "supportedTopologies": {
             "items": {
@@ -411,6 +493,29 @@
                 "sharded_cluster"
               ],
               "type": "string"
+            },
+            "type": "array"
+          },
+          "templateRefs": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "state": {
+                  "enum": [
+                    "active",
+                    "retired"
+                  ],
+                  "type": "string"
+                },
+                "templateId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "templateId",
+                "state"
+              ],
+              "type": "object"
             },
             "type": "array"
           },
@@ -439,6 +544,28 @@
             },
             "type": "array"
           },
+          "viewRefs": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "databaseName": {
+                  "type": "string"
+                },
+                "sourceCollectionName": {
+                  "type": "string"
+                },
+                "viewName": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "databaseName",
+                "viewName"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "workspaceId": {
             "type": "string"
           }
@@ -449,6 +576,7 @@
           "isolationMode",
           "clusterTopology",
           "clusterProfile",
+          "segregationModel",
           "counts",
           "quotas",
           "minimumEnginePolicy",
@@ -471,7 +599,8 @@
               "update",
               "delete",
               "assign",
-              "revoke"
+              "revoke",
+              "rebuild"
             ],
             "type": "string"
           },
@@ -530,10 +659,16 @@
             "enum": [
               "database",
               "collection",
+              "index",
+              "view",
+              "template",
               "user",
               "role_binding"
             ],
             "type": "string"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
           },
           "targetRef": {
             "maxLength": 255,
@@ -548,6 +683,7 @@
           "targetRef",
           "isolationMode",
           "clusterTopology",
+          "segregationModel",
           "correlationId",
           "acceptedAt"
         ],
@@ -569,9 +705,39 @@
         },
         "type": "object"
       },
+      "MongoClusteredCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "key": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MongoShardKeyValue"
+            },
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "unique": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "MongoCollection": {
         "additionalProperties": false,
         "properties": {
+          "clusterTopology": {
+            "enum": [
+              "replica_set",
+              "sharded_cluster"
+            ],
+            "type": "string"
+          },
           "collectionName": {
             "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
             "type": "string"
@@ -596,8 +762,18 @@
             },
             "type": "array"
           },
+          "isolationMode": {
+            "enum": [
+              "shared_cluster",
+              "dedicated_cluster"
+            ],
+            "type": "string"
+          },
           "metadata": {
             "type": "object"
+          },
+          "metadataSummary": {
+            "$ref": "#/components/schemas/MongoCollectionMetadataSummary"
           },
           "providerCompatibility": {
             "$ref": "#/components/schemas/MongoProviderCompatibility"
@@ -607,6 +783,9 @@
               "mongo_collection"
             ],
             "type": "string"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
           },
           "status": {
             "enum": [
@@ -620,6 +799,9 @@
           "tenantId": {
             "type": "string"
           },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/MongoTenantIsolationProfile"
+          },
           "workspaceId": {
             "type": "string"
           }
@@ -629,6 +811,7 @@
           "databaseName",
           "collectionName",
           "collectionType",
+          "segregationModel",
           "status",
           "providerCompatibility"
         ],
@@ -659,9 +842,15 @@
           "capped": {
             "type": "boolean"
           },
+          "clustered": {
+            "$ref": "#/components/schemas/MongoClusteredCollection"
+          },
           "maxDocuments": {
             "minimum": 1,
             "type": "integer"
+          },
+          "prePostImages": {
+            "$ref": "#/components/schemas/MongoCollectionPrePostImages"
           },
           "shardKey": {
             "additionalProperties": {
@@ -672,6 +861,9 @@
           "sizeBytes": {
             "minimum": 1,
             "type": "integer"
+          },
+          "templateBinding": {
+            "$ref": "#/components/schemas/MongoCollectionTemplateBinding"
           },
           "timeseries": {
             "$ref": "#/components/schemas/MongoTimeseriesConfiguration"
@@ -684,6 +876,284 @@
             "$ref": "#/components/schemas/MongoCollectionValidationPolicy"
           }
         },
+        "type": "object"
+      },
+      "MongoCollectionMetadataSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "indexSummary": {
+            "additionalProperties": false,
+            "properties": {
+              "count": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "hiddenCount": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "ttlManagedCount": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "options": {
+            "additionalProperties": false,
+            "properties": {
+              "clustered": {
+                "type": "boolean"
+              },
+              "prePostImages": {
+                "type": "boolean"
+              },
+              "timeseries": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "size": {
+            "$ref": "#/components/schemas/MongoCollectionSizeSummary"
+          },
+          "validation": {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "enum": [
+                  "warn",
+                  "error"
+                ],
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "level": {
+                "enum": [
+                  "off",
+                  "moderate",
+                  "strict"
+                ],
+                "type": "string"
+              },
+              "schemaRef": {
+                "maxLength": 240,
+                "minLength": 3,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "MongoCollectionPrePostImages": {
+        "additionalProperties": false,
+        "properties": {
+          "captureMode": {
+            "enum": [
+              "when_available",
+              "required"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "retainForSeconds": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MongoCollectionSizeSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "avgObjectSizeBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "documentCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "indexBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storageBytes": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MongoCollectionTemplate": {
+        "additionalProperties": false,
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/MongoTemplateDefaults"
+          },
+          "description": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/MongoProviderCompatibility"
+          },
+          "resourceType": {
+            "enum": [
+              "mongo_collection_template"
+            ],
+            "type": "string"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "type": "string"
+          },
+          "templateId": {
+            "maxLength": 81,
+            "minLength": 3,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{2,80}$",
+            "type": "string"
+          },
+          "templateScope": {
+            "enum": [
+              "collection"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/MongoTemplateVariable"
+            },
+            "type": "array"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "templateId",
+          "templateScope",
+          "tenantId",
+          "workspaceId",
+          "state",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "MongoCollectionTemplateBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "appliedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "templateId": {
+            "maxLength": 81,
+            "minLength": 3,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{2,80}$",
+            "type": "string"
+          },
+          "variables": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateId"
+        ],
+        "type": "object"
+      },
+      "MongoCollectionTemplateCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MongoCollectionTemplate"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "type": "object"
+      },
+      "MongoCollectionTemplateWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/MongoTemplateDefaults"
+          },
+          "description": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "type": "string"
+          },
+          "templateId": {
+            "maxLength": 81,
+            "minLength": 3,
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{2,80}$",
+            "type": "string"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/MongoTemplateVariable"
+            },
+            "type": "array"
+          },
+          "workspaceId": {
+            "minLength": 3,
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "templateId"
+        ],
         "type": "object"
       },
       "MongoCollectionValidationPolicy": {
@@ -721,6 +1191,9 @@
           "capped": {
             "type": "boolean"
           },
+          "clustered": {
+            "$ref": "#/components/schemas/MongoClusteredCollection"
+          },
           "collectionName": {
             "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
             "type": "string"
@@ -749,6 +1222,9 @@
           "metadata": {
             "type": "object"
           },
+          "prePostImages": {
+            "$ref": "#/components/schemas/MongoCollectionPrePostImages"
+          },
           "shardKey": {
             "additionalProperties": {
               "$ref": "#/components/schemas/MongoShardKeyValue"
@@ -758,6 +1234,9 @@
           "sizeBytes": {
             "minimum": 1,
             "type": "integer"
+          },
+          "templateBinding": {
+            "$ref": "#/components/schemas/MongoCollectionTemplateBinding"
           },
           "timeseries": {
             "$ref": "#/components/schemas/MongoTimeseriesConfiguration"
@@ -819,11 +1298,17 @@
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningResourceState"
           },
+          "quotaGuardrails": {
+            "$ref": "#/components/schemas/MongoQuotaGuardrails"
+          },
           "resourceType": {
             "enum": [
               "mongo_database"
             ],
             "type": "string"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
           },
           "stats": {
             "$ref": "#/components/schemas/MongoDatabaseStats"
@@ -857,6 +1342,7 @@
           "clusterProfile",
           "isolationMode",
           "clusterTopology",
+          "segregationModel",
           "status",
           "providerCompatibility"
         ],
@@ -900,6 +1386,10 @@
             "minimum": 0,
             "type": "integer"
           },
+          "indexCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
           "scaleFactor": {
             "minimum": 1,
             "type": "integer"
@@ -909,6 +1399,10 @@
             "type": "integer"
           },
           "userCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "viewCount": {
             "minimum": 0,
             "type": "integer"
           }
@@ -929,10 +1423,97 @@
           },
           "metadata": {
             "type": "object"
+          },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
           }
         },
         "required": [
           "databaseName"
+        ],
+        "type": "object"
+      },
+      "MongoIndex": {
+        "additionalProperties": false,
+        "properties": {
+          "collectionName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "databaseName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,47}$",
+            "type": "string"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/MongoIndexDefinition"
+          },
+          "indexName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "metadataSummary": {
+            "$ref": "#/components/schemas/MongoIndexMetadataSummary"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/MongoProviderCompatibility"
+          },
+          "rebuildPolicy": {
+            "$ref": "#/components/schemas/MongoIndexRebuildPolicy"
+          },
+          "resourceType": {
+            "enum": [
+              "mongo_index"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "pending",
+              "rebuilding",
+              "deleting",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "databaseName",
+          "collectionName",
+          "indexName",
+          "status",
+          "definition",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "MongoIndexCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MongoIndex"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
         ],
         "type": "object"
       },
@@ -942,16 +1523,25 @@
           "collation": {
             "type": "object"
           },
+          "hidden": {
+            "type": "boolean"
+          },
           "key": {
             "additionalProperties": {
               "$ref": "#/components/schemas/MongoShardKeyValue"
             },
             "type": "object"
           },
+          "metadata": {
+            "type": "object"
+          },
           "name": {
             "maxLength": 120,
             "minLength": 3,
             "type": "string"
+          },
+          "partialFilterExpression": {
+            "type": "object"
           },
           "sparse": {
             "type": "boolean"
@@ -966,6 +1556,156 @@
         },
         "required": [
           "name",
+          "key"
+        ],
+        "type": "object"
+      },
+      "MongoIndexMetadataSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "lastRebuildAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastRebuildOutcome": {
+            "enum": [
+              "success",
+              "failed",
+              "pending"
+            ],
+            "type": "string"
+          },
+          "size": {
+            "$ref": "#/components/schemas/MongoCollectionSizeSummary"
+          },
+          "usageSince": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MongoIndexRebuildPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "allowWritesDuringBuild": {
+            "type": "boolean"
+          },
+          "approvalToken": {
+            "maxLength": 128,
+            "minLength": 6,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "maxParallelCollections": {
+            "maximum": 1,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "strategy": {
+            "enum": [
+              "drop_and_recreate",
+              "rolling_shadow"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MongoIndexRebuildRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "allowWritesDuringBuild": {
+            "type": "boolean"
+          },
+          "approvalToken": {
+            "maxLength": 128,
+            "minLength": 6,
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean"
+          },
+          "maxParallelCollections": {
+            "maximum": 1,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "strategy": {
+            "enum": [
+              "drop_and_recreate",
+              "rolling_shadow"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "approvalToken"
+        ],
+        "type": "object"
+      },
+      "MongoIndexWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "collation": {
+            "type": "object"
+          },
+          "collectionName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "databaseName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,47}$",
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "indexName": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "key": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MongoShardKeyValue"
+            },
+            "type": "object"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "partialFilterExpression": {
+            "type": "object"
+          },
+          "rebuildPolicy": {
+            "$ref": "#/components/schemas/MongoIndexRebuildPolicy"
+          },
+          "sparse": {
+            "type": "boolean"
+          },
+          "ttlSeconds": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "unique": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "indexName",
           "key"
         ],
         "type": "object"
@@ -1028,6 +1768,9 @@
       "MongoProviderCompatibility": {
         "additionalProperties": false,
         "properties": {
+          "activeSegregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
+          },
           "contractVersion": {
             "maxLength": 32,
             "minLength": 8,
@@ -1046,6 +1789,12 @@
                 "dedicated_cluster"
               ],
               "type": "string"
+            },
+            "type": "array"
+          },
+          "supportedSegregationModels": {
+            "items": {
+              "$ref": "#/components/schemas/MongoSegregationModel"
             },
             "type": "array"
           },
@@ -1073,6 +1822,48 @@
           "supportedTopologies",
           "supportedIsolationModes"
         ],
+        "type": "object"
+      },
+      "MongoQuotaGuardrails": {
+        "additionalProperties": false,
+        "properties": {
+          "maxCollectionsPerDatabase": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxCollectionsPerTenant": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxDatabasesPerTenant": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxDatabasesPerWorkspace": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxIndexesPerCollection": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxRoleBindingsPerUser": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxTemplatesPerWorkspace": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxUsersPerDatabase": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxViewsPerDatabase": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "MongoRoleBinding": {
@@ -1147,6 +1938,13 @@
         ],
         "type": "object"
       },
+      "MongoSegregationModel": {
+        "enum": [
+          "workspace_database",
+          "tenant_database"
+        ],
+        "type": "string"
+      },
       "MongoShardKeyValue": {
         "oneOf": [
           {
@@ -1164,9 +1962,94 @@
           }
         ]
       },
+      "MongoTemplateDefaults": {
+        "additionalProperties": false,
+        "properties": {
+          "capped": {
+            "type": "boolean"
+          },
+          "clustered": {
+            "$ref": "#/components/schemas/MongoClusteredCollection"
+          },
+          "collectionType": {
+            "enum": [
+              "standard",
+              "timeseries"
+            ],
+            "type": "string"
+          },
+          "indexes": {
+            "items": {
+              "$ref": "#/components/schemas/MongoIndexDefinition"
+            },
+            "type": "array"
+          },
+          "maxDocuments": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "prePostImages": {
+            "$ref": "#/components/schemas/MongoCollectionPrePostImages"
+          },
+          "shardKey": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MongoShardKeyValue"
+            },
+            "type": "object"
+          },
+          "sizeBytes": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "timeseries": {
+            "$ref": "#/components/schemas/MongoTimeseriesConfiguration"
+          },
+          "ttlSeconds": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "validation": {
+            "$ref": "#/components/schemas/MongoCollectionValidationPolicy"
+          }
+        },
+        "type": "object"
+      },
+      "MongoTemplateVariable": {
+        "additionalProperties": false,
+        "properties": {
+          "defaultValue": {},
+          "description": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "MongoTenantIsolationProfile": {
         "additionalProperties": false,
         "properties": {
+          "collectionPrefix": {
+            "maxLength": 64,
+            "minLength": 2,
+            "type": "string"
+          },
+          "databasePrefix": {
+            "maxLength": 64,
+            "minLength": 2,
+            "type": "string"
+          },
           "isolationMode": {
             "enum": [
               "shared_cluster",
@@ -1185,6 +2068,9 @@
             },
             "type": "array"
           },
+          "segregationModel": {
+            "$ref": "#/components/schemas/MongoSegregationModel"
+          },
           "sharedClusterRoleCap": {
             "items": {
               "type": "string"
@@ -1194,13 +2080,18 @@
         },
         "required": [
           "isolationMode",
-          "ownedNamePrefix"
+          "ownedNamePrefix",
+          "segregationModel"
         ],
         "type": "object"
       },
       "MongoTimeseriesConfiguration": {
         "additionalProperties": false,
         "properties": {
+          "expireAfterSeconds": {
+            "minimum": 1,
+            "type": "integer"
+          },
           "granularity": {
             "enum": [
               "seconds",
@@ -1377,6 +2268,155 @@
         },
         "required": [
           "username"
+        ],
+        "type": "object"
+      },
+      "MongoView": {
+        "additionalProperties": false,
+        "properties": {
+          "collation": {
+            "type": "object"
+          },
+          "databaseName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,47}$",
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "metadataSummary": {
+            "$ref": "#/components/schemas/MongoViewMetadataSummary"
+          },
+          "pipeline": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/MongoProviderCompatibility"
+          },
+          "readonly": {
+            "type": "boolean"
+          },
+          "resourceType": {
+            "enum": [
+              "mongo_view"
+            ],
+            "type": "string"
+          },
+          "sourceCollectionName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "pending",
+              "deleting",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "viewName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "databaseName",
+          "viewName",
+          "sourceCollectionName",
+          "pipeline",
+          "status",
+          "providerCompatibility"
+        ],
+        "type": "object"
+      },
+      "MongoViewCollection": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MongoView"
+            },
+            "type": "array"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "type": "object"
+      },
+      "MongoViewMetadataSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "readonly": {
+            "type": "boolean"
+          },
+          "size": {
+            "$ref": "#/components/schemas/MongoCollectionSizeSummary"
+          },
+          "sourceKinds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "stageCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "MongoViewWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "collation": {
+            "type": "object"
+          },
+          "databaseName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,47}$",
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "pipeline": {
+            "items": {
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "readonly": {
+            "type": "boolean"
+          },
+          "sourceCollectionName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
+            "type": "string"
+          },
+          "viewName": {
+            "pattern": "^[a-z0-9][a-z0-9_]{2,63}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "viewName",
+          "sourceCollectionName",
+          "pipeline"
         ],
         "type": "object"
       },
@@ -2828,6 +3868,934 @@
         "x-visibility": "public"
       }
     },
+    "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes": {
+      "get": {
+        "operationId": "listMongoIndexes",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoIndexCollection"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List normalized MongoDB indexes for one managed collection",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_index",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createMongoIndex",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoIndexWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB index mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one MongoDB index with bounded TTL, partial filter, and rebuild metadata",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_index",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}": {
+      "delete": {
+        "operationId": "deleteMongoIndex",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoIndexName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB administrative deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one MongoDB index from a managed collection",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_index",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getMongoIndex",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoIndexName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoIndex"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one normalized MongoDB index contract",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_index",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateMongoIndex",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoIndexName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoIndexWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB index update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one MongoDB index definition with bounded structural metadata",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_index",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}/rebuild": {
+      "post": {
+        "operationId": "rebuildMongoIndex",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/CollectionName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoIndexName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoIndexRebuildRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB index mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Request one controlled MongoDB index rebuild with explicit approval evidence",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_index",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/mongo/databases/{databaseName}/users": {
       "get": {
         "operationId": "listMongoUsers",
@@ -3898,6 +5866,749 @@
         "x-visibility": "public"
       }
     },
+    "/v1/mongo/databases/{databaseName}/views": {
+      "get": {
+        "operationId": "listMongoViews",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoViewCollection"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List normalized MongoDB views inside one managed database",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_view",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createMongoView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoViewWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB view mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one MongoDB view with a bounded read-only aggregation pipeline",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_view",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/databases/{databaseName}/views/{viewName}": {
+      "delete": {
+        "operationId": "deleteMongoView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoViewName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB administrative deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one MongoDB view from a managed database",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_view",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getMongoView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoViewName"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoView"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one normalized MongoDB view contract",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_view",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateMongoView",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/DatabaseName"
+          },
+          {
+            "$ref": "#/components/parameters/MongoViewName"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoViewWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB view update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one MongoDB view pipeline while preserving read-only safeguards",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_view",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/mongo/workspaces/{workspaceId}/inventory": {
       "get": {
         "operationId": "getMongoInventory",
@@ -4016,6 +6727,739 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "data-read",
         "x-resource-type": "mongo_inventory",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/templates": {
+      "get": {
+        "operationId": "listMongoCollectionTemplates",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "$ref": "#/components/parameters/PageAfter"
+          },
+          {
+            "$ref": "#/components/parameters/Sort"
+          },
+          {
+            "$ref": "#/components/parameters/Search"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoCollectionTemplateCollection"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List MongoDB collection onboarding templates for one workspace",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_template",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createMongoCollectionTemplate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoCollectionTemplateWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB template mutation accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create one MongoDB collection onboarding template with bounded defaults and variables",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_template",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mongo/workspaces/{workspaceId}/templates/{templateId}": {
+      "delete": {
+        "operationId": "deleteMongoCollectionTemplate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/MongoTemplateId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB administrative deletion accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete one MongoDB collection onboarding template from a workspace",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_template",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "get": {
+        "operationId": "getMongoCollectionTemplate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/MongoTemplateId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoCollectionTemplate"
+                }
+              }
+            },
+            "description": "Resource returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one MongoDB collection onboarding template for a workspace",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "mongo_template",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "put": {
+        "operationId": "updateMongoCollectionTemplate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/MongoTemplateId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MongoCollectionTemplateWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MongoAdminMutationAccepted"
+                }
+              }
+            },
+            "description": "MongoDB template update accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or violates MongoDB administrative policy."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested resource was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested change conflicts with existing MongoDB state."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is valid JSON but violates isolation, naming, quota, or structural guardrails."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update one MongoDB collection onboarding template for a workspace",
+        "tags": [
+          "Mongo"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "mongodb"
+        ],
+        "x-family": "mongo",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "mongo_template",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

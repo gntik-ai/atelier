@@ -4587,6 +4587,452 @@
       "internalRequestMode": "validated_attestation",
       "maxRequestBodyBytes": 1048576,
       "method": "GET",
+      "operationId": "listMongoIndexes",
+      "path": "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_index",
+      "scope": "workspace",
+      "summary": "List normalized MongoDB indexes for one managed collection",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "createMongoIndex",
+      "path": "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_index",
+      "scope": "workspace",
+      "summary": "Create one MongoDB index with bounded TTL, partial filter, and rebuild metadata",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "DELETE",
+      "operationId": "deleteMongoIndex",
+      "path": "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_index",
+      "scope": "workspace",
+      "summary": "Delete one MongoDB index from a managed collection",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "getMongoIndex",
+      "path": "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_index",
+      "scope": "workspace",
+      "summary": "Fetch one normalized MongoDB index contract",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "PUT",
+      "operationId": "updateMongoIndex",
+      "path": "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_index",
+      "scope": "workspace",
+      "summary": "Update one MongoDB index definition with bounded structural metadata",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "rebuildMongoIndex",
+      "path": "/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}/rebuild",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_index",
+      "scope": "workspace",
+      "summary": "Request one controlled MongoDB index rebuild with explicit approval evidence",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
       "operationId": "listMongoUsers",
       "path": "/v1/mongo/databases/{databaseName}/users",
       "planCapabilityAnyOf": [],
@@ -5062,6 +5508,378 @@
       "audiences": [
         "workspace_owner",
         "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "listMongoViews",
+      "path": "/v1/mongo/databases/{databaseName}/views",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_view",
+      "scope": "workspace",
+      "summary": "List normalized MongoDB views inside one managed database",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "createMongoView",
+      "path": "/v1/mongo/databases/{databaseName}/views",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_view",
+      "scope": "workspace",
+      "summary": "Create one MongoDB view with a bounded read-only aggregation pipeline",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "DELETE",
+      "operationId": "deleteMongoView",
+      "path": "/v1/mongo/databases/{databaseName}/views/{viewName}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_view",
+      "scope": "workspace",
+      "summary": "Delete one MongoDB view from a managed database",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "getMongoView",
+      "path": "/v1/mongo/databases/{databaseName}/views/{viewName}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_view",
+      "scope": "workspace",
+      "summary": "Fetch one normalized MongoDB view contract",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "PUT",
+      "operationId": "updateMongoView",
+      "path": "/v1/mongo/databases/{databaseName}/views/{viewName}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_view",
+      "scope": "workspace",
+      "summary": "Update one MongoDB view pipeline while preserving read-only safeguards",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
         "workspace_viewer",
         "platform_team"
       ],
@@ -5120,6 +5938,378 @@
       "scope": "workspace",
       "summary": "Fetch the persisted MongoDB administrative inventory projection for one workspace",
       "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "listMongoCollectionTemplates",
+      "path": "/v1/mongo/workspaces/{workspaceId}/templates",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_template",
+      "scope": "workspace",
+      "summary": "List MongoDB collection onboarding templates for one workspace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "createMongoCollectionTemplate",
+      "path": "/v1/mongo/workspaces/{workspaceId}/templates",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_template",
+      "scope": "workspace",
+      "summary": "Create one MongoDB collection onboarding template with bounded defaults and variables",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "DELETE",
+      "operationId": "deleteMongoCollectionTemplate",
+      "path": "/v1/mongo/workspaces/{workspaceId}/templates/{templateId}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_template",
+      "scope": "workspace",
+      "summary": "Delete one MongoDB collection onboarding template from a workspace",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "getMongoCollectionTemplate",
+      "path": "/v1/mongo/workspaces/{workspaceId}/templates/{templateId}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_template",
+      "scope": "workspace",
+      "summary": "Fetch one MongoDB collection onboarding template for a workspace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Mongo"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mongodb"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mongo",
+      "familyTitle": "Mongo",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "PUT",
+      "operationId": "updateMongoCollectionTemplate",
+      "path": "/v1/mongo/workspaces/{workspaceId}/templates/{templateId}",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 30,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mongo_template",
+      "scope": "workspace",
+      "summary": "Update one MongoDB collection onboarding template for a workspace",
+      "supportsIdempotencyKey": true,
       "tags": [
         "Mongo"
       ],

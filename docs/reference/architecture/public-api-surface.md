@@ -322,6 +322,12 @@ Workspace-scoped document database control and discovery routes exposed through 
 | DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Delete one MongoDB collection through the bounded administrative surface |
 | GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Fetch one normalized MongoDB collection contract |
 | PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Update one MongoDB collection through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes` | workspace | mongo_index | List normalized MongoDB indexes for one managed collection |
+| POST | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes` | workspace | mongo_index | Create one MongoDB index with bounded TTL, partial filter, and rebuild metadata |
+| DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Delete one MongoDB index from a managed collection |
+| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Fetch one normalized MongoDB index contract |
+| PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Update one MongoDB index definition with bounded structural metadata |
+| POST | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}/rebuild` | workspace | mongo_index | Request one controlled MongoDB index rebuild with explicit approval evidence |
 | GET | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | List normalized MongoDB users for one tenant-owned logical database |
 | POST | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | Create one MongoDB user with secret-indirected credentials and bounded role bindings |
 | DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Delete one MongoDB user through the bounded administrative surface |
@@ -329,7 +335,17 @@ Workspace-scoped document database control and discovery routes exposed through 
 | PUT | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Update one MongoDB user through the bounded administrative surface |
 | POST | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings` | workspace | mongo_role_binding | Assign one bounded MongoDB role binding to a tenant-owned user |
 | DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings/{roleBindingId}` | workspace | mongo_role_binding | Revoke one bounded MongoDB role binding from a tenant-owned user |
+| GET | `/v1/mongo/databases/{databaseName}/views` | workspace | mongo_view | List normalized MongoDB views inside one managed database |
+| POST | `/v1/mongo/databases/{databaseName}/views` | workspace | mongo_view | Create one MongoDB view with a bounded read-only aggregation pipeline |
+| DELETE | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Delete one MongoDB view from a managed database |
+| GET | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Fetch one normalized MongoDB view contract |
+| PUT | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Update one MongoDB view pipeline while preserving read-only safeguards |
 | GET | `/v1/mongo/workspaces/{workspaceId}/inventory` | workspace | mongo_inventory | Fetch the persisted MongoDB administrative inventory projection for one workspace |
+| GET | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | List MongoDB collection onboarding templates for one workspace |
+| POST | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | Create one MongoDB collection onboarding template with bounded defaults and variables |
+| DELETE | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Delete one MongoDB collection onboarding template from a workspace |
+| GET | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Fetch one MongoDB collection onboarding template for a workspace |
+| PUT | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Update one MongoDB collection onboarding template for a workspace |
 
 ## Events
 

@@ -13,7 +13,7 @@ import {
   mongodbAdminAdapterPort
 } from '../../services/adapters/src/mongodb-admin.mjs';
 
-test('mongo admin service contracts and adapter capability baseline cover the MongoDB administrative surface', () => {
+test('mongo admin service contracts and adapter capability baseline cover the expanded MongoDB structural administration surface', () => {
   const mongoAdminRequest = getContract('mongo_admin_request');
   const mongoAdminResult = getContract('mongo_admin_result');
   const mongoInventorySnapshot = getContract('mongo_inventory_snapshot');
@@ -29,28 +29,39 @@ test('mongo admin service contracts and adapter capability baseline cover the Mo
   assert.ok(mongoAdminRequest.required_fields.includes('resource_kind'));
   assert.ok(mongoAdminRequest.required_fields.includes('isolation_mode'));
   assert.ok(mongoAdminRequest.required_fields.includes('cluster_topology'));
+  assert.ok(mongoAdminRequest.required_fields.includes('segregation_model'));
   assert.ok(mongoAdminResult.required_fields.includes('normalized_resource'));
   assert.ok(mongoAdminResult.required_fields.includes('inventory_projection'));
+  assert.ok(mongoAdminResult.required_fields.includes('segregation_model'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('counts'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('minimum_engine_policy'));
   assert.ok(mongoInventorySnapshot.required_fields.includes('tenant_isolation'));
+  assert.ok(mongoInventorySnapshot.required_fields.includes('segregation_model'));
 
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_database_create'));
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_collection_update'));
+  assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_index_rebuild'));
+  assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_view_create'));
+  assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_template_update'));
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_user_delete'));
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_role_binding_assign'));
   assert.ok(mongodbAdminAdapterPort.capabilities.includes('mongo_inventory_upsert'));
   assert.deepEqual(MONGO_ADMIN_CAPABILITY_MATRIX.collection, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(MONGO_ADMIN_CAPABILITY_MATRIX.index, ['list', 'get', 'create', 'update', 'delete', 'rebuild']);
+  assert.deepEqual(MONGO_ADMIN_CAPABILITY_MATRIX.view, ['list', 'get', 'create', 'update', 'delete']);
+  assert.deepEqual(MONGO_ADMIN_CAPABILITY_MATRIX.template, ['list', 'get', 'create', 'update', 'delete']);
   assert.deepEqual(MONGO_ADMIN_CAPABILITY_MATRIX.role_binding, ['assign', 'revoke']);
   assert.deepEqual(SUPPORTED_MONGO_VERSION_RANGES.map((entry) => entry.range), ['6.x', '7.x', '8.x']);
 });
 
-test('mongo public routes publish normalized family metadata, inventory, and structural admin contracts', () => {
+test('mongo public routes publish normalized family metadata, inventory, and structural administration contracts for indexes, views, templates, and segregation metadata', () => {
   const document = readJson(OPENAPI_PATH);
   const listDatabasesRoute = getPublicRoute('listMongoDatabases');
   const getInventoryRoute = getPublicRoute('getMongoInventory');
   const createCollectionRoute = getPublicRoute('createMongoCollection');
-  const updateUserRoute = getPublicRoute('updateMongoUser');
+  const rebuildIndexRoute = getPublicRoute('rebuildMongoIndex');
+  const createViewRoute = getPublicRoute('createMongoView');
+  const createTemplateRoute = getPublicRoute('createMongoCollectionTemplate');
   const assignRoleRoute = getPublicRoute('assignMongoUserRoleBinding');
 
   assert.equal(listDatabasesRoute.family, 'mongo');
@@ -60,19 +71,44 @@ test('mongo public routes publish normalized family metadata, inventory, and str
   assert.equal(getInventoryRoute.path, '/v1/mongo/workspaces/{workspaceId}/inventory');
   assert.equal(createCollectionRoute.resourceType, 'mongo_collection');
   assert.equal(createCollectionRoute.supportsIdempotencyKey, true);
-  assert.equal(updateUserRoute.resourceType, 'mongo_user');
+  assert.equal(rebuildIndexRoute.resourceType, 'mongo_index');
+  assert.equal(rebuildIndexRoute.supportsIdempotencyKey, true);
+  assert.equal(createViewRoute.resourceType, 'mongo_view');
+  assert.equal(createTemplateRoute.resourceType, 'mongo_template');
   assert.equal(assignRoleRoute.resourceType, 'mongo_role_binding');
   assert.equal(assignRoleRoute.supportsIdempotencyKey, true);
 
-  assert.ok(document.components.schemas.MongoProviderCompatibility);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}/rebuild']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/views']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/views/{viewName}']);
+  assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/templates']);
+  assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/templates/{templateId}']);
+
+  assert.ok(document.components.schemas.MongoProviderCompatibility.properties.supportedSegregationModels);
   assert.ok(document.components.schemas.MongoAdminEnginePolicy);
   assert.ok(document.components.schemas.MongoDatabase.properties.stats);
   assert.ok(document.components.schemas.MongoDatabase.properties.tenantIsolation);
+  assert.ok(document.components.schemas.MongoDatabase.properties.segregationModel);
   assert.ok(document.components.schemas.MongoCollection.properties.configuration);
   assert.ok(document.components.schemas.MongoCollection.properties.indexDefinitions);
+  assert.ok(document.components.schemas.MongoCollection.properties.metadataSummary);
+  assert.ok(document.components.schemas.MongoCollection.properties.tenantIsolation);
+  assert.ok(document.components.schemas.MongoIndex);
+  assert.ok(document.components.schemas.MongoIndexWriteRequest);
+  assert.ok(document.components.schemas.MongoIndexRebuildRequest);
+  assert.ok(document.components.schemas.MongoView);
+  assert.ok(document.components.schemas.MongoCollectionTemplate);
+  assert.ok(document.components.schemas.MongoCollectionTemplateWriteRequest);
   assert.ok(document.components.schemas.MongoUser.properties.passwordBinding);
   assert.ok(document.components.schemas.MongoUser.properties.roleBindings);
   assert.ok(document.components.schemas.MongoRoleBinding);
   assert.ok(document.components.schemas.MongoAdminInventory.properties.minimumEnginePolicy);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.segregationModel);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.indexRefs);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.viewRefs);
+  assert.ok(document.components.schemas.MongoAdminInventory.properties.templateRefs);
   assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.inventoryRef);
+  assert.ok(document.components.schemas.MongoAdminMutationAccepted.properties.segregationModel);
 });
