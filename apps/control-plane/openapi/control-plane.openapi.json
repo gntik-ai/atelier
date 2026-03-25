@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "In Atelier Public API",
-    "version": "1.19.0",
+    "version": "1.20.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
     "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, PostgreSQL administration and data control, events, functions, storage, metrics, and realtime routes.",
     "license": {
@@ -297,7 +297,7 @@
     "/v1/events/topics": {
       "post": {
         "operationId": "createEvents",
-        "summary": "Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family",
+        "summary": "Submit a workspace-scoped Kafka topic governance request with managed naming, ACL isolation, and quota-aware provisioning",
         "tags": [
           "Events"
         ],
@@ -329,11 +329,11 @@
         },
         "responses": {
           "202": {
-            "description": "Event topic provisioning request accepted.",
+            "description": "Event topic governance request accepted.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                  "$ref": "#/components/schemas/EventTopicMutationAccepted"
                 }
               }
             }
@@ -421,7 +421,7 @@
         ],
         "x-visibility": "public",
         "x-rate-limit-class": "data-control",
-        "x-owning-service": "event_gateway",
+        "x-owning-service": "control_api",
         "x-downstream-adapters": [
           "kafka"
         ]
@@ -430,7 +430,7 @@
     "/v1/events/topics/{resourceId}": {
       "get": {
         "operationId": "getEvents",
-        "summary": "Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family",
+        "summary": "Fetch one workspace-scoped Kafka topic contract with naming, ACL, isolation, quota, and KRaft governance metadata",
         "tags": [
           "Events"
         ],
@@ -546,7 +546,7 @@
         ],
         "x-visibility": "public",
         "x-rate-limit-class": "data-read",
-        "x-owning-service": "event_gateway",
+        "x-owning-service": "control_api",
         "x-downstream-adapters": [
           "kafka"
         ]
@@ -40320,6 +40320,385 @@
         "x-scope": "workspace",
         "x-visibility": "public"
       }
+    },
+    "/v1/events/topics/{resourceId}/access": {
+      "get": {
+        "operationId": "getEventTopicAccess",
+        "summary": "Fetch one Kafka topic access policy with workspace-scoped ACL bindings and service-account isolation",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Topic access policy returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTopicAccessPolicy"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "topic_acl",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      },
+      "put": {
+        "operationId": "updateEventTopicAccess",
+        "summary": "Update one Kafka topic access policy with managed ACL convergence and service-account isolation",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventTopicAccessPolicyWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Topic access policy update accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTopicMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "topic_acl",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
+    },
+    "/v1/events/workspaces/{workspaceId}/inventory": {
+      "get": {
+        "operationId": "getEventTopicInventory",
+        "summary": "Fetch one workspace Kafka topic inventory with naming, ACL, quota, and KRaft governance visibility",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace Kafka inventory returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTopicInventory"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "event_inventory",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-read",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
     }
   },
   "components": {
@@ -44681,14 +45060,23 @@
           "tenantId",
           "workspaceId",
           "topicName",
+          "physicalTopicName",
           "channelPrefix",
           "deliverySemantics",
           "partitionStrategy",
+          "partitionCount",
+          "replicationFactor",
           "retentionHours",
           "replayWindowHours",
+          "cleanupPolicy",
           "allowedTransports",
           "maxPublishesPerSecond",
           "maxConcurrentSubscriptions",
+          "namingPolicy",
+          "tenantIsolation",
+          "aclBindings",
+          "quotaStatus",
+          "providerCompatibility",
           "status",
           "timestamps"
         ],
@@ -44782,6 +45170,47 @@
           },
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningResourceState"
+          },
+          "physicalTopicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 249
+          },
+          "partitionCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "replicationFactor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7
+          },
+          "cleanupPolicy": {
+            "type": "string",
+            "enum": [
+              "delete",
+              "compact",
+              "compact_and_delete"
+            ]
+          },
+          "namingPolicy": {
+            "$ref": "#/components/schemas/EventTopicNamingPolicy"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/EventTopicTenantIsolation"
+          },
+          "aclBindings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventTopicAclBinding"
+            }
+          },
+          "quotaStatus": {
+            "$ref": "#/components/schemas/EventTopicQuotaStatus"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/EventTopicProviderCompatibility"
           }
         }
       },
@@ -44795,11 +45224,16 @@
           "channelPrefix",
           "deliverySemantics",
           "partitionStrategy",
+          "partitionCount",
+          "replicationFactor",
           "retentionHours",
           "replayWindowHours",
+          "cleanupPolicy",
           "allowedTransports",
           "maxPublishesPerSecond",
-          "maxConcurrentSubscriptions"
+          "maxConcurrentSubscriptions",
+          "auditMode",
+          "aclBindings"
         ],
         "properties": {
           "tenantId": {
@@ -44866,6 +45300,38 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 10000
+          },
+          "partitionCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 256
+          },
+          "replicationFactor": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7
+          },
+          "cleanupPolicy": {
+            "type": "string",
+            "enum": [
+              "delete",
+              "compact",
+              "compact_and_delete"
+            ]
+          },
+          "auditMode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          },
+          "aclBindings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/EventTopicAclBindingWriteRequest"
+            }
           }
         }
       },
@@ -62471,6 +62937,689 @@
           "secretValue",
           "secretDelivery"
         ]
+      },
+      "EventTopicNamingPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topicPrefix",
+          "consumerGroupPrefix",
+          "serviceAccountPrincipalPrefix",
+          "physicalTopicPattern",
+          "topicNameGovernance"
+        ],
+        "properties": {
+          "topicPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 180
+          },
+          "consumerGroupPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "serviceAccountPrincipalPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "physicalTopicPattern": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "topicNameGovernance": {
+            "type": "string",
+            "enum": [
+              "provider_generated",
+              "validated_logical_name"
+            ]
+          },
+          "maxTopicNameLength": {
+            "type": "integer",
+            "minimum": 32,
+            "maximum": 249
+          },
+          "userProvidedPhysicalNamesAllowed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventTopicTenantIsolation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "aclPatternType",
+          "topicPrefix",
+          "consumerGroupPrefix",
+          "crossTenantAccessPrevented"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shared_cluster",
+              "dedicated_cluster"
+            ]
+          },
+          "aclPatternType": {
+            "type": "string",
+            "enum": [
+              "literal",
+              "prefixed"
+            ]
+          },
+          "topicPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 180
+          },
+          "consumerGroupPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "workspacePrincipalPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "crossTenantAccessPrevented": {
+            "type": "boolean"
+          },
+          "workspacePrincipalCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          }
+        }
+      },
+      "EventTopicAclBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principal",
+          "operations",
+          "resourceType",
+          "resourceName",
+          "patternType",
+          "permission"
+        ],
+        "properties": {
+          "principal": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "serviceAccountId": {
+            "type": "string",
+            "pattern": "^svc_[0-9a-z]+$"
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "describe",
+                "describe_configs",
+                "idempotent_write"
+              ]
+            }
+          },
+          "resourceType": {
+            "type": "string",
+            "const": "topic"
+          },
+          "resourceName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 249
+          },
+          "patternType": {
+            "type": "string",
+            "enum": [
+              "literal",
+              "prefixed"
+            ]
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "allow"
+            ]
+          },
+          "consumerGroupPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "workspaceScoped": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventTopicAclBindingWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "principal",
+          "operations"
+        ],
+        "properties": {
+          "principal": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          },
+          "serviceAccountId": {
+            "type": "string",
+            "pattern": "^svc_[0-9a-z]+$"
+          },
+          "operations": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "read",
+                "write",
+                "describe",
+                "describe_configs",
+                "idempotent_write"
+              ]
+            }
+          },
+          "patternType": {
+            "type": "string",
+            "enum": [
+              "literal",
+              "prefixed"
+            ],
+            "default": "literal"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "allow"
+            ],
+            "default": "allow"
+          },
+          "consumerGroupPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 200
+          }
+        }
+      },
+      "EventTopicQuotaStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "metricKey",
+          "limit",
+          "used",
+          "remaining",
+          "enforcementMode",
+          "visibleInConsole"
+        ],
+        "properties": {
+          "metricKey": {
+            "type": "string",
+            "const": "workspace.kafka_topics.max"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "used": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "enforcementMode": {
+            "type": "string",
+            "enum": [
+              "hard_stop"
+            ]
+          },
+          "maxPartitionsPerTopic": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          },
+          "maxPublishesPerSecond": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "maxConcurrentSubscriptions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "visibleInConsole": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventTopicProviderCompatibility": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "brokerMode",
+          "metadataQuorum",
+          "minimumEnginePolicy"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "const": "kafka"
+          },
+          "brokerMode": {
+            "type": "string",
+            "enum": [
+              "kraft"
+            ]
+          },
+          "metadataQuorum": {
+            "type": "string",
+            "enum": [
+              "kraft_controller_quorum"
+            ]
+          },
+          "supportedVersions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "range",
+                "label"
+              ],
+              "properties": {
+                "range": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 20
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 120
+                }
+              }
+            }
+          },
+          "minimumEnginePolicy": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "brokerMode",
+              "metadataQuorum",
+              "executionIdentity",
+              "aclIsolation"
+            ],
+            "properties": {
+              "brokerMode": {
+                "type": "string",
+                "enum": [
+                  "kraft"
+                ]
+              },
+              "metadataQuorum": {
+                "type": "string",
+                "enum": [
+                  "kraft_controller_quorum"
+                ]
+              },
+              "executionIdentity": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 120
+              },
+              "quotaEnforcement": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 120
+              },
+              "aclIsolation": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 120
+              },
+              "requireTieredAuditing": {
+                "type": "boolean"
+              },
+              "forbiddenLegacyModes": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "zookeeper"
+                  ]
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 120
+                }
+              },
+              "maximumCredentialLifetimeHours": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8760
+              }
+            }
+          }
+        }
+      },
+      "EventTopicAccessPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resourceId",
+          "tenantId",
+          "workspaceId",
+          "topicName",
+          "physicalTopicName",
+          "aclBindings",
+          "tenantIsolation",
+          "quotaStatus",
+          "providerCompatibility",
+          "auditMode"
+        ],
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "topicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "physicalTopicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 249
+          },
+          "aclBindings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/EventTopicAclBinding"
+            }
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/EventTopicTenantIsolation"
+          },
+          "quotaStatus": {
+            "$ref": "#/components/schemas/EventTopicQuotaStatus"
+          },
+          "providerCompatibility": {
+            "$ref": "#/components/schemas/EventTopicProviderCompatibility"
+          },
+          "auditMode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          },
+          "provisioning": {
+            "$ref": "#/components/schemas/ProvisioningResourceState"
+          }
+        }
+      },
+      "EventTopicAccessPolicyWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "topicName",
+          "aclBindings"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "topicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "auditMode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          },
+          "aclBindings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/EventTopicAclBindingWriteRequest"
+            }
+          }
+        }
+      },
+      "EventTopicInventory": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "snapshotId",
+          "tenantId",
+          "workspaceId",
+          "brokerMode",
+          "isolationMode",
+          "counts",
+          "namingPolicy",
+          "quotaStatus",
+          "tenantIsolation",
+          "items",
+          "auditCoverage"
+        ],
+        "properties": {
+          "snapshotId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "brokerMode": {
+            "type": "string",
+            "enum": [
+              "kraft"
+            ]
+          },
+          "isolationMode": {
+            "type": "string",
+            "enum": [
+              "shared_cluster",
+              "dedicated_cluster"
+            ]
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topics",
+              "aclBindings",
+              "serviceAccounts"
+            ],
+            "properties": {
+              "topics": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "aclBindings": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "serviceAccounts": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              }
+            }
+          },
+          "namingPolicy": {
+            "$ref": "#/components/schemas/EventTopicNamingPolicy"
+          },
+          "quotaStatus": {
+            "$ref": "#/components/schemas/EventTopicQuotaStatus"
+          },
+          "tenantIsolation": {
+            "$ref": "#/components/schemas/EventTopicTenantIsolation"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventTopic"
+            }
+          },
+          "auditCoverage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "capturesActorContext",
+              "capturesAclBindings",
+              "capturesQuotaVisibility",
+              "capturesKRaftGuidance"
+            ],
+            "properties": {
+              "capturesActorContext": {
+                "type": "boolean"
+              },
+              "capturesAclBindings": {
+                "type": "boolean"
+              },
+              "capturesQuotaVisibility": {
+                "type": "boolean"
+              },
+              "capturesKRaftGuidance": {
+                "type": "boolean"
+              },
+              "capturesServiceAccountBindings": {
+                "type": "boolean"
+              }
+            }
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EventTopicMutationAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "status",
+          "family",
+          "resourceType",
+          "resourceId",
+          "correlationId",
+          "acceptedAt",
+          "physicalTopicName",
+          "quotaStatus",
+          "namingPolicy"
+        ],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "queued"
+            ]
+          },
+          "family": {
+            "type": "string",
+            "const": "events"
+          },
+          "resourceType": {
+            "type": "string",
+            "enum": [
+              "topic",
+              "topic_acl"
+            ]
+          },
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "correlationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "physicalTopicName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 249
+          },
+          "aclBindingCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "quotaStatus": {
+            "$ref": "#/components/schemas/EventTopicQuotaStatus"
+          },
+          "namingPolicy": {
+            "$ref": "#/components/schemas/EventTopicNamingPolicy"
+          }
+        }
       }
     }
   }

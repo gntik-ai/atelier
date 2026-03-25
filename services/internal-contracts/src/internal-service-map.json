@@ -30,7 +30,9 @@
         "Accept workspace-scoped PostgreSQL Data API CRUD and query requests with dynamic table routing, filter validation, effective-role resolution, and RLS-safe query semantics.",
         "Accept MongoDB administrative operations through tenant-scoped or internal service-account credential indirection while preserving bounded credential lifecycle and recovery metadata.",
         "Accept workspace-scoped MongoDB Data API document CRUD, validated query controls, tenant-scoped bulk-write requests, and collection-validation-aware payload planning.",
-        "Validate advanced MongoDB Data API aggregation, import/export, transaction, and change-stream bridge requests before orchestration dispatch."
+        "Validate advanced MongoDB Data API aggregation, import/export, transaction, and change-stream bridge requests before orchestration dispatch.",
+        "Accept workspace-scoped Kafka topic governance requests for naming, ACL isolation, and quota-aware topic lifecycle without exposing broker-native administration.",
+        "Expose Kafka topic access-policy and inventory projections with KRaft guidance, service-account isolation, and quota visibility for multiple workspaces."
       ],
       "owned_resources": [
         "public route contract",
@@ -46,7 +48,10 @@
         "mongo administrative inventory projection",
         "mongo admin audit summary",
         "mongo data request envelope",
-        "mongo change-stream bridge request"
+        "mongo change-stream bridge request",
+        "kafka administrative request envelope",
+        "kafka topic governance inventory projection",
+        "kafka admin audit summary"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -65,7 +70,8 @@
         "postgres_data_request",
         "postgres_admin_sql_request",
         "mongo_admin_request",
-        "mongo_data_request"
+        "mongo_data_request",
+        "kafka_admin_request"
       ]
     },
     {
@@ -89,7 +95,10 @@
         "Coordinate PostgreSQL Data API reads and mutations through parameterized adapter calls while preserving effective role, grants, and RLS constraints.",
         "Emit correlation-rich MongoDB admin events with credential-lifecycle and recovery metadata for audit and stream consumers.",
         "Coordinate MongoDB Data API reads and document mutations through tenant-scoped adapter calls while preserving collection validation, bounded bulk limits, and audit traceability.",
-        "Coordinate advanced MongoDB Data API aggregation, import/export, transaction, and change-stream bridge flows while preserving topology compatibility and bridge readiness checks."
+        "Coordinate advanced MongoDB Data API aggregation, import/export, transaction, and change-stream bridge flows while preserving topology compatibility and bridge readiness checks.",
+        "Coordinate Kafka topic and ACL administrative operations without letting control_api call adapters directly.",
+        "Persist Kafka metadata and inventory snapshots for console-safe reads across shared and dedicated KRaft isolation modes.",
+        "Emit correlation-rich Kafka admin events with naming, ACL, quota, and KRaft metadata for audit and stream consumers."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -105,7 +114,10 @@
         "mongo metadata inventory snapshot",
         "mongo admin event envelope",
         "mongo data query result",
-        "mongo change-stream event envelope"
+        "mongo change-stream event envelope",
+        "kafka admin orchestration result",
+        "kafka metadata inventory snapshot",
+        "kafka admin event envelope"
       ],
       "service_dependencies": [
         "audit_module"
@@ -125,7 +137,8 @@
         "postgres_data_request",
         "postgres_admin_sql_request",
         "mongo_admin_request",
-        "mongo_data_request"
+        "mongo_data_request",
+        "kafka_admin_request"
       ],
       "outbound_contracts": [
         "provisioning_result",
@@ -141,7 +154,10 @@
         "mongo_inventory_snapshot",
         "mongo_admin_event",
         "mongo_data_result",
-        "mongo_change_stream_event"
+        "mongo_change_stream_event",
+        "kafka_admin_result",
+        "kafka_inventory_snapshot",
+        "kafka_admin_event"
       ]
     },
     {
@@ -155,7 +171,8 @@
         "Emit audit evidence and operational telemetry for publish acceptance, delivery lag, auth denials, and stream lifecycle changes.",
         "Forward IAM lifecycle events into Kafka-compatible streams without dropping audit or correlation metadata.",
         "Forward MongoDB admin events into Kafka-compatible streams without dropping audit, credential-lifecycle, or correlation metadata.",
-        "Forward MongoDB change-stream envelopes into gateway-managed realtime transports when the bridge contract is enabled."
+        "Forward MongoDB change-stream envelopes into gateway-managed realtime transports when the bridge contract is enabled.",
+        "Forward Kafka admin events into Kafka-compatible streams without dropping naming, ACL, quota, or KRaft metadata when operational subscribers need governance visibility."
       ],
       "owned_resources": [
         "event publication acceptance record",
@@ -165,7 +182,8 @@
         "gateway realtime metrics projection",
         "iam lifecycle stream publication",
         "mongo admin stream publication",
-        "mongo change-stream subscription state"
+        "mongo change-stream subscription state",
+        "kafka admin stream publication"
       ],
       "service_dependencies": [
         "audit_module"
@@ -178,7 +196,8 @@
         "event_gateway_publish_request",
         "event_gateway_subscription_request",
         "mongo_admin_event",
-        "mongo_change_stream_event"
+        "mongo_change_stream_event",
+        "kafka_admin_event"
       ],
       "outbound_contracts": [
         "event_gateway_publish_result",
@@ -479,6 +498,14 @@
       "capabilities": [
         "ensure_topics",
         "ensure_acls",
+        "kafka_topic_list",
+        "kafka_topic_get",
+        "kafka_topic_create",
+        "kafka_topic_update",
+        "kafka_topic_delete",
+        "kafka_topic_acl_get",
+        "kafka_topic_acl_update",
+        "kafka_inventory_get",
         "publish_lifecycle_event",
         "publish_event",
         "consume_events",
@@ -1380,6 +1407,142 @@
         "serialization_failure",
         "retryable_dependency_failure"
       ]
+    },
+    "kafka_admin_request": {
+      "owner": "control_api",
+      "version": "2026-03-25",
+      "required_fields": [
+        "command_id",
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "resource_kind",
+        "action",
+        "target_ref",
+        "isolation_mode",
+        "deployment_profile_id",
+        "payload",
+        "provider_version",
+        "idempotency_key",
+        "correlation_id",
+        "authorization_decision_id",
+        "effective_roles",
+        "scopes",
+        "contract_version",
+        "requested_at",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "target_tenant_id",
+        "target_workspace_id",
+        "naming_policy",
+        "acl_bindings",
+        "quota_snapshot",
+        "broker_mode"
+      ],
+      "idempotency": "Kafka admin mutations coalesce by target_ref, isolation_mode, action, and idempotency_key so safe retries do not duplicate topic reconciliation, ACL convergence, or inventory writes.",
+      "versioning": "The BaaS Kafka administrative request envelope stays stable while KRaft guidance, ACL policy, topic naming governance, and quota visibility evolve additively inside the compatibility matrix.",
+      "error_classes": [
+        "validation_error",
+        "conflict",
+        "dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version",
+        "quota_exceeded"
+      ]
+    },
+    "kafka_admin_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "request_id",
+        "resource_kind",
+        "action",
+        "status",
+        "provider_reference",
+        "normalized_resource",
+        "metadata_record",
+        "inventory_projection",
+        "correlation_id",
+        "contract_version",
+        "observed_at",
+        "audit_record_id",
+        "naming_policy",
+        "isolation_mode",
+        "acl_state",
+        "quota_status",
+        "kraft_guidance",
+        "audit_summary",
+        "correlation_context",
+        "admin_event"
+      ],
+      "idempotency": "Repeated reads of the same Kafka admin result describe one logical topic or ACL change and one inventory projection update.",
+      "versioning": "Result contracts expose normalized, secret-free Kafka resource shapes while naming, ACL, quota, and KRaft metadata expand additively.",
+      "error_classes": [
+        "not_found",
+        "conflict",
+        "retryable_dependency_failure",
+        "terminal_dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version",
+        "quota_exceeded"
+      ]
+    },
+    "kafka_inventory_snapshot": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "snapshot_id",
+        "tenant_id",
+        "workspace_id",
+        "isolation_mode",
+        "broker_mode",
+        "counts",
+        "quotas",
+        "naming_policy",
+        "minimum_engine_policy",
+        "observed_at",
+        "contract_version",
+        "tenant_isolation",
+        "limit_visibility",
+        "audit_coverage"
+      ],
+      "idempotency": "Inventory refreshes for the same tenant/workspace/isolation combination replace the previous durable projection instead of multiplying console-visible Kafka records.",
+      "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand with topics, ACLs, quotas, service-account bindings, and KRaft guidance without exposing unsafe broker details.",
+      "error_classes": [
+        "storage_unavailable",
+        "schema_validation_error"
+      ]
+    },
+    "kafka_admin_event": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "event_id",
+        "event_type",
+        "action",
+        "resource_kind",
+        "tenant_id",
+        "workspace_id",
+        "target_ref",
+        "audit_record_id",
+        "correlation_id",
+        "correlation_context",
+        "partition_key",
+        "contract_version",
+        "occurred_at",
+        "broker_mode",
+        "naming_policy",
+        "quota_status"
+      ],
+      "idempotency": "Kafka admin events must coalesce by event_id and correlation_id so retries do not duplicate downstream audit links, governance notifications, or compatibility projections.",
+      "versioning": "The Kafka admin event envelope stays additive while preserving stable naming, ACL, quota, actor, and KRaft-routing metadata for audit and observability consumers.",
+      "error_classes": [
+        "schema_validation_error",
+        "audit_unavailable",
+        "dependency_failure"
+      ]
     }
   },
   "interaction_flows": [
@@ -1552,6 +1715,21 @@
         "mongodb executes one tenant-scoped document query, mutation, aggregation, transfer, transaction, or change-stream planning step while preserving collection validation, unique-index conflict handling, configured bulk limits, and topology-aware capability checks.",
         "When change-stream delivery is enabled, provisioning_orchestrator emits one correlation-rich mongo_change_stream_event envelope toward event_gateway for transport-specific fan-out.",
         "provisioning_orchestrator returns one mongo_data_result envelope with document payloads or mutation counts, aggregation/transfer/transaction/change-stream summaries, pagination state, validation metadata, compatibility state, and append-only audit linkage."
+      ]
+    },
+    {
+      "id": "kafka_administration",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api validates the Kafka administrative request, resolves contextual tenant/workspace authorization, and emits one kafka_admin_request envelope with KRaft guidance, naming policy, ACL intent, idempotency, and audit linkage.",
+        "provisioning_orchestrator resolves the deployment profile, applies naming, ACL isolation, and quota guardrails for shared_cluster or dedicated_cluster mode, and translates the normalized intent into one kafka adapter_call.",
+        "services/adapters performs bounded topic and ACL operations through the Kafka administration surface, then returns normalized secret-free resources and metadata.",
+        "provisioning_orchestrator persists a kafka_inventory_snapshot so console surfaces can answer fast inventory queries without live broker enumeration for every read.",
+        "audit_module records actor, scope, target resource, isolation mode, ACL summary, quota status, and KRaft evidence without persisting raw credentials or unrestricted broker detail."
+      ],
+      "guarantees": [
+        "Administrative mutations preserve workspace-scoped service-account isolation and deterministic topic naming under every supported plan.",
+        "Each successful Kafka admin mutation can emit one correlation-rich kafka_admin_event envelope linked to append-only audit evidence."
       ]
     }
   ]

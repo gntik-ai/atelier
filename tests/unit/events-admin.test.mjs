@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  getEventsAdminRoute,
+  getKafkaCompatibilitySummary,
+  listEventsAdminRoutes,
+  summarizeEventsAdminSurface,
+  summarizeEventsAuditCoverage
+} from '../../apps/control-plane/src/events-admin.mjs';
+
+test('events admin control-plane helper exposes Kafka topic governance, ACL, inventory, and runtime routes', () => {
+  const routes = listEventsAdminRoutes();
+  const inventoryRoute = getEventsAdminRoute('getEventTopicInventory');
+  const aclRoute = getEventsAdminRoute('updateEventTopicAccess');
+  const topicRoute = getEventsAdminRoute('createEvents');
+  const surface = summarizeEventsAdminSurface();
+
+  assert.ok(routes.some((route) => route.operationId === 'createEvents'));
+  assert.ok(routes.some((route) => route.operationId === 'getEvents'));
+  assert.ok(routes.some((route) => route.operationId === 'getEventTopicAccess'));
+  assert.ok(routes.some((route) => route.operationId === 'updateEventTopicAccess'));
+  assert.ok(routes.some((route) => route.operationId === 'getEventTopicInventory'));
+  assert.ok(routes.some((route) => route.operationId === 'publishEventToTopic'));
+  assert.ok(routes.some((route) => route.operationId === 'streamTopicEvents'));
+  assert.equal(topicRoute.resourceType, 'topic');
+  assert.equal(aclRoute.resourceType, 'topic_acl');
+  assert.equal(inventoryRoute.path, '/v1/events/workspaces/{workspaceId}/inventory');
+  assert.equal(surface.find((entry) => entry.resourceKind === 'topic').actions.includes('create'), true);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'topic_acl').routeCount, 2);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'inventory').routeCount, 1);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'runtime_publish').routeCount, 1);
+});
+
+test('events admin helper summarizes KRaft compatibility, quotas, naming governance, and audit coverage', () => {
+  const auditCoverage = summarizeEventsAuditCoverage();
+  const growthSummary = getKafkaCompatibilitySummary({
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    workspaceSlug: 'alpha-dev',
+    workspaceEnvironment: 'dev',
+    planId: 'pln_01growth'
+  });
+  const enterpriseSummary = getKafkaCompatibilitySummary({
+    tenantId: 'ten_01enterprisealpha',
+    workspaceId: 'wrk_01alphaprod',
+    workspaceSlug: 'alpha-prod',
+    workspaceEnvironment: 'prod',
+    planId: 'pln_01enterprise',
+    isolationMode: 'dedicated_cluster',
+    providerVersion: '3.8.1'
+  });
+
+  assert.equal(growthSummary.brokerMode, 'kraft');
+  assert.equal(growthSummary.isolationMode, 'shared_cluster');
+  assert.equal(growthSummary.namingPolicy.topicPrefix, 'ia.01growthalpha.alpha.dev.dev');
+  assert.equal(growthSummary.namingPolicy.serviceAccountPrincipalPrefix, 'User:svc_alpha_dev_');
+  assert.equal(growthSummary.quotaGuardrails.maxTopicsPerWorkspace, 20);
+  assert.equal(growthSummary.quotaGuardrails.maxPartitionsPerTopic, 12);
+  assert.equal(growthSummary.auditCoverage.capturesQuotaVisibility, true);
+  assert.equal(auditCoverage.adminContextFields.some((entry) => entry.field === 'origin_surface' && entry.requestContract), true);
+
+  assert.equal(enterpriseSummary.isolationMode, 'dedicated_cluster');
+  assert.equal(enterpriseSummary.minimumEnginePolicy.metadataQuorum, 'kraft_controller_quorum');
+  assert.equal(enterpriseSummary.minimumEnginePolicy.forbiddenLegacyModes.includes('zookeeper'), true);
+  assert.equal(enterpriseSummary.supportedVersions.some((entry) => entry.range === '3.8.x' && entry.brokerMode === 'kraft'), true);
+  assert.equal(enterpriseSummary.aclMutationsSupported, true);
+});

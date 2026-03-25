@@ -12,6 +12,7 @@ Covered capabilities:
 
 - Prometheus-compatible APISIX metrics for gateway and realtime success criteria
 - versioned realtime channels over `/realtime/*` with WebSocket upgrades enabled
+- Kafka topic governance through `/v1/events/topics`, `/v1/events/topics/{resourceId}/access`, and `/v1/events/workspaces/{workspaceId}/inventory`
 - HTTP publish through `/v1/events/*`
 - SSE subscribe through `/v1/events/*/stream`
 - WebSocket session negotiation through `/v1/websockets/*`
@@ -87,6 +88,21 @@ The baseline is intentionally explicit and conservative:
 - transport policy exposes bounded in-flight windows and explicit overflow action
 
 When backpressure is hit, the gateway rejects new work predictably instead of allowing unbounded buffering.
+
+## Kafka topic governance and KRaft posture
+
+Administrative topic creation and ACL reconciliation stay on the control-plane surface:
+
+- `POST /v1/events/topics` accepts logical topic requests and generates the physical Kafka topic name from workspace-safe naming policy.
+- `GET|PUT /v1/events/topics/{resourceId}/access` exposes and reconciles service-account ACL bindings without allowing cross-workspace principals.
+- `GET /v1/events/workspaces/{workspaceId}/inventory` exposes quota usage, naming policy, ACL counts, and KRaft compatibility guidance without live broker enumeration for every console read.
+
+Governance requirements for `US-EVT-01`:
+
+- KRaft-only guidance; ZooKeeper-era admin flows are intentionally unsupported.
+- physical topic names and consumer-group prefixes stay provider-generated from tenant/workspace context.
+- ACLs stay bound to workspace-scoped service-account prefixes and must not permit cross-tenant reuse.
+- quota visibility is explicit for `workspace.kafka_topics.max`, partitions-per-topic, publish throughput, and concurrent subscription ceilings.
 
 ## Audit and tenant isolation
 

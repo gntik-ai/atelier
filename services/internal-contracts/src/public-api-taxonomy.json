@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-25",
-    "openapi_semver": "1.19.0"
+    "openapi_semver": "1.20.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -868,6 +868,18 @@
       "family": "mongo",
       "scope": "workspace",
       "authorization_resource": "database"
+    },
+    {
+      "resource_type": "topic_acl",
+      "family": "events",
+      "scope": "workspace",
+      "authorization_resource": "topic"
+    },
+    {
+      "resource_type": "event_inventory",
+      "family": "events",
+      "scope": "workspace",
+      "authorization_resource": "topic"
     }
   ]
 }

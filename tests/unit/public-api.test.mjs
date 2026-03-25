@@ -25,9 +25,13 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
 
   assert.equal(taxonomy.release.path_version, 'v1');
   assert.equal(taxonomy.release.header_version, '2026-03-25');
-  assert.equal(taxonomy.release.openapi_semver, '1.19.0');
+  assert.equal(taxonomy.release.openapi_semver, '1.20.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/access'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/workspaces/{workspaceId}/inventory'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/publish'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/stream'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/metrics/workspaces/{workspaceId}/gateway-streams'));
