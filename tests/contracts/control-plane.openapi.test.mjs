@@ -85,7 +85,14 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/postgres/workspaces/{workspaceId}/grants']);
   assert.ok(document.paths['/v1/postgres/databases/{databaseName}/extensions']);
   assert.ok(document.paths['/v1/postgres/workspaces/{workspaceId}/templates']);
-  assert.ok(document.paths['/v1/mongo/databases/{resourceId}']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/collections']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/collections/{collectionName}']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/users']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/users/{mongoUserName}']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings']);
+  assert.ok(document.paths['/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings/{roleBindingId}']);
+  assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/inventory']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}/publish']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}/stream']);

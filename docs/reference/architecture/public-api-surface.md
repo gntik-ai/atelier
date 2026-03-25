@@ -313,8 +313,23 @@ Workspace-scoped document database control and discovery routes exposed through 
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/mongo/databases` | workspace | document_database | Submit a workspace-scoped MongoDB database provisioning request through the unified mongo family |
-| GET | `/v1/mongo/databases/{resourceId}` | workspace | document_database | Fetch one workspace-scoped MongoDB database contract under the mongo family |
+| GET | `/v1/mongo/databases` | workspace | mongo_database | List tenant-owned MongoDB logical databases through the normalized administrative surface |
+| POST | `/v1/mongo/databases` | workspace | mongo_database | Create one tenant-owned MongoDB logical database with naming, quota, and isolation guardrails |
+| DELETE | `/v1/mongo/databases/{databaseName}` | workspace | mongo_database | Delete one tenant-owned MongoDB logical database through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}` | workspace | mongo_database | Fetch one normalized MongoDB database contract including dbStats projection |
+| GET | `/v1/mongo/databases/{databaseName}/collections` | workspace | mongo_collection | List normalized MongoDB collections for one tenant-owned logical database |
+| POST | `/v1/mongo/databases/{databaseName}/collections` | workspace | mongo_collection | Create one MongoDB collection with bounded validation, capped, time-series, and index configuration |
+| DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Delete one MongoDB collection through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Fetch one normalized MongoDB collection contract |
+| PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Update one MongoDB collection through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | List normalized MongoDB users for one tenant-owned logical database |
+| POST | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | Create one MongoDB user with secret-indirected credentials and bounded role bindings |
+| DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Delete one MongoDB user through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Fetch one normalized MongoDB user contract |
+| PUT | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Update one MongoDB user through the bounded administrative surface |
+| POST | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings` | workspace | mongo_role_binding | Assign one bounded MongoDB role binding to a tenant-owned user |
+| DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings/{roleBindingId}` | workspace | mongo_role_binding | Revoke one bounded MongoDB role binding from a tenant-owned user |
+| GET | `/v1/mongo/workspaces/{workspaceId}/inventory` | workspace | mongo_inventory | Fetch the persisted MongoDB administrative inventory projection for one workspace |
 
 ## Events
 

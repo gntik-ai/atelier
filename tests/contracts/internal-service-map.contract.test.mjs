@@ -84,6 +84,12 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(getContract('postgres_admin_result').required_fields.includes('pre_execution_warnings'));
   assert.ok(getContract('postgres_inventory_snapshot').required_fields.includes('minimum_engine_policy'));
   assert.ok(getContract('postgres_inventory_snapshot').required_fields.includes('tenant_isolation'));
+  assert.ok(getContract('mongo_admin_request').required_fields.includes('isolation_mode'));
+  assert.ok(getContract('mongo_admin_request').required_fields.includes('cluster_topology'));
+  assert.ok(getContract('mongo_admin_result').required_fields.includes('inventory_projection'));
+  assert.ok(getContract('mongo_admin_result').required_fields.includes('minimum_engine_policy'));
+  assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('quotas'));
+  assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.equal(auditRecordContract.write_mode, 'append_only');
   assert.ok(auditRecordContract.required_fields.includes('evidence_pointer'));
   assert.ok(auditRecordContract.required_fields.includes('authorization_decision_id'));
@@ -110,6 +116,7 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
 
   const keycloakAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'keycloak');
   const postgresqlAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'postgresql');
+  const mongodbAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'mongodb');
 
   assert.deepEqual([...auditProviderIds].sort(), ['postgresql', 'storage']);
   assert.ok(keycloakAdapter.capabilities.includes('ensure_protocol_mappers'));
@@ -133,6 +140,11 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_inventory_upsert'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_data_rpc'));
   assert.ok(postgresqlAdapter.capabilities.includes('postgres_admin_sql_execute'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_database_create'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_collection_update'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_user_delete'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_role_binding_assign'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_inventory_upsert'));
   assert.equal(getContract('adapter_call').required_fields.includes('provisioning_run_id'), true);
   assert.equal(getContract('adapter_call').required_fields.includes('resource_key'), true);
   assert.equal(getContract('adapter_result').required_fields.includes('resource_key'), true);
@@ -147,6 +159,7 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(interactionFlowIds.has('iam_administration'));
   assert.ok(interactionFlowIds.has('postgres_administration'));
   assert.ok(interactionFlowIds.has('postgres_admin_sql_execution'));
+  assert.ok(interactionFlowIds.has('mongo_administration'));
   assert.ok(interactionFlowIds.has('iam_lifecycle_traceability'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));
   assert.ok(interactionFlowIds.has('realtime_subscription_gateway'));

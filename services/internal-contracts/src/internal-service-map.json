@@ -25,6 +25,8 @@
         "Emit IAM lifecycle events with actor context for audit persistence and Kafka-compatible downstream delivery.",
         "Accept BaaS-native PostgreSQL administrative operations for roles, users, databases, and schemas while preserving placement-aware validation and secret-free payload normalization.",
         "Expose PostgreSQL administrative inventory projections and minimum-privilege operational guidance without leaking unsafe engine details.",
+        "Accept bounded MongoDB administrative operations for databases, collections, users, and role bindings while preserving tenant ownership, quota, and isolation guardrails.",
+        "Expose MongoDB administrative inventory projections and minimum-privilege operational guidance without live engine enumeration for every console read.",
         "Accept workspace-scoped PostgreSQL Data API CRUD and query requests with dynamic table routing, filter validation, effective-role resolution, and RLS-safe query semantics."
       ],
       "owned_resources": [
@@ -36,7 +38,9 @@
         "iam lifecycle event envelope",
         "postgres administrative request envelope",
         "postgres administrative inventory projection",
-        "postgres data request envelope"
+        "postgres data request envelope",
+        "mongo administrative request envelope",
+        "mongo administrative inventory projection"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -53,7 +57,8 @@
         "iam_lifecycle_event",
         "postgres_admin_request",
         "postgres_data_request",
-        "postgres_admin_sql_request"
+        "postgres_admin_sql_request",
+        "mongo_admin_request"
       ]
     },
     {
@@ -72,6 +77,8 @@
         "Resume partially failed tenant bootstrap runs without replaying resources that already converged successfully.",
         "Coordinate PostgreSQL administrative operations for roles, users, databases, and schemas without letting control_api call adapters directly.",
         "Persist PostgreSQL metadata and inventory snapshots for console-safe reads and profile-aware validation.",
+        "Coordinate MongoDB administrative operations for databases, collections, users, and role bindings without letting control_api call adapters directly.",
+        "Persist MongoDB metadata and inventory snapshots for console-safe reads across supported isolation modes and cluster topologies.",
         "Coordinate PostgreSQL Data API reads and mutations through parameterized adapter calls while preserving effective role, grants, and RLS constraints."
       ],
       "owned_resources": [
@@ -83,7 +90,9 @@
         "iam admin orchestration result",
         "postgres admin orchestration result",
         "postgres metadata inventory snapshot",
-        "postgres data query result"
+        "postgres data query result",
+        "mongo admin orchestration result",
+        "mongo metadata inventory snapshot"
       ],
       "service_dependencies": [
         "audit_module"
@@ -101,7 +110,8 @@
         "iam_admin_request",
         "postgres_admin_request",
         "postgres_data_request",
-        "postgres_admin_sql_request"
+        "postgres_admin_sql_request",
+        "mongo_admin_request"
       ],
       "outbound_contracts": [
         "provisioning_result",
@@ -112,7 +122,9 @@
         "postgres_admin_result",
         "postgres_inventory_snapshot",
         "postgres_data_result",
-        "postgres_admin_sql_result"
+        "postgres_admin_sql_result",
+        "mongo_admin_result",
+        "mongo_inventory_snapshot"
       ]
     },
     {
@@ -378,11 +390,28 @@
       "capabilities": [
         "ensure_database",
         "ensure_indexes",
-        "apply_tenant_policy"
+        "apply_tenant_policy",
+        "mongo_database_list",
+        "mongo_database_get",
+        "mongo_database_create",
+        "mongo_database_delete",
+        "mongo_collection_list",
+        "mongo_collection_get",
+        "mongo_collection_create",
+        "mongo_collection_update",
+        "mongo_collection_delete",
+        "mongo_user_list",
+        "mongo_user_get",
+        "mongo_user_create",
+        "mongo_user_update",
+        "mongo_user_delete",
+        "mongo_role_binding_assign",
+        "mongo_role_binding_revoke",
+        "mongo_inventory_upsert"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
-      "idempotency_key": "tenant_id + capability + database_ref",
+      "idempotency_key": "tenant_id + workspace_id + capability + target_ref + isolation_mode + cluster_topology + idempotency_key",
       "error_classes": [
         "retryable_dependency_failure",
         "terminal_dependency_failure"
@@ -1059,6 +1088,102 @@
         "forbidden",
         "recovery_required"
       ]
+    },
+    "mongo_admin_request": {
+      "owner": "control_api",
+      "version": "2026-03-24",
+      "required_fields": [
+        "command_id",
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "resource_kind",
+        "action",
+        "target_ref",
+        "isolation_mode",
+        "cluster_topology",
+        "deployment_profile_id",
+        "payload",
+        "provider_version",
+        "idempotency_key",
+        "correlation_id",
+        "authorization_decision_id",
+        "effective_roles",
+        "scopes",
+        "contract_version",
+        "requested_at",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "target_tenant_id",
+        "target_workspace_id"
+      ],
+      "idempotency": "MongoDB admin mutations coalesce by target_ref, isolation_mode, cluster_topology, action, and idempotency_key so safe retries do not duplicate structural engine changes or inventory writes.",
+      "versioning": "The BaaS MongoDB administrative request envelope stays stable while provider payloads, topology support, and isolation profiles evolve inside the compatibility matrix.",
+      "error_classes": [
+        "validation_error",
+        "conflict",
+        "dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version",
+        "quota_exceeded"
+      ]
+    },
+    "mongo_admin_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-24",
+      "required_fields": [
+        "request_id",
+        "resource_kind",
+        "action",
+        "status",
+        "provider_reference",
+        "normalized_resource",
+        "metadata_record",
+        "inventory_projection",
+        "correlation_id",
+        "contract_version",
+        "observed_at",
+        "audit_record_id",
+        "minimum_engine_policy",
+        "risk_profile",
+        "audit_summary"
+      ],
+      "idempotency": "Repeated reads of the same MongoDB admin result describe one logical structural change and one inventory projection update.",
+      "versioning": "Result contracts expose normalized, secret-free MongoDB resource shapes while topology and inventory metadata expand additively.",
+      "error_classes": [
+        "not_found",
+        "conflict",
+        "retryable_dependency_failure",
+        "terminal_dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version",
+        "quota_exceeded"
+      ]
+    },
+    "mongo_inventory_snapshot": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-24",
+      "required_fields": [
+        "snapshot_id",
+        "tenant_id",
+        "workspace_id",
+        "isolation_mode",
+        "cluster_topology",
+        "counts",
+        "quotas",
+        "minimum_engine_policy",
+        "observed_at",
+        "contract_version",
+        "tenant_isolation"
+      ],
+      "idempotency": "Inventory refreshes for the same tenant/workspace/isolation/topology combination replace the previous durable projection instead of multiplying console-visible records.",
+      "versioning": "Inventory snapshots remain additive and secret-free so console queries can expand without exposing unsafe engine metadata.",
+      "error_classes": [
+        "storage_unavailable",
+        "schema_validation_error"
+      ]
     }
   },
   "interaction_flows": [
@@ -1205,6 +1330,17 @@
         "postgres_admin_sql_request",
         "postgres_admin_sql_result",
         "audit_record"
+      ]
+    },
+    {
+      "id": "mongo_administration",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api validates the MongoDB administrative request, resolves contextual tenant/workspace authorization, and emits one mongo_admin_request envelope with isolation metadata, idempotency, and audit linkage.",
+        "provisioning_orchestrator resolves the deployment profile, applies naming and quota guardrails for shared_cluster or dedicated_cluster mode, and translates the normalized intent into one mongodb adapter_call.",
+        "services/adapters performs database, collection, user, or role-binding operations through the bounded MongoDB administrative surface, then returns normalized secret-free resources and inventory metadata.",
+        "provisioning_orchestrator persists a mongo_inventory_snapshot so console surfaces can answer fast inventory queries without live engine enumeration for every read.",
+        "audit_module records actor, scope, target resource, isolation mode, topology, and minimum-privilege evidence without persisting raw credentials or unrestricted engine detail."
       ]
     }
   ]

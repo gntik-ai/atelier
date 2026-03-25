@@ -780,6 +780,36 @@
       "family": "postgres",
       "scope": "workspace",
       "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_database",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_collection",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_user",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_role_binding",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_inventory",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": null
     }
   ]
 }
