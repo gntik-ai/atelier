@@ -167,6 +167,129 @@
         ],
         "type": "object"
       },
+      "EventNotificationQueue": {
+        "additionalProperties": false,
+        "properties": {
+          "ackMode": {
+            "enum": [
+              "implicit",
+              "explicit"
+            ],
+            "type": "string"
+          },
+          "deliveryMode": {
+            "enum": [
+              "fanout",
+              "competing_consumers"
+            ],
+            "type": "string"
+          },
+          "maxDepth": {
+            "maximum": 5000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "queueKey": {
+            "maxLength": 160,
+            "minLength": 3,
+            "type": "string"
+          },
+          "queueType": {
+            "enum": [
+              "broadcast",
+              "workspace",
+              "user",
+              "session"
+            ],
+            "type": "string"
+          },
+          "workspaceScoped": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "queueType",
+          "queueKey",
+          "workspaceScoped",
+          "deliveryMode",
+          "ackMode",
+          "maxDepth"
+        ],
+        "type": "object"
+      },
+      "EventReconnectPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "graceSeconds": {
+            "maximum": 3600,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "maxAttempts": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "relativeOrderScope": {
+            "enum": [
+              "key_within_partition"
+            ],
+            "type": "string"
+          },
+          "resumeMode": {
+            "enum": [
+              "cursor",
+              "replay"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "resumeMode",
+          "graceSeconds",
+          "maxAttempts",
+          "relativeOrderScope"
+        ],
+        "type": "object"
+      },
+      "EventReplayRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "fromTimestamp": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "maxEvents": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "latest",
+              "earliest",
+              "last_event_id",
+              "from_timestamp",
+              "window"
+            ],
+            "type": "string"
+          },
+          "windowHours": {
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      },
       "EventSubscriptionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -195,6 +318,25 @@
             },
             "type": "object"
           },
+          "heartbeatSeconds": {
+            "maximum": 60,
+            "minimum": 5,
+            "type": "integer"
+          },
+          "maxInFlight": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "notificationQueue": {
+            "$ref": "#/components/schemas/EventNotificationQueue"
+          },
+          "reconnect": {
+            "$ref": "#/components/schemas/EventReconnectPolicy"
+          },
+          "replay": {
+            "$ref": "#/components/schemas/EventReplayRequest"
+          },
           "replayWindowHours": {
             "maximum": 720,
             "minimum": 1,
@@ -203,6 +345,13 @@
           "topicName": {
             "maxLength": 120,
             "minLength": 3,
+            "type": "string"
+          },
+          "transport": {
+            "enum": [
+              "sse",
+              "websocket"
+            ],
             "type": "string"
           }
         },
@@ -287,6 +436,9 @@
             "minimum": 5,
             "type": "integer"
           },
+          "reconnect": {
+            "$ref": "#/components/schemas/EventReconnectPolicy"
+          },
           "sessionId": {
             "pattern": "^wss_[0-9a-z]+$",
             "type": "string"
@@ -331,7 +483,8 @@
           "status",
           "subscriptions",
           "heartbeatSeconds",
-          "backpressure"
+          "backpressure",
+          "reconnect"
         ],
         "type": "object"
       },
@@ -361,6 +514,9 @@
               "wss"
             ],
             "type": "string"
+          },
+          "reconnect": {
+            "$ref": "#/components/schemas/EventReconnectPolicy"
           },
           "subscriptions": {
             "items": {

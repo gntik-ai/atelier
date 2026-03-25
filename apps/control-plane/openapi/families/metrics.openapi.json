@@ -202,6 +202,42 @@
             ],
             "type": "object"
           },
+          "replay": {
+            "additionalProperties": false,
+            "properties": {
+              "acceptedPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "deniedPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "acceptedPerMinute",
+              "deniedPerMinute"
+            ],
+            "type": "object"
+          },
+          "resilience": {
+            "additionalProperties": false,
+            "properties": {
+              "reconnectsPerMinute": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "relativeOrderViolations": {
+                "minimum": 0,
+                "type": "number"
+              }
+            },
+            "required": [
+              "reconnectsPerMinute",
+              "relativeOrderViolations"
+            ],
+            "type": "object"
+          },
           "sampledAt": {
             "format": "date-time",
             "type": "string"
@@ -250,6 +286,8 @@
           "publishes",
           "lag",
           "authz",
+          "replay",
+          "resilience",
           "source"
         ],
         "type": "object"

@@ -196,7 +196,46 @@
     },
     {
       "id": "resilience-event-replay",
-      "failure_mode": "replay"
+      "failure_mode": "replay",
+      "topic_replay_window_hours": 24,
+      "requested_window_hours": 4,
+      "requested_max_events": 150,
+      "relative_order_scope": "key_within_partition"
+    },
+    {
+      "id": "resilience-event-reconnect-order",
+      "failure_mode": "reconnect_relative_order",
+      "disconnect_gap_seconds": 75,
+      "reconnect_grace_seconds": 90,
+      "retained_events": 4,
+      "last_event_id": "evt_01billing",
+      "last_sequence": 18,
+      "deliveries": [
+        {
+          "eventId": "evt_01",
+          "partition": 2,
+          "key": "inv_01",
+          "sequence": 1
+        },
+        {
+          "eventId": "evt_02",
+          "partition": 2,
+          "key": "inv_01",
+          "sequence": 2
+        },
+        {
+          "eventId": "evt_03",
+          "partition": 2,
+          "key": "inv_01",
+          "sequence": 2
+        },
+        {
+          "eventId": "evt_04",
+          "partition": 3,
+          "key": "inv_02",
+          "sequence": 1
+        }
+      ]
     },
     {
       "id": "resilience-tenant-failover",

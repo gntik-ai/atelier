@@ -747,17 +747,25 @@
         "event_id",
         "event_type",
         "payload",
+        "payload_encoding",
+        "payload_size_bytes",
         "content_type",
-        "idempotency_key",
+        "headers",
+        "key",
         "partition_key",
+        "event_timestamp",
+        "requested_partition",
+        "idempotency_key",
         "plan_id",
         "scopes",
         "effective_roles",
         "authorization_decision_id",
+        "notification_queue",
+        "publish_policy_snapshot",
         "requested_at"
       ],
       "idempotency": "Every accepted publication carries a stable idempotency_key so retries reuse one logical gateway acceptance and one broker-side publish intent.",
-      "versioning": "The gateway publish contract evolves additively under the versioned /v1 HTTP surface and must remain backward-compatible until a deliberate event contract migration.",
+      "versioning": "The gateway publish contract evolves additively under the versioned /v1 HTTP surface and now makes payload encoding, queue fanout hints, timestamps, and explicit partition policy observable without exposing broker-native publish APIs.",
       "error_classes": [
         "validation_error",
         "authorization_error",
@@ -778,7 +786,12 @@
         "channel",
         "transport",
         "cursor",
+        "batch_size",
         "max_in_flight",
+        "heartbeat_seconds",
+        "queue_binding",
+        "replay_policy",
+        "reconnect_policy",
         "plan_id",
         "scopes",
         "effective_roles",
@@ -786,7 +799,7 @@
         "requested_at"
       ],
       "idempotency": "Subscription negotiation is idempotent per request_id and transport so duplicate handshakes do not multiply consumer leases.",
-      "versioning": "HTTP and WebSocket subscription negotiation stay pinned to the public API version while allowing additive metadata for lag, replay, and transport hints.",
+      "versioning": "HTTP and WebSocket subscription negotiation stay pinned to the public API version while allowing additive metadata for queue bindings, replay controls, reconnect policy, lag, and transport hints.",
       "error_classes": [
         "validation_error",
         "authorization_error",
@@ -807,10 +820,12 @@
         "accepted_at",
         "delivery_semantics",
         "audit_record_id",
-        "status"
+        "status",
+        "accepted_partition",
+        "payload_size_bytes"
       ],
       "idempotency": "Result envelopes must preserve the same publication_id when the originating request is replayed through the idempotent gateway path.",
-      "versioning": "Publish results stay stable for /v1 consumers while Kafka-specific placement details remain additive metadata only.",
+      "versioning": "Publish results stay stable for /v1 consumers while placement, payload, and queue metadata remain additive and audit-safe.",
       "error_classes": [
         "backpressure",
         "dependency_failure",
@@ -829,10 +844,13 @@
         "transport",
         "status",
         "lag_snapshot",
-        "expires_at"
+        "expires_at",
+        "queue_status",
+        "replay_status",
+        "relative_order_scope"
       ],
       "idempotency": "Status lookups for a negotiated subscription must return the same logical subscription descriptor until the lease expires or is revoked.",
-      "versioning": "Subscription status evolves additively so transport and lag hints can expand without breaking existing clients.",
+      "versioning": "Subscription status evolves additively so queue, replay, reconnect, and relative-order hints can expand without breaking existing clients.",
       "error_classes": [
         "not_found",
         "authorization_error",
@@ -1585,7 +1603,8 @@
         "event_gateway authenticates the caller through APISIX-managed context, validates tenant/workspace/topic scope, and enforces throughput plus backpressure ceilings before broker contact.",
         "event_gateway maps the accepted HTTP publish envelope into one idempotent Kafka publish request with partitioning, replay, and audit metadata preserved.",
         "audit_module appends acceptance or rejection evidence with correlation_id, authorization_decision_id, and masked payload metadata only."
-      ]
+      ],
+      "description": "Control-plane request validation and auth drive one bounded gateway publish intent, one audit-safe acceptance, and optional notification queue fanout without exposing broker-native clients."
     },
     {
       "id": "realtime_subscription_gateway",
@@ -1594,7 +1613,8 @@
         "event_gateway negotiates SSE or WebSocket subscriptions through gateway-managed headers and tenant/workspace authorization context.",
         "event_gateway establishes a transport-scoped consumer lease against Kafka-safe topics and tracks replay cursor, max_in_flight, and lag telemetry for the session.",
         "audit_module records subscription lifecycle changes and APISIX/stream metrics expose active connections, lag, denials, and backpressure outcomes for observability."
-      ]
+      ],
+      "description": "Workspace-scoped SSE/WebSocket negotiation creates bounded queue-aware subscriptions with replay, reconnect, and relative-order semantics pinned to the public gateway contract."
     },
     {
       "id": "workspace_identity_registration",

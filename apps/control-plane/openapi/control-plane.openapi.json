@@ -757,6 +757,65 @@
               "maximum": 60,
               "default": 15
             }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "SSE resume checkpoint forwarded as a replay cursor."
+          },
+          {
+            "name": "replayMode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "latest",
+                "earliest",
+                "last_event_id",
+                "from_timestamp",
+                "window"
+              ]
+            }
+          },
+          {
+            "name": "replayFromTimestamp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "notificationQueue",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "broadcast",
+                "workspace",
+                "user",
+                "session"
+              ]
+            }
+          },
+          {
+            "name": "maxInFlight",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 48
+            }
           }
         ],
         "responses": {
@@ -45064,6 +45123,7 @@
           "channelPrefix",
           "deliverySemantics",
           "partitionStrategy",
+          "partitionSelectionPolicy",
           "partitionCount",
           "replicationFactor",
           "retentionHours",
@@ -45072,6 +45132,9 @@
           "allowedTransports",
           "maxPublishesPerSecond",
           "maxConcurrentSubscriptions",
+          "payloadPolicy",
+          "notificationPolicy",
+          "replayPolicy",
           "namingPolicy",
           "tenantIsolation",
           "aclBindings",
@@ -45211,6 +45274,23 @@
           },
           "providerCompatibility": {
             "$ref": "#/components/schemas/EventTopicProviderCompatibility"
+          },
+          "partitionSelectionPolicy": {
+            "type": "string",
+            "enum": [
+              "provider_managed",
+              "caller_hint",
+              "explicit_allowed"
+            ]
+          },
+          "payloadPolicy": {
+            "$ref": "#/components/schemas/EventPayloadPolicy"
+          },
+          "notificationPolicy": {
+            "$ref": "#/components/schemas/EventNotificationPolicy"
+          },
+          "replayPolicy": {
+            "$ref": "#/components/schemas/EventReplayPolicy"
           }
         }
       },
@@ -45585,7 +45665,8 @@
           "status",
           "subscriptions",
           "heartbeatSeconds",
-          "backpressure"
+          "backpressure",
+          "reconnect"
         ],
         "properties": {
           "sessionId": {
@@ -45645,6 +45726,9 @@
           "auditRecordId": {
             "type": "string",
             "pattern": "^aud_[0-9a-z]+$"
+          },
+          "reconnect": {
+            "$ref": "#/components/schemas/EventReconnectPolicy"
           }
         }
       },
@@ -45697,6 +45781,9 @@
             "type": "integer",
             "minimum": 5,
             "maximum": 60
+          },
+          "reconnect": {
+            "$ref": "#/components/schemas/EventReconnectPolicy"
           }
         }
       },
@@ -45777,6 +45864,32 @@
               "type": "string",
               "maxLength": 120
             }
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "sse",
+              "websocket"
+            ]
+          },
+          "maxInFlight": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "heartbeatSeconds": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 60
+          },
+          "notificationQueue": {
+            "$ref": "#/components/schemas/EventNotificationQueue"
+          },
+          "replay": {
+            "$ref": "#/components/schemas/EventReplayRequest"
+          },
+          "reconnect": {
+            "$ref": "#/components/schemas/EventReconnectPolicy"
           }
         }
       },
@@ -45831,12 +45944,14 @@
           "eventId",
           "eventType",
           "topicName",
+          "topicResourceId",
           "channel",
           "partition",
           "offset",
           "sequence",
           "publishedAt",
           "contentType",
+          "payloadEncoding",
           "correlationId",
           "payload"
         ],
@@ -45881,7 +45996,12 @@
             "type": "string",
             "enum": [
               "application/json",
-              "application/cloudevents+json"
+              "application/cloudevents+json",
+              "application/octet-stream",
+              "application/pdf",
+              "image/png",
+              "image/jpeg",
+              "application/zip"
             ]
           },
           "correlationId": {
@@ -45894,8 +46014,58 @@
             "minimum": 0
           },
           "payload": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "string",
+                "maxLength": 524288
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "topicResourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "payloadEncoding": {
+            "type": "string",
+            "enum": [
+              "json",
+              "base64"
+            ]
+          },
+          "headers": {
             "type": "object",
-            "additionalProperties": true
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          "queue": {
+            "$ref": "#/components/schemas/EventNotificationQueue"
+          },
+          "replay": {
+            "$ref": "#/components/schemas/EventReplayStatus"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/EventDeliveryStatus"
           }
         }
       },
@@ -45908,6 +46078,7 @@
           "channel",
           "eventType",
           "contentType",
+          "payloadEncoding",
           "payload"
         ],
         "properties": {
@@ -45933,7 +46104,12 @@
             "type": "string",
             "enum": [
               "application/json",
-              "application/cloudevents+json"
+              "application/cloudevents+json",
+              "application/octet-stream",
+              "application/pdf",
+              "image/png",
+              "image/jpeg",
+              "application/zip"
             ]
           },
           "partitionKey": {
@@ -45954,8 +46130,50 @@
             }
           },
           "payload": {
-            "type": "object",
-            "additionalProperties": true
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": true
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "string",
+                "maxLength": 524288
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "payloadEncoding": {
+            "type": "string",
+            "enum": [
+              "json",
+              "base64"
+            ]
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "partition": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2048
+          },
+          "notificationQueue": {
+            "$ref": "#/components/schemas/EventNotificationQueue"
           }
         }
       },
@@ -45971,7 +46189,9 @@
           "deliverySemantics",
           "auditRecordId",
           "acceptedAt",
-          "correlationId"
+          "correlationId",
+          "payloadEncoding",
+          "payloadSizeBytes"
         ],
         "properties": {
           "publicationId": {
@@ -46023,6 +46243,32 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120
+          },
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "eventTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedPartition": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2048
+          },
+          "payloadEncoding": {
+            "type": "string",
+            "enum": [
+              "json",
+              "base64"
+            ]
+          },
+          "payloadSizeBytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 262144
           }
         }
       },
@@ -46038,6 +46284,8 @@
           "publishes",
           "lag",
           "authz",
+          "replay",
+          "resilience",
           "source"
         ],
         "properties": {
@@ -46153,6 +46401,42 @@
               "seriesPrefix": {
                 "type": "string",
                 "const": "in_atelier_event_gateway_"
+              }
+            }
+          },
+          "replay": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "acceptedPerMinute",
+              "deniedPerMinute"
+            ],
+            "properties": {
+              "acceptedPerMinute": {
+                "type": "number",
+                "minimum": 0
+              },
+              "deniedPerMinute": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "resilience": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "reconnectsPerMinute",
+              "relativeOrderViolations"
+            ],
+            "properties": {
+              "reconnectsPerMinute": {
+                "type": "number",
+                "minimum": 0
+              },
+              "relativeOrderViolations": {
+                "type": "number",
+                "minimum": 0
               }
             }
           }
@@ -63210,6 +63494,16 @@
           },
           "visibleInConsole": {
             "type": "boolean"
+          },
+          "maxReplayBatchSize": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "maxNotificationQueueDepth": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
           }
         }
       },
@@ -63618,6 +63912,344 @@
           },
           "namingPolicy": {
             "$ref": "#/components/schemas/EventTopicNamingPolicy"
+          }
+        }
+      },
+      "EventPayloadPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "supportedEncodings",
+          "maxJsonPayloadBytes",
+          "maxBinaryPayloadBytes",
+          "allowedBinaryContentTypes",
+          "maxHeaders"
+        ],
+        "properties": {
+          "supportedEncodings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "json",
+                "base64"
+              ]
+            }
+          },
+          "maxJsonPayloadBytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 262144
+          },
+          "maxBinaryPayloadBytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 262144
+          },
+          "allowedBinaryContentTypes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 120
+            }
+          },
+          "maxHeaders": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "maxHeaderValueBytes": {
+            "type": "integer",
+            "minimum": 64,
+            "maximum": 4096
+          },
+          "maxHeaderAggregateBytes": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 16384
+          }
+        }
+      },
+      "EventReplayPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled",
+          "modes",
+          "maxWindowHours",
+          "maxBatchSize",
+          "requiresPolicyGrant"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "modes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "latest",
+                "earliest",
+                "last_event_id",
+                "from_timestamp",
+                "window"
+              ]
+            }
+          },
+          "maxWindowHours": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 720
+          },
+          "maxBatchSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "requiresPolicyGrant": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventReplayRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "latest",
+              "earliest",
+              "last_event_id",
+              "from_timestamp",
+              "window"
+            ]
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "fromTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "windowHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 720
+          },
+          "maxEvents": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          }
+        }
+      },
+      "EventReplayStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "retained"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "latest",
+              "earliest",
+              "last_event_id",
+              "from_timestamp",
+              "window"
+            ]
+          },
+          "cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "fromTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "windowHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 720
+          },
+          "retained": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EventNotificationQueue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "queueType",
+          "queueKey",
+          "workspaceScoped",
+          "deliveryMode",
+          "ackMode",
+          "maxDepth"
+        ],
+        "properties": {
+          "queueType": {
+            "type": "string",
+            "enum": [
+              "broadcast",
+              "workspace",
+              "user",
+              "session"
+            ]
+          },
+          "queueKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 160
+          },
+          "workspaceScoped": {
+            "type": "boolean"
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": [
+              "fanout",
+              "competing_consumers"
+            ]
+          },
+          "ackMode": {
+            "type": "string",
+            "enum": [
+              "implicit",
+              "explicit"
+            ]
+          },
+          "maxDepth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          }
+        }
+      },
+      "EventNotificationPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "supportedQueueTypes",
+          "maxQueueDepth",
+          "defaultAckMode",
+          "defaultDeliveryMode"
+        ],
+        "properties": {
+          "supportedQueueTypes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "broadcast",
+                "workspace",
+                "user",
+                "session"
+              ]
+            }
+          },
+          "maxQueueDepth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5000
+          },
+          "defaultAckMode": {
+            "type": "string",
+            "enum": [
+              "implicit",
+              "explicit"
+            ]
+          },
+          "defaultDeliveryMode": {
+            "type": "string",
+            "enum": [
+              "fanout",
+              "competing_consumers"
+            ]
+          }
+        }
+      },
+      "EventReconnectPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "resumeMode",
+          "graceSeconds",
+          "maxAttempts",
+          "relativeOrderScope"
+        ],
+        "properties": {
+          "resumeMode": {
+            "type": "string",
+            "enum": [
+              "cursor",
+              "replay"
+            ]
+          },
+          "graceSeconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3600
+          },
+          "maxAttempts": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "relativeOrderScope": {
+            "type": "string",
+            "enum": [
+              "key_within_partition"
+            ]
+          }
+        }
+      },
+      "EventDeliveryStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "transport",
+          "attempt",
+          "relativeOrderScope",
+          "resumed"
+        ],
+        "properties": {
+          "transport": {
+            "type": "string",
+            "enum": [
+              "sse",
+              "websocket"
+            ]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "relativeOrderScope": {
+            "type": "string",
+            "enum": [
+              "key_within_partition"
+            ]
+          },
+          "resumed": {
+            "type": "boolean"
           }
         }
       }

@@ -730,6 +730,16 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.EventPublicationRequest);
   assert.ok(document.components.schemas.EventPublicationAccepted);
   assert.ok(document.components.schemas.EventDeliveryEnvelope);
+  assert.ok(document.components.schemas.EventPayloadPolicy);
+  assert.ok(document.components.schemas.EventReplayPolicy);
+  assert.ok(document.components.schemas.EventReplayRequest);
+  assert.ok(document.components.schemas.EventNotificationQueue);
+  assert.equal(document.components.schemas.EventPublicationRequest.required.includes('payloadEncoding'), true);
+  assert.equal(document.components.schemas.EventPublicationRequest.properties.partition.type, 'integer');
+  assert.equal(document.components.schemas.EventPublicationRequest.properties.key.maxLength, 120);
+  assert.equal(document.components.schemas.EventDeliveryEnvelope.required.includes('payloadEncoding'), true);
+  assert.equal(document.components.schemas.EventDeliveryEnvelope.properties.queue.required.includes('queueType'), true);
+  assert.equal(document.components.schemas.EventDeliveryEnvelope.properties.replay.required.includes('mode'), true);
 
   assert.equal(createEventTopic['x-family'], 'events');
   assert.equal(createEventTopic['x-owning-service'], 'control_api');
@@ -745,11 +755,20 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.equal(streamTopicEvents['x-family'], 'events');
   assert.equal(streamTopicEvents['x-resource-type'], 'event_stream');
   assert.equal(streamTopicParameters.some((parameter) => parameter.name === 'cursor'), true);
+  assert.equal(streamTopicParameters.some((parameter) => parameter.name === 'replayMode'), true);
+  assert.equal(streamTopicParameters.some((parameter) => parameter.name === 'notificationQueue'), true);
+  assert.equal(streamTopicParameters.some((parameter) => parameter.name === 'Last-Event-ID'), true);
   assert.ok(streamTopicEvents.responses['200']);
+  assert.equal(document.components.schemas.EventTopic.required.includes('payloadPolicy'), true);
+  assert.equal(document.components.schemas.EventTopic.required.includes('notificationPolicy'), true);
+  assert.equal(document.components.schemas.EventTopic.required.includes('replayPolicy'), true);
+  assert.equal(document.components.schemas.EventTopic.properties.partitionSelectionPolicy.enum.includes('explicit_allowed'), true);
 
   assert.equal(getGatewayStreamMetrics['x-family'], 'metrics');
   assert.equal(gatewayMetricParameters.some((parameter) => parameter.name === 'window'), true);
   assert.ok(document.components.schemas.GatewayStreamMetricsResponse);
+  assert.equal(document.components.schemas.GatewayStreamMetricsResponse.required.includes('replay'), true);
+  assert.equal(document.components.schemas.GatewayStreamMetricsResponse.required.includes('resilience'), true);
 
   assert.equal(createWebSocketSession['x-family'], 'websockets');
   assert.equal(createWebSocketSession['x-owning-service'], 'event_gateway');
@@ -757,4 +776,8 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.WebSocketSession);
   assert.ok(document.components.schemas.EventSubscriptionRequest);
   assert.ok(document.components.schemas.EventBackpressurePolicy);
+  assert.equal(document.components.schemas.EventSubscriptionRequest.properties.notificationQueue.required.includes('queueType'), true);
+  assert.equal(document.components.schemas.EventSubscriptionRequest.properties.replay.required.includes('mode'), true);
+  assert.equal(document.components.schemas.WebSocketSession.required.includes('reconnect'), true);
+  assert.equal(document.components.schemas.WebSocketSession.properties.reconnect.required.includes('resumeMode'), true);
 });
