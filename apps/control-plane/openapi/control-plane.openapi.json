@@ -43079,6 +43079,884 @@
           "openwhisk"
         ]
       }
+    },
+    "/v1/events/topics/{resourceId}/metadata": {
+      "get": {
+        "operationId": "getEventTopicMetadata",
+        "summary": "Fetch topic partitions, lag, retention, and compaction metadata when provider APIs and policy allow visibility",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Topic metadata returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTopicMetadataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway topic-metadata error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "topic_metadata",
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "observability",
+        "x-owning-service": "event_gateway",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
+    },
+    "/v1/events/workspaces/{workspaceId}/bridges": {
+      "post": {
+        "operationId": "createEventBridge",
+        "summary": "Register a workspace-scoped managed event bridge from PostgreSQL, MongoDB, storage, OpenWhisk, or IAM into Kafka",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventBridgeWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Event-bridge registration request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "event_bridge",
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
+    },
+    "/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}": {
+      "get": {
+        "operationId": "getEventBridge",
+        "summary": "Fetch the normalized state for one managed event bridge",
+        "tags": [
+          "Events"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/BridgeId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Event bridge returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventBridge"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway event-bridge error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "events",
+        "x-scope": "workspace",
+        "x-resource-type": "event_bridge",
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "observability",
+        "x-owning-service": "event_gateway",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
+    },
+    "/v1/functions/actions/{resourceId}/kafka-triggers": {
+      "post": {
+        "operationId": "createFunctionKafkaTrigger",
+        "summary": "Register a Kafka-triggered OpenWhisk execution policy for one managed action",
+        "tags": [
+          "Functions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionKafkaTriggerWriteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Kafka function-trigger request accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "functions",
+        "x-scope": "workspace",
+        "x-resource-type": "function_kafka_trigger",
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-control",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": [
+          "kafka",
+          "openwhisk"
+        ]
+      }
+    },
+    "/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}": {
+      "get": {
+        "operationId": "getFunctionKafkaTrigger",
+        "summary": "Fetch one normalized Kafka-triggered function execution policy",
+        "tags": [
+          "Functions"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/TriggerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kafka function trigger returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionKafkaTrigger"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway function-trigger error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "functions",
+        "x-scope": "workspace",
+        "x-resource-type": "function_kafka_trigger",
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "observability",
+        "x-owning-service": "event_gateway",
+        "x-downstream-adapters": [
+          "kafka",
+          "openwhisk"
+        ]
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/event-dashboards": {
+      "get": {
+        "operationId": "getWorkspaceEventDashboards",
+        "summary": "Fetch workspace-scoped Kafka bridge and trigger dashboard widgets",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "5m",
+                "1h",
+                "24h"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace event dashboards returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceEventDashboardResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway event-dashboard error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "workspace",
+        "x-resource-type": "event_dashboard",
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "observability",
+        "x-owning-service": "event_gateway",
+        "x-downstream-adapters": [
+          "kafka",
+          "openwhisk"
+        ]
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/kafka-topics": {
+      "get": {
+        "operationId": "getWorkspaceKafkaTopicMetrics",
+        "summary": "Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "5m",
+                "1h",
+                "24h"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Kafka topic metrics returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KafkaTopicMetricsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway Kafka-topic metrics error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "workspace",
+        "x-resource-type": "kafka_topic_metrics",
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "observability",
+        "x-owning-service": "event_gateway",
+        "x-downstream-adapters": [
+          "kafka"
+        ]
+      }
     }
   },
   "components": {
@@ -43098,8 +43976,8 @@
         "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
         "schema": {
           "type": "string",
-          "const": "2026-03-25",
-          "pattern": "^2026-03-24$"
+          "const": "2026-03-26",
+          "pattern": "^2026-03-26$"
         }
       },
       "XCorrelationId": {
@@ -44112,6 +44990,26 @@
         "schema": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9-]{1,62}$"
+        }
+      },
+      "BridgeId": {
+        "name": "bridgeId",
+        "in": "path",
+        "required": true,
+        "description": "Stable managed event-bridge identifier.",
+        "schema": {
+          "type": "string",
+          "pattern": "^evb_[0-9a-z-]+$"
+        }
+      },
+      "TriggerId": {
+        "name": "triggerId",
+        "in": "path",
+        "required": true,
+        "description": "Stable managed Kafka function-trigger identifier.",
+        "schema": {
+          "type": "string",
+          "pattern": "^ktr_[0-9a-z-]+$"
         }
       }
     },
@@ -47642,6 +48540,9 @@
           },
           "replayPolicy": {
             "$ref": "#/components/schemas/EventReplayPolicy"
+          },
+          "operationalMetadata": {
+            "$ref": "#/components/schemas/EventTopicOperationalMetadata"
           }
         }
       },
@@ -47837,6 +48738,12 @@
             "type": "string",
             "minLength": 12,
             "maxLength": 255
+          },
+          "kafkaTriggers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FunctionKafkaTriggerSummary"
+            }
           }
         }
       },
@@ -47876,6 +48783,9 @@
           "packageName": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9-]{1,62}$"
+          },
+          "defaultKafkaTriggerPolicy": {
+            "$ref": "#/components/schemas/FunctionKafkaTriggerWriteRequest"
           }
         }
       },
@@ -47927,6 +48837,9 @@
           },
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningResourceState"
+          },
+          "eventBridgeSummary": {
+            "$ref": "#/components/schemas/EventBridgeSummary"
           }
         }
       },
@@ -47965,6 +48878,9 @@
               "governance",
               "compliance"
             ]
+          },
+          "eventNotifications": {
+            "$ref": "#/components/schemas/StorageBucketEventBridgePolicy"
           }
         }
       },
@@ -67534,6 +68450,844 @@
           },
           "tenantIsolation": {
             "$ref": "#/components/schemas/FunctionTenantIsolation"
+          }
+        }
+      },
+      "EventBridgeSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "resourceRef"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "postgresql",
+              "mongodb",
+              "storage",
+              "openwhisk",
+              "iam"
+            ]
+          },
+          "resourceRef": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "eventTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "filters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field",
+                "operator",
+                "value"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "operator": {
+                  "type": "string",
+                  "enum": [
+                    "eq",
+                    "neq",
+                    "prefix",
+                    "contains",
+                    "in"
+                  ]
+                },
+                "value": {}
+              }
+            }
+          }
+        }
+      },
+      "EventBridgeDeliveryPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "payloadMode",
+          "batchSize"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "at_least_once"
+            ]
+          },
+          "payloadMode": {
+            "type": "string",
+            "enum": [
+              "provider_normalized_json",
+              "cloudevents_json"
+            ]
+          },
+          "batchSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "partitionKeyTemplate": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "maxLagAlertMessages": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          }
+        }
+      },
+      "EventBridgeAuditPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "traceFields"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          },
+          "traceFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "EventBridgeSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bridgeId",
+          "sourceType",
+          "topicRef",
+          "status"
+        ],
+        "properties": {
+          "bridgeId": {
+            "type": "string",
+            "pattern": "^evb_[0-9a-z-]+$"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "postgresql",
+              "mongodb",
+              "storage",
+              "openwhisk",
+              "iam"
+            ]
+          },
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ]
+          }
+        }
+      },
+      "EventBridge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bridgeId",
+          "tenantId",
+          "workspaceId",
+          "topicRef",
+          "source",
+          "delivery",
+          "audit",
+          "status",
+          "timestamps"
+        ],
+        "properties": {
+          "bridgeId": {
+            "type": "string",
+            "pattern": "^evb_[0-9a-z-]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "source": {
+            "$ref": "#/components/schemas/EventBridgeSource"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/EventBridgeDeliveryPolicy"
+          },
+          "audit": {
+            "$ref": "#/components/schemas/EventBridgeAuditPolicy"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "EventBridgeWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "sourceType",
+          "sourceRef",
+          "topicRef"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "postgresql",
+              "mongodb",
+              "storage",
+              "openwhisk",
+              "iam"
+            ]
+          },
+          "sourceRef": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "sourceEventTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceFilters": {
+            "$ref": "#/components/schemas/EventBridgeSource/properties/filters"
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": [
+              "at_least_once"
+            ]
+          },
+          "payloadMode": {
+            "type": "string",
+            "enum": [
+              "provider_normalized_json",
+              "cloudevents_json"
+            ]
+          },
+          "batchSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "partitionKeyTemplate": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "auditMode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          }
+        }
+      },
+      "EventTopicOperationalMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "visibleFields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "partitions",
+                "consumer_lag",
+                "retention",
+                "compaction"
+              ]
+            }
+          },
+          "bridgeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "functionTriggerCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sampledAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EventTopicMetadataResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "resourceId",
+          "sampledAt",
+          "partitionMetadata",
+          "lag",
+          "retention",
+          "compaction"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "resourceId": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "sampledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "partitionMetadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "available"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "partitionCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "partitionKeysExposed": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          "lag": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "available"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "maxMessagesBehind": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "p95Ms": {
+                "type": "number",
+                "minimum": 0
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          "retention": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "available"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "hours": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "replayWindowHours": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "retentionMs": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          "compaction": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "available"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "cleanupPolicy": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          },
+          "technicalLimitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FunctionKafkaTriggerSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "triggerId",
+          "topicRef",
+          "deliveryMode",
+          "status"
+        ],
+        "properties": {
+          "triggerId": {
+            "type": "string",
+            "pattern": "^ktr_[0-9a-z-]+$"
+          },
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": [
+              "per_event",
+              "micro_batch"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ]
+          }
+        }
+      },
+      "FunctionKafkaTriggerAuditPolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "traceFields"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          },
+          "traceFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "FunctionKafkaTrigger": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "triggerId",
+          "topicRef",
+          "deliveryMode",
+          "batchSize",
+          "maxParallelInvocations",
+          "failurePolicy",
+          "status",
+          "timestamps"
+        ],
+        "properties": {
+          "triggerId": {
+            "type": "string",
+            "pattern": "^ktr_[0-9a-z-]+$"
+          },
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": [
+              "per_event",
+              "micro_batch"
+            ]
+          },
+          "batchSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "maxParallelInvocations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "failurePolicy": {
+            "type": "string",
+            "enum": [
+              "retry_then_dead_letter",
+              "dead_letter_only"
+            ]
+          },
+          "deadLetterTopicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "filterExpression": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "audit": {
+            "$ref": "#/components/schemas/FunctionKafkaTriggerAuditPolicy"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ]
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          }
+        }
+      },
+      "FunctionKafkaTriggerWriteRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topicRef"
+        ],
+        "properties": {
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "deliveryMode": {
+            "type": "string",
+            "enum": [
+              "per_event",
+              "micro_batch"
+            ]
+          },
+          "batchSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "maxParallelInvocations": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "failurePolicy": {
+            "type": "string",
+            "enum": [
+              "retry_then_dead_letter",
+              "dead_letter_only"
+            ]
+          },
+          "deadLetterTopicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "filterExpression": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "auditMode": {
+            "type": "string",
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ]
+          }
+        }
+      },
+      "StorageBucketEventBridgePolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "eventTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "KafkaTopicMetricSample": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topicRef",
+          "acceptedPerMinute",
+          "maxMessagesBehind",
+          "retentionHours",
+          "compactionEnabled",
+          "bridgeCount",
+          "functionTriggerCount"
+        ],
+        "properties": {
+          "topicRef": {
+            "type": "string",
+            "pattern": "^res_[0-9a-z]+$"
+          },
+          "acceptedPerMinute": {
+            "type": "number",
+            "minimum": 0
+          },
+          "maxMessagesBehind": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "retentionHours": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "compactionEnabled": {
+            "type": "boolean"
+          },
+          "bridgeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "functionTriggerCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "KafkaTopicMetricsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "window",
+          "sampledAt",
+          "topics"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "window": {
+            "type": "string",
+            "enum": [
+              "5m",
+              "1h",
+              "24h"
+            ]
+          },
+          "sampledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "topics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KafkaTopicMetricSample"
+            }
+          }
+        }
+      },
+      "EventDashboardWidget": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "title",
+          "query",
+          "seriesCount"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "topic_throughput",
+              "consumer_lag",
+              "bridge_health",
+              "function_trigger_health",
+              "admin_audit_volume"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "seriesCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "WorkspaceEventDashboardResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceId",
+          "window",
+          "sampledAt",
+          "widgets",
+          "coverage"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "window": {
+            "type": "string",
+            "enum": [
+              "5m",
+              "1h",
+              "24h"
+            ]
+          },
+          "sampledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "widgets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventDashboardWidget"
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topicMetrics",
+              "bridges",
+              "functionTriggers",
+              "auditSeries"
+            ],
+            "properties": {
+              "topicMetrics": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "bridges": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "functionTriggers": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "auditSeries": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
           }
         }
       }

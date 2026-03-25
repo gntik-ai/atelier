@@ -2,7 +2,7 @@
 
 ## Intent
 
-This document records the gateway baseline for APISIX metrics, versioned realtime channels, and the controlled event-gateway surface introduced by `US-GW-04`, `US-EVT-01`, and completed in `US-EVT-02`.
+This document records the gateway baseline for APISIX metrics, versioned realtime channels, and the controlled event-gateway surface introduced by `US-GW-04`, extended by `US-EVT-01` and `US-EVT-02`, and completed for Kafka bridge / trigger / observability coverage in `US-EVT-03`.
 
 ## Scope
 
@@ -12,11 +12,14 @@ Covered capabilities:
 
 - Prometheus-compatible APISIX metrics for gateway and realtime success criteria
 - versioned realtime channels over `/realtime/*` with WebSocket upgrades enabled
-- Kafka topic governance through `/v1/events/topics`, `/v1/events/topics/{resourceId}/access`, and `/v1/events/workspaces/{workspaceId}/inventory`
+- Kafka topic governance through `/v1/events/topics`, `/v1/events/topics/{resourceId}/access`, `/v1/events/topics/{resourceId}/metadata`, and `/v1/events/workspaces/{workspaceId}/inventory`
+- managed event bridges through `/v1/events/workspaces/{workspaceId}/bridges` and `/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}`
 - HTTP publish through `/v1/events/topics/{resourceId}/publish`
 - SSE subscribe through `/v1/events/topics/{resourceId}/stream`
+- Kafka-triggered OpenWhisk execution through `/v1/functions/actions/{resourceId}/kafka-triggers` and `/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}`
+- workspace-scoped Kafka topic metrics and dashboards through `/v1/metrics/workspaces/{workspaceId}/kafka-topics` and `/v1/metrics/workspaces/{workspaceId}/event-dashboards`
 - WebSocket session negotiation through `/v1/websockets/sessions`
-- workspace-scoped notification queues, controlled replay, reconnect policies, and relative-order guarantees
+- workspace-scoped notification queues, controlled replay, reconnect policies, relative-order guarantees, and append-only Kafka admin audit linkage
 - tenant-safe auth context, bounded backpressure, uniform audit, and correlation continuity
 
 ## Transport model
@@ -162,6 +165,9 @@ Administrative topic creation and ACL reconciliation stay on the control-plane s
 - `POST /v1/events/topics` accepts logical topic requests and generates the physical Kafka topic name from workspace-safe naming policy.
 - `GET|PUT /v1/events/topics/{resourceId}/access` exposes and reconciles service-account ACL bindings without allowing cross-workspace principals.
 - `GET /v1/events/workspaces/{workspaceId}/inventory` exposes quota usage, naming policy, ACL counts, payload policy, replay policy, notification policy, and KRaft compatibility guidance without live broker enumeration for every console read.
+- `POST /v1/events/workspaces/{workspaceId}/bridges` and `GET /v1/events/workspaces/{workspaceId}/bridges/{bridgeId}` register and inspect managed bridges from PostgreSQL, MongoDB, storage, OpenWhisk, and IAM sources into Kafka.
+- `GET /v1/events/topics/{resourceId}/metadata` exposes topic partition, lag, retention, and compaction metadata when provider APIs and policy allow the data to be surfaced safely.
+- `POST /v1/functions/actions/{resourceId}/kafka-triggers` and `GET /v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}` bind bounded Kafka consumers to OpenWhisk actions with dead-letter and audit policy.
 
 Governance requirements inherited from `US-EVT-01` and extended in `US-EVT-02`:
 
@@ -204,6 +210,9 @@ Additional runtime signals expected from the public contract:
 - reconnect attempts and resumptions
 - relative order violations
 - notification queue depth and lag windows
+- Kafka topic lag, retention, and compaction visibility when technically possible
+- bridge health, source-delivery lag, and trigger invocation throughput
+- append-only audit volume for Kafka administrative operations and bridge / trigger mutations
 
 Success criteria tracked from those series:
 
@@ -235,12 +244,17 @@ Prefer:
 
 Do not connect directly to Kafka from tenant-facing workloads through this public surface.
 
-## Delivered note for `US-EVT-02`
+## Delivered note for `US-EVT-03`
 
-`US-EVT-02` closes the remaining contract gap for publish, subscribe/stream, binary support, logical notification queues, controlled replay, and reconnection/relative-order coverage.
+`US-EVT-03` closes the remaining contract gap for Kafka bridge, Kafka-triggered function, topic metadata, dashboard, and Kafka-admin audit coverage.
 
 The runtime remains provider-abstracted, but the public and internal contracts now make the following explicit and testable:
 
+- PostgreSQL, MongoDB, storage, OpenWhisk, and IAM bridge registration into Kafka
+- Kafka-triggered OpenWhisk execution policy with dead-letter handling
+- topic partition, lag, retention, and compaction visibility when technically possible
+- workspace-scoped Kafka topic metrics and tenant/workspace event dashboards
+- append-only audit linkage for Kafka administrative mutations and bridge / trigger changes
 - publish key/timestamp/partition behavior
 - workspace-scoped WebSocket and SSE subscription policy
 - JSON and base64/binary payload limits

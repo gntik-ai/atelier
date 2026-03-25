@@ -545,12 +545,12 @@ api_contract:
   uri_prefix: /v1/
   version_header:
     name: X-API-Version
-    current_value: 2026-03-25
+    current_value: 2026-03-26
   required_error_contracts: true
   compatibility_expectations:
     - Non-health control-plane operations stay under `/v1/` until a deliberate
       versioning change is introduced.
-    - The current pinned API-version value remains `2026-03-25` for this
+    - The current pinned API-version value remains `2026-03-26` for this
       contract generation.
     - Access-check routes remain tenant/workspace-scoped and carry explicit
       correlation metadata.
