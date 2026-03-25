@@ -1,7 +1,9 @@
 pyramid:
   - level: unit
-    purpose: Validate pure policy logic, fixture builders, permission reducers, and contextual authorization resolution with no infrastructure.
-    why_now: Gives the fastest feedback path while runtime stacks are still intentionally open.
+    purpose: Validate pure policy logic, fixture builders, permission reducers, and
+      contextual authorization resolution with no infrastructure.
+    why_now: Gives the fastest feedback path while runtime stacks are still
+      intentionally open.
     future_extensions:
       - tenant-context builders
       - permission evaluators
@@ -9,31 +11,38 @@ pyramid:
       - event-envelope serializers
   - level: adapter_integration
     purpose: Validate adapter behavior against local doubles and stable fixtures.
-    why_now: Preserves payload, tenant-context, authorization-propagation, and retry semantics before real providers are wired in.
+    why_now: Preserves payload, tenant-context, authorization-propagation, and retry
+      semantics before real providers are wired in.
     future_extensions:
       - PostgreSQL adapters
       - object-storage adapters
       - external HTTP providers
       - authorization projection checks
   - level: api_contract
-    purpose: Validate versioning, headers, error contracts, and schema expectations against the public API boundary.
-    why_now: The repository already stores a control-plane OpenAPI contract that later stories must preserve.
+    purpose: Validate versioning, headers, error contracts, and schema expectations
+      against the public API boundary.
+    why_now: The repository already stores a control-plane OpenAPI contract that
+      later stories must preserve.
     future_extensions:
       - consumer-driven contracts
       - compatibility snapshots
       - schema-diff policy gates
       - authorization decision endpoints
   - level: console_e2e
-    purpose: Validate visible workflows, navigation, and permission boundaries from the user viewpoint.
-    why_now: Console role/state expectations should be explicit before UI implementation begins.
+    purpose: Validate visible workflows, navigation, and permission boundaries from
+      the user viewpoint.
+    why_now: Console role/state expectations should be explicit before UI
+      implementation begins.
     future_extensions:
       - browser automation
       - accessibility journeys
       - cross-tenant route protection
       - workspace-scoped navigation guards
   - level: resilience
-    purpose: Validate degraded behavior, retries, replay safety, tenant-safe recovery, and operator visibility under failure.
-    why_now: Multi-tenant systems need resilience expectations early even before live chaos tooling exists.
+    purpose: Validate degraded behavior, retries, replay safety, tenant-safe
+      recovery, and operator visibility under failure.
+    why_now: Multi-tenant systems need resilience expectations early even before
+      live chaos tooling exists.
     future_extensions:
       - queue redelivery tests
       - dependency fault injection
@@ -42,15 +51,20 @@ pyramid:
 cross_domain_matrix:
   domains:
     - id: multi_tenant
-      description: Tenant placement, workspace binding, context propagation, and boundary safety.
+      description: Tenant placement, workspace binding, context propagation, and
+        boundary safety.
     - id: security
-      description: Role and permission enforcement, version-header requirements, correlation metadata, and unsafe access prevention.
+      description: Role and permission enforcement, version-header requirements,
+        correlation metadata, and unsafe access prevention.
     - id: data
-      description: Contracted reads/writes, lifecycle transitions, and storage-bound expectations.
+      description: Contracted reads/writes, lifecycle transitions, and storage-bound
+        expectations.
     - id: events
-      description: Event envelopes, retries, replay safety, and downstream integration behavior.
+      description: Event envelopes, retries, replay safety, and downstream integration
+        behavior.
     - id: console
-      description: UI routes, visible sections, state transitions, and actor-facing feedback.
+      description: UI routes, visible sections, state transitions, and actor-facing
+        feedback.
   scenarios:
     - id: UT-TEN-001
       level: unit
@@ -60,31 +74,37 @@ cross_domain_matrix:
       fixtures:
         - tenant-shared-a
         - user-tenant-admin-a
-      expected: Missing tenant context is rejected before any adapter or console flow begins.
+      expected: Missing tenant context is rejected before any adapter or console flow
+        begins.
     - id: UT-TEN-002
       level: unit
       domain: multi_tenant
       taxonomy: negative
-      title: Workspace context resolver rejects a workspace that is outside the resolved tenant binding.
+      title: Workspace context resolver rejects a workspace that is outside the
+        resolved tenant binding.
       fixtures:
         - tenant-shared-a
         - workspace-beta-dev
         - user-workspace-admin-alpha
-      expected: Workspace identifiers cannot be reused across tenant boundaries or mismatched memberships.
+      expected: Workspace identifiers cannot be reused across tenant boundaries or
+        mismatched memberships.
     - id: UT-SEC-001
       level: unit
       domain: security
       taxonomy: permission
-      title: Tenant developer permissions stay tenant-scoped and do not imply workspace runtime access.
+      title: Tenant developer permissions stay tenant-scoped and do not imply
+        workspace runtime access.
       fixtures:
         - user-tenant-developer-a
         - route-tenant-dashboard
-      expected: Tenant developer access remains limited to tenant-level collaboration visibility unless an independent workspace membership also exists.
+      expected: Tenant developer access remains limited to tenant-level collaboration
+        visibility unless an independent workspace membership also exists.
     - id: UT-SEC-002
       level: unit
       domain: security
       taxonomy: permission
-      title: Workspace developer cannot manage tenant membership or workspace administration actions.
+      title: Workspace developer cannot manage tenant membership or workspace
+        administration actions.
       fixtures:
         - user-workspace-dev-alpha
         - workspace-alpha-dev
@@ -93,7 +113,8 @@ cross_domain_matrix:
       level: adapter_integration
       domain: data
       taxonomy: contract
-      title: Adapter mapping preserves tenant placement fields for shared and dedicated tenants.
+      title: Adapter mapping preserves tenant placement fields for shared and
+        dedicated tenants.
       fixtures:
         - tenant-shared-a
         - tenant-dedicated-a
@@ -103,70 +124,85 @@ cross_domain_matrix:
       level: adapter_integration
       domain: events
       taxonomy: positive
-      title: Event publisher attaches tenant context and idempotency metadata to outbound lifecycle events.
+      title: Event publisher attaches tenant context and idempotency metadata to
+        outbound lifecycle events.
       fixtures:
         - adapter-event-bus-stub
         - event-tenant-provision-requested
         - tenant-shared-a
-      expected: Outbound event envelopes are stable and replay-aware before provider integration.
+      expected: Outbound event envelopes are stable and replay-aware before provider
+        integration.
     - id: AI-EVT-002
       level: adapter_integration
       domain: events
       taxonomy: positive
-      title: IAM lifecycle activity preserves actor context, audit linkage, and Kafka partitioning for tenant suspension and credential events.
+      title: IAM lifecycle activity preserves actor context, audit linkage, and Kafka
+        partitioning for tenant suspension and credential events.
       fixtures:
         - adapter-event-bus-stub
         - event-iam-tenant-access-suspended
         - tenant-shared-a
-      expected: Lifecycle evidence remains traceable across audit and Kafka-compatible streams without duplicating side effects.
+      expected: Lifecycle evidence remains traceable across audit and Kafka-compatible
+        streams without duplicating side effects.
     - id: AI-SEC-002
       level: adapter_integration
       domain: security
       taxonomy: contract
-      title: Adapter calls preserve correlation id, effective roles, and workspace binding when the authorization context is projected downstream.
+      title: Adapter calls preserve correlation id, effective roles, and workspace
+        binding when the authorization context is projected downstream.
       fixtures:
         - adapter-object-storage-stub
         - user-workspace-admin-alpha
         - workspace-alpha-dev
-      expected: Adapter-facing metadata remains authorization-safe and does not silently drop workspace scope.
+      expected: Adapter-facing metadata remains authorization-safe and does not
+        silently drop workspace scope.
     - id: AC-DAT-001
       level: api_contract
       domain: data
       taxonomy: contract
-      title: Business routes stay under the v1 URI prefix and return explicit error contracts.
+      title: Business routes stay under the v1 URI prefix and return explicit error
+        contracts.
       fixtures:
         - api-version-current
-      expected: Contract validation fails if business endpoints leave `/v1/` or lose error responses.
+      expected: Contract validation fails if business endpoints leave `/v1/` or lose
+        error responses.
     - id: AC-SEC-001
       level: api_contract
       domain: security
       taxonomy: contract
-      title: Non-health control-plane operations require the pinned API version header.
+      title: Non-health control-plane operations require the pinned API version
+        header.
       fixtures:
         - api-version-current
-      expected: Contract validation fails if `X-API-Version` becomes optional or drifts from the current value.
+      expected: Contract validation fails if `X-API-Version` becomes optional or
+        drifts from the current value.
     - id: AC-SEC-002
       level: api_contract
       domain: security
       taxonomy: contract
-      title: Workspace access-check operations require correlation metadata and return explicit authorization decisions.
+      title: Workspace access-check operations require correlation metadata and return
+        explicit authorization decisions.
       fixtures:
         - api-version-current
-      expected: Access-check routes preserve tenant/workspace scoping, correlation headers, and explicit allow or deny semantics.
+      expected: Access-check routes preserve tenant/workspace scoping, correlation
+        headers, and explicit allow or deny semantics.
     - id: AC-EVT-003
       level: api_contract
       domain: events
       taxonomy: contract
-      title: IAM activity query routes expose actor-rich lifecycle records for tenant and workspace scopes.
+      title: IAM activity query routes expose actor-rich lifecycle records for tenant
+        and workspace scopes.
       fixtures:
         - api-version-current
         - event-iam-user-login
-      expected: IAM traceability endpoints remain versioned, correlated, and additive across new event types.
+      expected: IAM traceability endpoints remain versioned, correlated, and additive
+        across new event types.
     - id: CE-CON-001
       level: console_e2e
       domain: console
       taxonomy: positive
-      title: Unauthenticated users are redirected to login and cannot see tenant or platform navigation.
+      title: Unauthenticated users are redirected to login and cannot see tenant or
+        platform navigation.
       fixtures:
         - route-login
         - route-tenant-dashboard
@@ -177,7 +213,8 @@ cross_domain_matrix:
       level: console_e2e
       domain: security
       taxonomy: permission
-      title: Tenant admin can manage tenant resources but cannot access platform-wide control surfaces.
+      title: Tenant admin can manage tenant resources but cannot access platform-wide
+        control surfaces.
       fixtures:
         - user-tenant-admin-a
         - route-tenant-dashboard
@@ -189,19 +226,22 @@ cross_domain_matrix:
       level: console_e2e
       domain: security
       taxonomy: permission
-      title: Workspace admin can manage one workspace but cannot see platform-wide or cross-tenant navigation.
+      title: Workspace admin can manage one workspace but cannot see platform-wide or
+        cross-tenant navigation.
       fixtures:
         - user-workspace-admin-alpha
         - route-workspace-dashboard
         - route-platform-overview
       states:
         - workspace_admin
-      expected: Workspace-scoped roles stay inside one workspace and do not inherit tenant-wide or platform-wide surfaces.
+      expected: Workspace-scoped roles stay inside one workspace and do not inherit
+        tenant-wide or platform-wide surfaces.
     - id: RS-EVT-001
       level: resilience
       domain: events
       taxonomy: resilience
-      title: Provider timeout reclassifies the operation for retry without duplicating the event envelope.
+      title: Provider timeout reclassifies the operation for retry without duplicating
+        the event envelope.
       fixtures:
         - resilience-provider-timeout
         - event-tenant-provision-requested
@@ -211,121 +251,146 @@ cross_domain_matrix:
       level: resilience
       domain: events
       taxonomy: resilience
-      title: Idempotent retry reuses the original create or provision acceptance instead of duplicating side effects.
+      title: Idempotent retry reuses the original create or provision acceptance
+        instead of duplicating side effects.
       fixtures:
         - resilience-idempotent-retry
         - event-tenant-provision-requested
         - tenant-shared-a
-      expected: Safe retries preserve one logical acceptance, one correlation chain, and one downstream mutation envelope.
+      expected: Safe retries preserve one logical acceptance, one correlation chain,
+        and one downstream mutation envelope.
     - id: RS-EVT-003
       level: resilience
       domain: events
       taxonomy: resilience
-      title: Event gateway load stays bounded for concurrent subscriptions and sustained publishing.
+      title: Event gateway load stays bounded for concurrent subscriptions and
+        sustained publishing.
       fixtures:
         - resilience-event-gateway-load
         - event-workspace-document-updated
         - tenant-shared-a
-      expected: Concurrent sessions and publish bursts stay inside documented limits, and excess work is rejected predictably instead of buffering without bound.
+      expected: Concurrent sessions and publish bursts stay inside documented limits,
+        and excess work is rejected predictably instead of buffering without
+        bound.
     - id: RS-TEN-001
       level: resilience
       domain: multi_tenant
       taxonomy: recovery
-      title: Tenant placement recovery preserves tenant identity and prevents cross-tenant failover leakage.
+      title: Tenant placement recovery preserves tenant identity and prevents
+        cross-tenant failover leakage.
       fixtures:
         - resilience-tenant-failover
         - tenant-shared-a
         - tenant-dedicated-a
-      expected: Recovery paths preserve the logical tenant contract and isolation boundary.
+      expected: Recovery paths preserve the logical tenant contract and isolation
+        boundary.
     - id: RS-SEC-003
       level: resilience
       domain: security
       taxonomy: resilience
-      title: Tenant suspension immediately blocks protected user and service-account access, and reactivation restores only the states that were not separately revoked.
+      title: Tenant suspension immediately blocks protected user and service-account
+        access, and reactivation restores only the states that were not
+        separately revoked.
       fixtures:
         - resilience-tenant-suspension-toggle
         - tenant-shared-a
         - workspace-alpha-dev
         - event-iam-tenant-access-suspended
-      expected: Suspension and reactivation remain reversible, auditable, and semantically distinct from user disablement or client revocation.
+      expected: Suspension and reactivation remain reversible, auditable, and
+        semantically distinct from user disablement or client revocation.
     - id: RS-SEC-001
       level: resilience
       domain: security
       taxonomy: resilience
-      title: Replay or escalation attempts cannot widen delegated authorization after the original context was denied or narrowed.
+      title: Replay or escalation attempts cannot widen delegated authorization after
+        the original context was denied or narrowed.
       fixtures:
         - resilience-privilege-escalation
         - user-workspace-admin-alpha
         - workspace-alpha-dev
-      expected: Replayed or mutated authorization context remains denied and fully traceable by correlation id.
+      expected: Replayed or mutated authorization context remains denied and fully
+        traceable by correlation id.
     - id: RS-SEC-002
       level: resilience
       domain: security
       taxonomy: resilience
-      title: Gateway rejects spoofed downstream auth-context headers with the standard correlation-bearing error envelope.
+      title: Gateway rejects spoofed downstream auth-context headers with the standard
+        correlation-bearing error envelope.
       fixtures:
         - resilience-invalid-headers
         - api-version-current
-      expected: Client-supplied trust headers are blocked before they can reach the control plane or adapters.
+      expected: Client-supplied trust headers are blocked before they can reach the
+        control plane or adapters.
     - id: RS-DAT-002
       level: resilience
       domain: data
       taxonomy: resilience
-      title: Oversized provisioning payloads are rejected at the gateway before any control-plane side effects begin.
+      title: Oversized provisioning payloads are rejected at the gateway before any
+        control-plane side effects begin.
       fixtures:
         - resilience-oversized-body
         - tenant-shared-a
         - workspace-alpha-dev
-      expected: Body-size enforcement fails fast, returns the standard error envelope, and preserves tenant-safe retry guidance.
+      expected: Body-size enforcement fails fast, returns the standard error envelope,
+        and preserves tenant-safe retry guidance.
     - id: RS-DAT-004
       level: resilience
       domain: data
       taxonomy: recovery
-      title: Partial tenant bootstrap retry resumes only failed resources and skips the ones that already converged.
+      title: Partial tenant bootstrap retry resumes only failed resources and skips
+        the ones that already converged.
       fixtures:
         - resilience-partial-bootstrap
         - event-tenant-provision-requested
         - tenant-bootstrap-starter
         - workspace-bootstrap-default
-      expected: Recovery stays idempotent, skips already-provisioned resources, and retries only the failed bootstrap steps inside the same lineage.
+      expected: Recovery stays idempotent, skips already-provisioned resources, and
+        retries only the failed bootstrap steps inside the same lineage.
     - id: CE-CON-002
       level: console_e2e
       domain: console
       taxonomy: positive
-      title: Pending-activation accounts only see the activation waiting room until a superadmin approves the signup.
+      title: Pending-activation accounts only see the activation waiting room until a
+        superadmin approves the signup.
       fixtures:
         - route-pending-activation
         - route-login
       states:
         - pending_activation
-      expected: Pending-activation users stay blocked from tenant and platform navigation until approval resolves the account.
+      expected: Pending-activation users stay blocked from tenant and platform
+        navigation until approval resolves the account.
     - id: CE-CON-003
       level: console_e2e
       domain: console
       taxonomy: recovery
-      title: Expired credentials route the operator into password recovery instead of silently failing login loops.
+      title: Expired credentials route the operator into password recovery instead of
+        silently failing login loops.
       fixtures:
         - route-credentials-expired
         - route-password-recovery
       states:
         - credentials_expired
-      expected: Credential-expiry states expose recovery-only actions until the password reset completes.
+      expected: Credential-expiry states expose recovery-only actions until the
+        password reset completes.
     - id: CE-CON-004
       level: console_e2e
       domain: console
       taxonomy: negative
-      title: Suspended accounts render an explicit blocked status screen and never regain navigation by refreshing the SPA.
+      title: Suspended accounts render an explicit blocked status screen and never
+        regain navigation by refreshing the SPA.
       fixtures:
         - route-account-suspended
         - route-login
       states:
         - account_suspended
-      expected: Suspended accounts stay blocked from every tenant and platform surface until an operator reactivates them.
+      expected: Suspended accounts stay blocked from every tenant and platform surface
+        until an operator reactivates them.
     - id: CE-CON-005
       level: console_e2e
       domain: console
       taxonomy: positive
-      title: Approved signup activation lands the new owner in an operational tenant with visible bootstrap resources.
+      title: Approved signup activation lands the new owner in an operational tenant
+        with visible bootstrap resources.
       fixtures:
         - user-bootstrap-pending
         - user-bootstrap-owner
@@ -338,7 +403,9 @@ cross_domain_matrix:
       states:
         - pending_activation
         - tenant_admin
-      expected: Approval creates the initial tenant/workspace, keeps bootstrap progress visible, and exposes the provisioned resources without requiring a second manual setup flow.
+      expected: Approval creates the initial tenant/workspace, keeps bootstrap
+        progress visible, and exposes the provisioned resources without
+        requiring a second manual setup flow.
 scenario_taxonomy:
   categories:
     - id: positive
@@ -478,11 +545,16 @@ api_contract:
   uri_prefix: /v1/
   version_header:
     name: X-API-Version
-    current_value: 2026-03-24
+    current_value: 2026-03-25
   required_error_contracts: true
   compatibility_expectations:
-    - Non-health control-plane operations stay under `/v1/` until a deliberate versioning change is introduced.
-    - The current pinned API-version value remains `2026-03-24` for this contract generation.
-    - Access-check routes remain tenant/workspace-scoped and carry explicit correlation metadata.
-    - Backward-compatible additions may add optional fields but must preserve existing required fields and error shapes.
-    - Breaking changes require an explicit versioning plan rather than silent contract drift.
+    - Non-health control-plane operations stay under `/v1/` until a deliberate
+      versioning change is introduced.
+    - The current pinned API-version value remains `2026-03-25` for this
+      contract generation.
+    - Access-check routes remain tenant/workspace-scoped and carry explicit
+      correlation metadata.
+    - Backward-compatible additions may add optional fields but must preserve
+      existing required fields and error shapes.
+    - Breaking changes require an explicit versioning plan rather than silent
+      contract drift.

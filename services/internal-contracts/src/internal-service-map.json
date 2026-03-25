@@ -28,7 +28,8 @@
         "Accept bounded MongoDB administrative operations for databases, collections, users, and role bindings while preserving tenant ownership, quota, and isolation guardrails.",
         "Expose MongoDB administrative inventory projections and minimum-privilege operational guidance without live engine enumeration for every console read.",
         "Accept workspace-scoped PostgreSQL Data API CRUD and query requests with dynamic table routing, filter validation, effective-role resolution, and RLS-safe query semantics.",
-        "Accept MongoDB administrative operations through tenant-scoped or internal service-account credential indirection while preserving bounded credential lifecycle and recovery metadata."
+        "Accept MongoDB administrative operations through tenant-scoped or internal service-account credential indirection while preserving bounded credential lifecycle and recovery metadata.",
+        "Accept workspace-scoped MongoDB Data API document CRUD, validated query controls, tenant-scoped bulk-write requests, and collection-validation-aware payload planning."
       ],
       "owned_resources": [
         "public route contract",
@@ -60,7 +61,8 @@
         "postgres_admin_request",
         "postgres_data_request",
         "postgres_admin_sql_request",
-        "mongo_admin_request"
+        "mongo_admin_request",
+        "mongo_data_request"
       ]
     },
     {
@@ -82,7 +84,8 @@
         "Coordinate MongoDB administrative operations for databases, collections, users, and role bindings without letting control_api call adapters directly.",
         "Persist MongoDB metadata and inventory snapshots for console-safe reads across supported isolation modes and cluster topologies.",
         "Coordinate PostgreSQL Data API reads and mutations through parameterized adapter calls while preserving effective role, grants, and RLS constraints.",
-        "Emit correlation-rich MongoDB admin events with credential-lifecycle and recovery metadata for audit and stream consumers."
+        "Emit correlation-rich MongoDB admin events with credential-lifecycle and recovery metadata for audit and stream consumers.",
+        "Coordinate MongoDB Data API reads and document mutations through tenant-scoped adapter calls while preserving collection validation, bounded bulk limits, and audit traceability."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -115,7 +118,8 @@
         "postgres_admin_request",
         "postgres_data_request",
         "postgres_admin_sql_request",
-        "mongo_admin_request"
+        "mongo_admin_request",
+        "mongo_data_request"
       ],
       "outbound_contracts": [
         "provisioning_result",
@@ -129,7 +133,8 @@
         "postgres_admin_sql_result",
         "mongo_admin_result",
         "mongo_inventory_snapshot",
-        "mongo_admin_event"
+        "mongo_admin_event",
+        "mongo_data_result"
       ]
     },
     {
@@ -432,7 +437,13 @@
         "mongo_user_delete",
         "mongo_role_binding_assign",
         "mongo_role_binding_revoke",
-        "mongo_inventory_upsert"
+        "mongo_inventory_upsert",
+        "mongo_data_query",
+        "mongo_data_insert",
+        "mongo_data_update",
+        "mongo_data_replace",
+        "mongo_data_delete",
+        "mongo_data_bulk_write"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -1246,6 +1257,77 @@
         "audit_unavailable",
         "dependency_failure"
       ]
+    },
+    "mongo_data_request": {
+      "owner": "control_api",
+      "version": "2026-03-25",
+      "required_fields": [
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "database_name",
+        "collection_name",
+        "action",
+        "tenant_scope",
+        "filters",
+        "projection",
+        "sort",
+        "page",
+        "payload",
+        "bulk_limits",
+        "collection_validation",
+        "effective_role_name",
+        "correlation_id",
+        "authorization_decision_id",
+        "scopes",
+        "contract_version",
+        "requested_at",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "trace_context"
+      ],
+      "idempotency": "MongoDB Data API mutations coalesce by workspace_id, database_name, collection_name, action, tenant_scope, document selector, and idempotency_key so safe retries do not duplicate writes or bulk batches.",
+      "versioning": "The MongoDB Data API request envelope remains additive while CRUD verbs, validated JSON query controls, bulk write guardrails, tenant segregation metadata, and collection-validation hints evolve behind stable field names.",
+      "error_classes": [
+        "validation_error",
+        "forbidden",
+        "not_found",
+        "conflict",
+        "dependency_failure"
+      ]
+    },
+    "mongo_data_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "request_id",
+        "action",
+        "status",
+        "tenant_scope",
+        "documents",
+        "document",
+        "counts",
+        "page",
+        "bulk_summary",
+        "validation_summary",
+        "correlation_id",
+        "contract_version",
+        "observed_at",
+        "authorization_decision_id",
+        "trace_context",
+        "audit_record_id",
+        "audit_summary"
+      ],
+      "idempotency": "Repeated reads of the same MongoDB Data API result describe one logical document query or mutation outcome under one tenant scope and selector set.",
+      "versioning": "The MongoDB Data API result contract stays secret-free and additive while document projections, bulk summaries, validation metadata, pagination state, and audit traceability expand.",
+      "error_classes": [
+        "forbidden",
+        "not_found",
+        "conflict",
+        "retryable_dependency_failure",
+        "terminal_dependency_failure"
+      ]
     }
   },
   "interaction_flows": [
@@ -1407,6 +1489,16 @@
       "guarantees": [
         "Administrative mutations preserve tenant-scoped/internal service-account credential indirection with bounded lifetime and recovery metadata.",
         "Each successful MongoDB admin mutation can emit one correlation-rich mongo_admin_event envelope linked to append-only audit evidence."
+      ]
+    },
+    {
+      "id": "mongo_document_data_access",
+      "summary": "Workspace-scoped MongoDB Data API document CRUD and bulk write flow",
+      "steps": [
+        "control_api validates the workspace/database/collection route, query controls, document selector, tenant scope, idempotency metadata, and collection-validation hints into one mongo_data_request envelope.",
+        "provisioning_orchestrator authorizes the effective workspace role, applies tenant-scoped filter narrowing, and dispatches one adapter_call against the mongodb adapter with bounded CRUD or bulk-write capability metadata.",
+        "mongodb executes one tenant-scoped document query or mutation plan, preserving collection validation, unique-index conflict handling, and configured operation-count or payload-size limits.",
+        "provisioning_orchestrator returns one mongo_data_result envelope with document payloads or mutation counts, pagination state, validation summary, and append-only audit linkage."
       ]
     }
   ]

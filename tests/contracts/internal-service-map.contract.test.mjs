@@ -104,6 +104,13 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('credential_posture'));
   assert.ok(getContract('mongo_admin_event').required_fields.includes('audit_record_id'));
+  assert.ok(getContract('mongo_data_request').required_fields.includes('tenant_scope'));
+  assert.ok(getContract('mongo_data_request').required_fields.includes('filters'));
+  assert.ok(getContract('mongo_data_request').required_fields.includes('bulk_limits'));
+  assert.ok(getContract('mongo_data_request').required_fields.includes('collection_validation'));
+  assert.ok(getContract('mongo_data_result').required_fields.includes('documents'));
+  assert.ok(getContract('mongo_data_result').required_fields.includes('bulk_summary'));
+  assert.ok(getContract('mongo_data_result').required_fields.includes('validation_summary'));
   assert.equal(auditRecordContract.write_mode, 'append_only');
   assert.ok(auditRecordContract.required_fields.includes('evidence_pointer'));
   assert.ok(auditRecordContract.required_fields.includes('authorization_decision_id'));
@@ -162,6 +169,12 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(mongodbAdapter.capabilities.includes('mongo_user_delete'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_role_binding_assign'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_inventory_upsert'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_data_query'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_data_insert'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_data_update'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_data_replace'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_data_delete'));
+  assert.ok(mongodbAdapter.capabilities.includes('mongo_data_bulk_write'));
   assert.equal(getContract('adapter_call').required_fields.includes('provisioning_run_id'), true);
   assert.equal(getContract('adapter_call').required_fields.includes('resource_key'), true);
   assert.equal(getContract('adapter_result').required_fields.includes('resource_key'), true);
@@ -177,6 +190,7 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(interactionFlowIds.has('postgres_administration'));
   assert.ok(interactionFlowIds.has('postgres_admin_sql_execution'));
   assert.ok(interactionFlowIds.has('mongo_administration'));
+  assert.ok(interactionFlowIds.has('mongo_document_data_access'));
   assert.ok(interactionFlowIds.has('iam_lifecycle_traceability'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));
   assert.ok(interactionFlowIds.has('realtime_subscription_gateway'));

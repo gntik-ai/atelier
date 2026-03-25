@@ -100,6 +100,9 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/templates']);
   assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/templates/{templateId}']);
   assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/inventory']);
+  assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents']);
+  assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}']);
+  assert.ok(document.paths['/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}/publish']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}/stream']);
@@ -192,8 +195,8 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.17.0');
-  assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-24');
+  assert.equal(document.info.version, '1.18.0');
+  assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-25');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
     'code',
@@ -628,6 +631,17 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.MongoUserPasswordBinding.properties.lifecycle);
   assert.ok(document.components.schemas.MongoCredentialLifecycle);
   assert.ok(document.components.schemas.MongoAdminCredentialBinding);
+  assert.ok(document.components.schemas.MongoDataDocumentCollection);
+  assert.ok(document.components.schemas.MongoDataDocumentEnvelope);
+  assert.ok(document.components.schemas.MongoDataInsertRequest);
+  assert.ok(document.components.schemas.MongoDataPatchRequest);
+  assert.ok(document.components.schemas.MongoDataReplaceRequest);
+  assert.ok(document.components.schemas.MongoDataMutationResult);
+  assert.ok(document.components.schemas.MongoDataBulkWriteRequest);
+  assert.ok(document.components.schemas.MongoDataBulkMutationResult);
+  assert.ok(document.components.schemas.MongoDataTenantScope);
+  assert.ok(document.components.schemas.MongoDataValidationSummary);
+  assert.ok(document.components.schemas.MongoDataTraceContext);
   assert.ok(document.components.schemas.MongoAdminEvent);
   assert.ok(document.components.schemas.EventTopic.properties.provisioning);
   assert.ok(document.components.schemas.FunctionAction.properties.provisioning);

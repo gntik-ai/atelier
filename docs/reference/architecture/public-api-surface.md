@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-24, OpenAPI 1.17.0)
+Version: v1 (header 2026-03-25, OpenAPI 1.18.0)
 
 ## Product API vs native passthrough
 
@@ -309,7 +309,7 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, inven
 
 ## Mongo
 
-Workspace-scoped document database control and discovery routes exposed through the public gateway.
+Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, and collection-validation-aware mutation semantics.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
@@ -340,6 +340,13 @@ Workspace-scoped document database control and discovery routes exposed through 
 | DELETE | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Delete one MongoDB view from a managed database |
 | GET | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Fetch one normalized MongoDB view contract |
 | PUT | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Update one MongoDB view pipeline while preserving read-only safeguards |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write` | workspace | mongo_data_bulk | Execute one bounded MongoDB bulk write request with configurable operation-count and payload-size limits |
+| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | List workspace-scoped MongoDB documents with validated JSON filters, projection, deterministic sorting, and cursor pagination |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | Insert one tenant-scoped MongoDB document while preserving collection validation and logical tenant segregation |
+| DELETE | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Delete one tenant-scoped MongoDB document by identifier |
+| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Fetch one tenant-scoped MongoDB document by identifier with optional projection |
+| PATCH | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Apply one bounded partial-update document against one tenant-scoped MongoDB document |
+| PUT | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Replace one tenant-scoped MongoDB document with full collection-validation-aware payload checks |
 | GET | `/v1/mongo/workspaces/{workspaceId}/inventory` | workspace | mongo_inventory | Fetch the persisted MongoDB administrative inventory projection for one workspace |
 | GET | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | List MongoDB collection onboarding templates for one workspace |
 | POST | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | Create one MongoDB collection onboarding template with bounded defaults and variables |

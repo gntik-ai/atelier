@@ -1,11 +1,11 @@
 {
-  "version": "2026-03-24",
+  "version": "2026-03-25",
   "scope": "US-IAM-02",
   "system": "in-atelier-public-api",
   "release": {
     "path_version": "v1",
-    "header_version": "2026-03-24",
-    "openapi_semver": "1.17.0"
+    "header_version": "2026-03-25",
+    "openapi_semver": "1.18.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -26,7 +26,7 @@
       "api_version": {
         "name": "X-API-Version",
         "required": true,
-        "current_value": "2026-03-24",
+        "current_value": "2026-03-25",
         "purpose": "Pins the non-breaking contract generation inside /v1."
       },
       "correlation_id": {
@@ -277,18 +277,21 @@
       "id": "mongo",
       "title": "Mongo",
       "prefix": "/v1/mongo",
-      "summary": "Workspace-scoped document database control and discovery routes exposed through the public gateway.",
+      "summary": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, and collection-validation-aware mutation semantics.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "provisioning_request",
         "adapter_call",
-        "audit_record"
+        "audit_record",
+        "mongo_data_request",
+        "mongo_data_result"
       ],
       "downstream_adapters": [
         "mongodb"
       ],
       "resource_scopes": [
-        "workspace"
+        "workspace",
+        "database"
       ],
       "audiences": [
         "developer_external",
@@ -810,6 +813,24 @@
       "family": "mongo",
       "scope": "workspace",
       "authorization_resource": null
+    },
+    {
+      "resource_type": "mongo_data_documents",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_document",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
+    },
+    {
+      "resource_type": "mongo_data_bulk",
+      "family": "mongo",
+      "scope": "workspace",
+      "authorization_resource": "database"
     }
   ]
 }
