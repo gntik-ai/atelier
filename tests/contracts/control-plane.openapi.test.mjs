@@ -106,10 +106,17 @@ test('control-plane OpenAPI document remains structurally valid', async () => {
   assert.ok(document.paths['/v1/events/topics/{resourceId}']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}/publish']);
   assert.ok(document.paths['/v1/events/topics/{resourceId}/stream']);
+  assert.ok(document.paths['/v1/events/topics/{resourceId}/metadata']);
+  assert.ok(document.paths['/v1/events/workspaces/{workspaceId}/bridges']);
+  assert.ok(document.paths['/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}']);
   assert.ok(document.paths['/v1/functions/actions/{resourceId}']);
+  assert.ok(document.paths['/v1/functions/actions/{resourceId}/kafka-triggers']);
+  assert.ok(document.paths['/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}']);
   assert.ok(document.paths['/v1/storage/buckets/{resourceId}']);
   assert.ok(document.paths['/v1/metrics/workspaces/{workspaceId}/series']);
   assert.ok(document.paths['/v1/metrics/workspaces/{workspaceId}/gateway-streams']);
+  assert.ok(document.paths['/v1/metrics/workspaces/{workspaceId}/kafka-topics']);
+  assert.ok(document.paths['/v1/metrics/workspaces/{workspaceId}/event-dashboards']);
   assert.ok(document.paths['/v1/websockets/sessions/{sessionId}']);
   assert.ok(document.components.securitySchemes.bearerAuth);
   assert.ok(document.components.schemas.RouteCatalogResponse);
@@ -200,8 +207,8 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.20.0');
-  assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-25');
+  assert.equal(document.info.version, '1.21.0');
+  assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-26');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
     'code',

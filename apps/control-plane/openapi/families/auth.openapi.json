@@ -19,8 +19,8 @@
         "name": "X-API-Version",
         "required": true,
         "schema": {
-          "const": "2026-03-25",
-          "pattern": "^2026-03-24$",
+          "const": "2026-03-26",
+          "pattern": "^2026-03-26$",
           "type": "string"
         }
       },
@@ -2874,7 +2874,7 @@
     "description": "Console login, signup, activation, password recovery, and contextual authorization decisions. Generated from the unified public API contract for v1.",
     "summary": "Console login, signup, activation, password recovery, and contextual authorization decisions.",
     "title": "In Atelier Auth API",
-    "version": "1.20.0"
+    "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

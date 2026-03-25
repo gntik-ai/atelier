@@ -32,7 +32,10 @@
         "Accept workspace-scoped MongoDB Data API document CRUD, validated query controls, tenant-scoped bulk-write requests, and collection-validation-aware payload planning.",
         "Validate advanced MongoDB Data API aggregation, import/export, transaction, and change-stream bridge requests before orchestration dispatch.",
         "Accept workspace-scoped Kafka topic governance requests for naming, ACL isolation, and quota-aware topic lifecycle without exposing broker-native administration.",
-        "Expose Kafka topic access-policy and inventory projections with KRaft guidance, service-account isolation, and quota visibility for multiple workspaces."
+        "Expose Kafka topic access-policy and inventory projections with KRaft guidance, service-account isolation, and quota visibility for multiple workspaces.",
+        "Accept workspace-scoped event-bridge definitions that route PostgreSQL, MongoDB, storage, OpenWhisk, and IAM source envelopes into managed Kafka topics with traceable audit context.",
+        "Accept Kafka-triggered OpenWhisk execution policies and bounded function-trigger definitions without exposing broker-native consumers.",
+        "Expose topic metadata, lag, retention, compaction, bridge health, and tenant/workspace event dashboard projections when providers and policy allow the data to be surfaced safely."
       ],
       "owned_resources": [
         "public route contract",
@@ -51,7 +54,9 @@
         "mongo change-stream bridge request",
         "kafka administrative request envelope",
         "kafka topic governance inventory projection",
-        "kafka admin audit summary"
+        "kafka admin audit summary",
+        "event bridge request envelope",
+        "kafka function-trigger request envelope"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -71,7 +76,9 @@
         "postgres_admin_sql_request",
         "mongo_admin_request",
         "mongo_data_request",
-        "kafka_admin_request"
+        "kafka_admin_request",
+        "event_bridge_request",
+        "kafka_function_trigger_request"
       ]
     },
     {
@@ -98,7 +105,8 @@
         "Coordinate advanced MongoDB Data API aggregation, import/export, transaction, and change-stream bridge flows while preserving topology compatibility and bridge readiness checks.",
         "Coordinate Kafka topic and ACL administrative operations without letting control_api call adapters directly.",
         "Persist Kafka metadata and inventory snapshots for console-safe reads across shared and dedicated KRaft isolation modes.",
-        "Emit correlation-rich Kafka admin events with naming, ACL, quota, and KRaft metadata for audit and stream consumers."
+        "Emit correlation-rich Kafka admin events with naming, ACL, quota, and KRaft metadata for audit and stream consumers.",
+        "Emit PostgreSQL change envelopes, storage object-event envelopes, and OpenWhisk activation envelopes toward event_gateway when workspace-managed Kafka bridges are enabled."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -117,7 +125,10 @@
         "mongo change-stream event envelope",
         "kafka admin orchestration result",
         "kafka metadata inventory snapshot",
-        "kafka admin event envelope"
+        "kafka admin event envelope",
+        "postgres change-event envelope",
+        "storage event envelope",
+        "openwhisk activation envelope"
       ],
       "service_dependencies": [
         "audit_module"
@@ -157,7 +168,10 @@
         "mongo_change_stream_event",
         "kafka_admin_result",
         "kafka_inventory_snapshot",
-        "kafka_admin_event"
+        "kafka_admin_event",
+        "postgres_data_change_event",
+        "storage_object_event",
+        "openwhisk_activation_event"
       ]
     },
     {
@@ -172,7 +186,10 @@
         "Forward IAM lifecycle events into Kafka-compatible streams without dropping audit or correlation metadata.",
         "Forward MongoDB admin events into Kafka-compatible streams without dropping audit, credential-lifecycle, or correlation metadata.",
         "Forward MongoDB change-stream envelopes into gateway-managed realtime transports when the bridge contract is enabled.",
-        "Forward Kafka admin events into Kafka-compatible streams without dropping naming, ACL, quota, or KRaft metadata when operational subscribers need governance visibility."
+        "Forward Kafka admin events into Kafka-compatible streams without dropping naming, ACL, quota, or KRaft metadata when operational subscribers need governance visibility.",
+        "Register and enforce managed bridge definitions that forward PostgreSQL, MongoDB, storage, OpenWhisk, and IAM source events into Kafka topics without exposing broker-native clients.",
+        "Execute Kafka-triggered OpenWhisk actions with bounded batching, dead-letter routing, and audit-safe correlation metadata.",
+        "Project topic metadata, lag, retention, compaction, and bridge/trigger health into workspace-scoped observability views and dashboards when technically possible."
       ],
       "owned_resources": [
         "event publication acceptance record",
@@ -183,13 +200,18 @@
         "iam lifecycle stream publication",
         "mongo admin stream publication",
         "mongo change-stream subscription state",
-        "kafka admin stream publication"
+        "kafka admin stream publication",
+        "event bridge registry",
+        "kafka function-trigger registry",
+        "topic metadata projection",
+        "event dashboard projection"
       ],
       "service_dependencies": [
         "audit_module"
       ],
       "adapter_dependencies": [
-        "kafka"
+        "kafka",
+        "openwhisk"
       ],
       "inbound_contracts": [
         "iam_lifecycle_event",
@@ -197,13 +219,20 @@
         "event_gateway_subscription_request",
         "mongo_admin_event",
         "mongo_change_stream_event",
-        "kafka_admin_event"
+        "kafka_admin_event",
+        "event_bridge_request",
+        "kafka_function_trigger_request",
+        "postgres_data_change_event",
+        "storage_object_event",
+        "openwhisk_activation_event"
       ],
       "outbound_contracts": [
         "event_gateway_publish_result",
         "event_gateway_subscription_status",
         "adapter_call",
-        "audit_record"
+        "audit_record",
+        "event_bridge_status",
+        "kafka_function_trigger_result"
       ]
     },
     {
@@ -216,7 +245,8 @@
         "Persist authorization decision identifiers, effective roles, and delegation-chain evidence without storing raw credentials.",
         "Apply redaction and retention policy in later tasks without changing callers.",
         "Preserve actor, origin, and tenant/workspace context for BaaS-managed IAM administrative evidence.",
-        "Preserve append-only evidence for MongoDB admin credential rotation, revocation, and recovery guidance without storing live secrets."
+        "Preserve append-only evidence for MongoDB admin credential rotation, revocation, and recovery guidance without storing live secrets.",
+        "Preserve append-only evidence for Kafka administrative operations, bridge registration changes, and function-trigger executions without storing raw payloads or credentials."
       ],
       "owned_resources": [
         "audit append log",
@@ -413,7 +443,8 @@
         "postgres_view_get",
         "postgres_view_list",
         "postgres_view_update",
-        "store_audit_metadata"
+        "store_audit_metadata",
+        "postgres_change_capture_publish"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -477,7 +508,8 @@
         "mongo_data_import",
         "mongo_data_export",
         "mongo_data_transaction",
-        "mongo_data_change_stream"
+        "mongo_data_change_stream",
+        "mongo_change_stream_publish"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -509,7 +541,12 @@
         "publish_lifecycle_event",
         "publish_event",
         "consume_events",
-        "read_consumer_lag"
+        "read_consumer_lag",
+        "describe_topic_configs",
+        "describe_topic_partitions",
+        "read_topic_retention",
+        "read_compaction_policy",
+        "publish_bridge_event"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -524,12 +561,15 @@
       "package": "services/adapters",
       "port": "functions_adapter",
       "consumers": [
-        "provisioning_orchestrator"
+        "provisioning_orchestrator",
+        "event_gateway"
       ],
       "capabilities": [
         "ensure_namespace",
         "ensure_packages",
-        "apply_invocation_policy"
+        "apply_invocation_policy",
+        "invoke_action",
+        "publish_activation_event"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -550,7 +590,8 @@
       "capabilities": [
         "ensure_bucket",
         "apply_lifecycle_policy",
-        "write_audit_evidence"
+        "write_audit_evidence",
+        "publish_object_event"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
@@ -1561,6 +1602,165 @@
         "audit_unavailable",
         "dependency_failure"
       ]
+    },
+    "event_bridge_request": {
+      "owner": "control_api",
+      "version": "2026-03-26",
+      "required_fields": [
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "bridge_id",
+        "source_type",
+        "source_ref",
+        "topic_ref",
+        "delivery_mode",
+        "audit_mode",
+        "correlation_id"
+      ],
+      "idempotency": "Event-bridge requests coalesce by bridge_id, topic_ref, and source_ref so retries do not register duplicate bridge state.",
+      "versioning": "The event-bridge request envelope remains additive while source filters, projection hints, and observability policy evolve.",
+      "error_classes": [
+        "validation_error",
+        "authorization_error",
+        "quota_exceeded",
+        "dependency_failure"
+      ]
+    },
+    "event_bridge_status": {
+      "owner": "event_gateway",
+      "version": "2026-03-26",
+      "required_fields": [
+        "bridge_id",
+        "tenant_id",
+        "workspace_id",
+        "source_type",
+        "source_ref",
+        "topic_ref",
+        "status",
+        "delivery_mode",
+        "audit_mode",
+        "contract_version"
+      ],
+      "idempotency": "Bridge status projections coalesce by bridge_id and observed_at so replayed state updates remain safe for console reads and audit linkage.",
+      "versioning": "The event-bridge status envelope stays additive while bridge health, lag, and dashboard pointers evolve.",
+      "error_classes": [
+        "bridge_unavailable",
+        "schema_validation_error",
+        "dependency_failure"
+      ]
+    },
+    "kafka_function_trigger_request": {
+      "owner": "control_api",
+      "version": "2026-03-26",
+      "required_fields": [
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "trigger_id",
+        "action_ref",
+        "topic_ref",
+        "delivery_mode",
+        "failure_policy",
+        "correlation_id"
+      ],
+      "idempotency": "Kafka function-trigger requests coalesce by trigger_id, action_ref, and topic_ref so retries do not create duplicate consumers.",
+      "versioning": "The function-trigger request envelope remains additive while batching, filters, and dead-letter policy evolve.",
+      "error_classes": [
+        "validation_error",
+        "authorization_error",
+        "quota_exceeded",
+        "dependency_failure"
+      ]
+    },
+    "kafka_function_trigger_result": {
+      "owner": "event_gateway",
+      "version": "2026-03-26",
+      "required_fields": [
+        "trigger_id",
+        "action_ref",
+        "topic_ref",
+        "status",
+        "delivery_mode",
+        "failure_policy",
+        "contract_version"
+      ],
+      "idempotency": "Kafka function-trigger status projections coalesce by trigger_id and observed_at so retries do not duplicate execution state.",
+      "versioning": "The function-trigger result envelope stays additive while lag, invocation budgets, and dead-letter metrics evolve.",
+      "error_classes": [
+        "trigger_unavailable",
+        "schema_validation_error",
+        "dependency_failure"
+      ]
+    },
+    "postgres_data_change_event": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-26",
+      "required_fields": [
+        "event_id",
+        "tenant_id",
+        "workspace_id",
+        "database_name",
+        "schema_name",
+        "table_name",
+        "operation_type",
+        "primary_key",
+        "topic_ref",
+        "correlation_context",
+        "audit_record_id"
+      ],
+      "idempotency": "PostgreSQL change events coalesce by event_id and primary_key fingerprint so bridge retries do not duplicate downstream publication intent.",
+      "versioning": "The PostgreSQL data-change event stays additive while payload projection, CDC metadata, and partition guidance evolve.",
+      "error_classes": [
+        "schema_validation_error",
+        "bridge_unavailable",
+        "dependency_failure"
+      ]
+    },
+    "storage_object_event": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-26",
+      "required_fields": [
+        "event_id",
+        "tenant_id",
+        "workspace_id",
+        "bucket_ref",
+        "object_key",
+        "event_type",
+        "topic_ref",
+        "correlation_context",
+        "audit_record_id"
+      ],
+      "idempotency": "Storage object events coalesce by event_id and object_key/version so retries do not duplicate Kafka publication intent.",
+      "versioning": "The storage object-event envelope stays additive while lifecycle metadata, checksum hints, and projection controls evolve.",
+      "error_classes": [
+        "schema_validation_error",
+        "bridge_unavailable",
+        "dependency_failure"
+      ]
+    },
+    "openwhisk_activation_event": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-26",
+      "required_fields": [
+        "event_id",
+        "tenant_id",
+        "workspace_id",
+        "namespace_ref",
+        "action_ref",
+        "activation_id",
+        "event_type",
+        "topic_ref",
+        "correlation_context",
+        "audit_record_id"
+      ],
+      "idempotency": "OpenWhisk activation events coalesce by activation_id and event_type so retries do not duplicate trigger fan-out.",
+      "versioning": "The OpenWhisk activation-event envelope stays additive while execution metrics, retry hints, and redaction policy evolve.",
+      "error_classes": [
+        "schema_validation_error",
+        "bridge_unavailable",
+        "dependency_failure"
+      ]
     }
   },
   "interaction_flows": [
@@ -1750,6 +1950,46 @@
       "guarantees": [
         "Administrative mutations preserve workspace-scoped service-account isolation and deterministic topic naming under every supported plan.",
         "Each successful Kafka admin mutation can emit one correlation-rich kafka_admin_event envelope linked to append-only audit evidence."
+      ]
+    },
+    {
+      "id": "postgres_to_kafka_bridge",
+      "entry_service": "control_api",
+      "summary": "Workspace-scoped PostgreSQL CDC to Kafka bridge flow",
+      "steps": [
+        "control_api validates one event_bridge_request for a PostgreSQL source, enforces tenant/workspace ownership, and records idempotent audit linkage.",
+        "provisioning_orchestrator emits one postgres_data_change_event envelope when bounded CDC delivery is enabled for the requested table or schema scope.",
+        "event_gateway applies managed bridge policy, publishes the normalized envelope into Kafka, and projects bridge lag plus health into workspace observability surfaces."
+      ]
+    },
+    {
+      "id": "storage_iam_openwhisk_to_kafka_bridge",
+      "entry_service": "control_api",
+      "summary": "Storage, IAM, and OpenWhisk source envelopes bridged into Kafka",
+      "steps": [
+        "control_api registers one bridge definition that references a storage bucket, IAM lifecycle stream, or OpenWhisk activation source for the owning workspace.",
+        "control_api or provisioning_orchestrator emits one source event envelope with correlation-rich audit metadata and no live secrets.",
+        "event_gateway publishes the normalized envelope into the target Kafka topic and updates bridge-health projections plus admin audit evidence."
+      ]
+    },
+    {
+      "id": "kafka_to_openwhisk_trigger",
+      "entry_service": "control_api",
+      "summary": "Kafka topic events trigger OpenWhisk action execution",
+      "steps": [
+        "control_api validates one kafka_function_trigger_request and binds it to an existing workspace-scoped action plus topic.",
+        "event_gateway consumes from Kafka with bounded batching, applies filter expressions and dead-letter policy, then invokes the OpenWhisk adapter.",
+        "audit_module records trigger registration changes and execution evidence while observability surfaces expose invocation throughput and lag."
+      ]
+    },
+    {
+      "id": "kafka_observability_dashboard",
+      "entry_service": "event_gateway",
+      "summary": "Kafka topic metadata and dashboard projections",
+      "steps": [
+        "event_gateway collects safe topic metadata including partitions, consumer lag, retention, and compaction when provider APIs and policy allow exposure.",
+        "event_gateway derives tenant/workspace dashboard widgets for topic throughput, bridge lag, function-trigger health, and admin audit volume.",
+        "control_api returns the cached projection through metrics and events family routes without requiring unrestricted broker enumeration."
       ]
     }
   ]

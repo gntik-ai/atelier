@@ -23,14 +23,24 @@
           "type": "string"
         }
       },
+      "TriggerId": {
+        "description": "Stable managed Kafka function-trigger identifier.",
+        "in": "path",
+        "name": "triggerId",
+        "required": true,
+        "schema": {
+          "pattern": "^ktr_[0-9a-z-]+$",
+          "type": "string"
+        }
+      },
       "XApiVersion": {
         "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
         "in": "header",
         "name": "X-API-Version",
         "required": true,
         "schema": {
-          "const": "2026-03-25",
-          "pattern": "^2026-03-24$",
+          "const": "2026-03-26",
+          "pattern": "^2026-03-26$",
           "type": "string"
         }
       },
@@ -141,6 +151,12 @@
             "minLength": 3,
             "type": "string"
           },
+          "kafkaTriggers": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionKafkaTriggerSummary"
+            },
+            "type": "array"
+          },
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningResourceState"
           },
@@ -188,6 +204,9 @@
       "FunctionActionWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "defaultKafkaTriggerPolicy": {
+            "$ref": "#/components/schemas/FunctionKafkaTriggerWriteRequest"
+          },
           "deploymentDigest": {
             "maxLength": 255,
             "minLength": 12,
@@ -217,6 +236,188 @@
           "workspaceId",
           "runtime",
           "entrypoint"
+        ],
+        "type": "object"
+      },
+      "FunctionKafkaTrigger": {
+        "additionalProperties": false,
+        "properties": {
+          "audit": {
+            "$ref": "#/components/schemas/FunctionKafkaTriggerAuditPolicy"
+          },
+          "batchSize": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "deadLetterTopicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "deliveryMode": {
+            "enum": [
+              "per_event",
+              "micro_batch"
+            ],
+            "type": "string"
+          },
+          "failurePolicy": {
+            "enum": [
+              "retry_then_dead_letter",
+              "dead_letter_only"
+            ],
+            "type": "string"
+          },
+          "filterExpression": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "maxParallelInvocations": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ],
+            "type": "string"
+          },
+          "timestamps": {
+            "$ref": "#/components/schemas/LifecycleTimestamps"
+          },
+          "topicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "triggerId": {
+            "pattern": "^ktr_[0-9a-z-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "triggerId",
+          "topicRef",
+          "deliveryMode",
+          "batchSize",
+          "maxParallelInvocations",
+          "failurePolicy",
+          "status",
+          "timestamps"
+        ],
+        "type": "object"
+      },
+      "FunctionKafkaTriggerAuditPolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ],
+            "type": "string"
+          },
+          "traceFields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "traceFields"
+        ],
+        "type": "object"
+      },
+      "FunctionKafkaTriggerSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "deliveryMode": {
+            "enum": [
+              "per_event",
+              "micro_batch"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ],
+            "type": "string"
+          },
+          "topicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "triggerId": {
+            "pattern": "^ktr_[0-9a-z-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "triggerId",
+          "topicRef",
+          "deliveryMode",
+          "status"
+        ],
+        "type": "object"
+      },
+      "FunctionKafkaTriggerWriteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "auditMode": {
+            "enum": [
+              "metadata_only",
+              "headers_and_denials"
+            ],
+            "type": "string"
+          },
+          "batchSize": {
+            "maximum": 500,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "deadLetterTopicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          },
+          "deliveryMode": {
+            "enum": [
+              "per_event",
+              "micro_batch"
+            ],
+            "type": "string"
+          },
+          "failurePolicy": {
+            "enum": [
+              "retry_then_dead_letter",
+              "dead_letter_only"
+            ],
+            "type": "string"
+          },
+          "filterExpression": {
+            "maxLength": 255,
+            "type": "string"
+          },
+          "maxParallelInvocations": {
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "topicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topicRef"
         ],
         "type": "object"
       },
@@ -409,7 +610,7 @@
     "description": "Workspace-scoped serverless function management and invocation contracts routed by the gateway. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped serverless function management and invocation contracts routed by the gateway.",
     "title": "In Atelier Functions API",
-    "version": "1.20.0"
+    "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
@@ -668,6 +869,260 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "data-read",
         "x-resource-type": "function",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/kafka-triggers": {
+      "post": {
+        "operationId": "createFunctionKafkaTrigger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FunctionKafkaTriggerWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                }
+              }
+            },
+            "description": "Kafka function-trigger request accepted."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Register a Kafka-triggered OpenWhisk execution policy for one managed action",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka",
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-control",
+        "x-resource-type": "function_kafka_trigger",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}": {
+      "get": {
+        "operationId": "getFunctionKafkaTrigger",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/ResourceId"
+          },
+          {
+            "$ref": "#/components/parameters/TriggerId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionKafkaTrigger"
+                }
+              }
+            },
+            "description": "Kafka function trigger returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway function-trigger error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one normalized Kafka-triggered function execution policy",
+        "tags": [
+          "Functions"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka",
+          "openwhisk"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "event_gateway",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "function_kafka_trigger",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

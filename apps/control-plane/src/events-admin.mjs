@@ -12,6 +12,15 @@ import {
   resolveKafkaAdminProfile
 } from '../../../services/adapters/src/kafka-admin.mjs';
 import {
+  buildTopicMetadataExposure,
+  buildWorkspaceEventDashboard,
+  EVENT_BRIDGE_SOURCE_TYPES,
+  EVENT_DASHBOARD_WIDGET_TYPES,
+  KAFKA_FUNCTION_TRIGGER_DELIVERY_MODES,
+  KAFKA_TOPIC_METADATA_FIELDS,
+  resolveEventBridgeProfile
+} from '../../../services/event-gateway/src/kafka-integrations.mjs';
+import {
   EVENT_GATEWAY_NOTIFICATION_QUEUE_TYPES,
   EVENT_GATEWAY_PAYLOAD_ENCODINGS,
   EVENT_GATEWAY_RELATIVE_ORDER_SCOPE,
@@ -59,6 +68,16 @@ export function summarizeEventsAdminSurface() {
       routeCount: eventsAdminRoutes.filter((route) => route.resourceType === 'event_inventory').length
     },
     {
+      resourceKind: 'event_bridge',
+      actions: ['create', 'get'],
+      routeCount: eventsAdminRoutes.filter((route) => route.resourceType === 'event_bridge').length
+    },
+    {
+      resourceKind: 'topic_metadata',
+      actions: ['get'],
+      routeCount: eventsAdminRoutes.filter((route) => route.resourceType === 'topic_metadata').length
+    },
+    {
       resourceKind: 'runtime_publish',
       actions: ['publish'],
       routeCount: eventsAdminRoutes.filter((route) => route.resourceType === 'event_publication').length
@@ -67,6 +86,16 @@ export function summarizeEventsAdminSurface() {
       resourceKind: 'runtime_stream',
       actions: ['stream'],
       routeCount: eventsAdminRoutes.filter((route) => route.resourceType === 'event_stream').length
+    },
+    {
+      resourceKind: 'function_kafka_trigger',
+      actions: ['create', 'get'],
+      routeCount: filterPublicRoutes({ family: 'functions' }).filter((route) => route.resourceType === 'function_kafka_trigger').length
+    },
+    {
+      resourceKind: 'workspace_event_dashboard',
+      actions: ['get'],
+      routeCount: filterPublicRoutes({ family: 'metrics' }).filter((route) => route.resourceType === 'event_dashboard').length
     },
     {
       resourceKind: 'runtime_websocket',
@@ -95,6 +124,30 @@ export function summarizeEventGatewayRuntime(context = {}, topic = {}) {
       relativeOrderScope: EVENT_GATEWAY_RELATIVE_ORDER_SCOPE
     }
   };
+}
+
+export function summarizeEventBridgeSupport(context = {}, topic = {}) {
+  const profile = resolveEventBridgeProfile(context, topic);
+
+  return {
+    contractVersion: profile.contractVersion,
+    sourceTypes: EVENT_BRIDGE_SOURCE_TYPES,
+    deliveryModes: profile.deliveryModes,
+    payloadModes: profile.payloadModes,
+    supportedTopicMetadata: KAFKA_TOPIC_METADATA_FIELDS,
+    supportedDashboardWidgets: EVENT_DASHBOARD_WIDGET_TYPES,
+    triggerDeliveryModes: KAFKA_FUNCTION_TRIGGER_DELIVERY_MODES,
+    limits: profile.limits,
+    observability: profile.observability
+  };
+}
+
+export function summarizeTopicMetadataSupport(topic = {}, lag = {}, visibility = {}) {
+  return buildTopicMetadataExposure({ topic, lag, visibility });
+}
+
+export function summarizeWorkspaceEventDashboard(input = {}) {
+  return buildWorkspaceEventDashboard(input);
 }
 
 export function summarizeEventsAuditCoverage() {
@@ -134,6 +187,7 @@ export function getKafkaCompatibilitySummary(context = {}) {
     minimumEnginePolicy: profile.minimumEnginePolicy,
     auditCoverage: summarizeEventsAuditCoverage(),
     eventGatewayRuntime: summarizeEventGatewayRuntime(context),
+    eventBridgeSupport: summarizeEventBridgeSupport(context),
     topicMutationsSupported: profile.topicMutationsSupported,
     aclMutationsSupported: profile.aclMutationsSupported,
     inventorySupported: profile.inventorySupported,

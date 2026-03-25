@@ -1,11 +1,11 @@
 {
-  "version": "2026-03-25",
-  "scope": "US-IAM-02",
+  "version": "2026-03-26",
+  "scope": "US-EVT-03",
   "system": "in-atelier-public-api",
   "release": {
     "path_version": "v1",
-    "header_version": "2026-03-25",
-    "openapi_semver": "1.20.0"
+    "header_version": "2026-03-26",
+    "openapi_semver": "1.21.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -26,7 +26,7 @@
       "api_version": {
         "name": "X-API-Version",
         "required": true,
-        "current_value": "2026-03-25",
+        "current_value": "2026-03-26",
         "purpose": "Pins the non-breaking contract generation inside /v1."
       },
       "correlation_id": {

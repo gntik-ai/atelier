@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-25, OpenAPI 1.20.0)
+Version: v1 (header 2026-03-26, OpenAPI 1.21.0)
 
 ## Product API vs native passthrough
 
@@ -373,8 +373,11 @@ Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay
 | GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped Kafka topic contract with naming, ACL, isolation, quota, and KRaft governance metadata |
 | GET | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Fetch one Kafka topic access policy with workspace-scoped ACL bindings and service-account isolation |
 | PUT | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Update one Kafka topic access policy with managed ACL convergence and service-account isolation |
+| GET | `/v1/events/topics/{resourceId}/metadata` | workspace | topic_metadata | Fetch topic partitions, lag, retention, and compaction metadata when provider APIs and policy allow visibility |
 | POST | `/v1/events/topics/{resourceId}/publish` | workspace | event_publication | Publish one event through the HTTP event gateway without exposing native Kafka clients |
 | GET | `/v1/events/topics/{resourceId}/stream` | workspace | event_stream | Consume one topic through the HTTP SSE event gateway with replay and backpressure hints |
+| POST | `/v1/events/workspaces/{workspaceId}/bridges` | workspace | event_bridge | Register a workspace-scoped managed event bridge from PostgreSQL, MongoDB, storage, OpenWhisk, or IAM into Kafka |
+| GET | `/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}` | workspace | event_bridge | Fetch the normalized state for one managed event bridge |
 | GET | `/v1/events/workspaces/{workspaceId}/inventory` | workspace | event_inventory | Fetch one workspace Kafka topic inventory with naming, ACL, quota, and KRaft governance visibility |
 
 ## Functions
@@ -385,6 +388,8 @@ Workspace-scoped serverless function management and invocation contracts routed 
 | --- | --- | --- | --- | --- |
 | POST | `/v1/functions/actions` | workspace | function | Submit a workspace-scoped function action provisioning request through the unified functions family |
 | GET | `/v1/functions/actions/{resourceId}` | workspace | function | Fetch one workspace-scoped function action contract under the functions family |
+| POST | `/v1/functions/actions/{resourceId}/kafka-triggers` | workspace | function_kafka_trigger | Register a Kafka-triggered OpenWhisk execution policy for one managed action |
+| GET | `/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}` | workspace | function_kafka_trigger | Fetch one normalized Kafka-triggered function execution policy |
 
 ## Storage
 
@@ -401,7 +406,9 @@ Workspace-scoped usage, quota, gateway-stream, and observability series exposed 
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/metrics/workspaces/{workspaceId}/event-dashboards` | workspace | event_dashboard | Fetch workspace-scoped Kafka bridge and trigger dashboard widgets |
 | GET | `/v1/metrics/workspaces/{workspaceId}/gateway-streams` | workspace | gateway_stream_metrics | Fetch gateway publish, connection, lag, and backpressure metrics for one workspace |
+| GET | `/v1/metrics/workspaces/{workspaceId}/kafka-topics` | workspace | kafka_topic_metrics | Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace |
 | GET | `/v1/metrics/workspaces/{workspaceId}/series` | workspace | metric_series | Fetch one workspace metric series window through the unified metrics family |
 
 ## WebSockets

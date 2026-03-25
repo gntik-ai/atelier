@@ -24,8 +24,8 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   });
 
   assert.equal(taxonomy.release.path_version, 'v1');
-  assert.equal(taxonomy.release.header_version, '2026-03-25');
-  assert.equal(taxonomy.release.openapi_semver, '1.20.0');
+  assert.equal(taxonomy.release.header_version, '2026-03-26');
+  assert.equal(taxonomy.release.openapi_semver, '1.21.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics'));
@@ -34,7 +34,14 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/workspaces/{workspaceId}/inventory'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/publish'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/stream'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics/{resourceId}/metadata'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/workspaces/{workspaceId}/bridges'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/actions/{resourceId}/kafka-triggers'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/metrics/workspaces/{workspaceId}/gateway-streams'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/metrics/workspaces/{workspaceId}/kafka-topics'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/metrics/workspaces/{workspaceId}/event-dashboards'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/iam/realms/{realmId}/users/{iamUserId}/credential-resets'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/auth/login-sessions'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/auth/signups'));

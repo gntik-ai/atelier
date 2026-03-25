@@ -29,8 +29,8 @@
         "name": "X-API-Version",
         "required": true,
         "schema": {
-          "const": "2026-03-25",
-          "pattern": "^2026-03-24$",
+          "const": "2026-03-26",
+          "pattern": "^2026-03-26$",
           "type": "string"
         }
       },
@@ -130,6 +130,45 @@
           "correlationId",
           "timestamp",
           "resource"
+        ],
+        "type": "object"
+      },
+      "EventBridgeSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "bridgeId": {
+            "pattern": "^evb_[0-9a-z-]+$",
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "postgresql",
+              "mongodb",
+              "storage",
+              "openwhisk",
+              "iam"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "active",
+              "degraded",
+              "paused"
+            ],
+            "type": "string"
+          },
+          "topicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bridgeId",
+          "sourceType",
+          "topicRef",
+          "status"
         ],
         "type": "object"
       },
@@ -324,6 +363,9 @@
             "minLength": 3,
             "type": "string"
           },
+          "eventBridgeSummary": {
+            "$ref": "#/components/schemas/EventBridgeSummary"
+          },
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningResourceState"
           },
@@ -367,6 +409,28 @@
         ],
         "type": "object"
       },
+      "StorageBucketEventBridgePolicy": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "eventTypes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "topicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
       "StorageBucketWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -374,6 +438,9 @@
             "maxLength": 120,
             "minLength": 3,
             "type": "string"
+          },
+          "eventNotifications": {
+            "$ref": "#/components/schemas/StorageBucketEventBridgePolicy"
           },
           "objectLockMode": {
             "enum": [
@@ -411,7 +478,7 @@
     "description": "Workspace-scoped object storage discovery, bucket control, and presign-safe surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped object storage discovery, bucket control, and presign-safe surfaces.",
     "title": "In Atelier Storage API",
-    "version": "1.20.0"
+    "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",

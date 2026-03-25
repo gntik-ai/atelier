@@ -18,8 +18,8 @@
         "name": "X-API-Version",
         "required": true,
         "schema": {
-          "const": "2026-03-25",
-          "pattern": "^2026-03-24$",
+          "const": "2026-03-26",
+          "pattern": "^2026-03-26$",
           "type": "string"
         }
       },
@@ -119,6 +119,38 @@
           "correlationId",
           "timestamp",
           "resource"
+        ],
+        "type": "object"
+      },
+      "EventDashboardWidget": {
+        "additionalProperties": false,
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "seriesCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "topic_throughput",
+              "consumer_lag",
+              "bridge_health",
+              "function_trigger_health",
+              "admin_audit_volume"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "query",
+          "seriesCount"
         ],
         "type": "object"
       },
@@ -292,6 +324,87 @@
         ],
         "type": "object"
       },
+      "KafkaTopicMetricSample": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedPerMinute": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "bridgeCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "compactionEnabled": {
+            "type": "boolean"
+          },
+          "functionTriggerCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "maxMessagesBehind": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "retentionHours": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "topicRef": {
+            "pattern": "^res_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topicRef",
+          "acceptedPerMinute",
+          "maxMessagesBehind",
+          "retentionHours",
+          "compactionEnabled",
+          "bridgeCount",
+          "functionTriggerCount"
+        ],
+        "type": "object"
+      },
+      "KafkaTopicMetricsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "sampledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/KafkaTopicMetricSample"
+            },
+            "type": "array"
+          },
+          "window": {
+            "enum": [
+              "5m",
+              "1h",
+              "24h"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "workspaceId",
+          "window",
+          "sampledAt",
+          "topics"
+        ],
+        "type": "object"
+      },
       "MetricSeriesResponse": {
         "additionalProperties": false,
         "properties": {
@@ -352,6 +465,69 @@
           "points"
         ],
         "type": "object"
+      },
+      "WorkspaceEventDashboardResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "coverage": {
+            "additionalProperties": false,
+            "properties": {
+              "auditSeries": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "bridges": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "functionTriggers": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "topicMetrics": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topicMetrics",
+              "bridges",
+              "functionTriggers",
+              "auditSeries"
+            ],
+            "type": "object"
+          },
+          "sampledAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "widgets": {
+            "items": {
+              "$ref": "#/components/schemas/EventDashboardWidget"
+            },
+            "type": "array"
+          },
+          "window": {
+            "enum": [
+              "5m",
+              "1h",
+              "24h"
+            ],
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "window",
+          "sampledAt",
+          "widgets",
+          "coverage"
+        ],
+        "type": "object"
       }
     }
   },
@@ -359,11 +535,140 @@
     "description": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.",
     "title": "In Atelier Metrics API",
-    "version": "1.20.0"
+    "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/v1/metrics/workspaces/{workspaceId}/event-dashboards": {
+      "get": {
+        "operationId": "getWorkspaceEventDashboards",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": true,
+            "schema": {
+              "enum": [
+                "5m",
+                "1h",
+                "24h"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceEventDashboardResponse"
+                }
+              }
+            },
+            "description": "Workspace event dashboards returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway event-dashboard error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch workspace-scoped Kafka bridge and trigger dashboard widgets",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka",
+          "openwhisk"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "event_gateway",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "event_dashboard",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/metrics/workspaces/{workspaceId}/gateway-streams": {
       "get": {
         "operationId": "getWorkspaceGatewayStreamMetrics",
@@ -488,6 +793,134 @@
         "x-owning-service": "event_gateway",
         "x-rate-limit-class": "observability",
         "x-resource-type": "gateway_stream_metrics",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/kafka-topics": {
+      "get": {
+        "operationId": "getWorkspaceKafkaTopicMetrics",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": true,
+            "schema": {
+              "enum": [
+                "5m",
+                "1h",
+                "24h"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KafkaTopicMetricsResponse"
+                }
+              }
+            },
+            "description": "Kafka topic metrics returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway Kafka-topic metrics error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "kafka"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "event_gateway",
+        "x-rate-limit-class": "observability",
+        "x-resource-type": "kafka_topic_metrics",
         "x-scope": "workspace",
         "x-visibility": "public"
       }
