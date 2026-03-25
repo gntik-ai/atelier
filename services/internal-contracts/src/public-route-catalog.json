@@ -2,7 +2,7 @@
   "generatedFrom": "apps/control-plane/openapi/control-plane.openapi.json",
   "release": {
     "header_version": "2026-03-25",
-    "openapi_semver": "1.19.0",
+    "openapi_semver": "1.20.0",
     "path_version": "v1"
   },
   "routes": [
@@ -877,7 +877,7 @@
       "downstreamAdapters": [
         "kafka"
       ],
-      "downstreamService": "event_gateway",
+      "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
       "explicitConfirmationRequired": false,
       "family": "events",
@@ -925,7 +925,7 @@
       "requiredPlanFlags": [],
       "resourceType": "topic",
       "scope": "workspace",
-      "summary": "Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family",
+      "summary": "Submit a workspace-scoped Kafka topic governance request with managed naming, ACL isolation, and quota-aware provisioning",
       "supportsIdempotencyKey": true,
       "tags": [
         "Events"
@@ -958,7 +958,7 @@
       "downstreamAdapters": [
         "kafka"
       ],
-      "downstreamService": "event_gateway",
+      "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
       "explicitConfirmationRequired": false,
       "family": "events",
@@ -1005,8 +1005,164 @@
       "requiredPlanFlags": [],
       "resourceType": "topic",
       "scope": "workspace",
-      "summary": "Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family",
+      "summary": "Fetch one workspace-scoped Kafka topic contract with naming, ACL, isolation, quota, and KRaft governance metadata",
       "supportsIdempotencyKey": false,
+      "tags": [
+        "Events"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json",
+        "application/cloudevents+json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_operator",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "events",
+      "familyTitle": "Events",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "event",
+      "gatewayTimeoutProfile": "event_gateway",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "GET",
+      "operationId": "getEventTopicAccess",
+      "path": "/v1/events/topics/{resourceId}/access",
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "topic_acl",
+      "scope": "workspace",
+      "summary": "Fetch one Kafka topic access policy with workspace-scoped ACL bindings and service-account isolation",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Events"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json",
+        "application/cloudevents+json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_operator",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "events",
+      "familyTitle": "Events",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "event",
+      "gatewayTimeoutProfile": "event_gateway",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "PUT",
+      "operationId": "updateEventTopicAccess",
+      "path": "/v1/events/topics/{resourceId}/access",
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "data-control",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "topic_acl",
+      "scope": "workspace",
+      "summary": "Update one Kafka topic access policy with managed ACL convergence and service-account isolation",
+      "supportsIdempotencyKey": true,
       "tags": [
         "Events"
       ],
@@ -1166,6 +1322,84 @@
       "resourceType": "event_stream",
       "scope": "workspace",
       "summary": "Consume one topic through the HTTP SSE event gateway with replay and backpressure hints",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Events"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json",
+        "application/cloudevents+json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_operator",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "kafka"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "events",
+      "familyTitle": "Events",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "event_gateway",
+      "gatewayRequestValidationProfile": "event_gateway",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "event",
+      "gatewayTimeoutProfile": "event_gateway",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "GET",
+      "operationId": "getEventTopicInventory",
+      "path": "/v1/events/workspaces/{workspaceId}/inventory",
+      "planCapabilityAnyOf": [
+        "data.kafka.topics"
+      ],
+      "qosBurst": 60,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "event_inventory",
+      "scope": "workspace",
+      "summary": "Fetch one workspace Kafka topic inventory with naming, ACL, quota, and KRaft governance visibility",
       "supportsIdempotencyKey": false,
       "tags": [
         "Events"

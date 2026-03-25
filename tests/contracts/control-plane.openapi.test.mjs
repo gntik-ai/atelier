@@ -189,13 +189,18 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createPostgresExtension = document.paths['/v1/postgres/databases/{databaseName}/extensions'].post;
   const listPostgresTemplates = document.paths['/v1/postgres/workspaces/{workspaceId}/templates'].get;
   const createPostgresTemplate = document.paths['/v1/postgres/workspaces/{workspaceId}/templates'].post;
+  const createEventTopic = document.paths['/v1/events/topics'].post;
+  const getEventTopic = document.paths['/v1/events/topics/{resourceId}'].get;
+  const getEventTopicAccess = document.paths['/v1/events/topics/{resourceId}/access'].get;
+  const updateEventTopicAccess = document.paths['/v1/events/topics/{resourceId}/access'].put;
+  const getEventTopicInventory = document.paths['/v1/events/workspaces/{workspaceId}/inventory'].get;
   const publishEvent = document.paths['/v1/events/topics/{resourceId}/publish'].post;
   const streamTopicEvents = document.paths['/v1/events/topics/{resourceId}/stream'].get;
   const getGatewayStreamMetrics = document.paths['/v1/metrics/workspaces/{workspaceId}/gateway-streams'].get;
   const createWebSocketSession = document.paths['/v1/websockets/sessions'].post;
 
   assert.deepEqual(collectContractViolations(document), []);
-  assert.equal(document.info.version, '1.19.0');
+  assert.equal(document.info.version, '1.20.0');
   assert.equal(document.components.parameters.XApiVersion.schema.const, '2026-03-25');
   assert.deepEqual(document.components.schemas.ErrorResponse.required, [
     'status',
@@ -280,6 +285,11 @@ test('control-plane contract enforces versioning, authorization, family metadata
   const createPostgresExtensionParameters = resolveParameters(document, createPostgresExtension);
   const listPostgresTemplatesParameters = resolveParameters(document, listPostgresTemplates);
   const createPostgresTemplateParameters = resolveParameters(document, createPostgresTemplate);
+  const createEventTopicParameters = resolveParameters(document, createEventTopic);
+  const getEventTopicParameters = resolveParameters(document, getEventTopic);
+  const getEventTopicAccessParameters = resolveParameters(document, getEventTopicAccess);
+  const updateEventTopicAccessParameters = resolveParameters(document, updateEventTopicAccess);
+  const getEventTopicInventoryParameters = resolveParameters(document, getEventTopicInventory);
   const publishEventParameters = resolveParameters(document, publishEvent);
   const streamTopicParameters = resolveParameters(document, streamTopicEvents);
   const gatewayMetricParameters = resolveParameters(document, getGatewayStreamMetrics);
@@ -643,7 +653,15 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.MongoDataValidationSummary);
   assert.ok(document.components.schemas.MongoDataTraceContext);
   assert.ok(document.components.schemas.MongoAdminEvent);
+  assert.ok(document.components.schemas.EventTopicNamingPolicy);
+  assert.ok(document.components.schemas.EventTopicTenantIsolation);
+  assert.ok(document.components.schemas.EventTopicAclBinding);
+  assert.ok(document.components.schemas.EventTopicAccessPolicy);
+  assert.ok(document.components.schemas.EventTopicInventory);
+  assert.ok(document.components.schemas.EventTopicMutationAccepted);
   assert.ok(document.components.schemas.EventTopic.properties.provisioning);
+  assert.ok(document.components.schemas.EventTopic.properties.namingPolicy);
+  assert.ok(document.components.schemas.EventTopic.properties.quotaStatus);
   assert.ok(document.components.schemas.FunctionAction.properties.provisioning);
   assert.ok(document.components.schemas.StorageBucket.properties.provisioning);
 
@@ -712,6 +730,17 @@ test('control-plane contract enforces versioning, authorization, family metadata
   assert.ok(document.components.schemas.EventPublicationRequest);
   assert.ok(document.components.schemas.EventPublicationAccepted);
   assert.ok(document.components.schemas.EventDeliveryEnvelope);
+
+  assert.equal(createEventTopic['x-family'], 'events');
+  assert.equal(createEventTopic['x-owning-service'], 'control_api');
+  assert.equal(createEventTopicParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(getEventTopic['x-owning-service'], 'control_api');
+  assert.equal(getEventTopicParameters.some((parameter) => parameter.name === 'resourceId'), true);
+  assert.equal(getEventTopicAccess['x-resource-type'], 'topic_acl');
+  assert.equal(getEventTopicAccessParameters.some((parameter) => parameter.name === 'resourceId'), true);
+  assert.equal(updateEventTopicAccessParameters.some((parameter) => parameter.name === 'Idempotency-Key'), true);
+  assert.equal(getEventTopicInventory['x-resource-type'], 'event_inventory');
+  assert.equal(getEventTopicInventoryParameters.some((parameter) => parameter.name === 'workspaceId'), true);
 
   assert.equal(streamTopicEvents['x-family'], 'events');
   assert.equal(streamTopicEvents['x-resource-type'], 'event_stream');

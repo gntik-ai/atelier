@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-25, OpenAPI 1.19.0)
+Version: v1 (header 2026-03-25, OpenAPI 1.20.0)
 
 ## Product API vs native passthrough
 
@@ -369,10 +369,13 @@ Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/events/topics` | workspace | topic | Submit a workspace-scoped event topic and gateway policy provisioning request through the unified events family |
-| GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped event topic contract, transport policy, and replay window under the events family |
+| POST | `/v1/events/topics` | workspace | topic | Submit a workspace-scoped Kafka topic governance request with managed naming, ACL isolation, and quota-aware provisioning |
+| GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped Kafka topic contract with naming, ACL, isolation, quota, and KRaft governance metadata |
+| GET | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Fetch one Kafka topic access policy with workspace-scoped ACL bindings and service-account isolation |
+| PUT | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Update one Kafka topic access policy with managed ACL convergence and service-account isolation |
 | POST | `/v1/events/topics/{resourceId}/publish` | workspace | event_publication | Publish one event through the HTTP event gateway without exposing native Kafka clients |
 | GET | `/v1/events/topics/{resourceId}/stream` | workspace | event_stream | Consume one topic through the HTTP SSE event gateway with replay and backpressure hints |
+| GET | `/v1/events/workspaces/{workspaceId}/inventory` | workspace | event_inventory | Fetch one workspace Kafka topic inventory with naming, ACL, quota, and KRaft governance visibility |
 
 ## Functions
 

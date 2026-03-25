@@ -28,6 +28,7 @@ import {
   auditModuleBoundary,
   iamLifecycleEventContract as auditLifecycleEventContract,
   mongoAdminEventContract as auditMongoAdminEventContract,
+  kafkaAdminEventContract as auditKafkaAdminEventContract,
   auditPersistenceAdapters,
   auditRecordContract
 } from '../../services/audit/src/contract-boundary.mjs';
@@ -36,6 +37,7 @@ import {
   eventGatewayBoundary,
   iamLifecycleEventContract as eventGatewayLifecycleEventContract,
   mongoAdminEventContract as eventGatewayMongoAdminEventContract,
+  kafkaAdminEventContract as eventGatewayKafkaAdminEventContract,
   eventGatewayPublishRequestContract,
   eventGatewayPublishResultContract,
   eventGatewaySubscriptionRequestContract,
@@ -73,8 +75,12 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.equal(eventGatewayLifecycleEventContract.version, '2026-03-24');
   assert.equal(auditMongoAdminEventContract.version, '2026-03-25');
   assert.equal(eventGatewayMongoAdminEventContract.version, '2026-03-25');
+  assert.equal(auditKafkaAdminEventContract.version, '2026-03-25');
+  assert.equal(eventGatewayKafkaAdminEventContract.version, '2026-03-25');
   assert.ok(auditLifecycleEventContract.required_fields.includes('audit_record_id'));
   assert.ok(auditMongoAdminEventContract.required_fields.includes('correlation_context'));
+  assert.ok(auditKafkaAdminEventContract.required_fields.includes('naming_policy'));
+  assert.ok(eventGatewayKafkaAdminEventContract.required_fields.includes('quota_status'));
   assert.ok(auditLifecycleEventContract.required_fields.includes('origin_surface'));
   assert.ok(eventGatewayPublishRequestContract.required_fields.includes('idempotency_key'));
   assert.ok(eventGatewayPublishRequestContract.required_fields.includes('authorization_decision_id'));
@@ -104,6 +110,14 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.ok(getContract('mongo_inventory_snapshot').required_fields.includes('credential_posture'));
   assert.ok(getContract('mongo_admin_event').required_fields.includes('audit_record_id'));
+  assert.ok(getContract('kafka_admin_request').required_fields.includes('naming_policy'));
+  assert.ok(getContract('kafka_admin_request').required_fields.includes('acl_bindings'));
+  assert.ok(getContract('kafka_admin_request').required_fields.includes('quota_snapshot'));
+  assert.ok(getContract('kafka_admin_result').required_fields.includes('acl_state'));
+  assert.ok(getContract('kafka_admin_result').required_fields.includes('kraft_guidance'));
+  assert.ok(getContract('kafka_inventory_snapshot').required_fields.includes('limit_visibility'));
+  assert.ok(getContract('kafka_inventory_snapshot').required_fields.includes('tenant_isolation'));
+  assert.ok(getContract('kafka_admin_event').required_fields.includes('quota_status'));
   assert.ok(getContract('mongo_data_request').required_fields.includes('tenant_scope'));
   assert.ok(getContract('mongo_data_request').required_fields.includes('filters'));
   assert.ok(getContract('mongo_data_request').required_fields.includes('bulk_limits'));
@@ -170,6 +184,10 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(mongodbAdapter.capabilities.includes('mongo_role_binding_assign'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_inventory_upsert'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_query'));
+  const kafkaAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'kafka');
+  assert.ok(kafkaAdapter.capabilities.includes('kafka_topic_create'));
+  assert.ok(kafkaAdapter.capabilities.includes('kafka_topic_acl_update'));
+  assert.ok(kafkaAdapter.capabilities.includes('kafka_inventory_get'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_insert'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_update'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_replace'));
@@ -190,6 +208,7 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(interactionFlowIds.has('postgres_administration'));
   assert.ok(interactionFlowIds.has('postgres_admin_sql_execution'));
   assert.ok(interactionFlowIds.has('mongo_administration'));
+  assert.ok(interactionFlowIds.has('kafka_administration'));
   assert.ok(interactionFlowIds.has('mongo_document_data_access'));
   assert.ok(interactionFlowIds.has('iam_lifecycle_traceability'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));
