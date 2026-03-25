@@ -25,7 +25,7 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
 
   assert.equal(taxonomy.release.path_version, 'v1');
   assert.equal(taxonomy.release.header_version, '2026-03-25');
-  assert.equal(taxonomy.release.openapi_semver, '1.20.0');
+  assert.equal(taxonomy.release.openapi_semver, '1.21.0');
   assert.equal(listFamilyDocumentPaths().length, taxonomy.families.length);
   assert.deepEqual(routeCatalog.routes, regeneratedCatalog.routes);
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/events/topics'));
@@ -39,6 +39,13 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/auth/login-sessions'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/auth/signups'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/auth/password-recovery-requests'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/packages'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/packages/{packageName}'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/triggers'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/rules'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/rules/{ruleName}'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/functions/workspaces/{workspaceId}/inventory'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/postgres/roles'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/postgres/users/{postgresUserName}'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/postgres/databases/{databaseName}/schemas/{schemaName}'));

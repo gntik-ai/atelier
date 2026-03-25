@@ -45,7 +45,7 @@ import {
 } from '../../services/event-gateway/src/contract-boundary.mjs';
 
 test('internal contract baseline preserves versioning and dependency expectations', () => {
-  assert.equal(INTERNAL_CONTRACT_VERSION, '2026-03-24');
+  assert.equal(INTERNAL_CONTRACT_VERSION, '2026-03-25');
   assert.equal(AUTHORIZATION_MODEL_VERSION, '2026-03-24');
   assert.ok(controlApiBoundary.service_dependencies.includes('provisioning_orchestrator'));
   assert.ok(controlApiBoundary.service_dependencies.includes('audit_module'));
@@ -130,6 +130,16 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.ok(getContract('kafka_inventory_snapshot').required_fields.includes('limit_visibility'));
   assert.ok(getContract('kafka_inventory_snapshot').required_fields.includes('tenant_isolation'));
   assert.ok(getContract('kafka_admin_event').required_fields.includes('quota_status'));
+  assert.ok(getContract('function_admin_request').required_fields.includes('serverless_context'));
+  assert.ok(getContract('function_admin_request').required_fields.includes('naming_policy'));
+  assert.ok(getContract('function_admin_request').required_fields.includes('subject_binding'));
+  assert.ok(getContract('function_admin_request').required_fields.includes('provisioning_state'));
+  assert.ok(getContract('function_admin_result').required_fields.includes('serverless_context'));
+  assert.ok(getContract('function_admin_result').required_fields.includes('subject_binding'));
+  assert.ok(getContract('function_admin_result').required_fields.includes('provisioning_state'));
+  assert.ok(getContract('function_inventory_snapshot').required_fields.includes('serverless_context'));
+  assert.ok(getContract('function_inventory_snapshot').required_fields.includes('tenant_isolation'));
+  assert.ok(getContract('function_inventory_snapshot').required_fields.includes('provisioning_state'));
   assert.ok(getContract('mongo_data_request').required_fields.includes('tenant_scope'));
   assert.ok(getContract('mongo_data_request').required_fields.includes('filters'));
   assert.ok(getContract('mongo_data_request').required_fields.includes('bulk_limits'));
@@ -197,9 +207,15 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(mongodbAdapter.capabilities.includes('mongo_inventory_upsert'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_query'));
   const kafkaAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'kafka');
+  const openWhiskAdapter = provisioningAdapterPorts.find((adapter) => adapter.id === 'openwhisk');
   assert.ok(kafkaAdapter.capabilities.includes('kafka_topic_create'));
   assert.ok(kafkaAdapter.capabilities.includes('kafka_topic_acl_update'));
   assert.ok(kafkaAdapter.capabilities.includes('kafka_inventory_get'));
+  assert.ok(openWhiskAdapter.capabilities.includes('openwhisk_serverless_context_provision'));
+  assert.ok(openWhiskAdapter.capabilities.includes('openwhisk_package_create'));
+  assert.ok(openWhiskAdapter.capabilities.includes('openwhisk_trigger_create'));
+  assert.ok(openWhiskAdapter.capabilities.includes('openwhisk_rule_create'));
+  assert.ok(openWhiskAdapter.capabilities.includes('openwhisk_inventory_upsert'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_insert'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_update'));
   assert.ok(mongodbAdapter.capabilities.includes('mongo_data_replace'));
@@ -221,6 +237,7 @@ test('consumer scaffolding exposes the expected provider and flow slices', () =>
   assert.ok(interactionFlowIds.has('postgres_admin_sql_execution'));
   assert.ok(interactionFlowIds.has('mongo_administration'));
   assert.ok(interactionFlowIds.has('kafka_administration'));
+  assert.ok(interactionFlowIds.has('function_administration'));
   assert.ok(interactionFlowIds.has('mongo_document_data_access'));
   assert.ok(interactionFlowIds.has('iam_lifecycle_traceability'));
   assert.ok(interactionFlowIds.has('event_publish_gateway'));

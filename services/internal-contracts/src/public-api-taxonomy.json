@@ -5,7 +5,7 @@
   "release": {
     "path_version": "v1",
     "header_version": "2026-03-25",
-    "openapi_semver": "1.20.0"
+    "openapi_semver": "1.21.0"
   },
   "versioning": {
     "uri_prefix": "/v1",
@@ -341,7 +341,7 @@
       "id": "functions",
       "title": "Functions",
       "prefix": "/v1/functions",
-      "summary": "Workspace-scoped serverless function management and invocation contracts routed by the gateway.",
+      "summary": "Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, and inventory contracts routed by the gateway.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "provisioning_request",
@@ -880,6 +880,30 @@
       "family": "events",
       "scope": "workspace",
       "authorization_resource": "topic"
+    },
+    {
+      "resource_type": "function_package",
+      "family": "functions",
+      "scope": "workspace",
+      "authorization_resource": "function"
+    },
+    {
+      "resource_type": "function_trigger",
+      "family": "functions",
+      "scope": "workspace",
+      "authorization_resource": "function"
+    },
+    {
+      "resource_type": "function_rule",
+      "family": "functions",
+      "scope": "workspace",
+      "authorization_resource": "function"
+    },
+    {
+      "resource_type": "function_inventory",
+      "family": "functions",
+      "scope": "workspace",
+      "authorization_resource": "function"
     }
   ]
 }

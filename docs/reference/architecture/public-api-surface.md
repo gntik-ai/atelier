@@ -1,6 +1,6 @@
 # Public API Surface
 
-Version: v1 (header 2026-03-25, OpenAPI 1.20.0)
+Version: v1 (header 2026-03-25, OpenAPI 1.21.0)
 
 ## Product API vs native passthrough
 
@@ -379,12 +379,28 @@ Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay
 
 ## Functions
 
-Workspace-scoped serverless function management and invocation contracts routed by the gateway.
+Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, and inventory contracts routed by the gateway.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
 | POST | `/v1/functions/actions` | workspace | function | Submit a workspace-scoped function action provisioning request through the unified functions family |
 | GET | `/v1/functions/actions/{resourceId}` | workspace | function | Fetch one workspace-scoped function action contract under the functions family |
+| GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
+| GET | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | List governed OpenWhisk packages for one workspace logical serverless context |
+| POST | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | Create one governed OpenWhisk package inside the workspace logical serverless context |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Delete one governed OpenWhisk package from the workspace logical serverless context |
+| GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Fetch one governed OpenWhisk package for the workspace logical serverless context |
+| PATCH | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Update one governed OpenWhisk package without exposing native namespace or subject administration |
+| GET | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | List governed OpenWhisk rules for one workspace logical serverless context |
+| POST | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | Create one governed OpenWhisk rule that binds a workspace trigger to a workspace action |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Delete one governed OpenWhisk rule from the workspace logical serverless context |
+| GET | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Fetch one governed OpenWhisk rule for the workspace logical serverless context |
+| PATCH | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Update one governed OpenWhisk rule without exposing native namespace or subject administration |
+| GET | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | List governed OpenWhisk triggers for one workspace logical serverless context |
+| POST | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | Create one governed OpenWhisk trigger for the workspace logical serverless context |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Delete one governed OpenWhisk trigger from the workspace logical serverless context |
+| GET | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Fetch one governed OpenWhisk trigger for the workspace logical serverless context |
+| PATCH | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Update one governed OpenWhisk trigger without exposing native namespace or subject administration |
 
 ## Storage
 

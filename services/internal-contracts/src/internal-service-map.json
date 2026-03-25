@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-24",
+  "version": "2026-03-25",
   "scope": "US-ARC-01-T01",
   "system": "in-atelier-baas-control-plane",
   "principles": [
@@ -528,15 +528,36 @@
       ],
       "capabilities": [
         "ensure_namespace",
+        "ensure_subject",
         "ensure_packages",
-        "apply_invocation_policy"
+        "apply_invocation_policy",
+        "openwhisk_serverless_context_provision",
+        "openwhisk_package_list",
+        "openwhisk_package_get",
+        "openwhisk_package_create",
+        "openwhisk_package_update",
+        "openwhisk_package_delete",
+        "openwhisk_trigger_list",
+        "openwhisk_trigger_get",
+        "openwhisk_trigger_create",
+        "openwhisk_trigger_update",
+        "openwhisk_trigger_delete",
+        "openwhisk_rule_list",
+        "openwhisk_rule_get",
+        "openwhisk_rule_create",
+        "openwhisk_rule_update",
+        "openwhisk_rule_delete",
+        "openwhisk_inventory_upsert",
+        "openwhisk_inventory_get"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",
-      "idempotency_key": "tenant_id + capability + namespace_ref",
+      "idempotency_key": "tenant_id + workspace_id + capability + namespace_ref + logical_resource_ref",
       "error_classes": [
         "retryable_dependency_failure",
-        "terminal_dependency_failure"
+        "terminal_dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version"
       ]
     },
     {
@@ -564,7 +585,7 @@
   "contracts": {
     "control_api_command": {
       "owner": "control_api",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "command_id",
         "request_id",
@@ -594,7 +615,7 @@
     },
     "provisioning_request": {
       "owner": "provisioning_orchestrator",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "provisioning_run_id",
         "tenant_id",
@@ -625,7 +646,7 @@
     },
     "provisioning_result": {
       "owner": "provisioning_orchestrator",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "provisioning_run_id",
         "tenant_id",
@@ -649,7 +670,7 @@
     },
     "adapter_call": {
       "owner": "services/adapters",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "call_id",
         "tenant_id",
@@ -680,7 +701,7 @@
     },
     "adapter_result": {
       "owner": "services/adapters",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "call_id",
         "adapter_id",
@@ -701,7 +722,7 @@
     },
     "audit_record": {
       "owner": "audit_module",
-      "version": "2026-03-24",
+      "version": "2026-03-25",
       "required_fields": [
         "record_id",
         "actor",
@@ -1561,6 +1582,110 @@
         "audit_unavailable",
         "dependency_failure"
       ]
+    },
+    "function_admin_request": {
+      "owner": "control_api",
+      "version": "2026-03-25",
+      "required_fields": [
+        "command_id",
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+        "plan_id",
+        "resource_kind",
+        "action",
+        "target_ref",
+        "isolation_mode",
+        "deployment_profile_id",
+        "payload",
+        "provider_version",
+        "idempotency_key",
+        "correlation_id",
+        "authorization_decision_id",
+        "effective_roles",
+        "scopes",
+        "contract_version",
+        "requested_at",
+        "actor_id",
+        "actor_type",
+        "origin_surface",
+        "target_tenant_id",
+        "target_workspace_id",
+        "serverless_context",
+        "naming_policy",
+        "subject_binding",
+        "quota_snapshot",
+        "provisioning_state"
+      ],
+      "idempotency": "OpenWhisk administrative mutations coalesce by target_ref, isolation_mode, action, and idempotency_key so safe retries do not duplicate logical context provisioning or workspace-scoped package, trigger, and rule reconciliation.",
+      "versioning": "The OpenWhisk administrative request envelope remains stable while logical namespace, subject, package, trigger, and rule metadata evolve additively inside the governed serverless compatibility matrix.",
+      "error_classes": [
+        "validation_error",
+        "conflict",
+        "dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version",
+        "quota_exceeded"
+      ]
+    },
+    "function_admin_result": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "request_id",
+        "resource_kind",
+        "action",
+        "status",
+        "provider_reference",
+        "normalized_resource",
+        "metadata_record",
+        "inventory_projection",
+        "correlation_id",
+        "contract_version",
+        "observed_at",
+        "audit_record_id",
+        "serverless_context",
+        "naming_policy",
+        "subject_binding",
+        "provisioning_state",
+        "audit_summary"
+      ],
+      "idempotency": "Repeated reads of the same OpenWhisk administrative result describe one logical package, trigger, or rule mutation and one durable inventory projection update.",
+      "versioning": "Result contracts expose normalized secret-free OpenWhisk serverless resources while logical context, tenancy metadata, and provisioning state expand additively.",
+      "error_classes": [
+        "not_found",
+        "conflict",
+        "retryable_dependency_failure",
+        "terminal_dependency_failure",
+        "unsupported_profile",
+        "unsupported_provider_version",
+        "quota_exceeded"
+      ]
+    },
+    "function_inventory_snapshot": {
+      "owner": "provisioning_orchestrator",
+      "version": "2026-03-25",
+      "required_fields": [
+        "snapshot_id",
+        "tenant_id",
+        "workspace_id",
+        "provider",
+        "counts",
+        "quotas",
+        "naming_policy",
+        "serverless_context",
+        "minimum_engine_policy",
+        "observed_at",
+        "contract_version",
+        "tenant_isolation",
+        "provisioning_state"
+      ],
+      "idempotency": "Inventory refreshes for the same tenant and workspace replace the previous logical serverless projection instead of multiplying console-visible resources.",
+      "versioning": "Inventory snapshots remain additive and secret-free so workspace consoles can expand package, trigger, rule, quota, and logical-context visibility without exposing unsafe native OpenWhisk administration.",
+      "error_classes": [
+        "storage_unavailable",
+        "schema_validation_error"
+      ]
     }
   },
   "interaction_flows": [
@@ -1750,6 +1875,21 @@
       "guarantees": [
         "Administrative mutations preserve workspace-scoped service-account isolation and deterministic topic naming under every supported plan.",
         "Each successful Kafka admin mutation can emit one correlation-rich kafka_admin_event envelope linked to append-only audit evidence."
+      ]
+    },
+    {
+      "id": "function_administration",
+      "entry_service": "control_api",
+      "steps": [
+        "control_api validates the governed OpenWhisk administrative request, resolves contextual tenant and workspace authorization, and emits one function_admin_request envelope with logical serverless context, idempotency, and audit linkage.",
+        "provisioning_orchestrator resolves the deployment profile, provisions or reloads the internal namespace and subject binding, applies package, trigger, and rule guardrails, and translates the normalized intent into one openwhisk adapter_call.",
+        "services/adapters performs bounded package, trigger, and rule operations through the governed OpenWhisk administration surface while suppressing unsafe native namespace or subject CRUD exposure, then returns normalized secret-free resources and metadata.",
+        "provisioning_orchestrator persists a function_inventory_snapshot so console and control-plane reads can answer workspace inventory queries without live native enumeration for every request.",
+        "audit_module records actor, scope, logical context, target resource, tenancy isolation, and provisioning state evidence without persisting raw auth keys or unrestricted native admin detail."
+      ],
+      "guarantees": [
+        "Administrative mutations preserve tenant and workspace isolation by deriving logical namespace and subject context internally for every package, trigger, and rule.",
+        "No public product route exposes unsafe native OpenWhisk namespace or subject CRUD even though internal provisioning can reconcile them."
       ]
     }
   ]
