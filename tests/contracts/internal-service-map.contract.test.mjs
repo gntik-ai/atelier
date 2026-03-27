@@ -178,6 +178,18 @@ test('control_api service map explicitly owns console backend invocation accepta
     ),
     true
   );
+  assert.equal(
+    controlApiBoundary.responsibilities.includes(
+      "Accept authorized audit query requests scoped to the caller's tenant and workspace, apply mandatory pagination, and return audit records without crossing scope boundaries."
+    ),
+    true
+  );
+  assert.equal(
+    controlApiBoundary.responsibilities.includes(
+      'Emit structured audit events to the function.audit.events Kafka topic for each governed deployment, administrative, rollback, and quota enforcement action.'
+    ),
+    true
+  );
 });
 
 test('consumer scaffolding exposes the expected provider and flow slices', () => {

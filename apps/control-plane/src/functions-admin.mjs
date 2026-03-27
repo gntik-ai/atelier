@@ -27,6 +27,14 @@ import {
   buildScopeValidatedImportRequest,
   validateImportBundle
 } from './functions-import-export.mjs';
+import {
+  AUDIT_ACTION_TYPES,
+  AUDIT_SCOPE_ERROR_CODES,
+  emitAdminActionAuditEvent,
+  emitDeploymentAuditEvent,
+  emitQuotaEnforcementEvent,
+  emitRollbackEvidenceEvent
+} from './functions-audit.mjs';
 
 export const functionsApiFamily = getApiFamily('functions');
 export const functionAdminRequestContract = getContract('function_admin_request');
@@ -46,7 +54,13 @@ export {
   IMPORT_ERROR_CODES,
   buildScopeValidatedExportRequest,
   buildScopeValidatedImportRequest,
-  validateImportBundle
+  validateImportBundle,
+  AUDIT_ACTION_TYPES,
+  AUDIT_SCOPE_ERROR_CODES,
+  emitDeploymentAuditEvent,
+  emitAdminActionAuditEvent,
+  emitRollbackEvidenceEvent,
+  emitQuotaEnforcementEvent
 };
 
 export function listFunctionsAdminRoutes(filters = {}) {
@@ -130,6 +144,21 @@ export function summarizeFunctionsAdminSurface() {
       resourceKind: 'function_definition_import',
       actions: ['import'],
       routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_definition_import').length
+    },
+    {
+      resourceKind: 'function_deployment_audit',
+      actions: ['list'],
+      routeCount: functionsAdminRoutes.filter((route) => route.operationId === 'listFunctionDeploymentAudit').length
+    },
+    {
+      resourceKind: 'function_rollback_evidence',
+      actions: ['list'],
+      routeCount: functionsAdminRoutes.filter((route) => route.operationId === 'listFunctionRollbackEvidence').length
+    },
+    {
+      resourceKind: 'function_quota_enforcement_audit',
+      actions: ['list'],
+      routeCount: functionsAdminRoutes.filter((route) => route.operationId === 'listFunctionQuotaEnforcement').length
     }
   ]);
 }

@@ -49,11 +49,16 @@ test('domain model remains internally consistent', () => {
       'plan',
       'quota_policy',
       'deployment_profile',
-      'provider_capability'
+      'provider_capability',
+      'function_audit_record',
+      'function_deployment_audit_entry',
+      'function_admin_action_audit_entry',
+      'function_rollback_evidence_record',
+      'function_quota_enforcement_record'
     ]
   );
   assert.deepEqual(listLifecycleTransitions().map((transition) => transition.id), ['create', 'activate', 'suspend', 'soft_delete']);
-  assert.equal(listLifecycleEvents().length, 52);
+  assert.equal(listLifecycleEvents().length, 72);
 });
 
 test('managed resource kinds, governance catalogs, and seed profiles preserve downstream reuse guarantees', () => {

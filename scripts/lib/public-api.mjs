@@ -247,8 +247,8 @@ export function buildRouteCatalog(
         allowedContentTypes: requestValidationProfile.allowedContentTypes ?? [],
         correlationIdRequired: gatewayRouting?.spec?.correlationHeader?.required !== false,
         correlationIdGeneratedWhenMissing: gatewayRouting?.spec?.correlationHeader?.generateWhenMissing === true,
-        tenantBinding: routing.tenantBinding ?? null,
-        workspaceBinding: routing.workspaceBinding ?? null,
+        tenantBinding: operation['x-tenant-binding'] ?? routing.tenantBinding ?? null,
+        workspaceBinding: operation['x-workspace-binding'] ?? routing.workspaceBinding ?? null,
         planCapabilityAnyOf: routing.planCapabilityAnyOf ?? [],
         requiredPlanFlags: operation['x-plan-flags'] ?? [],
         adminChannel: operation['x-admin-channel'] ?? null,
@@ -383,6 +383,17 @@ function collectOperationViolations(document, taxonomy, violations) {
   const familyIds = new Set(taxonomy.families.map((family) => family.id));
   const familyPrefixes = new Map(taxonomy.families.map((family) => [family.id, family.prefix]));
   const requiredMutationMethods = new Set(taxonomy.shared_http.headers.idempotency_key.required_for_methods);
+
+  function allowedPrefixesForOperation(familyId, operation) {
+    const prefix = familyPrefixes.get(familyId);
+    const prefixes = prefix ? [prefix] : [];
+
+    if (familyId === 'functions' && operation?.operationId === 'getFunctionAuditCoverage') {
+      prefixes.push('/v1/admin/functions');
+    }
+
+    return prefixes;
+  }
   const requiredErrorFields = new Set(taxonomy.shared_http.errors.required_fields ?? []);
   const errorSchema = document?.components?.schemas?.[taxonomy.shared_http.errors.schema] ?? {};
   const declaredErrorFields = new Set(errorSchema.required ?? []);
@@ -405,9 +416,9 @@ function collectOperationViolations(document, taxonomy, violations) {
       continue;
     }
 
-    const prefix = familyPrefixes.get(familyId);
-    if (!path.startsWith(prefix)) {
-      violations.push(`${method.toUpperCase()} ${path} must use the ${prefix} prefix for family ${familyId}.`);
+    const allowedPrefixes = allowedPrefixesForOperation(familyId, operation);
+    if (!allowedPrefixes.some((prefix) => path.startsWith(prefix))) {
+      violations.push(`${method.toUpperCase()} ${path} must use one of the allowed prefixes (${allowedPrefixes.join(', ')}) for family ${familyId}.`);
     }
 
     if (!headers.includes(taxonomy.shared_http.headers.api_version.name)) {

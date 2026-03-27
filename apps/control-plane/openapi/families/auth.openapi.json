@@ -147,7 +147,9 @@
               "topic",
               "function",
               "app",
-              "service_account"
+              "service_account",
+              "function_audit",
+              "function_audit_coverage"
             ],
             "type": "string"
           },

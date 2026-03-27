@@ -105,7 +105,12 @@
         "plan": "pln",
         "quota_policy": "qta",
         "deployment_profile": "dpf",
-        "provider_capability": "pvc"
+        "provider_capability": "pvc",
+        "function_audit_record": "far",
+        "function_deployment_audit_entry": "fda",
+        "function_admin_action_audit_entry": "faa",
+        "function_rollback_evidence_record": "fre",
+        "function_quota_enforcement_record": "fqe"
       },
       "slug_pattern": "^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$",
       "slug_rules": [
@@ -826,6 +831,216 @@
         "read_path": "/v1/platform/provider-capabilities/{providerCapabilityId}",
         "write_path": "/v1/platform/provider-capabilities"
       }
+    },
+    {
+      "id": "function_audit_record",
+      "scope": "workspace",
+      "description": "Query-safe audit record for governed function lifecycle actions.",
+      "parent_entity_type": "managed_resource",
+      "id_prefix": "far",
+      "primary_id_field": "recordId",
+      "slug_field": "recordSlug",
+      "state_field": "state",
+      "supported_states": [
+        "active"
+      ],
+      "required_fields": [
+        "recordId",
+        "recordSlug",
+        "tenantId",
+        "workspaceId",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "actionType",
+        "actor",
+        "functionId",
+        "outcome",
+        "decision",
+        "quotaDimension",
+        "remainingCapacity",
+        "denialReason",
+        "coverageWindow"
+      ],
+      "business_rules": [
+        "Query-safe audit record for governed function lifecycle actions."
+      ],
+      "openapi": {
+        "read_schema": "AuditPage",
+        "write_schema": "AuditPage",
+        "read_path": "/v1/functions/workspaces/{workspaceId}/audit",
+        "write_path": "/v1/functions/workspaces/{workspaceId}/audit"
+      }
+    },
+    {
+      "id": "function_deployment_audit_entry",
+      "scope": "workspace",
+      "description": "Deployment audit entry for governed function create, update, and redeploy actions.",
+      "parent_entity_type": "managed_resource",
+      "id_prefix": "fda",
+      "primary_id_field": "recordId",
+      "slug_field": "recordSlug",
+      "state_field": "state",
+      "supported_states": [
+        "active"
+      ],
+      "required_fields": [
+        "recordId",
+        "recordSlug",
+        "tenantId",
+        "workspaceId",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "actionType",
+        "actor",
+        "functionId",
+        "outcome",
+        "decision",
+        "quotaDimension",
+        "remainingCapacity",
+        "denialReason",
+        "coverageWindow"
+      ],
+      "business_rules": [
+        "Deployment audit entry for governed function create, update, and redeploy actions."
+      ],
+      "openapi": {
+        "read_schema": "DeploymentAuditEntry",
+        "write_schema": "DeploymentAuditEntry",
+        "read_path": "/v1/functions/workspaces/{workspaceId}/audit",
+        "write_path": "/v1/functions/workspaces/{workspaceId}/audit"
+      }
+    },
+    {
+      "id": "function_admin_action_audit_entry",
+      "scope": "workspace",
+      "description": "Administrative action audit entry for governed function configuration, visibility, enable/disable, and deletion actions.",
+      "parent_entity_type": "managed_resource",
+      "id_prefix": "faa",
+      "primary_id_field": "recordId",
+      "slug_field": "recordSlug",
+      "state_field": "state",
+      "supported_states": [
+        "active"
+      ],
+      "required_fields": [
+        "recordId",
+        "recordSlug",
+        "tenantId",
+        "workspaceId",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "actionType",
+        "actor",
+        "functionId",
+        "outcome",
+        "decision",
+        "quotaDimension",
+        "remainingCapacity",
+        "denialReason",
+        "coverageWindow"
+      ],
+      "business_rules": [
+        "Administrative action audit entry for governed function configuration, visibility, enable/disable, and deletion actions."
+      ],
+      "openapi": {
+        "read_schema": "AdminActionAuditEntry",
+        "write_schema": "AdminActionAuditEntry",
+        "read_path": "/v1/functions/workspaces/{workspaceId}/audit",
+        "write_path": "/v1/functions/workspaces/{workspaceId}/audit"
+      }
+    },
+    {
+      "id": "function_rollback_evidence_record",
+      "scope": "workspace",
+      "description": "Rollback evidence entry capturing source version, target version, and outcome.",
+      "parent_entity_type": "managed_resource",
+      "id_prefix": "fre",
+      "primary_id_field": "recordId",
+      "slug_field": "recordSlug",
+      "state_field": "state",
+      "supported_states": [
+        "active"
+      ],
+      "required_fields": [
+        "recordId",
+        "recordSlug",
+        "tenantId",
+        "workspaceId",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "actionType",
+        "actor",
+        "functionId",
+        "outcome",
+        "decision",
+        "quotaDimension",
+        "remainingCapacity",
+        "denialReason",
+        "coverageWindow"
+      ],
+      "business_rules": [
+        "Rollback evidence entry capturing source version, target version, and outcome."
+      ],
+      "openapi": {
+        "read_schema": "RollbackEvidenceRecord",
+        "write_schema": "RollbackEvidenceRecord",
+        "read_path": "/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence",
+        "write_path": "/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence"
+      }
+    },
+    {
+      "id": "function_quota_enforcement_record",
+      "scope": "workspace",
+      "description": "Quota enforcement verification entry capturing decision, dimension, and remaining capacity or denial reason.",
+      "parent_entity_type": "managed_resource",
+      "id_prefix": "fqe",
+      "primary_id_field": "recordId",
+      "slug_field": "recordSlug",
+      "state_field": "state",
+      "supported_states": [
+        "active"
+      ],
+      "required_fields": [
+        "recordId",
+        "recordSlug",
+        "tenantId",
+        "workspaceId",
+        "state",
+        "timestamps",
+        "metadata"
+      ],
+      "optional_fields": [
+        "actionType",
+        "actor",
+        "functionId",
+        "outcome",
+        "decision",
+        "quotaDimension",
+        "remainingCapacity",
+        "denialReason",
+        "coverageWindow"
+      ],
+      "business_rules": [
+        "Quota enforcement verification entry capturing decision, dimension, and remaining capacity or denial reason."
+      ],
+      "openapi": {
+        "read_schema": "QuotaEnforcementRecord",
+        "write_schema": "QuotaEnforcementRecord",
+        "read_path": "/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement",
+        "write_path": "/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement"
+      }
     }
   ],
   "relationships": [
@@ -1296,6 +1511,106 @@
       "event_type": "provider_capability.soft_deleted",
       "entity_type": "provider_capability",
       "transition": "soft_delete"
+    },
+    {
+      "event_type": "function_audit_record.created",
+      "entity_type": "function_audit_record",
+      "transition": "create"
+    },
+    {
+      "event_type": "function_audit_record.activated",
+      "entity_type": "function_audit_record",
+      "transition": "activate"
+    },
+    {
+      "event_type": "function_audit_record.suspended",
+      "entity_type": "function_audit_record",
+      "transition": "suspend"
+    },
+    {
+      "event_type": "function_audit_record.soft_deleted",
+      "entity_type": "function_audit_record",
+      "transition": "soft_delete"
+    },
+    {
+      "event_type": "function_deployment_audit_entry.created",
+      "entity_type": "function_deployment_audit_entry",
+      "transition": "create"
+    },
+    {
+      "event_type": "function_deployment_audit_entry.activated",
+      "entity_type": "function_deployment_audit_entry",
+      "transition": "activate"
+    },
+    {
+      "event_type": "function_deployment_audit_entry.suspended",
+      "entity_type": "function_deployment_audit_entry",
+      "transition": "suspend"
+    },
+    {
+      "event_type": "function_deployment_audit_entry.soft_deleted",
+      "entity_type": "function_deployment_audit_entry",
+      "transition": "soft_delete"
+    },
+    {
+      "event_type": "function_admin_action_audit_entry.created",
+      "entity_type": "function_admin_action_audit_entry",
+      "transition": "create"
+    },
+    {
+      "event_type": "function_admin_action_audit_entry.activated",
+      "entity_type": "function_admin_action_audit_entry",
+      "transition": "activate"
+    },
+    {
+      "event_type": "function_admin_action_audit_entry.suspended",
+      "entity_type": "function_admin_action_audit_entry",
+      "transition": "suspend"
+    },
+    {
+      "event_type": "function_admin_action_audit_entry.soft_deleted",
+      "entity_type": "function_admin_action_audit_entry",
+      "transition": "soft_delete"
+    },
+    {
+      "event_type": "function_rollback_evidence_record.created",
+      "entity_type": "function_rollback_evidence_record",
+      "transition": "create"
+    },
+    {
+      "event_type": "function_rollback_evidence_record.activated",
+      "entity_type": "function_rollback_evidence_record",
+      "transition": "activate"
+    },
+    {
+      "event_type": "function_rollback_evidence_record.suspended",
+      "entity_type": "function_rollback_evidence_record",
+      "transition": "suspend"
+    },
+    {
+      "event_type": "function_rollback_evidence_record.soft_deleted",
+      "entity_type": "function_rollback_evidence_record",
+      "transition": "soft_delete"
+    },
+    {
+      "event_type": "function_quota_enforcement_record.created",
+      "entity_type": "function_quota_enforcement_record",
+      "transition": "create"
+    },
+    {
+      "event_type": "function_quota_enforcement_record.activated",
+      "entity_type": "function_quota_enforcement_record",
+      "transition": "activate"
+    },
+    {
+      "event_type": "function_quota_enforcement_record.suspended",
+      "entity_type": "function_quota_enforcement_record",
+      "transition": "suspend"
+    },
+    {
+      "event_type": "function_quota_enforcement_record.soft_deleted",
+      "entity_type": "function_quota_enforcement_record",
+      "transition": "soft_delete"
     }
   ],
   "business_invariants": [
@@ -1318,7 +1633,19 @@
     "Any accepted invitation, membership mutation, revocation, suspension, or ownership transfer must enqueue effective-permission recalculation for already-provisioned resources in the affected scope.",
     "Tenant labels, quotas, inventories, and export checkpoints remain tenant-scoped and must never leak cross-tenant identifiers or policy state.",
     "Tenant deletion is logical first; definitive purge requires a retained audit trail, a recovery-oriented export checkpoint, elapsed retention, and elevated dual confirmation.",
-    "Function definition import/export stays workspace-scoped; exported bundles and imported definitions must preserve tenant/workspace bindings, reject name collisions unless explicitly remapped, and only allow managed web-action visibility values of public or private."
+    "Function definition import/export stays workspace-scoped; exported bundles and imported definitions must preserve tenant/workspace bindings, reject name collisions unless explicitly remapped, and only allow managed web-action visibility values of public or private.",
+    {
+      "id": "BI-FN-AUD-001",
+      "rule": "An audit entry must be emitted for every governed action before the action's HTTP response is returned; emission failure must not silently suppress the record — the event must be retried via the Kafka consumer."
+    },
+    {
+      "id": "BI-FN-AUD-002",
+      "rule": "An audit query must never return records belonging to a tenant or workspace other than the caller's authorized scope, regardless of filter parameters."
+    },
+    {
+      "id": "BI-FN-AUD-003",
+      "rule": "A rollback evidence record must be emitted for every rollback attempt regardless of outcome; a failed rollback must produce a record with outcome: 'failure', not an absent record."
+    }
   ],
   "business_state_machines": [
     {

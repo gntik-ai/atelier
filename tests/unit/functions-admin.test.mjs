@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 
 import {
   FUNCTION_SECRET_NAME_PATTERN,
+  AUDIT_ACTION_TYPES,
+  AUDIT_SCOPE_ERROR_CODES,
   IMPORT_ERROR_CODES,
   SUPPORTED_FUNCTION_RUNTIMES,
   SUPPORTED_FUNCTION_SOURCE_KINDS,
@@ -81,7 +83,11 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
     'exportFunctionDefinition',
     'exportFunctionPackageDefinition',
     'importFunctionDefinition',
-    'importFunctionPackageDefinition'
+    'importFunctionPackageDefinition',
+    'listFunctionDeploymentAudit',
+    'listFunctionRollbackEvidence',
+    'listFunctionQuotaEnforcement',
+    'getFunctionAuditCoverage'
   ]) {
     assert.ok(routes.some((route) => route.operationId === operationId), `missing ${operationId}`);
   }
@@ -119,6 +125,14 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   assert.equal(surface.find((entry) => entry.resourceKind === 'function_definition_export').routeCount, 2);
   assert.deepEqual(surface.find((entry) => entry.resourceKind === 'function_definition_import').actions, ['import']);
   assert.equal(surface.find((entry) => entry.resourceKind === 'function_definition_import').routeCount, 2);
+  assert.deepEqual(surface.find((entry) => entry.resourceKind === 'function_deployment_audit').actions, ['list']);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'function_deployment_audit').routeCount, 1);
+  assert.deepEqual(surface.find((entry) => entry.resourceKind === 'function_rollback_evidence').actions, ['list']);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'function_rollback_evidence').routeCount, 1);
+  assert.deepEqual(surface.find((entry) => entry.resourceKind === 'function_quota_enforcement_audit').actions, ['list']);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'function_quota_enforcement_audit').routeCount, 1);
+  assert.equal(AUDIT_ACTION_TYPES.ROLLBACK, 'function.rolled_back');
+  assert.equal(AUDIT_SCOPE_ERROR_CODES.SCOPE_VIOLATION, 'AUDIT_SCOPE_VIOLATION');
 });
 
 test('functions admin helper exposes console backend identity and envelope builders without regressing discoverability', () => {

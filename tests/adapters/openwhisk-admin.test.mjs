@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import {
   OPENWHISK_ACTION_SOURCE_KINDS,
   OPENWHISK_ADMIN_CAPABILITY_MATRIX,
+  OPENWHISK_AUDIT_ACTION_TYPES,
+  OPENWHISK_AUDIT_EVENT_SCHEMA_VERSION,
   OPENWHISK_ALLOWED_ACTIVATION_STATUSES,
   OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES,
   OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY,
@@ -12,7 +14,9 @@ import {
   OPENWHISK_SUPPORTED_ACTION_RUNTIMES,
   OPENWHISK_SUPPORTED_TRIGGER_KINDS,
   SUPPORTED_OPENWHISK_VERSION_RANGES,
+  buildAdminActionAuditEvent,
   buildConsoleBackendActivationAnnotation,
+  buildDeploymentAuditEvent,
   buildFunctionWorkspaceSecretCollection,
   buildFunctionWorkspaceSecretProjection,
   buildOpenWhiskActivationPolicy,
@@ -22,6 +26,8 @@ import {
   buildOpenWhiskCronTrigger,
   buildOpenWhiskFunctionRollbackAccepted,
   buildOpenWhiskFunctionVersion,
+  buildQuotaEnforcementEvent,
+  buildRollbackEvidenceEvent,
   buildOpenWhiskFunctionVersionCollection,
   buildOpenWhiskHttpExposure,
   buildOpenWhiskInventorySnapshot,
@@ -602,6 +608,7 @@ test('openwhisk lifecycle helpers build immutable function versions and accepted
   const accepted = buildOpenWhiskFunctionRollbackAccepted(
     {
       versionId: version.versionId,
+      sourceVersionId: 'fnv_01old',
       requestId: 'request-rollback-01',
       correlationId: 'corr-rollback-01',
       acceptedAt: '2026-03-27T10:05:00Z'
@@ -621,7 +628,34 @@ test('openwhisk lifecycle helpers build immutable function versions and accepted
   assert.equal(collection.items[0].versionId, version.versionId);
   assert.equal(accepted.resourceId, 'res_01fnactionbilling');
   assert.equal(accepted.requestedVersionId, version.versionId);
+  assert.equal(accepted.sourceVersionId, 'fnv_01old');
+  assert.equal(accepted.targetVersionId, version.versionId);
+  assert.equal(accepted.outcome, 'success');
   assert.equal(accepted.status, 'accepted');
+});
+
+test('openwhisk audit helpers build deployment, admin, rollback, and quota verification events', () => {
+  const context = {
+    actor: 'usr_01alice',
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    resourceId: 'res_01fnactionbilling',
+    correlationId: 'corr_fn_audit_01'
+  };
+
+  const deployment = buildDeploymentAuditEvent(context, { deploymentNature: 'redeploy' });
+  const admin = buildAdminActionAuditEvent(context, { adminAction: 'delete' });
+  const rollback = buildRollbackEvidenceEvent(context, { sourceVersionId: 'fnv_old', targetVersionId: 'fnv_new', outcome: 'failure' });
+  const quota = buildQuotaEnforcementEvent(context, { decision: 'allowed', quotaDimension: 'function_count', remainingCapacity: 1 });
+
+  assert.equal(OPENWHISK_AUDIT_ACTION_TYPES.DEPLOY, 'function.deployed');
+  assert.equal(OPENWHISK_AUDIT_EVENT_SCHEMA_VERSION, '2026-03-27');
+  assert.equal(deployment.schemaVersion, '2026-03-27');
+  assert.equal(deployment.actionType, 'function.deployed');
+  assert.equal(admin.actionType, 'function.admin_action');
+  assert.equal(rollback.outcome, 'failure');
+  assert.equal(quota.decision, 'allowed');
+  assert.equal(quota.remainingCapacity, 1);
 });
 
 test('openwhisk lifecycle helpers reject rollback requests that are unauthorized, cross-scope, ineligible, or already active', () => {

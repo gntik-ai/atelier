@@ -48325,6 +48325,495 @@
         "x-scope": "workspace",
         "x-visibility": "public"
       }
+    },
+    "/v1/functions/workspaces/{workspaceId}/audit": {
+      "get": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "List governed function deployment and admin audit records",
+        "operationId": "listFunctionDeploymentAudit",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditActionType"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditSince"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditUntil"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditActor"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditFunctionId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditLimit"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditCursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-resource-type": "function_audit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "read",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence": {
+      "get": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "List governed function rollback evidence records",
+        "operationId": "listFunctionRollbackEvidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditActionType"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditSince"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditUntil"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditActor"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditFunctionId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditLimit"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditCursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-resource-type": "function_audit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "read",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement": {
+      "get": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "List governed function quota enforcement records",
+        "operationId": "listFunctionQuotaEnforcement",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditActionType"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditSince"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditUntil"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditActor"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditFunctionId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditLimit"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditCursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-resource-type": "function_audit",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "read",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/admin/functions/audit/coverage": {
+      "get": {
+        "tags": [
+          "Functions"
+        ],
+        "summary": "Get governed function audit coverage report",
+        "operationId": "getFunctionAuditCoverage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditSince"
+          },
+          {
+            "$ref": "#/components/parameters/FunctionAuditUntil"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditCoverageReport"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-resource-type": "function_audit_coverage",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "functions",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "read",
+        "x-scope": "platform",
+        "x-visibility": "public",
+        "x-tenant-binding": "none",
+        "x-workspace-binding": "none"
+      }
     }
   },
   "components": {
@@ -49399,6 +49888,67 @@
           "pattern": "^fnv_[0-9a-z]+$",
           "type": "string"
         }
+      },
+      "FunctionAuditActionType": {
+        "name": "actionType",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "required": false
+      },
+      "FunctionAuditSince": {
+        "name": "since",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "required": false
+      },
+      "FunctionAuditUntil": {
+        "name": "until",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "required": false
+      },
+      "FunctionAuditActor": {
+        "name": "actor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "required": false
+      },
+      "FunctionAuditFunctionId": {
+        "name": "functionId",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "required": false
+      },
+      "FunctionAuditLimit": {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        },
+        "required": false
+      },
+      "FunctionAuditCursor": {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        },
+        "required": false
       }
     },
     "schemas": {
@@ -49447,7 +49997,9 @@
               "topic",
               "function",
               "app",
-              "service_account"
+              "service_account",
+              "function_audit",
+              "function_audit_coverage"
             ]
           },
           "resourceId": {
@@ -75360,6 +75912,349 @@
           "workspaceId",
           "resources"
         ]
+      },
+      "DeploymentAuditEntry": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "properties": {
+              "recordId": {
+                "type": "string"
+              },
+              "actionType": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "deploymentNature"
+            ],
+            "properties": {
+              "deploymentNature": {
+                "type": "string",
+                "enum": [
+                  "create",
+                  "update",
+                  "redeploy"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "AdminActionAuditEntry": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "properties": {
+              "recordId": {
+                "type": "string"
+              },
+              "actionType": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "adminAction"
+            ],
+            "properties": {
+              "adminAction": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "RollbackEvidenceRecord": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "properties": {
+              "recordId": {
+                "type": "string"
+              },
+              "actionType": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "sourceVersionId",
+              "targetVersionId",
+              "outcome"
+            ],
+            "properties": {
+              "sourceVersionId": {
+                "type": "string"
+              },
+              "targetVersionId": {
+                "type": "string"
+              },
+              "outcome": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "failure"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "QuotaEnforcementRecord": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "properties": {
+              "recordId": {
+                "type": "string"
+              },
+              "actionType": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "decision",
+              "quotaDimension"
+            ],
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "allowed",
+                  "denied"
+                ]
+              },
+              "quotaDimension": {
+                "type": "string"
+              },
+              "remainingCapacity": {
+                "type": "integer"
+              },
+              "denialReason": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "AuditPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "page"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeploymentAuditEntry"
+                },
+                {
+                  "$ref": "#/components/schemas/AdminActionAuditEntry"
+                },
+                {
+                  "$ref": "#/components/schemas/RollbackEvidenceRecord"
+                },
+                {
+                  "$ref": "#/components/schemas/QuotaEnforcementRecord"
+                }
+              ]
+            }
+          },
+          "page": {
+            "type": "object",
+            "required": [
+              "size"
+            ],
+            "properties": {
+              "size": {
+                "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "AuditCoverageReport": {
+        "type": "object",
+        "required": [
+          "generatedAt",
+          "expectedActionTypes",
+          "activeScopes",
+          "coverageByActionType"
+        ],
+        "properties": {
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expectedActionTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "activeScopes": {
+            "type": "integer"
+          },
+          "coverageByActionType": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "actionType",
+                "coveredScopes",
+                "missingScopes"
+              ],
+              "properties": {
+                "actionType": {
+                  "type": "string"
+                },
+                "coveredScopes": {
+                  "type": "integer"
+                },
+                "missingScopes": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
