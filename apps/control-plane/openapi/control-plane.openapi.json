@@ -48814,6 +48814,112 @@
         "x-tenant-binding": "none",
         "x-workspace-binding": "none"
       }
+    },
+    "/v1/platform/storage/provider": {
+      "get": {
+        "operationId": "getStorageProviderIntrospection",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Storage provider abstraction summary returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageProviderIntrospection"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for platform storage introspection.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Storage provider abstraction is unavailable because configuration is missing or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Inspect the active storage provider abstraction and common capability manifest",
+        "tags": [
+          "Platform"
+        ],
+        "x-audiences": [
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_provider",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
     }
   },
   "components": {
@@ -76255,6 +76361,129 @@
             }
           }
         }
+      },
+      "StorageCapabilityManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketOperations": {
+            "type": "boolean"
+          },
+          "objectCrud": {
+            "type": "boolean"
+          },
+          "presignedUrls": {
+            "type": "boolean"
+          },
+          "multipartUpload": {
+            "type": "boolean"
+          },
+          "objectVersioning": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "bucketOperations",
+          "objectCrud",
+          "presignedUrls",
+          "multipartUpload",
+          "objectVersioning"
+        ],
+        "type": "object"
+      },
+      "StorageProviderLimitation": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "affectsCapabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "summary",
+          "affectsCapabilities"
+        ],
+        "type": "object"
+      },
+      "StorageProviderIntrospection": {
+        "additionalProperties": false,
+        "properties": {
+          "providerType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "unavailable"
+            ]
+          },
+          "backendFamily": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "configuredVia": {
+            "type": [
+              "string",
+              "array"
+            ]
+          },
+          "selectionMode": {
+            "type": "string"
+          },
+          "supportedProviderTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "capabilityManifest": {
+            "$ref": "#/components/schemas/StorageCapabilityManifest"
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageProviderLimitation"
+            }
+          },
+          "defaultRegion": {
+            "type": "string"
+          },
+          "errorCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "providerType",
+          "status",
+          "backendFamily",
+          "configured",
+          "configuredVia",
+          "selectionMode",
+          "supportedProviderTypes",
+          "capabilityManifest",
+          "limitations"
+        ],
+        "type": "object"
       }
     }
   }

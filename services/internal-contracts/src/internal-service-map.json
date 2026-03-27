@@ -40,7 +40,8 @@
         "Accept governed function definition export and import workflows for action and package metadata without exposing native OpenWhisk package or web-action administration.",
         "Enforce public/private managed web-action visibility policy during function definition import before downstream orchestration dispatch.",
         "Accept authorized audit query requests scoped to the caller's tenant and workspace, apply mandatory pagination, and return audit records without crossing scope boundaries.",
-        "Emit structured audit events to the function.audit.events Kafka topic for each governed deployment, administrative, rollback, and quota enforcement action."
+        "Emit structured audit events to the function.audit.events Kafka topic for each governed deployment, administrative, rollback, and quota enforcement action.",
+        "Expose platform-level storage provider identity and capability introspection without leaking provider secrets or bypassing the unified storage family."
       ],
       "owned_resources": [
         "public route contract",
@@ -638,7 +639,10 @@
         "ensure_bucket",
         "apply_lifecycle_policy",
         "write_audit_evidence",
-        "publish_object_event"
+        "publish_object_event",
+        "resolve_provider_profile",
+        "get_capability_manifest",
+        "get_provider_status"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",

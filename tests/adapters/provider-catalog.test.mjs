@@ -4,9 +4,13 @@ import assert from 'node:assert/strict';
 import {
   adapterCallContract,
   adapterResultContract,
+  getStorageProviderCompatibilitySummary,
+  getStorageProviderProfile,
   listAuditAdapters,
   listProvisioningAdapters,
-  providerAdapterCatalog
+  listStorageProviderProfiles,
+  providerAdapterCatalog,
+  supportedStorageProviderTypes
 } from '../../services/adapters/src/provider-catalog.mjs';
 import {
   adapterContextTargets,
@@ -28,12 +32,25 @@ test('provider adapter catalog covers all baseline providers', () => {
 test('consumer-specific adapter views remain separated', () => {
   const provisioningIds = new Set(listProvisioningAdapters().map((adapter) => adapter.id));
   const auditIds = new Set(listAuditAdapters().map((adapter) => adapter.id));
+  const storageProfiles = listStorageProviderProfiles();
+  const minioProfile = getStorageProviderProfile({ providerType: 'minio' });
+  const unavailableProfile = getStorageProviderProfile({ providerType: 'unsupported' });
+  const compatibility = getStorageProviderCompatibilitySummary({ providerType: 'garage' });
 
   assert.ok(provisioningIds.has('keycloak'));
   assert.ok(provisioningIds.has('storage'));
   assert.ok(auditIds.has('postgresql'));
   assert.ok(auditIds.has('storage'));
   assert.ok(!auditIds.has('keycloak'));
+
+  assert.equal(supportedStorageProviderTypes.includes('minio'), true);
+  assert.equal(supportedStorageProviderTypes.includes('ceph-rgw'), true);
+  assert.equal(storageProfiles.length >= 2, true);
+  assert.equal(minioProfile.status, 'ready');
+  assert.equal(minioProfile.capabilityManifest.bucketOperations, true);
+  assert.equal(unavailableProfile.status, 'unavailable');
+  assert.equal(compatibility.providerType, 'garage');
+  assert.equal(compatibility.capabilityCount >= 4, true);
 });
 
 test('adapter authorization policy exposes scoped enforcement targets', () => {

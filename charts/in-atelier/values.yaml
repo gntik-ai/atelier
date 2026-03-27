@@ -1777,6 +1777,8 @@ storage:
   config:
     inline:
       provider: s3-compatible
+      providerType: minio
+      providerSelectionMode: explicit
   initContainers: []
   volumePermissions:
     enabled: false
