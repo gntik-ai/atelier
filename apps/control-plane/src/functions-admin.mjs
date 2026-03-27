@@ -54,6 +54,16 @@ export function summarizeFunctionsAdminSurface() {
       routeCount: functionsAdminRoutes.filter((route) => route.resourceType.startsWith('function_activation')).length
     },
     {
+      resourceKind: 'version',
+      actions: ['list', 'get'],
+      routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_version').length
+    },
+    {
+      resourceKind: 'rollback',
+      actions: ['create'],
+      routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_rollback').length
+    },
+    {
       resourceKind: 'http_exposure',
       actions: ['get', 'create', 'update', 'delete'],
       routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_http_exposure').length
@@ -109,11 +119,18 @@ export function getOpenWhiskCompatibilitySummary(context = {}) {
     ruleMutationsSupported: profile.ruleMutationsSupported,
     invocationSupported: profile.invocationSupported,
     activationReadsSupported: profile.activationReadsSupported,
+    functionVersioningSupported: true,
+    rollbackSupported: true,
     httpExposureSupported: profile.httpExposureSupported,
     storageTriggersSupported: profile.storageTriggersSupported,
     cronTriggersSupported: profile.cronTriggersSupported,
     logicalContextMutationsSupported: profile.logicalContextMutationsSupported,
     nativeAdminCrudExposed: false,
+    lifecycleGovernance: {
+      immutableVersions: true,
+      rollbackPreservesHistory: true,
+      scope: 'function_action'
+    },
     supportedSourceKinds: [...SUPPORTED_FUNCTION_SOURCE_KINDS],
     supportedTriggerKinds: [...SUPPORTED_FUNCTION_TRIGGER_KINDS],
     supportedRuntimes: summarizeFunctionRuntimeCoverage(),

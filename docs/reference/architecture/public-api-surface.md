@@ -404,8 +404,11 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 | POST | `/v1/functions/actions/{resourceId}/invocations` | workspace | function_invocation | Invoke one governed function action directly through the control-plane abstraction |
 | POST | `/v1/functions/actions/{resourceId}/kafka-triggers` | workspace | function_kafka_trigger | Register a Kafka-triggered OpenWhisk execution policy for one managed action |
 | GET | `/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}` | workspace | function_kafka_trigger | Fetch one normalized Kafka-triggered function execution policy |
+| POST | `/v1/functions/actions/{resourceId}/rollback` | workspace | function_rollback | Request rollback of one governed function action to a prior immutable version |
 | POST | `/v1/functions/actions/{resourceId}/storage-triggers` | workspace | function_storage_trigger | Register one storage event trigger for a governed function action when storage delivery is enabled |
 | GET | `/v1/functions/actions/{resourceId}/storage-triggers/{triggerId}` | workspace | function_storage_trigger | Fetch one storage trigger bound to a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/versions` | workspace | function_version | List immutable versions for one governed function action within its tenant and workspace lifecycle scope |
+| GET | `/v1/functions/actions/{resourceId}/versions/{versionId}` | workspace | function_version | Fetch one immutable version for a governed function action |
 | GET | `/v1/functions/workspaces/{workspaceId}/actions` | workspace | function_action | List governed function actions for one workspace including runtime, source, policy, and exposure summaries |
 | GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
 | GET | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | List governed OpenWhisk packages for one workspace logical serverless context |

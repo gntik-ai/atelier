@@ -12,11 +12,13 @@ import {
   summarizeFunctionsAdminSurface
 } from '../../apps/control-plane/src/functions-admin.mjs';
 
-test('functions admin control-plane helper exposes CRUD, invocation, activation, HTTP exposure, and trigger routes', () => {
+test('functions admin control-plane helper exposes CRUD, lifecycle versioning, rollback, invocation, activation, HTTP exposure, and trigger routes', () => {
   const routes = listFunctionsAdminRoutes();
   const actionRoute = getFunctionsAdminRoute('getFunctions');
   const invocationRoute = getFunctionsAdminRoute('invokeFunctionAction');
   const exposureRoute = getFunctionsAdminRoute('createFunctionHttpExposure');
+  const versionRoute = getFunctionsAdminRoute('listFunctionVersions');
+  const rollbackRoute = getFunctionsAdminRoute('rollbackFunctionAction');
   const activationLogRoute = getFunctionsAdminRoute('getFunctionActivationLogs');
   const storageTriggerRoute = getFunctionsAdminRoute('getFunctionStorageTrigger');
   const cronTriggerRoute = getFunctionsAdminRoute('getFunctionCronTrigger');
@@ -30,6 +32,9 @@ test('functions admin control-plane helper exposes CRUD, invocation, activation,
     'updateFunctions',
     'deleteFunctions',
     'invokeFunctionAction',
+    'listFunctionVersions',
+    'getFunctionVersion',
+    'rollbackFunctionAction',
     'listFunctionActivations',
     'getFunctionActivation',
     'getFunctionActivationLogs',
@@ -56,6 +61,8 @@ test('functions admin control-plane helper exposes CRUD, invocation, activation,
   assert.equal(actionRoute.resourceType, 'function_action');
   assert.equal(invocationRoute.resourceType, 'function_invocation');
   assert.equal(exposureRoute.resourceType, 'function_http_exposure');
+  assert.equal(versionRoute.resourceType, 'function_version');
+  assert.equal(rollbackRoute.resourceType, 'function_rollback');
   assert.equal(activationLogRoute.resourceType, 'function_activation_log');
   assert.equal(storageTriggerRoute.resourceType, 'function_storage_trigger');
   assert.equal(cronTriggerRoute.resourceType, 'function_cron_trigger');
@@ -63,6 +70,8 @@ test('functions admin control-plane helper exposes CRUD, invocation, activation,
   assert.equal(surface.find((entry) => entry.resourceKind === 'action').routeCount, 5);
   assert.equal(surface.find((entry) => entry.resourceKind === 'invocation').actions.includes('rerun'), true);
   assert.equal(surface.find((entry) => entry.resourceKind === 'activation').routeCount, 4);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'version').routeCount, 2);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'rollback').routeCount, 1);
   assert.equal(surface.find((entry) => entry.resourceKind === 'http_exposure').routeCount, 4);
   assert.equal(surface.find((entry) => entry.resourceKind === 'storage_trigger').routeCount, 2);
   assert.equal(surface.find((entry) => entry.resourceKind === 'cron_trigger').routeCount, 2);
@@ -97,6 +106,9 @@ test('functions admin helper summarizes governed OpenWhisk compatibility, runtim
   assert.equal(growthSummary.minimumEnginePolicy.nativeAdminCrudExposed, false);
   assert.equal(growthSummary.auditCoverage.capturesHttpExposure, true);
   assert.equal(growthSummary.actionMutationsSupported, true);
+  assert.equal(growthSummary.functionVersioningSupported, true);
+  assert.equal(growthSummary.rollbackSupported, true);
+  assert.equal(growthSummary.lifecycleGovernance.rollbackPreservesHistory, true);
   assert.equal(growthSummary.httpExposureSupported, true);
   assert.equal(growthSummary.storageTriggersSupported, true);
   assert.equal(growthSummary.supportedSourceKinds.includes('runtime_image'), true);

@@ -29,6 +29,8 @@ export const OPENWHISK_ALLOWED_HTTP_METHODS = Object.freeze(['GET', 'POST', 'PUT
 export const OPENWHISK_ALLOWED_STORAGE_EVENT_TYPES = Object.freeze(['object_created', 'object_deleted', 'object_archived', 'object_restored']);
 export const OPENWHISK_ALLOWED_CRON_OVERLAP_POLICIES = Object.freeze(['allow', 'skip', 'queue_one']);
 export const OPENWHISK_ALLOWED_ACTIVATION_STATUSES = Object.freeze(['running', 'succeeded', 'failed', 'timed_out', 'cancelled']);
+export const OPENWHISK_FUNCTION_VERSION_STATUSES = Object.freeze(['active', 'historical', 'rollback_target', 'retired', 'invalid']);
+export const OPENWHISK_FUNCTION_VERSION_ORIGINS = Object.freeze(['publish', 'rollback_restore']);
 export const SUPPORTED_OPENWHISK_VERSION_RANGES = Object.freeze([
   Object.freeze({
     range: '2.0.x',
@@ -318,6 +320,11 @@ function buildProviderCompatibility(profile) {
     supportedRuntimes: buildOpenWhiskRuntimeCoverageSummary(),
     supportedSourceKinds: [...OPENWHISK_ACTION_SOURCE_KINDS],
     supportedTriggerKinds: [...OPENWHISK_SUPPORTED_TRIGGER_KINDS],
+    lifecycleGovernance: {
+      immutableVersions: true,
+      rollbackSupported: true,
+      rollbackPreservesHistory: true
+    },
     apisixHttpExposure: {
       managedByGateway: true,
       productRouteFamily: 'functions'
@@ -797,6 +804,21 @@ export function normalizeOpenWhiskAdminResource(resourceKind, payload = {}, cont
       cronTriggers: Array.isArray(payload.cronTriggers)
         ? payload.cronTriggers.map((trigger, index) => buildOpenWhiskCronTrigger(trigger, { ...context, actionName, triggerId: trigger.triggerId ?? `trg_${index + 1}` }))
         : undefined,
+      activeVersionId:
+        payload.activeVersionId ??
+        payload.versioning?.activeVersionId ??
+        context.activeVersionId ??
+        `fnv_${slugify(`${context.resourceId ?? actionName}-active`).replace(/-/g, '')}`,
+      versionCount:
+        payload.versionCount ??
+        payload.versioning?.versionCount ??
+        (Array.isArray(payload.versions) ? payload.versions.length : undefined) ??
+        1,
+      rollbackAvailable:
+        payload.rollbackAvailable ??
+        payload.versioning?.rollbackAvailable ??
+        ((payload.versionCount ?? payload.versioning?.versionCount ?? (Array.isArray(payload.versions) ? payload.versions.length : 1)) > 1),
+      latestRollbackAt: payload.latestRollbackAt ?? payload.versioning?.latestRollbackAt,
       deploymentDigest: payload.deploymentDigest,
       status: payload.status ?? 'provisioning'
     };
@@ -1109,6 +1131,136 @@ export function buildOpenWhiskInventorySnapshot({
     triggerRefs: triggers.map((entry) => entry.physicalTriggerName ?? entry.triggerName ?? entry),
     ruleRefs: rules.map((entry) => entry.physicalRuleName ?? entry.ruleName ?? entry),
     httpExposureRefs: httpExposures.map((entry) => entry.apisixRouteRef ?? entry.publicUrl ?? entry)
+  };
+}
+
+export function buildOpenWhiskFunctionVersion(payload = {}, context = {}) {
+  const normalizedAction = normalizeOpenWhiskAdminResource(
+    'action',
+    {
+      actionName: payload.actionName ?? context.actionName ?? 'action',
+      packageName: payload.packageName ?? context.packageName,
+      source: payload.source ?? {
+        kind: 'inline_code',
+        language: 'javascript',
+        inlineCode: 'function main(params) { return params; }'
+      },
+      execution:
+        payload.execution ?? {
+          runtime: 'nodejs:20',
+          entrypoint: 'main',
+          parameters: {},
+          environment: {},
+          limits: { timeoutSeconds: 60, memoryMb: 256 },
+          webAction: { enabled: false, requireAuthentication: true, rawHttpResponse: false }
+        },
+      activationPolicy: payload.activationPolicy ?? buildOpenWhiskActivationPolicy(),
+      deploymentDigest: payload.deploymentDigest,
+      status: payload.status === 'active' ? 'active' : 'deploying'
+    },
+    context
+  );
+
+  return {
+    versionId:
+      payload.versionId ??
+      context.versionId ??
+      `fnv_${slugify(`${context.resourceId ?? normalizedAction.resourceId ?? normalizedAction.actionName}-v${payload.versionNumber ?? 1}`).replace(/-/g, '')}`,
+    resourceId: context.resourceId ?? normalizedAction.resourceId,
+    tenantId: context.tenantId ?? normalizedAction.tenantId,
+    workspaceId: context.workspaceId ?? normalizedAction.workspaceId,
+    versionNumber: payload.versionNumber ?? 1,
+    status: OPENWHISK_FUNCTION_VERSION_STATUSES.includes(payload.status) ? payload.status : 'historical',
+    rollbackEligible: payload.rollbackEligible ?? true,
+    originType: OPENWHISK_FUNCTION_VERSION_ORIGINS.includes(payload.originType) ? payload.originType : 'publish',
+    originVersionId: payload.originVersionId,
+    source: normalizedAction.source,
+    execution: normalizedAction.execution,
+    activationPolicy: normalizedAction.activationPolicy,
+    deploymentDigest: payload.deploymentDigest ?? normalizedAction.deploymentDigest,
+    timestamps: {
+      createdAt: payload.timestamps?.createdAt ?? payload.createdAt ?? '2026-03-27T00:00:00Z',
+      updatedAt: payload.timestamps?.updatedAt ?? payload.updatedAt ?? payload.timestamps?.createdAt ?? payload.createdAt ?? '2026-03-27T00:00:00Z',
+      activatedAt: payload.timestamps?.activatedAt,
+      deletedAt: payload.timestamps?.deletedAt,
+      suspendedAt: payload.timestamps?.suspendedAt
+    }
+  };
+}
+
+export function buildOpenWhiskFunctionVersionCollection({ items = [], nextCursor, size } = {}) {
+  return {
+    items,
+    page: {
+      size: size ?? items.length,
+      nextCursor
+    }
+  };
+}
+
+export function validateOpenWhiskFunctionRollback({ context = {}, payload = {} } = {}) {
+  const profile = resolveOpenWhiskAdminProfile({
+    ...context,
+    tenantId: context.tenantId ?? payload.tenantId,
+    workspaceId: context.workspaceId ?? payload.workspaceId
+  });
+  const violations = [];
+  const versionId = payload.versionId ?? payload.targetVersionId ?? context.targetVersion?.versionId;
+  const targetVersion = payload.targetVersion ?? context.targetVersion;
+
+  if (!versionId) {
+    violations.push('versionId is required to request a governed function rollback.');
+  }
+
+  if (versionId && !/^fnv_[0-9a-z]+$/.test(versionId)) {
+    violations.push('versionId must use the governed function version identifier format.');
+  }
+
+  if (context.authorized === false || payload.authorized === false) {
+    violations.push('caller is not authorized to roll back this governed function action.');
+  }
+
+  if ((context.availableVersions?.length ?? 0) < 2 && !targetVersion) {
+    violations.push('at least one prior function version must exist before rollback is available.');
+  }
+
+  if (targetVersion) {
+    if (context.resourceId && targetVersion.resourceId && targetVersion.resourceId !== context.resourceId) {
+      violations.push('rollback target must belong to the same governed function action resource.');
+    }
+
+    if (context.tenantId && targetVersion.tenantId && targetVersion.tenantId !== context.tenantId) {
+      violations.push('rollback target must stay within the caller tenant scope.');
+    }
+
+    if (context.workspaceId && targetVersion.workspaceId && targetVersion.workspaceId !== context.workspaceId) {
+      violations.push('rollback target must stay within the caller workspace scope.');
+    }
+
+    if (targetVersion.status === 'active' || targetVersion.versionId === context.activeVersionId) {
+      violations.push('rollback target is already the active function version.');
+    }
+
+    if (targetVersion.rollbackEligible === false) {
+      violations.push('rollback target is not eligible for restore.');
+    }
+  }
+
+  return {
+    ok: violations.length === 0,
+    violations,
+    profile
+  };
+}
+
+export function buildOpenWhiskFunctionRollbackAccepted(payload = {}, context = {}) {
+  return {
+    resourceId: context.resourceId ?? payload.resourceId,
+    requestedVersionId: payload.versionId ?? payload.requestedVersionId ?? context.versionId ?? context.targetVersion?.versionId,
+    status: ['accepted', 'queued'].includes(payload.status) ? payload.status : 'accepted',
+    acceptedAt: payload.acceptedAt ?? context.acceptedAt ?? '2026-03-27T00:00:00Z',
+    requestId: payload.requestId ?? context.requestId ?? `req_${slugify(context.resourceId ?? 'rollback').replace(/-/g, '')}`,
+    correlationId: payload.correlationId ?? context.correlationId ?? `corr_${slugify(context.resourceId ?? 'rollback').replace(/-/g, '')}`
   };
 }
 

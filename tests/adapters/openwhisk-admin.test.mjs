@@ -14,6 +14,9 @@ import {
   buildOpenWhiskAdminAdapterCall,
   buildOpenWhiskAdminMetadataRecord,
   buildOpenWhiskCronTrigger,
+  buildOpenWhiskFunctionRollbackAccepted,
+  buildOpenWhiskFunctionVersion,
+  buildOpenWhiskFunctionVersionCollection,
   buildOpenWhiskHttpExposure,
   buildOpenWhiskInventorySnapshot,
   buildOpenWhiskInvocationRequest,
@@ -24,7 +27,8 @@ import {
   normalizeOpenWhiskAdminError,
   normalizeOpenWhiskAdminResource,
   resolveOpenWhiskAdminProfile,
-  validateOpenWhiskAdminRequest
+  validateOpenWhiskAdminRequest,
+  validateOpenWhiskFunctionRollback
 } from '../../services/adapters/src/openwhisk-admin.mjs';
 
 test('openwhisk admin adapter exports governed serverless capability, runtime, and logical context baselines', () => {
@@ -498,4 +502,123 @@ test('openwhisk execution helpers preserve activation policy, trigger constraint
   assert.equal(runtimeCoverage.find((entry) => entry.runtime === 'go:1.22').sourceKinds.includes('inline_code'), false);
   assert.equal(context.namingPolicy.actionPrefix, 'act-alpha-dev-dev');
   assert.equal(OPENWHISK_ALLOWED_ACTIVATION_STATUSES.includes('timed_out'), true);
+});
+
+test('openwhisk lifecycle helpers build immutable function versions and accepted rollback envelopes', () => {
+  const version = buildOpenWhiskFunctionVersion(
+    {
+      actionName: 'dispatch-billing',
+      versionNumber: 3,
+      status: 'rollback_target',
+      rollbackEligible: true,
+      deploymentDigest: 'sha256:abcdef1234567890',
+      source: {
+        kind: 'inline_code',
+        language: 'javascript',
+        inlineCode: 'function main(params) { return params; }'
+      },
+      execution: {
+        runtime: 'nodejs:20',
+        entrypoint: 'main',
+        parameters: { channel: 'billing' },
+        environment: { LOG_LEVEL: 'info' },
+        limits: { timeoutSeconds: 90, memoryMb: 256 },
+        webAction: { enabled: false, requireAuthentication: true, rawHttpResponse: false }
+      },
+      activationPolicy: buildOpenWhiskActivationPolicy({ retentionHours: 72 }),
+      timestamps: {
+        createdAt: '2026-03-27T10:00:00Z',
+        updatedAt: '2026-03-27T10:00:00Z'
+      }
+    },
+    {
+      resourceId: 'res_01fnactionbilling',
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceSlug: 'alpha-dev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth'
+    }
+  );
+  const collection = buildOpenWhiskFunctionVersionCollection({ items: [version], size: 1 });
+  const accepted = buildOpenWhiskFunctionRollbackAccepted(
+    {
+      versionId: version.versionId,
+      requestId: 'request-rollback-01',
+      correlationId: 'corr-rollback-01',
+      acceptedAt: '2026-03-27T10:05:00Z'
+    },
+    {
+      resourceId: 'res_01fnactionbilling'
+    }
+  );
+
+  assert.match(version.versionId, /^fnv_[0-9a-z]+$/);
+  assert.equal(version.resourceId, 'res_01fnactionbilling');
+  assert.equal(version.versionNumber, 3);
+  assert.equal(version.status, 'rollback_target');
+  assert.equal(version.rollbackEligible, true);
+  assert.equal(version.execution.runtime, 'nodejs:20');
+  assert.equal(collection.page.size, 1);
+  assert.equal(collection.items[0].versionId, version.versionId);
+  assert.equal(accepted.resourceId, 'res_01fnactionbilling');
+  assert.equal(accepted.requestedVersionId, version.versionId);
+  assert.equal(accepted.status, 'accepted');
+});
+
+test('openwhisk lifecycle helpers reject rollback requests that are unauthorized, cross-scope, ineligible, or already active', () => {
+  const invalidRollback = validateOpenWhiskFunctionRollback({
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceSlug: 'alpha-dev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth',
+      resourceId: 'res_01fnactionbilling',
+      activeVersionId: 'fnv_activeversion01',
+      authorized: false,
+      availableVersions: [{ versionId: 'fnv_activeversion01' }],
+      targetVersion: {
+        versionId: 'fnv_activeversion01',
+        resourceId: 'res_otheraction01',
+        tenantId: 'ten_01othertenant',
+        workspaceId: 'wrk_01otherworkspace',
+        status: 'active',
+        rollbackEligible: false
+      }
+    },
+    payload: {
+      versionId: 'bad-version-id'
+    }
+  });
+
+  assert.equal(invalidRollback.ok, false);
+  assert.equal(
+    invalidRollback.violations.includes('versionId must use the governed function version identifier format.'),
+    true
+  );
+  assert.equal(
+    invalidRollback.violations.includes('caller is not authorized to roll back this governed function action.'),
+    true
+  );
+  assert.equal(
+    invalidRollback.violations.includes('rollback target must belong to the same governed function action resource.'),
+    true
+  );
+  assert.equal(
+    invalidRollback.violations.includes('rollback target must stay within the caller tenant scope.'),
+    true
+  );
+  assert.equal(
+    invalidRollback.violations.includes('rollback target must stay within the caller workspace scope.'),
+    true
+  );
+  assert.equal(
+    invalidRollback.violations.includes('rollback target is already the active function version.'),
+    true
+  );
+  assert.equal(
+    invalidRollback.violations.includes('rollback target is not eligible for restore.'),
+    true
+  );
 });
