@@ -42,7 +42,9 @@
         "Accept authorized audit query requests scoped to the caller's tenant and workspace, apply mandatory pagination, and return audit records without crossing scope boundaries.",
         "Emit structured audit events to the function.audit.events Kafka topic for each governed deployment, administrative, rollback, and quota enforcement action.",
         "Expose platform-level storage provider identity and capability introspection without leaking provider secrets or bypassing the unified storage family.",
-        "Expose tenant-scoped storage context status and credential-rotation initiation without leaking secret references or bypassing tenant authorization boundaries."
+        "Expose tenant-scoped storage context status and credential-rotation initiation without leaking secret references or bypassing tenant authorization boundaries.",
+        "Accept workspace-scoped storage bucket inventory, metadata, creation, and deletion requests through the unified storage family while preserving tenant/workspace isolation, quota guardrails, and audit context.",
+        "Accept workspace-scoped storage object upload, download, metadata, list, and delete requests through the unified storage family without leaking provider-native semantics."
       ],
       "owned_resources": [
         "public route contract",
@@ -65,7 +67,9 @@
         "event bridge request envelope",
         "kafka function-trigger request envelope",
         "function definition import context",
-        "function definition export bundle"
+        "function definition export bundle",
+        "storage bucket request envelope",
+        "storage object request envelope"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -116,7 +120,8 @@
         "Persist Kafka metadata and inventory snapshots for console-safe reads across shared and dedicated KRaft isolation modes.",
         "Emit correlation-rich Kafka admin events with naming, ACL, quota, and KRaft metadata for audit and stream consumers.",
         "Emit PostgreSQL change envelopes, storage object-event envelopes, and OpenWhisk activation envelopes toward event_gateway when workspace-managed Kafka bridges are enabled.",
-        "Provision and reconcile one tenant-scoped storage context per entitled tenant, including namespace, credential-reference lifecycle, quota assignment, and workspace bucket bootstrap dependencies."
+        "Provision and reconcile one tenant-scoped storage context per entitled tenant, including namespace, credential-reference lifecycle, quota assignment, and workspace bucket bootstrap dependencies.",
+        "Coordinate workspace-scoped storage bucket lifecycle and object operations without letting control_api call storage adapters directly."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -138,7 +143,9 @@
         "kafka admin event envelope",
         "postgres change-event envelope",
         "storage event envelope",
-        "openwhisk activation envelope"
+        "openwhisk activation envelope",
+        "storage bucket orchestration result",
+        "storage object operation result"
       ],
       "service_dependencies": [
         "audit_module"
@@ -648,7 +655,15 @@
         "ensure_tenant_context",
         "get_tenant_context_status",
         "rotate_tenant_context_credentials",
-        "revoke_tenant_context_credentials"
+        "revoke_tenant_context_credentials",
+        "list_buckets",
+        "get_bucket_metadata",
+        "delete_bucket",
+        "put_object",
+        "get_object",
+        "get_object_metadata",
+        "list_objects",
+        "delete_object"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",

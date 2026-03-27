@@ -451,8 +451,15 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/storage/buckets` | workspace | bucket | List workspace-scoped storage buckets through the unified storage family |
 | POST | `/v1/storage/buckets` | workspace | bucket | Submit a workspace-scoped storage bucket provisioning request through the unified storage family |
+| DELETE | `/v1/storage/buckets/{resourceId}` | workspace | bucket | Delete one workspace-scoped storage bucket through the unified storage family |
 | GET | `/v1/storage/buckets/{resourceId}` | workspace | bucket | Fetch one workspace-scoped storage bucket contract under the storage family |
+| GET | `/v1/storage/buckets/{resourceId}/objects` | workspace | bucket_object | List objects stored inside one workspace-scoped storage bucket |
+| DELETE | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Delete one object from a workspace-scoped storage bucket |
+| GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Download one object from a workspace-scoped storage bucket |
+| PUT | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Upload or replace one object inside a workspace-scoped storage bucket |
+| GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}/metadata` | workspace | bucket_object | Fetch metadata for one object in a workspace-scoped storage bucket |
 
 ## Metrics
 
