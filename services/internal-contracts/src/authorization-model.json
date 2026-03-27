@@ -476,7 +476,9 @@
       "function.read",
       "function.invoke",
       "function.deploy",
-      "function.admin"
+      "function.admin",
+      "function.audit.read",
+      "function.audit.coverage.read"
     ],
     "app": [
       "app.read",
@@ -662,6 +664,36 @@
       "membership_bindings": [
         "workspace_roles"
       ]
+    },
+    {
+      "resource_type": "function_audit",
+      "parent_scope": "workspace",
+      "workspace_scoped": true,
+      "ownership_model": "workspace-governed function audit surface",
+      "membership_bindings": [
+        "workspace_roles"
+      ],
+      "delegable_actions": [
+        "function.audit.read"
+      ],
+      "forbidden_actions": [
+        "function.audit.read_cross_scope"
+      ]
+    },
+    {
+      "resource_type": "function_audit_coverage",
+      "parent_scope": "platform",
+      "workspace_scoped": false,
+      "ownership_model": "platform-governed function audit coverage surface",
+      "membership_bindings": [
+        "platform_roles"
+      ],
+      "delegable_actions": [
+        "function.audit.coverage.read"
+      ],
+      "forbidden_actions": [
+        "function.audit.coverage.read_without_superadmin"
+      ]
     }
   ],
   "permission_matrix": {
@@ -683,7 +715,9 @@
           "app.admin",
           "app.credentials.rotate",
           "service_account.admin",
-          "service_account.rotate"
+          "service_account.rotate",
+          "function.audit.read",
+          "function.audit.coverage.read"
         ],
         "denied_actions": []
       },
@@ -709,7 +743,9 @@
           "tenant.read",
           "workspace.read",
           "app.read",
-          "service_account.read"
+          "service_account.read",
+          "function.audit.read",
+          "function.audit.coverage.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -932,7 +968,8 @@
           "app.logout.manage",
           "app.templates.read",
           "database.rpc.execute",
-          "database.admin_sql.execute"
+          "database.admin_sql.execute",
+          "function.audit.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -968,7 +1005,8 @@
           "app.logout.manage",
           "app.templates.read",
           "database.rpc.execute",
-          "database.admin_sql.execute"
+          "database.admin_sql.execute",
+          "function.audit.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -1288,6 +1326,23 @@
         "bundle_payload"
       ],
       "reason": "Function definition import/export flows must keep scope, operator intent, and visibility policy explicit across command handling."
+    },
+    {
+      "target": "audit_query_context",
+      "required_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "query_scope"
+      ],
+      "optional_fields": [
+        "action_type_filter"
+      ],
+      "redacted_fields": [
+        "raw_tokens"
+      ],
+      "reason": "Audit queries must stay bound to the caller scope and optional action filter without leaking credential internals."
     }
   ],
   "negative_scenarios": [
@@ -1388,6 +1443,38 @@
       "category": "definition_import_visibility_policy",
       "expected_effect": "deny",
       "summary": "A function definition import must be denied when a requested web-action visibility value falls outside the governed public/private policy set."
+    },
+    {
+      "id": "AUTHZ-FN-AUD-001",
+      "description": "Caller queries audit records outside their authorized tenant — denied without revealing foreign records.",
+      "surface": "control_api",
+      "category": "cross_tenant",
+      "expected_effect": "deny",
+      "summary": "Audit query outside the caller tenant is denied without revealing foreign records."
+    },
+    {
+      "id": "AUTHZ-FN-AUD-002",
+      "description": "Caller queries audit records outside their authorized workspace — denied without revealing foreign records.",
+      "surface": "control_api",
+      "category": "cross_workspace",
+      "expected_effect": "deny",
+      "summary": "Audit query outside the caller workspace is denied without revealing foreign records."
+    },
+    {
+      "id": "AUTHZ-FN-AUD-003",
+      "description": "Non-superadmin calls the coverage report endpoint — denied with HTTP 403.",
+      "surface": "control_api",
+      "category": "privilege_escalation",
+      "expected_effect": "deny",
+      "summary": "Coverage report access is denied for callers that are not superadmins."
+    },
+    {
+      "id": "AUTHZ-FN-AUD-004",
+      "description": "Audit query limit exceeds the bounded maximum — rejected before query execution.",
+      "surface": "control_api",
+      "category": "request_validation",
+      "expected_effect": "deny",
+      "summary": "Audit query limits above the bounded maximum are rejected before query execution."
     }
   ]
 }

@@ -1652,6 +1652,80 @@
         "application/json"
       ],
       "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "openwhisk"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "functions",
+      "familyTitle": "Functions",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "functions",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "getFunctionAuditCoverage",
+      "path": "/v1/admin/functions/audit/coverage",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "function_audit_coverage",
+      "scope": "platform",
+      "summary": "Get governed function audit coverage report",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Functions"
+      ],
+      "tenantBinding": "none",
+      "visibility": "public",
+      "workspaceBinding": "none"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
         "developer_external",
         "workspace_owner",
         "workspace_admin",
@@ -3652,6 +3726,231 @@
       "resourceType": "function_action",
       "scope": "workspace",
       "summary": "List governed function actions for one workspace including runtime, source, policy, and exposure summaries",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Functions"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "openwhisk"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "functions",
+      "familyTitle": "Functions",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "functions",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "listFunctionDeploymentAudit",
+      "path": "/v1/functions/workspaces/{workspaceId}/audit",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "function_audit",
+      "scope": "workspace",
+      "summary": "List governed function deployment and admin audit records",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Functions"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "openwhisk"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "functions",
+      "familyTitle": "Functions",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "functions",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "listFunctionQuotaEnforcement",
+      "path": "/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "function_audit",
+      "scope": "workspace",
+      "summary": "List governed function quota enforcement records",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Functions"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "openwhisk"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "functions",
+      "familyTitle": "Functions",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "functions",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "listFunctionRollbackEvidence",
+      "path": "/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "function_audit",
+      "scope": "workspace",
+      "summary": "List governed function rollback evidence records",
       "supportsIdempotencyKey": false,
       "tags": [
         "Functions"

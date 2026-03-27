@@ -22,14 +22,21 @@ test('authorization model aligns with public access-check resource types', () =>
 
 test('authorization model includes console backend propagation and denial coverage', () => {
   const target = getContextPropagationTarget('console_backend_activation');
+  const auditTarget = getContextPropagationTarget('audit_query_context');
   const model = readAuthorizationModel();
   const scenarioIds = new Set(model.negative_scenarios.map((scenario) => scenario.id));
 
   assert.ok(target);
+  assert.ok(auditTarget);
   assert.equal(target.carrier, 'activation_annotation');
   assert.equal(target.required_fields.includes('initiating_surface'), true);
+  assert.equal(auditTarget.required_fields.includes('query_scope'), true);
   assert.equal(scenarioIds.has('AUTHZ-FN-CON-001'), true);
   assert.equal(scenarioIds.has('AUTHZ-FN-CON-002'), true);
+  assert.equal(scenarioIds.has('AUTHZ-FN-AUD-001'), true);
+  assert.equal(scenarioIds.has('AUTHZ-FN-AUD-002'), true);
+  assert.equal(scenarioIds.has('AUTHZ-FN-AUD-003'), true);
+  assert.equal(scenarioIds.has('AUTHZ-FN-AUD-004'), true);
 });
 
 test('authorization propagation targets stay aligned with internal service contracts', () => {

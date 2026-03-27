@@ -38,7 +38,9 @@
         "Expose topic metadata, lag, retention, compaction, bridge health, and tenant/workspace event dashboard projections when providers and policy allow the data to be surfaced safely.",
         "Accept console backend invocation requests and annotate them with the initiating console surface before dispatch, without exposing a private API path for the same business actions.",
         "Accept governed function definition export and import workflows for action and package metadata without exposing native OpenWhisk package or web-action administration.",
-        "Enforce public/private managed web-action visibility policy during function definition import before downstream orchestration dispatch."
+        "Enforce public/private managed web-action visibility policy during function definition import before downstream orchestration dispatch.",
+        "Accept authorized audit query requests scoped to the caller's tenant and workspace, apply mandatory pagination, and return audit records without crossing scope boundaries.",
+        "Emit structured audit events to the function.audit.events Kafka topic for each governed deployment, administrative, rollback, and quota enforcement action."
       ],
       "owned_resources": [
         "public route contract",
@@ -1684,7 +1686,8 @@
         "deployment_source",
         "execution_policy",
         "trigger_bindings",
-        "http_exposure"
+        "http_exposure",
+        "audit_summary"
       ],
       "idempotency": "OpenWhisk administrative mutations coalesce by target_ref, isolation_mode, action, and idempotency_key so safe retries do not duplicate logical context provisioning, action deployment, trigger binding, or HTTP exposure reconciliation.",
       "versioning": "The OpenWhisk administrative request envelope remains stable while logical namespace, subject, action, package, trigger, rule, source, and policy metadata evolve additively inside the governed serverless compatibility matrix.",
@@ -1752,7 +1755,10 @@
         "tenant_isolation",
         "provisioning_state",
         "action_refs",
-        "http_exposure_refs"
+        "http_exposure_refs",
+        "audit_coverage",
+        "rollback_evidence_visibility",
+        "quota_enforcement_visibility"
       ],
       "idempotency": "Inventory refreshes for the same tenant and workspace replace the previous logical serverless projection instead of multiplying console-visible resources.",
       "versioning": "Inventory snapshots remain additive and secret-free so workspace consoles can expand action, package, trigger, rule, exposure, quota, and logical-context visibility without exposing unsafe native OpenWhisk administration.",

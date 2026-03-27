@@ -904,6 +904,18 @@
       "family": "functions",
       "scope": "workspace",
       "authorization_resource": "function"
+    },
+    {
+      "resource_type": "function_audit",
+      "family": "functions",
+      "scope": "workspace",
+      "authorization_resource": "function_audit"
+    },
+    {
+      "resource_type": "function_audit_coverage",
+      "family": "functions",
+      "scope": "platform",
+      "authorization_resource": "function_audit_coverage"
     }
   ]
 }

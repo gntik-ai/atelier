@@ -386,6 +386,7 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/admin/functions/audit/coverage` | platform | function_audit_coverage | Get governed function audit coverage report |
 | POST | `/v1/functions/actions` | workspace | function_action | Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs |
 | DELETE | `/v1/functions/actions/{resourceId}` | workspace | function_action | Delete one governed function action and its managed exposure bindings from the workspace serverless context |
 | GET | `/v1/functions/actions/{resourceId}` | workspace | function_action | Fetch one governed function action with normalized source, execution, policy, and trigger state |
@@ -412,6 +413,9 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 | GET | `/v1/functions/actions/{resourceId}/versions/{versionId}` | workspace | function_version | Fetch one immutable version for a governed function action |
 | GET | `/v1/functions/tenants/{tenantId}/quota` | tenant | function_quota | Fetch governed function quota posture for one tenant |
 | GET | `/v1/functions/workspaces/{workspaceId}/actions` | workspace | function_action | List governed function actions for one workspace including runtime, source, policy, and exposure summaries |
+| GET | `/v1/functions/workspaces/{workspaceId}/audit` | workspace | function_audit | List governed function deployment and admin audit records |
+| GET | `/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement` | workspace | function_audit | List governed function quota enforcement records |
+| GET | `/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence` | workspace | function_audit | List governed function rollback evidence records |
 | POST | `/v1/functions/workspaces/{workspaceId}/definition-imports` | workspace | function_definition_import | Import one governed function action definition into the same workspace scope with collision and visibility policy enforcement |
 | GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
 | POST | `/v1/functions/workspaces/{workspaceId}/package-definition-imports` | workspace | function_definition_import | Import one governed function package definition into the same workspace scope with collision and visibility policy enforcement |

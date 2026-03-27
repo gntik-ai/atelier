@@ -34,6 +34,13 @@ export const OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES = Object.freeze(['resol
 export const OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE = 'console_backend';
 export const OPENWHISK_FUNCTION_VERSION_STATUSES = Object.freeze(['active', 'historical', 'rollback_target', 'retired', 'invalid']);
 export const OPENWHISK_FUNCTION_VERSION_ORIGINS = Object.freeze(['publish', 'rollback_restore']);
+export const OPENWHISK_AUDIT_ACTION_TYPES = Object.freeze({
+  DEPLOY: 'function.deployed',
+  ADMIN: 'function.admin_action',
+  ROLLBACK: 'function.rolled_back',
+  QUOTA_ENFORCED: 'function.quota_enforced'
+});
+export const OPENWHISK_AUDIT_EVENT_SCHEMA_VERSION = '2026-03-27';
 export const SUPPORTED_OPENWHISK_VERSION_RANGES = Object.freeze([
   Object.freeze({
     range: '2.0.x',
@@ -1291,8 +1298,58 @@ function buildOpenWhiskAdminAuditSummary({ resourceKind, action, profile, tenant
     capturesProvisioningState: true,
     capturesTenantIsolation: true,
     capturesSecretReferenceAudit: true,
+    capturesRollbackEvidence: true,
+    capturesQuotaEnforcementVerification: true,
     nativeAdminCrudExposed: false
   };
+}
+
+function buildOpenWhiskAuditEventBase(actionType, context = {}, detail = {}) {
+  return compactDefined({
+    schemaVersion: OPENWHISK_AUDIT_EVENT_SCHEMA_VERSION,
+    eventId: detail.eventId ?? context.eventId ?? `evt_${slugify(`${actionType}-${context.resourceId ?? detail.functionId ?? 'function'}`).replace(/-/g, '')}`,
+    actionType,
+    actor: context.actor,
+    tenantId: context.tenantId,
+    workspaceId: context.workspaceId,
+    functionId: detail.functionId ?? context.resourceId,
+    correlationId: detail.correlationId ?? context.correlationId,
+    initiatingSurface: detail.initiatingSurface ?? context.initiatingSurface,
+    createdAt: detail.createdAt ?? context.createdAt ?? '2026-03-27T00:00:00Z'
+  });
+}
+
+export function buildDeploymentAuditEvent(context = {}, detail = {}) {
+  return {
+    ...buildOpenWhiskAuditEventBase(OPENWHISK_AUDIT_ACTION_TYPES.DEPLOY, context, detail),
+    deploymentNature: detail.deploymentNature ?? 'create'
+  };
+}
+
+export function buildAdminActionAuditEvent(context = {}, detail = {}) {
+  return {
+    ...buildOpenWhiskAuditEventBase(OPENWHISK_AUDIT_ACTION_TYPES.ADMIN, context, detail),
+    adminAction: detail.adminAction ?? detail.action ?? 'update'
+  };
+}
+
+export function buildRollbackEvidenceEvent(context = {}, detail = {}) {
+  return {
+    ...buildOpenWhiskAuditEventBase(OPENWHISK_AUDIT_ACTION_TYPES.ROLLBACK, context, detail),
+    sourceVersionId: detail.sourceVersionId,
+    targetVersionId: detail.targetVersionId,
+    outcome: detail.outcome
+  };
+}
+
+export function buildQuotaEnforcementEvent(context = {}, detail = {}) {
+  return compactDefined({
+    ...buildOpenWhiskAuditEventBase(OPENWHISK_AUDIT_ACTION_TYPES.QUOTA_ENFORCED, context, detail),
+    decision: detail.decision,
+    quotaDimension: detail.quotaDimension,
+    remainingCapacity: detail.decision === 'allowed' ? detail.remainingCapacity : undefined,
+    denialReason: detail.decision === 'denied' ? detail.denialReason : undefined
+  });
 }
 
 export function buildOpenWhiskAdminAdapterCall({
@@ -1499,6 +1556,16 @@ export function buildOpenWhiskInventorySnapshot({
     observedAt,
     contractVersion: functionInventorySnapshotContract?.version ?? '2026-03-25',
     tenantIsolation: profile.serverlessContext.tenantIsolation,
+    auditCoverage: {
+      expectedActionTypes: Object.values(OPENWHISK_AUDIT_ACTION_TYPES),
+      deploymentAdminAuditVisible: true,
+      rollbackEvidenceVisible: true,
+      quotaEnforcementVisible: true,
+      superadminGovernanceVisible: true
+    },
+    rollbackEvidenceVisibility: 'workspace_bounded',
+    quota_enforcement_visibility: 'workspace_bounded',
+    quotaEnforcementVisibility: 'workspace_bounded',
     provisioningState,
     actionRefs: actions.map((entry) => entry.physicalActionName ?? entry.actionName ?? entry),
     packageRefs: packages.map((entry) => entry.physicalPackageName ?? entry.packageName ?? entry),
@@ -1631,6 +1698,9 @@ export function buildOpenWhiskFunctionRollbackAccepted(payload = {}, context = {
   return {
     resourceId: context.resourceId ?? payload.resourceId,
     requestedVersionId: payload.versionId ?? payload.requestedVersionId ?? context.versionId ?? context.targetVersion?.versionId,
+    sourceVersionId: payload.sourceVersionId ?? context.sourceVersionId ?? context.activeVersionId,
+    targetVersionId: payload.targetVersionId ?? payload.versionId ?? payload.requestedVersionId ?? context.versionId ?? context.targetVersion?.versionId,
+    outcome: payload.outcome ?? 'success',
     status: ['accepted', 'queued'].includes(payload.status) ? payload.status : 'accepted',
     acceptedAt: payload.acceptedAt ?? context.acceptedAt ?? '2026-03-27T00:00:00Z',
     requestId: payload.requestId ?? context.requestId ?? `req_${slugify(context.resourceId ?? 'rollback').replace(/-/g, '')}`,
