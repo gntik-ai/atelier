@@ -6,6 +6,8 @@ import {
   SUPPORTED_FUNCTION_RUNTIMES,
   SUPPORTED_FUNCTION_SOURCE_KINDS,
   SUPPORTED_FUNCTION_TRIGGER_KINDS,
+  buildConsoleBackendInvocationEnvelope,
+  getConsoleBackendFunctionsIdentityContract,
   getFunctionsAdminRoute,
   getOpenWhiskCompatibilitySummary,
   listFunctionsAdminRoutes,
@@ -100,6 +102,27 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   assert.equal(surface.find((entry) => entry.resourceKind === 'quota').routeCount, 2);
   assert.deepEqual(surface.find((entry) => entry.resourceKind === 'workspace_secret').actions, ['list', 'create', 'get', 'update', 'delete']);
   assert.equal(surface.find((entry) => entry.resourceKind === 'workspace_secret').routeCount, 5);
+});
+
+test('functions admin helper exposes console backend identity and envelope builders without regressing discoverability', () => {
+  const identity = getConsoleBackendFunctionsIdentityContract();
+  const envelope = buildConsoleBackendInvocationEnvelope({
+    actor: 'svc_console_backend',
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    correlationId: 'corr_console_backend_01'
+  }, {
+    actionRef: 'functions/actions/console-backend-inventory',
+    responseMode: 'synchronous',
+    triggerContext: { kind: 'direct' },
+    body: { workflow: 'console_backend_inventory_sync' }
+  });
+
+  assert.equal(identity.actor_type, 'workspace_service_account');
+  assert.equal(identity.initiating_surface, 'console_backend');
+  assert.equal(envelope.request.responseMode, 'synchronous');
+  assert.equal(envelope.request.triggerContext.kind, 'direct');
+  assert.equal(envelope.annotation.initiating_surface, 'console_backend');
 });
 
 test('functions admin helper summarizes governed OpenWhisk compatibility, runtime coverage, quotas, and internal-only logical context provisioning', () => {

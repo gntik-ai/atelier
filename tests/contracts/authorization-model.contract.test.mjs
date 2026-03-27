@@ -20,6 +20,18 @@ test('authorization model aligns with public access-check resource types', () =>
   assert.deepEqual([...openapiResourceTypes].sort(), [...modelResourceTypes].sort());
 });
 
+test('authorization model includes console backend propagation and denial coverage', () => {
+  const target = getContextPropagationTarget('console_backend_activation');
+  const model = readAuthorizationModel();
+  const scenarioIds = new Set(model.negative_scenarios.map((scenario) => scenario.id));
+
+  assert.ok(target);
+  assert.equal(target.carrier, 'activation_annotation');
+  assert.equal(target.required_fields.includes('initiating_surface'), true);
+  assert.equal(scenarioIds.has('AUTHZ-FN-CON-001'), true);
+  assert.equal(scenarioIds.has('AUTHZ-FN-CON-002'), true);
+});
+
 test('authorization propagation targets stay aligned with internal service contracts', () => {
   for (const targetId of ['control_api_command', 'provisioning_request', 'adapter_call', 'audit_record']) {
     const target = getContextPropagationTarget(targetId);

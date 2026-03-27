@@ -1252,6 +1252,25 @@
         "raw_tokens"
       ],
       "reason": "Presigned URL issuance and multipart completion must stay tenant/workspace-bound even if the client retries later."
+    },
+    {
+      "target": "console_backend_activation",
+      "carrier": "activation_annotation",
+      "fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "initiating_surface"
+      ],
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "initiating_surface"
+      ],
+      "reason": "Console backend activations must preserve actor, tenant/workspace scope, correlation, and initiating surface attribution for runtime enforcement and audit traceability.",
+      "redacted_fields": []
     }
   ],
   "negative_scenarios": [
@@ -1324,6 +1343,20 @@
       "category": "ownership_transfer",
       "expected_effect": "deny",
       "summary": "Tenant ownership transfer is denied unless the acting owner initiates it, the designated target accepts it, and effective permissions are recalculated inside the same tenant boundary."
+    },
+    {
+      "id": "AUTHZ-FN-CON-001",
+      "surface": "functions_runtime",
+      "category": "console_backend_cross_scope",
+      "expected_effect": "deny",
+      "summary": "A console backend workspace service account cannot invoke or affect resources outside its authorized tenant or workspace scope."
+    },
+    {
+      "id": "AUTHZ-FN-CON-002",
+      "surface": "functions_runtime",
+      "category": "console_backend_missing_scope",
+      "expected_effect": "deny",
+      "summary": "A console backend activation without tenant_id or workspace_id annotation must be rejected before dispatch."
     }
   ]
 }

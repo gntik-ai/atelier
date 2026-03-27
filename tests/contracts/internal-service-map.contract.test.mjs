@@ -171,6 +171,15 @@ test('internal contract baseline preserves versioning and dependency expectation
   assert.equal(auditContextProjection.target, 'audit_record');
 });
 
+test('control_api service map explicitly owns console backend invocation acceptance and annotation', () => {
+  assert.equal(
+    controlApiBoundary.responsibilities.includes(
+      'Accept console backend invocation requests and annotate them with the initiating console surface before dispatch, without exposing a private API path for the same business actions.'
+    ),
+    true
+  );
+});
+
 test('consumer scaffolding exposes the expected provider and flow slices', () => {
   const provisioningProviderIds = new Set(provisioningAdapterPorts.map((adapter) => adapter.id));
   const auditProviderIds = new Set(auditPersistenceAdapters.map((adapter) => adapter.id));

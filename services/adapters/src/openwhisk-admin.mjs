@@ -30,6 +30,7 @@ export const OPENWHISK_ALLOWED_STORAGE_EVENT_TYPES = Object.freeze(['object_crea
 export const OPENWHISK_ALLOWED_CRON_OVERLAP_POLICIES = Object.freeze(['allow', 'skip', 'queue_one']);
 export const OPENWHISK_ALLOWED_ACTIVATION_STATUSES = Object.freeze(['running', 'succeeded', 'failed', 'timed_out', 'cancelled']);
 export const OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES = Object.freeze(['resolved', 'unresolved', 'pending']);
+export const OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE = 'console_backend';
 export const OPENWHISK_FUNCTION_VERSION_STATUSES = Object.freeze(['active', 'historical', 'rollback_target', 'retired', 'invalid']);
 export const OPENWHISK_FUNCTION_VERSION_ORIGINS = Object.freeze(['publish', 'rollback_restore']);
 export const SUPPORTED_OPENWHISK_VERSION_RANGES = Object.freeze([
@@ -1005,6 +1006,53 @@ export function buildOpenWhiskInvocationRequest(payload = {}, context = {}) {
   };
 }
 
+export function buildConsoleBackendActivationAnnotation(context = {}) {
+  return compactDefined({
+    actor: context.actor,
+    tenant_id: context.tenantId,
+    workspace_id: context.workspaceId,
+    correlation_id: context.correlationId,
+    initiating_surface: OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE
+  });
+}
+
+export function validateConsoleBackendInvocationRequest(request = {}, context = {}) {
+  const violations = [];
+  const tenantId = request.tenantId ?? context.targetTenantId ?? context.tenantId;
+  const workspaceId = request.workspaceId ?? context.targetWorkspaceId ?? context.workspaceId;
+
+  if (!tenantId) {
+    violations.push('tenantId is required for console backend invocation.');
+  }
+
+  if (!workspaceId) {
+    violations.push('workspaceId is required for console backend invocation.');
+  }
+
+  if ((context.tenantId ?? context.targetTenantId) && tenantId && tenantId !== (context.targetTenantId ?? context.tenantId)) {
+    violations.push('console backend invocation must stay within the caller tenant scope.');
+  }
+
+  if ((context.workspaceId ?? context.targetWorkspaceId) && workspaceId && workspaceId !== (context.targetWorkspaceId ?? context.workspaceId)) {
+    violations.push('console backend invocation must stay within the caller workspace scope.');
+  }
+
+  if (!request.correlationId && !context.correlationId) {
+    violations.push('correlationId is required for console backend invocation.');
+  }
+
+  return {
+    ok: violations.length === 0,
+    violations,
+    annotation: buildConsoleBackendActivationAnnotation({
+      actor: context.actor,
+      tenantId,
+      workspaceId,
+      correlationId: request.correlationId ?? context.correlationId
+    })
+  };
+}
+
 export function buildOpenWhiskActivationProjection(payload = {}, context = {}) {
   return {
     activationId: payload.activationId ?? context.activationId ?? `act_${slugify(context.resourceId ?? context.actionName ?? 'activation').replace(/-/g, '')}`,
@@ -1257,7 +1305,8 @@ export function buildOpenWhiskAdminAdapterCall({
   actorId,
   actorType,
   originSurface,
-  requestedAt = '2026-03-25T00:00:00Z'
+  requestedAt = '2026-03-25T00:00:00Z',
+  consoleSurface = false
 }) {
   const validation = validateOpenWhiskAdminRequest({ resourceKind, action, context, payload });
   if (!validation.ok) {
@@ -1266,6 +1315,23 @@ export function buildOpenWhiskAdminAdapterCall({
       violations: validation.violations,
       profile: validation.profile
     };
+  }
+
+  if (consoleSurface) {
+    const consoleValidation = validateConsoleBackendInvocationRequest(payload, {
+      ...context,
+      tenantId: context.tenantId ?? tenantId,
+      workspaceId: context.workspaceId ?? workspaceId,
+      correlationId
+    });
+
+    if (!consoleValidation.ok) {
+      return {
+        ok: false,
+        violations: consoleValidation.violations,
+        profile: validation.profile
+      };
+    }
   }
 
   const normalizedResource = normalizeOpenWhiskAdminResource(resourceKind, payload, {
@@ -1326,7 +1392,15 @@ export function buildOpenWhiskAdminAdapterCall({
         namespaceName: serverlessContext.namespaceName,
         subjectRef: serverlessContext.subjectRef,
         providerVersion: context.providerVersion,
-        workspaceEnvironment: validation.profile.workspaceEnvironment
+        workspaceEnvironment: validation.profile.workspaceEnvironment,
+        activationAnnotation: consoleSurface
+          ? buildConsoleBackendActivationAnnotation({
+              actor: actorId,
+              tenantId,
+              workspaceId,
+              correlationId
+            })
+          : undefined
       })
     }
   };

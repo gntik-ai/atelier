@@ -35,7 +35,8 @@
         "Expose Kafka topic access-policy and inventory projections with KRaft guidance, service-account isolation, and quota visibility for multiple workspaces.",
         "Accept workspace-scoped event-bridge definitions that route PostgreSQL, MongoDB, storage, OpenWhisk, and IAM source envelopes into managed Kafka topics with traceable audit context.",
         "Accept Kafka-triggered OpenWhisk execution policies and bounded function-trigger definitions without exposing broker-native consumers.",
-        "Expose topic metadata, lag, retention, compaction, bridge health, and tenant/workspace event dashboard projections when providers and policy allow the data to be surfaced safely."
+        "Expose topic metadata, lag, retention, compaction, bridge health, and tenant/workspace event dashboard projections when providers and policy allow the data to be surfaced safely.",
+        "Accept console backend invocation requests and annotate them with the initiating console surface before dispatch, without exposing a private API path for the same business actions."
       ],
       "owned_resources": [
         "public route contract",

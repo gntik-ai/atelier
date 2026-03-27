@@ -6,10 +6,12 @@ import {
   OPENWHISK_ADMIN_CAPABILITY_MATRIX,
   OPENWHISK_ALLOWED_ACTIVATION_STATUSES,
   OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES,
+  OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE,
   OPENWHISK_MINIMUM_ENGINE_POLICY,
   OPENWHISK_SUPPORTED_ACTION_RUNTIMES,
   OPENWHISK_SUPPORTED_TRIGGER_KINDS,
   SUPPORTED_OPENWHISK_VERSION_RANGES,
+  buildConsoleBackendActivationAnnotation,
   buildFunctionWorkspaceSecretCollection,
   buildFunctionWorkspaceSecretProjection,
   buildOpenWhiskActivationPolicy,
@@ -30,6 +32,7 @@ import {
   normalizeOpenWhiskAdminError,
   normalizeOpenWhiskAdminResource,
   resolveOpenWhiskAdminProfile,
+  validateConsoleBackendInvocationRequest,
   validateFunctionQuotaGuardrails,
   validateFunctionSecretReferences,
   validateFunctionWorkspaceSecretRequest,
@@ -671,6 +674,35 @@ test('openwhisk lifecycle helpers reject rollback requests that are unauthorized
   );
 });
 
+
+test('console backend adapter helpers stamp attribution and reject missing or cross-scope requests', () => {
+  const annotation = buildConsoleBackendActivationAnnotation({
+    actor: 'svc_console_backend',
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    correlationId: 'corr_console_backend_01'
+  });
+  const missingScope = validateConsoleBackendInvocationRequest({ correlationId: 'corr_console_backend_01' }, { correlationId: 'corr_console_backend_01' });
+  const crossScope = validateConsoleBackendInvocationRequest({
+    tenantId: 'ten_01other',
+    workspaceId: 'wrk_01other',
+    correlationId: 'corr_console_backend_01'
+  }, {
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    correlationId: 'corr_console_backend_01'
+  });
+
+  assert.equal(OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE, 'console_backend');
+  assert.equal(annotation.actor, 'svc_console_backend');
+  assert.equal(annotation.tenant_id, 'ten_01growthalpha');
+  assert.equal(annotation.workspace_id, 'wrk_01alphadev');
+  assert.equal(annotation.initiating_surface, 'console_backend');
+  assert.equal(missingScope.ok, false);
+  assert.equal(crossScope.ok, false);
+  assert.equal(crossScope.violations.some((entry) => entry.includes('tenant scope')), true);
+  assert.equal(crossScope.violations.some((entry) => entry.includes('workspace scope')), true);
+});
 
 test('workspace secret helpers validate request scope, project safe metadata, and page collections', () => {
   const validCreate = validateFunctionWorkspaceSecretRequest({

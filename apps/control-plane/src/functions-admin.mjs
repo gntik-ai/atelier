@@ -8,13 +8,16 @@ import {
   OPENWHISK_ACTION_SOURCE_KINDS,
   OPENWHISK_ADMIN_CAPABILITY_MATRIX,
   OPENWHISK_ADMIN_RESOURCE_KINDS,
+  OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE,
   OPENWHISK_SUPPORTED_ACTION_RUNTIMES,
   OPENWHISK_SUPPORTED_TRIGGER_KINDS,
   SUPPORTED_OPENWHISK_VERSION_RANGES,
+  buildConsoleBackendActivationAnnotation,
   buildOpenWhiskRuntimeCoverageSummary,
   buildOpenWhiskServerlessContext,
   isOpenWhiskVersionSupported,
-  resolveOpenWhiskAdminProfile
+  resolveOpenWhiskAdminProfile,
+  validateConsoleBackendInvocationRequest
 } from '../../../services/adapters/src/openwhisk-admin.mjs';
 
 export const functionsApiFamily = getApiFamily('functions');
@@ -26,6 +29,8 @@ export const SUPPORTED_FUNCTION_SOURCE_KINDS = OPENWHISK_ACTION_SOURCE_KINDS;
 export const SUPPORTED_FUNCTION_TRIGGER_KINDS = OPENWHISK_SUPPORTED_TRIGGER_KINDS;
 export const SUPPORTED_FUNCTION_RUNTIMES = OPENWHISK_SUPPORTED_ACTION_RUNTIMES;
 export const FUNCTION_SECRET_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
+
+export { buildConsoleBackendActivationAnnotation, validateConsoleBackendInvocationRequest };
 
 export function listFunctionsAdminRoutes(filters = {}) {
   return filterPublicRoutes({ family: 'functions', ...filters });
@@ -168,6 +173,57 @@ export function getOpenWhiskCompatibilitySummary(context = {}) {
         resourceSurface
       })
     )
+  };
+}
+
+export function getConsoleBackendFunctionsIdentityContract() {
+  return {
+    actor_type: 'workspace_service_account',
+    initiating_surface: OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE
+  };
+}
+
+export function buildConsoleBackendInvocationEnvelope(context = {}, payload = {}) {
+  if (!payload.responseMode) {
+    throw new Error('responseMode is required for console backend invocation envelope.');
+  }
+
+  if ((payload.triggerContext?.kind ?? context.triggerContext?.kind) !== 'direct') {
+    throw new Error('console backend invocation envelope requires triggerContext.kind to be direct.');
+  }
+
+  if (!(payload.tenantId ?? context.tenantId)) {
+    throw new Error('tenantId is required for console backend invocation envelope.');
+  }
+
+  if (!(payload.workspaceId ?? context.workspaceId)) {
+    throw new Error('workspaceId is required for console backend invocation envelope.');
+  }
+
+  const request = {
+    tenantId: payload.tenantId ?? context.tenantId,
+    workspaceId: payload.workspaceId ?? context.workspaceId,
+    responseMode: payload.responseMode,
+    triggerContext: payload.triggerContext ?? { kind: 'direct' },
+    actionRef: payload.actionRef,
+    correlationId: payload.correlationId ?? context.correlationId,
+    body: payload.body
+  };
+  const validation = validateConsoleBackendInvocationRequest(request, context);
+
+  if (!validation.ok) {
+    throw new Error(validation.violations[0]);
+  }
+
+  return {
+    identity: getConsoleBackendFunctionsIdentityContract(),
+    annotation: buildConsoleBackendActivationAnnotation({
+      actor: context.actor,
+      tenantId: request.tenantId,
+      workspaceId: request.workspaceId,
+      correlationId: request.correlationId
+    }),
+    request
   };
 }
 
