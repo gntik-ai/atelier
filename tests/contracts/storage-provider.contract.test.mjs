@@ -20,6 +20,11 @@ import {
   summarizeStorageProviderIntrospection,
   summarizeTenantStorageContext
 } from '../../apps/control-plane/src/storage-admin.mjs';
+import {
+  VERIFICATION_VERDICT,
+  buildVerificationReport,
+  buildVerificationRun
+} from '../../services/adapters/src/storage-provider-verification.mjs';
 
 test('storage OpenAPI contract exposes additive provider, bucket, and object routes and schemas', async () => {
   const document = await SwaggerParser.validate(OPENAPI_PATH);
@@ -329,4 +334,51 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.equal(bucketObjectTaxonomy.family, 'storage');
   assert.equal(bucketObjectTaxonomy.scope, 'workspace');
   assert.equal(bucketObjectTaxonomy.authorization_resource, 'bucket');
+});
+
+test('storage verification report schema is additive and structurally valid', () => {
+  const run = buildVerificationRun({
+    providers: ['minio', 'garage'],
+    startedAt: '2026-03-27T22:10:00Z'
+  });
+  const report = buildVerificationReport({
+    runId: run.runId,
+    providers: ['minio', 'garage'],
+    startedAt: '2026-03-27T22:10:00Z',
+    completedAt: '2026-03-27T22:11:00Z',
+    scenarioResults: [],
+    crossProviderEquivalenceAssessments: [],
+    errorTaxonomyConsistencyResults: [],
+    capabilityBaselineResults: [],
+    tenantIsolationResults: [],
+    verdicts: {
+      minio: 'fail',
+      garage: 'fail'
+    },
+    overallVerdict: 'fail',
+    divergences: []
+  });
+
+  for (const field of [
+    'runId',
+    'startedAt',
+    'completedAt',
+    'configuration',
+    'scenarioResults',
+    'crossProviderEquivalenceAssessments',
+    'errorTaxonomyConsistencyResults',
+    'capabilityBaselineResults',
+    'tenantIsolationResults',
+    'verdicts',
+    'overallVerdict',
+    'divergences'
+  ]) {
+    assert.equal(field in report, true);
+  }
+
+  assert.equal(Object.values(VERIFICATION_VERDICT).includes(report.overallVerdict), true);
+  assert.equal(Object.isFrozen(report), true);
+  assert.throws(() => {
+    report.overallVerdict = 'pass';
+  }, TypeError);
 });
