@@ -25,6 +25,7 @@ export const functionsAdminRoutes = filterPublicRoutes({ family: 'functions' });
 export const SUPPORTED_FUNCTION_SOURCE_KINDS = OPENWHISK_ACTION_SOURCE_KINDS;
 export const SUPPORTED_FUNCTION_TRIGGER_KINDS = OPENWHISK_SUPPORTED_TRIGGER_KINDS;
 export const SUPPORTED_FUNCTION_RUNTIMES = OPENWHISK_SUPPORTED_ACTION_RUNTIMES;
+export const FUNCTION_SECRET_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
 
 export function listFunctionsAdminRoutes(filters = {}) {
   return filterPublicRoutes({ family: 'functions', ...filters });
@@ -84,6 +85,11 @@ export function summarizeFunctionsAdminSurface() {
       routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_inventory').length
     },
     {
+      resourceKind: 'workspace_secret',
+      actions: ['list', 'create', 'get', 'update', 'delete'],
+      routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_workspace_secret').length
+    },
+    {
       resourceKind: 'action_collection',
       actions: ['list'],
       routeCount: actionRoutes.filter((route) => route.method === 'GET').length
@@ -130,6 +136,14 @@ export function getOpenWhiskCompatibilitySummary(context = {}) {
       immutableVersions: true,
       rollbackPreservesHistory: true,
       scope: 'function_action'
+    },
+    workspaceSecretsSupported: true,
+    secretGovernance: {
+      writeOnlyValue: true,
+      scope: 'workspace_secret',
+      isolationBoundary: 'tenant_plus_workspace',
+      functionBindingModel: 'named_reference_only',
+      valueDisclosure: 'never_returned'
     },
     supportedSourceKinds: [...SUPPORTED_FUNCTION_SOURCE_KINDS],
     supportedTriggerKinds: [...SUPPORTED_FUNCTION_TRIGGER_KINDS],

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  FUNCTION_SECRET_NAME_PATTERN,
   SUPPORTED_FUNCTION_RUNTIMES,
   SUPPORTED_FUNCTION_SOURCE_KINDS,
   SUPPORTED_FUNCTION_TRIGGER_KINDS,
@@ -23,6 +24,11 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   const storageTriggerRoute = getFunctionsAdminRoute('getFunctionStorageTrigger');
   const cronTriggerRoute = getFunctionsAdminRoute('getFunctionCronTrigger');
   const inventoryRoute = getFunctionsAdminRoute('getFunctionInventory');
+  const listSecretsRoute = getFunctionsAdminRoute('listFunctionWorkspaceSecrets');
+  const createSecretRoute = getFunctionsAdminRoute('createFunctionWorkspaceSecret');
+  const getSecretRoute = getFunctionsAdminRoute('getFunctionWorkspaceSecret');
+  const updateSecretRoute = getFunctionsAdminRoute('updateFunctionWorkspaceSecret');
+  const deleteSecretRoute = getFunctionsAdminRoute('deleteFunctionWorkspaceSecret');
   const surface = summarizeFunctionsAdminSurface();
 
   for (const operationId of [
@@ -53,7 +59,12 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
     'listFunctionPackages',
     'listFunctionTriggers',
     'listFunctionRules',
-    'getFunctionInventory'
+    'getFunctionInventory',
+    'listFunctionWorkspaceSecrets',
+    'createFunctionWorkspaceSecret',
+    'getFunctionWorkspaceSecret',
+    'updateFunctionWorkspaceSecret',
+    'deleteFunctionWorkspaceSecret'
   ]) {
     assert.ok(routes.some((route) => route.operationId === operationId), `missing ${operationId}`);
   }
@@ -67,6 +78,11 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   assert.equal(storageTriggerRoute.resourceType, 'function_storage_trigger');
   assert.equal(cronTriggerRoute.resourceType, 'function_cron_trigger');
   assert.equal(inventoryRoute.path, '/v1/functions/workspaces/{workspaceId}/inventory');
+  assert.equal(listSecretsRoute.resourceType, 'function_workspace_secret');
+  assert.equal(createSecretRoute.resourceType, 'function_workspace_secret');
+  assert.equal(getSecretRoute.resourceType, 'function_workspace_secret');
+  assert.equal(updateSecretRoute.resourceType, 'function_workspace_secret');
+  assert.equal(deleteSecretRoute.resourceType, 'function_workspace_secret');
   assert.equal(surface.find((entry) => entry.resourceKind === 'action').routeCount, 5);
   assert.equal(surface.find((entry) => entry.resourceKind === 'invocation').actions.includes('rerun'), true);
   assert.equal(surface.find((entry) => entry.resourceKind === 'activation').routeCount, 4);
@@ -75,6 +91,8 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   assert.equal(surface.find((entry) => entry.resourceKind === 'http_exposure').routeCount, 4);
   assert.equal(surface.find((entry) => entry.resourceKind === 'storage_trigger').routeCount, 2);
   assert.equal(surface.find((entry) => entry.resourceKind === 'cron_trigger').routeCount, 2);
+  assert.deepEqual(surface.find((entry) => entry.resourceKind === 'workspace_secret').actions, ['list', 'create', 'get', 'update', 'delete']);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'workspace_secret').routeCount, 5);
 });
 
 test('functions admin helper summarizes governed OpenWhisk compatibility, runtime coverage, quotas, and internal-only logical context provisioning', () => {
@@ -109,6 +127,8 @@ test('functions admin helper summarizes governed OpenWhisk compatibility, runtim
   assert.equal(growthSummary.functionVersioningSupported, true);
   assert.equal(growthSummary.rollbackSupported, true);
   assert.equal(growthSummary.lifecycleGovernance.rollbackPreservesHistory, true);
+  assert.equal(growthSummary.workspaceSecretsSupported, true);
+  assert.equal(growthSummary.secretGovernance.writeOnlyValue, true);
   assert.equal(growthSummary.httpExposureSupported, true);
   assert.equal(growthSummary.storageTriggersSupported, true);
   assert.equal(growthSummary.supportedSourceKinds.includes('runtime_image'), true);
@@ -126,4 +146,8 @@ test('functions admin helper summarizes governed OpenWhisk compatibility, runtim
   assert.equal(SUPPORTED_FUNCTION_RUNTIMES.some((entry) => entry.runtime === 'nodejs:20'), true);
   assert.equal(runtimeCoverage.find((entry) => entry.runtime === 'python:3.11').supportedTriggerKinds.includes('cron'), true);
   assert.equal(runtimeCoverage.find((entry) => entry.runtime === 'container:image').webActionSupported, true);
+  assert.equal(FUNCTION_SECRET_NAME_PATTERN instanceof RegExp, true);
+  assert.equal(FUNCTION_SECRET_NAME_PATTERN.test('my-secret'), true);
+  assert.equal(FUNCTION_SECRET_NAME_PATTERN.test('api_key_prod'), true);
+  assert.equal(FUNCTION_SECRET_NAME_PATTERN.test('BadSecret'), false);
 });

@@ -5,10 +5,13 @@ import {
   OPENWHISK_ACTION_SOURCE_KINDS,
   OPENWHISK_ADMIN_CAPABILITY_MATRIX,
   OPENWHISK_ALLOWED_ACTIVATION_STATUSES,
+  OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES,
   OPENWHISK_MINIMUM_ENGINE_POLICY,
   OPENWHISK_SUPPORTED_ACTION_RUNTIMES,
   OPENWHISK_SUPPORTED_TRIGGER_KINDS,
   SUPPORTED_OPENWHISK_VERSION_RANGES,
+  buildFunctionWorkspaceSecretCollection,
+  buildFunctionWorkspaceSecretProjection,
   buildOpenWhiskActivationPolicy,
   buildOpenWhiskActivationProjection,
   buildOpenWhiskAdminAdapterCall,
@@ -27,6 +30,8 @@ import {
   normalizeOpenWhiskAdminError,
   normalizeOpenWhiskAdminResource,
   resolveOpenWhiskAdminProfile,
+  validateFunctionSecretReferences,
+  validateFunctionWorkspaceSecretRequest,
   validateOpenWhiskAdminRequest,
   validateOpenWhiskFunctionRollback
 } from '../../services/adapters/src/openwhisk-admin.mjs';
@@ -621,4 +626,105 @@ test('openwhisk lifecycle helpers reject rollback requests that are unauthorized
     invalidRollback.violations.includes('rollback target is not eligible for restore.'),
     true
   );
+});
+
+
+test('workspace secret helpers validate request scope, project safe metadata, and page collections', () => {
+  const validCreate = validateFunctionWorkspaceSecretRequest({
+    action: 'create',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceSlug: 'alpha-dev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth'
+    },
+    payload: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      secretName: 'api_key_prod',
+      secretValue: 'super-secret',
+      description: 'production api key'
+    }
+  });
+  const invalidName = validateFunctionWorkspaceSecretRequest({ action: 'create', context: { tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev', planId: 'pln_01growth' }, payload: { secretName: 'BadSecret', secretValue: 'x' } });
+  const emptyName = validateFunctionWorkspaceSecretRequest({ action: 'create', context: { tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev', planId: 'pln_01growth' }, payload: { secretName: '', secretValue: 'x' } });
+  const crossWorkspace = validateFunctionWorkspaceSecretRequest({ action: 'create', context: { tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev', planId: 'pln_01growth' }, payload: { workspaceId: 'wrk_01otherworkspace', secretName: 'api_key_prod', secretValue: 'x' } });
+  const unsupportedAction = validateFunctionWorkspaceSecretRequest({ action: 'read', context: { tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev', planId: 'pln_01growth' }, payload: { secretName: 'api_key_prod' } });
+  const secretValueOnRead = validateFunctionWorkspaceSecretRequest({ action: 'get', context: { tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev', planId: 'pln_01growth' }, payload: { secretName: 'api_key_prod', secretValue: 'x' } });
+  const projection = buildFunctionWorkspaceSecretProjection({ secretName: 'api_key_prod', secretValue: 'super-secret', description: 'production api key', resolvedRefCount: 2, timestamps: { createdAt: '2026-03-27T10:00:00Z', updatedAt: '2026-03-27T10:05:00Z' } }, { tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev' });
+  const emptyCollection = buildFunctionWorkspaceSecretCollection({ items: [] });
+  const nonEmptyCollection = buildFunctionWorkspaceSecretCollection({ items: [projection], size: 1, nextCursor: 'cursor_01' });
+
+  assert.equal(validCreate.ok, true);
+  assert.equal(invalidName.ok, false);
+  assert.equal(emptyName.ok, false);
+  assert.equal(crossWorkspace.ok, false);
+  assert.equal(unsupportedAction.ok, false);
+  assert.equal(secretValueOnRead.ok, false);
+  assert.equal(projection.secretName, 'api_key_prod');
+  assert.equal(projection.workspaceId, 'wrk_01alphadev');
+  assert.equal(projection.tenantId, 'ten_01growthalpha');
+  assert.equal(projection.description, 'production api key');
+  assert.equal(projection.resolvedRefCount, 2);
+  assert.equal(Object.hasOwn(projection, 'secretValue'), false);
+  assert.deepEqual(emptyCollection, { items: [], page: { size: 0, nextCursor: undefined } });
+  assert.equal(nonEmptyCollection.page.size, 1);
+  assert.equal(nonEmptyCollection.page.nextCursor, 'cursor_01');
+  assert.equal(nonEmptyCollection.items[0].secretName, 'api_key_prod');
+});
+
+test('workspace secret reference validation enforces structure, alias uniqueness, and workspace scope', () => {
+  const empty = validateFunctionSecretReferences({ secretRefs: [], context: { workspaceId: 'wrk_01alphadev' } });
+  const valid = validateFunctionSecretReferences({ secretRefs: [{ secretName: 'api_key_prod', mountAlias: 'API_KEY', required: true }, { secretName: 'db_password', mountAlias: 'DB_PASSWORD', required: false }], context: { workspaceId: 'wrk_01alphadev' } });
+  const duplicateAlias = validateFunctionSecretReferences({ secretRefs: [{ secretName: 'api_key_prod', mountAlias: 'API_KEY', required: true }, { secretName: 'db_password', mountAlias: 'API_KEY', required: true }], context: { workspaceId: 'wrk_01alphadev' } });
+  const crossWorkspace = validateFunctionSecretReferences({ secretRefs: [{ secretName: 'api_key_prod', mountAlias: 'API_KEY', required: true, workspaceId: 'wrk_01otherworkspace' }], context: { workspaceId: 'wrk_01alphadev' } });
+  const malformed = validateFunctionSecretReferences({ secretRefs: [{ secretName: 'BadSecret', mountAlias: 'bad_alias', required: true }], context: { workspaceId: 'wrk_01alphadev' } });
+
+  assert.equal(empty.ok, true);
+  assert.equal(valid.ok, true);
+  assert.equal(duplicateAlias.ok, false);
+  assert.equal(duplicateAlias.violations.some((entry) => entry.includes('mountAlias must be unique')), true);
+  assert.equal(crossWorkspace.ok, false);
+  assert.equal(malformed.ok, false);
+});
+
+test('action normalization carries secret references without disclosing secret values and audit summary flags secret-reference coverage', () => {
+  const action = normalizeOpenWhiskAdminResource('action', {
+    actionName: 'dispatch-billing',
+    source: { kind: 'inline_code', language: 'javascript', inlineCode: 'function main(params) { return params; }' },
+    execution: { runtime: 'nodejs:20', entrypoint: 'main', parameters: {}, environment: {}, limits: { timeoutSeconds: 60, memoryMb: 256 }, webAction: { enabled: false, requireAuthentication: true, rawHttpResponse: false } },
+    activationPolicy: buildOpenWhiskActivationPolicy(),
+    secretReferences: [
+      { secretName: 'api_key_prod', mountAlias: 'API_KEY', required: true, status: 'resolved' },
+      { secretName: 'db_password', mountAlias: 'DB_PASSWORD', required: false, status: 'pending' }
+    ],
+    secretValue: 'should-not-survive'
+  }, {
+    resourceId: 'res_01fnactionbilling',
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    workspaceSlug: 'alpha-dev',
+    workspaceEnvironment: 'dev',
+    planId: 'pln_01growth'
+  });
+  const auditSummary = { capturesSecretReferenceAudit: true };
+  const metadata = buildOpenWhiskAdminMetadataRecord({
+    resourceKind: 'action',
+    action: 'create',
+    resource: action,
+    serverlessContext: buildOpenWhiskServerlessContext({ tenantId: 'ten_01growthalpha', workspaceId: 'wrk_01alphadev', workspaceSlug: 'alpha-dev', workspaceEnvironment: 'dev' }),
+    auditSummary,
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev'
+  });
+
+  assert.equal(action.secretReferences.length, 2);
+  assert.equal(action.secretReferences[0].mountAlias, 'API_KEY');
+  assert.equal(action.secretReferences[0].workspaceId, 'wrk_01alphadev');
+  assert.equal(action.unresolvedSecretRefs, 0);
+  assert.equal(Object.hasOwn(action, 'secretValue'), false);
+  assert.equal(OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES.includes('resolved'), true);
+  assert.equal(auditSummary.capturesSecretReferenceAudit, true);
+  assert.equal(metadata.auditSummary.capturesSecretReferenceAudit, true);
 });

@@ -29,6 +29,7 @@ export const OPENWHISK_ALLOWED_HTTP_METHODS = Object.freeze(['GET', 'POST', 'PUT
 export const OPENWHISK_ALLOWED_STORAGE_EVENT_TYPES = Object.freeze(['object_created', 'object_deleted', 'object_archived', 'object_restored']);
 export const OPENWHISK_ALLOWED_CRON_OVERLAP_POLICIES = Object.freeze(['allow', 'skip', 'queue_one']);
 export const OPENWHISK_ALLOWED_ACTIVATION_STATUSES = Object.freeze(['running', 'succeeded', 'failed', 'timed_out', 'cancelled']);
+export const OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES = Object.freeze(['resolved', 'unresolved', 'pending']);
 export const OPENWHISK_FUNCTION_VERSION_STATUSES = Object.freeze(['active', 'historical', 'rollback_target', 'retired', 'invalid']);
 export const OPENWHISK_FUNCTION_VERSION_ORIGINS = Object.freeze(['publish', 'rollback_restore']);
 export const SUPPORTED_OPENWHISK_VERSION_RANGES = Object.freeze([
@@ -152,6 +153,9 @@ function trimSegment(value, maxLength = 63) {
 function normalizeLogicalName(input, prefix) {
   return trimSegment(slugify(input, prefix), 63);
 }
+
+const FUNCTION_SECRET_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
+const FUNCTION_SECRET_MOUNT_ALIAS_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 
 function derivePlanTier(planId = '') {
   const normalized = String(planId).toLowerCase();
@@ -518,6 +522,15 @@ function validateActionRequest(action, payload, context, profile) {
     violations.push('resultAccess cannot remain enabled when logsAccess is disabled for the governed activation policy.');
   }
 
+  if (payload.secretReferences !== undefined) {
+    violations.push(
+      ...validateFunctionSecretReferences({
+        secretRefs: Array.isArray(payload.secretReferences) ? payload.secretReferences : [],
+        context
+      }).violations
+    );
+  }
+
   return violations;
 }
 
@@ -621,6 +634,111 @@ function validateRuleRequest(action, payload, context, profile) {
   }
 
   return violations;
+}
+
+export function validateFunctionWorkspaceSecretRequest({ action, payload = {}, context = {} }) {
+  const profile = resolveOpenWhiskAdminProfile({
+    ...context,
+    tenantId: context.tenantId ?? payload.tenantId,
+    workspaceId: context.workspaceId ?? payload.workspaceId
+  });
+  const violations = [];
+  const allowedActions = ['create', 'update', 'get', 'list', 'delete'];
+  const secretName = payload.secretName ?? context.secretName;
+  const payloadWorkspaceId = payload.workspaceId ?? context.targetWorkspaceId;
+  const payloadTenantId = payload.tenantId ?? context.targetTenantId;
+
+  if (!allowedActions.includes(action)) {
+    violations.push(`Unsupported workspace secret action ${action}.`);
+  }
+
+  if (!secretName || String(secretName).trim().length === 0) {
+    violations.push('secretName is required for governed workspace secrets.');
+  } else if (!FUNCTION_SECRET_NAME_PATTERN.test(String(secretName))) {
+    violations.push('secretName must start with a lowercase letter and use only lowercase letters, digits, hyphen, or underscore.');
+  }
+
+  if (context.workspaceId && payloadWorkspaceId && payloadWorkspaceId !== context.workspaceId) {
+    violations.push('workspace secret request must stay within the caller workspace scope.');
+  }
+
+  if (context.tenantId && payloadTenantId && payloadTenantId !== context.tenantId) {
+    violations.push('workspace secret request must stay within the caller tenant scope.');
+  }
+
+  if (['create', 'update'].includes(action)) {
+    if (!payload.secretValue || String(payload.secretValue).length === 0) {
+      violations.push(`secretValue is required for ${action} workspace secret requests.`);
+    }
+  } else if (payload.secretValue !== undefined) {
+    violations.push(`secretValue cannot be supplied for workspace secret action ${action}.`);
+  }
+
+  return {
+    ok: violations.length === 0,
+    violations,
+    profile
+  };
+}
+
+export function validateFunctionSecretReferences({ secretRefs = [], context = {} }) {
+  const violations = [];
+  const seenMountAliases = new Set();
+
+  for (const [index, secretRef] of secretRefs.entries()) {
+    if (!secretRef || typeof secretRef !== 'object' || Array.isArray(secretRef)) {
+      violations.push(`secretReferences[${index}] must be an object.`);
+      continue;
+    }
+
+    const secretName = secretRef.secretName;
+    const mountAlias = secretRef.mountAlias;
+
+    if (!secretName || !FUNCTION_SECRET_NAME_PATTERN.test(String(secretName))) {
+      violations.push(`secretReferences[${index}].secretName must start with a lowercase letter and use only lowercase letters, digits, hyphen, or underscore.`);
+    }
+
+    if (!mountAlias || !FUNCTION_SECRET_MOUNT_ALIAS_PATTERN.test(String(mountAlias))) {
+      violations.push(`secretReferences[${index}].mountAlias must start with an uppercase letter and use only uppercase letters, digits, or underscore.`);
+    }
+
+    if (mountAlias) {
+      if (seenMountAliases.has(mountAlias)) {
+        violations.push(`secretReferences[${index}].mountAlias must be unique within the secretReferences array.`);
+      }
+      seenMountAliases.add(mountAlias);
+    }
+
+    if (secretRef.workspaceId && context.workspaceId && secretRef.workspaceId !== context.workspaceId) {
+      violations.push(`secretReferences[${index}].workspaceId must match the caller workspace scope.`);
+    }
+  }
+
+  return {
+    ok: violations.length === 0,
+    violations
+  };
+}
+
+export function buildFunctionWorkspaceSecretProjection(payload = {}, context = {}) {
+  return compactDefined({
+    secretName: payload.secretName ?? context.secretName,
+    workspaceId: context.workspaceId ?? payload.workspaceId,
+    tenantId: context.tenantId ?? payload.tenantId,
+    description: payload.description,
+    resolvedRefCount: payload.resolvedRefCount ?? context.resolvedRefCount ?? 0,
+    timestamps: normalizeObjectKeys(payload.timestamps ?? context.timestamps ?? {})
+  });
+}
+
+export function buildFunctionWorkspaceSecretCollection({ items = [], nextCursor, size } = {}) {
+  return {
+    items,
+    page: {
+      size: size ?? items.length,
+      nextCursor
+    }
+  };
 }
 
 export function validateOpenWhiskAdminRequest({ resourceKind, action, context = {}, payload = {} }) {
@@ -794,6 +912,16 @@ export function normalizeOpenWhiskAdminResource(resourceKind, payload = {}, cont
         })
       }),
       activationPolicy,
+      secretReferences: compactDefined(
+        (payload.secretReferences ?? []).map((secretRef) => ({
+          secretName: secretRef.secretName,
+          mountAlias: secretRef.mountAlias,
+          required: secretRef.required ?? true,
+          workspaceId: secretRef.workspaceId ?? context.workspaceId ?? payload.workspaceId,
+          status: OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES.includes(secretRef.status) ? secretRef.status : undefined
+        }))
+      ),
+      unresolvedSecretRefs: payload.unresolvedSecretRefs ?? 0,
       quotaStatus,
       tenantIsolation: serverlessContext.tenantIsolation,
       providerCompatibility,
@@ -943,6 +1071,7 @@ function buildOpenWhiskAdminAuditSummary({ resourceKind, action, profile, tenant
     capturesServerlessContext: true,
     capturesProvisioningState: true,
     capturesTenantIsolation: true,
+    capturesSecretReferenceAudit: true,
     nativeAdminCrudExposed: false
   };
 }

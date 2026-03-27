@@ -421,6 +421,11 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 | DELETE | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Delete one governed OpenWhisk rule from the workspace logical serverless context |
 | GET | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Fetch one governed OpenWhisk rule for the workspace logical serverless context |
 | PATCH | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Update one governed OpenWhisk rule without exposing native namespace or subject administration |
+| GET | `/v1/functions/workspaces/{workspaceId}/secrets` | workspace | function_workspace_secret | List workspace-scoped governed function secrets without exposing secret material |
+| POST | `/v1/functions/workspaces/{workspaceId}/secrets` | workspace | function_workspace_secret | Create a workspace-scoped governed function secret with a write-only value payload |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Delete a workspace-scoped governed function secret without disclosing secret material |
+| GET | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Get metadata for one workspace-scoped governed function secret without exposing its value |
+| PUT | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Replace a workspace-scoped governed function secret while keeping the secret value write-only |
 | GET | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | List governed OpenWhisk triggers for one workspace logical serverless context |
 | POST | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | Create one governed OpenWhisk trigger for the workspace logical serverless context |
 | DELETE | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Delete one governed OpenWhisk trigger from the workspace logical serverless context |
