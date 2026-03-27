@@ -51,6 +51,17 @@ import {
   buildStorageInternalErrorRecord,
   listStorageNormalizedErrorDefinitions
 } from './storage-error-taxonomy.mjs';
+import {
+  VERIFICATION_FAILURE_TYPES,
+  VERIFICATION_SCENARIO_CATEGORIES,
+  VERIFICATION_VERDICT,
+  buildCrossProviderEquivalenceAssessment as buildStorageVerificationCrossProviderEquivalenceAssessment,
+  buildStorageVerificationAuditEvent,
+  buildVerificationReport,
+  buildVerificationRun,
+  buildVerificationScenario,
+  summarizeVerificationReport
+} from './storage-provider-verification.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -64,6 +75,9 @@ export const storageBucketObjectErrorCodes = STORAGE_BUCKET_OBJECT_ERROR_CODES;
 export const storageLogicalOrganizationErrorCodes = STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES;
 export const storageNormalizedErrorCodes = STORAGE_NORMALIZED_ERROR_CODES;
 export const storageErrorRetryabilityModes = STORAGE_ERROR_RETRYABILITY;
+export const storageVerificationScenarioCategories = VERIFICATION_SCENARIO_CATEGORIES;
+export const storageVerificationFailureTypes = VERIFICATION_FAILURE_TYPES;
+export const storageVerificationVerdicts = VERIFICATION_VERDICT;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -187,4 +201,28 @@ export function getStorageInternalErrorRecord(input = {}) {
 
 export function buildStorageErrorEvent(input = {}) {
   return buildStorageErrorAuditEvent(input);
+}
+
+export function buildStorageVerificationRun(input = {}) {
+  return buildVerificationRun(input);
+}
+
+export function buildStorageVerificationScenario(input = {}) {
+  return buildVerificationScenario(input);
+}
+
+export function buildStorageVerificationReport(input = {}) {
+  return buildVerificationReport(input);
+}
+
+export function buildCrossProviderEquivalenceAssessment(input = {}) {
+  return buildStorageVerificationCrossProviderEquivalenceAssessment(input);
+}
+
+export function summarizeStorageVerificationReport(input = {}) {
+  return summarizeVerificationReport(input);
+}
+
+export function buildStorageVerificationEvent(input = {}) {
+  return buildStorageVerificationAuditEvent(input);
 }
