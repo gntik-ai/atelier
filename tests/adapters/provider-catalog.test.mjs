@@ -4,7 +4,15 @@ import assert from 'node:assert/strict';
 import {
   adapterCallContract,
   adapterResultContract,
+  buildStorageOperationEvent,
   buildTenantStorageEvent,
+  deleteStorageBucketPreview,
+  deleteStorageObjectPreview,
+  downloadStorageObjectPreview,
+  getStorageBucketRecord,
+  getStorageBucketSummary,
+  getStorageObjectMetadata,
+  getStorageObjectRecord,
   getStorageProviderCompatibilitySummary,
   getStorageProviderProfile,
   getTenantStorageContextRecord,
@@ -12,10 +20,14 @@ import {
   getWorkspaceStorageBootstrapPreview,
   listAuditAdapters,
   listProvisioningAdapters,
+  listStorageBuckets,
+  listStorageObjects,
   listStorageProviderProfiles,
   providerAdapterCatalog,
   rotateTenantStorageCredential,
-  supportedStorageProviderTypes
+  storageBucketObjectErrorCodes,
+  supportedStorageProviderTypes,
+  uploadStorageObjectPreview
 } from '../../services/adapters/src/provider-catalog.mjs';
 import {
   adapterContextTargets,
@@ -107,4 +119,73 @@ test('provider catalog exposes tenant storage context helpers without leaking se
   assert.equal(rotated.credentialReference.version, 2);
   assert.equal(bootstrap.requestedState, 'pending');
   assert.equal(event.entityType, 'tenant_storage_context');
+});
+
+test('provider catalog exposes bucket and object helpers with bounded scope-safe contracts', () => {
+  const tenantContext = getTenantStorageContextRecord({
+    tenant: {
+      tenantId: 'ten_01bucketops',
+      slug: 'bucket-ops',
+      state: 'active',
+      planId: 'pln_01growth'
+    },
+    storage: {
+      config: {
+        inline: {
+          providerType: 'garage'
+        }
+      }
+    },
+    now: '2026-03-27T21:00:00Z'
+  });
+  const bucket = getStorageBucketRecord({
+    workspaceId: 'wrk_01bucketops',
+    bucketName: 'bucket-ops-assets',
+    tenantStorageContext: tenantContext,
+    objectCount: 1,
+    totalBytes: 512,
+    now: '2026-03-27T21:00:00Z'
+  });
+  const bucketSummary = getStorageBucketSummary(bucket);
+  const bucketList = listStorageBuckets({ items: [bucket] });
+  const objectRecord = getStorageObjectRecord({
+    bucket,
+    objectKey: 'images/banner.png',
+    sizeBytes: 512,
+    contentType: 'image/png',
+    metadata: {
+      role: 'banner'
+    },
+    now: '2026-03-27T21:00:05Z'
+  });
+  const objectMetadata = getStorageObjectMetadata(objectRecord);
+  const objectList = listStorageObjects({ items: [objectRecord] });
+  const upload = uploadStorageObjectPreview({ bucket, object: objectRecord, requestedAt: '2026-03-27T21:00:10Z' });
+  const download = downloadStorageObjectPreview({ bucket, object: objectRecord, requestedAt: '2026-03-27T21:00:11Z' });
+  const objectDelete = deleteStorageObjectPreview({ bucket, object: objectRecord, requestedAt: '2026-03-27T21:00:12Z' });
+  const blockedBucketDelete = deleteStorageBucketPreview({ bucket, now: '2026-03-27T21:00:13Z' });
+  const event = buildStorageOperationEvent({
+    operation: 'object.uploaded',
+    bucket,
+    object: objectRecord,
+    actorUserId: 'usr_01bucketops',
+    correlationId: 'cor_bucket_ops_01',
+    occurredAt: '2026-03-27T21:00:10Z'
+  });
+
+  assert.equal(storageBucketObjectErrorCodes.BUCKET_NOT_EMPTY, 'BUCKET_NOT_EMPTY');
+  assert.equal(bucket.providerType, 'garage');
+  assert.equal(bucketSummary.bucketName, 'bucket-ops-assets');
+  assert.equal(bucketList.items.length, 1);
+  assert.equal(objectMetadata.objectKey, 'images/banner.png');
+  assert.equal(Object.prototype.hasOwnProperty.call(objectMetadata, 'contentBase64'), false);
+  assert.equal(objectList.items.length, 1);
+  assert.equal(upload.accepted, true);
+  assert.equal(download.payload.encoding, 'base64');
+  assert.equal(typeof download.payload.contentBase64, 'string');
+  assert.equal(objectDelete.accepted, true);
+  assert.equal(blockedBucketDelete.accepted, false);
+  assert.equal(blockedBucketDelete.reasonCode, storageBucketObjectErrorCodes.BUCKET_NOT_EMPTY);
+  assert.equal(event.entityType, 'bucket_object');
+  assert.equal(event.objectKey, 'images/banner.png');
 });

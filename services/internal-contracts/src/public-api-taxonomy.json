@@ -522,6 +522,12 @@
       "authorization_resource": "bucket"
     },
     {
+      "resource_type": "bucket_object",
+      "family": "storage",
+      "scope": "workspace",
+      "authorization_resource": "bucket"
+    },
+    {
       "resource_type": "metric_series",
       "family": "metrics",
       "scope": "workspace",

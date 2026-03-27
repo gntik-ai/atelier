@@ -16,11 +16,26 @@ import {
   previewWorkspaceStorageBootstrap,
   rotateTenantStorageContextCredential
 } from './storage-tenant-context.mjs';
+import {
+  STORAGE_BUCKET_OBJECT_ERROR_CODES,
+  buildStorageBucketCollection,
+  buildStorageBucketRecord,
+  buildStorageBucketSummary,
+  buildStorageMutationEvent,
+  buildStorageObjectCollection,
+  buildStorageObjectMetadata,
+  buildStorageObjectRecord,
+  previewStorageBucketDeletion,
+  previewStorageObjectDeletion,
+  previewStorageObjectDownload,
+  previewStorageObjectUpload
+} from './storage-bucket-object-ops.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
 export const adapterResultContract = getContract('adapter_result');
 export const supportedStorageProviderTypes = SUPPORTED_STORAGE_PROVIDER_TYPES;
+export const storageBucketObjectErrorCodes = STORAGE_BUCKET_OBJECT_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -60,4 +75,48 @@ export function getWorkspaceStorageBootstrapPreview(input = {}) {
 
 export function rotateTenantStorageCredential(input = {}) {
   return rotateTenantStorageContextCredential(input);
+}
+
+export function getStorageBucketRecord(input = {}) {
+  return buildStorageBucketRecord(input);
+}
+
+export function getStorageBucketSummary(input = {}) {
+  return buildStorageBucketSummary(input);
+}
+
+export function listStorageBuckets(input = {}) {
+  return buildStorageBucketCollection(input);
+}
+
+export function deleteStorageBucketPreview(input = {}) {
+  return previewStorageBucketDeletion(input);
+}
+
+export function getStorageObjectRecord(input = {}) {
+  return buildStorageObjectRecord(input);
+}
+
+export function getStorageObjectMetadata(input = {}) {
+  return buildStorageObjectMetadata(input);
+}
+
+export function listStorageObjects(input = {}) {
+  return buildStorageObjectCollection(input);
+}
+
+export function uploadStorageObjectPreview(input = {}) {
+  return previewStorageObjectUpload(input);
+}
+
+export function downloadStorageObjectPreview(input = {}) {
+  return previewStorageObjectDownload(input);
+}
+
+export function deleteStorageObjectPreview(input = {}) {
+  return previewStorageObjectDeletion(input);
+}
+
+export function buildStorageOperationEvent(input = {}) {
+  return buildStorageMutationEvent(input);
 }
