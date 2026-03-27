@@ -30,12 +30,19 @@ import {
   previewStorageObjectDownload,
   previewStorageObjectUpload
 } from './storage-bucket-object-ops.mjs';
+import {
+  STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES,
+  buildStorageLogicalOrganization,
+  buildStorageObjectOrganization,
+  isStorageReservedPrefix
+} from './storage-logical-organization.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
 export const adapterResultContract = getContract('adapter_result');
 export const supportedStorageProviderTypes = SUPPORTED_STORAGE_PROVIDER_TYPES;
 export const storageBucketObjectErrorCodes = STORAGE_BUCKET_OBJECT_ERROR_CODES;
+export const storageLogicalOrganizationErrorCodes = STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -75,6 +82,18 @@ export function getWorkspaceStorageBootstrapPreview(input = {}) {
 
 export function rotateTenantStorageCredential(input = {}) {
   return rotateTenantStorageContextCredential(input);
+}
+
+export function getStorageLogicalOrganization(input = {}) {
+  return buildStorageLogicalOrganization(input);
+}
+
+export function getStorageObjectOrganization(input = {}) {
+  return buildStorageObjectOrganization(input);
+}
+
+export function isReservedStoragePrefix(input = {}) {
+  return isStorageReservedPrefix(input);
 }
 
 export function getStorageBucketRecord(input = {}) {

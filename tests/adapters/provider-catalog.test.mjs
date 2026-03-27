@@ -11,13 +11,16 @@ import {
   downloadStorageObjectPreview,
   getStorageBucketRecord,
   getStorageBucketSummary,
+  getStorageLogicalOrganization,
   getStorageObjectMetadata,
+  getStorageObjectOrganization,
   getStorageObjectRecord,
   getStorageProviderCompatibilitySummary,
   getStorageProviderProfile,
   getTenantStorageContextRecord,
   getTenantStorageContextSummary,
   getWorkspaceStorageBootstrapPreview,
+  isReservedStoragePrefix,
   listAuditAdapters,
   listProvisioningAdapters,
   listStorageBuckets,
@@ -26,6 +29,7 @@ import {
   providerAdapterCatalog,
   rotateTenantStorageCredential,
   storageBucketObjectErrorCodes,
+  storageLogicalOrganizationErrorCodes,
   supportedStorageProviderTypes,
   uploadStorageObjectPreview
 } from '../../services/adapters/src/provider-catalog.mjs';
@@ -121,6 +125,60 @@ test('provider catalog exposes tenant storage context helpers without leaking se
   assert.equal(event.entityType, 'tenant_storage_context');
 });
 
+test('provider catalog exposes deterministic storage logical organization helpers', () => {
+  const tenantContext = getTenantStorageContextRecord({
+    tenant: {
+      tenantId: 'ten_01layout',
+      slug: 'layout',
+      state: 'active',
+      planId: 'pln_01growth'
+    },
+    storage: {
+      config: {
+        inline: {
+          providerType: 'minio'
+        }
+      }
+    },
+    now: '2026-03-27T21:05:00Z'
+  });
+  const organization = getStorageLogicalOrganization({
+    tenantStorageContext: tenantContext,
+    workspaceId: 'wrk_01layout',
+    workspaceSlug: 'layout-dev'
+  });
+  const appPlacement = getStorageObjectOrganization({
+    tenantStorageContext: tenantContext,
+    workspaceId: 'wrk_01layout',
+    workspaceSlug: 'layout-dev',
+    applicationId: 'app_01layout',
+    applicationSlug: 'console-app',
+    objectKey: 'images/logo.png'
+  });
+  const workspacePlacement = getStorageObjectOrganization({
+    tenantStorageContext: tenantContext,
+    workspaceId: 'wrk_01layout',
+    workspaceSlug: 'layout-dev',
+    objectKey: 'shared/logo.png'
+  });
+
+  assert.equal(storageLogicalOrganizationErrorCodes.RESERVED_PREFIX_CONFLICT, 'RESERVED_PREFIX_CONFLICT');
+  assert.equal(organization.strategy, 'tenant-workspace-application-prefix-v1');
+  assert.equal(organization.workspaceRootPrefix, 'tenants/ten_01layout/workspaces/wrk_01layout/');
+  assert.equal(organization.workspaceSharedPrefix, 'tenants/ten_01layout/workspaces/wrk_01layout/shared/');
+  assert.equal(organization.applicationRootPrefixTemplate, 'tenants/ten_01layout/workspaces/wrk_01layout/apps/{applicationId}/data/');
+  assert.equal(organization.reservedPrefixes.length, 3);
+  assert.equal(organization.slugIndependent, true);
+  assert.equal(appPlacement.placementType, 'application');
+  assert.equal(appPlacement.applicationId, 'app_01layout');
+  assert.equal(appPlacement.applicationRootPrefix, 'tenants/ten_01layout/workspaces/wrk_01layout/apps/app_01layout/data/');
+  assert.equal(appPlacement.canonicalObjectPath, 'tenants/ten_01layout/workspaces/wrk_01layout/apps/app_01layout/data/images/logo.png');
+  assert.equal(workspacePlacement.placementType, 'workspace_shared');
+  assert.equal(workspacePlacement.workspaceSharedPrefix, 'tenants/ten_01layout/workspaces/wrk_01layout/shared/');
+  assert.equal(isReservedStoragePrefix({ organization, candidatePrefix: 'tenants/ten_01layout/workspaces/wrk_01layout/_platform/presigned/' }), true);
+  assert.equal(isReservedStoragePrefix({ organization, candidatePrefix: 'tenants/ten_01layout/workspaces/wrk_01layout/shared/' }), false);
+});
+
 test('provider catalog exposes bucket and object helpers with bounded scope-safe contracts', () => {
   const tenantContext = getTenantStorageContextRecord({
     tenant: {
@@ -140,6 +198,7 @@ test('provider catalog exposes bucket and object helpers with bounded scope-safe
   });
   const bucket = getStorageBucketRecord({
     workspaceId: 'wrk_01bucketops',
+    workspaceSlug: 'bucket-ops-dev',
     bucketName: 'bucket-ops-assets',
     tenantStorageContext: tenantContext,
     objectCount: 1,
@@ -151,6 +210,8 @@ test('provider catalog exposes bucket and object helpers with bounded scope-safe
   const objectRecord = getStorageObjectRecord({
     bucket,
     objectKey: 'images/banner.png',
+    applicationId: 'app_01bucketops',
+    applicationSlug: 'banner-app',
     sizeBytes: 512,
     contentType: 'image/png',
     metadata: {
@@ -175,9 +236,14 @@ test('provider catalog exposes bucket and object helpers with bounded scope-safe
 
   assert.equal(storageBucketObjectErrorCodes.BUCKET_NOT_EMPTY, 'BUCKET_NOT_EMPTY');
   assert.equal(bucket.providerType, 'garage');
+  assert.equal(bucket.organization.workspaceSharedPrefix, 'tenants/ten_01bucketops/workspaces/wrk_01bucketops/shared/');
   assert.equal(bucketSummary.bucketName, 'bucket-ops-assets');
+  assert.equal(bucketSummary.organization.applicationRootPrefixTemplate, 'tenants/ten_01bucketops/workspaces/wrk_01bucketops/apps/{applicationId}/data/');
   assert.equal(bucketList.items.length, 1);
   assert.equal(objectMetadata.objectKey, 'images/banner.png');
+  assert.equal(objectMetadata.applicationId, 'app_01bucketops');
+  assert.equal(objectMetadata.organization.placementType, 'application');
+  assert.equal(objectMetadata.organization.canonicalObjectPath, 'tenants/ten_01bucketops/workspaces/wrk_01bucketops/apps/app_01bucketops/data/images/banner.png');
   assert.equal(Object.prototype.hasOwnProperty.call(objectMetadata, 'contentBase64'), false);
   assert.equal(objectList.items.length, 1);
   assert.equal(upload.accepted, true);

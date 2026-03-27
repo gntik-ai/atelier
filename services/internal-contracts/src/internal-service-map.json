@@ -44,7 +44,9 @@
         "Expose platform-level storage provider identity and capability introspection without leaking provider secrets or bypassing the unified storage family.",
         "Expose tenant-scoped storage context status and credential-rotation initiation without leaking secret references or bypassing tenant authorization boundaries.",
         "Accept workspace-scoped storage bucket inventory, metadata, creation, and deletion requests through the unified storage family while preserving tenant/workspace isolation, quota guardrails, and audit context.",
-        "Accept workspace-scoped storage object upload, download, metadata, list, and delete requests through the unified storage family without leaking provider-native semantics."
+        "Accept workspace-scoped storage object upload, download, metadata, list, and delete requests through the unified storage family without leaking provider-native semantics.",
+        "Return canonical tenant/workspace/application storage-organization metadata on storage bucket and object surfaces without exposing provider-native namespace internals.",
+        "Accept optional application-aware storage placement hints while keeping workspace-shared storage and reserved platform prefixes governed under the same unified storage family."
       ],
       "owned_resources": [
         "public route contract",
@@ -121,7 +123,9 @@
         "Emit correlation-rich Kafka admin events with naming, ACL, quota, and KRaft metadata for audit and stream consumers.",
         "Emit PostgreSQL change envelopes, storage object-event envelopes, and OpenWhisk activation envelopes toward event_gateway when workspace-managed Kafka bridges are enabled.",
         "Provision and reconcile one tenant-scoped storage context per entitled tenant, including namespace, credential-reference lifecycle, quota assignment, and workspace bucket bootstrap dependencies.",
-        "Coordinate workspace-scoped storage bucket lifecycle and object operations without letting control_api call storage adapters directly."
+        "Coordinate workspace-scoped storage bucket lifecycle and object operations without letting control_api call storage adapters directly.",
+        "Resolve canonical workspace-shared and application-owned storage placement metadata through the storage adapter without coupling orchestration to provider-native prefixes.",
+        "Preserve reserved storage keyspace boundaries for platform-managed presigned, multipart, and event-oriented flows when coordinating future storage capabilities."
       ],
       "owned_resources": [
         "provisioning run state",
@@ -663,7 +667,10 @@
         "get_object",
         "get_object_metadata",
         "list_objects",
-        "delete_object"
+        "delete_object",
+        "resolve_logical_organization",
+        "resolve_workspace_storage_root",
+        "resolve_application_storage_root"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",

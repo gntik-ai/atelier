@@ -1,6 +1,11 @@
 import { createHash } from 'node:crypto';
 
 import { buildStorageProviderProfile } from './storage-provider-profile.mjs';
+import {
+  STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES,
+  buildStorageLogicalOrganization,
+  buildStorageObjectOrganization
+} from './storage-logical-organization.mjs';
 import { buildTenantStorageContextRecord } from './storage-tenant-context.mjs';
 
 const DEFAULT_NOW = '2026-03-27T00:00:00Z';
@@ -20,7 +25,8 @@ export const STORAGE_BUCKET_OBJECT_ERROR_CODES = Object.freeze({
   BUCKET_NOT_EMPTY: 'BUCKET_NOT_EMPTY',
   BUCKET_PROTECTED: 'BUCKET_PROTECTED',
   OBJECT_NOT_FOUND: 'OBJECT_NOT_FOUND',
-  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED'
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  ...STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES
 });
 
 function hashSeed(seed, length = 16) {
@@ -160,6 +166,7 @@ function normalizeObjectStats({ objectCount = 0, totalBytes = 0 }) {
 export function buildStorageBucketRecord({
   tenantId,
   workspaceId,
+  workspaceSlug = null,
   bucketName,
   region = DEFAULT_REGION,
   tenantStorageContext,
@@ -173,7 +180,8 @@ export function buildStorageBucketRecord({
   managedResourceKey = null,
   objectLockMode = 'disabled',
   eventNotifications = null,
-  existingBucket = null
+  existingBucket = null,
+  organization = null
 } = {}) {
   if (!workspaceId) {
     throw new Error('workspaceId is required to build a storage bucket record.');
@@ -189,6 +197,15 @@ export function buildStorageBucketRecord({
   if (!effectiveTenantId) {
     throw new Error('tenantId or tenant context is required to build a storage bucket record.');
   }
+
+  const logicalOrganization = organization?.strategy
+    ? organization
+    : buildStorageLogicalOrganization({
+        tenantId: effectiveTenantId,
+        workspaceId,
+        workspaceSlug,
+        tenantStorageContext: context
+      });
 
   const bucket = {
     resourceId: existingBucket?.resourceId ?? buildResourceId(`${effectiveTenantId}:${workspaceId}:${bucketName}`),
@@ -212,6 +229,7 @@ export function buildStorageBucketRecord({
       ...(status === 'deleted' ? { deletedAt: now } : {})
     },
     eventBridgeSummary: eventNotifications,
+    organization: logicalOrganization,
     tenantStorageContext: context,
     operationEligibility: {
       canWriteObjects: contextOutcome.ok,
@@ -242,6 +260,7 @@ export function buildStorageBucketSummary(input = {}) {
     objectStats: { ...bucket.objectStats },
     timestamps: { ...bucket.timestamps },
     provisioning: { ...bucket.provisioning },
+    ...(bucket.organization ? { organization: JSON.parse(JSON.stringify(bucket.organization)) } : {}),
     ...(bucket.eventBridgeSummary ? { eventBridgeSummary: { ...bucket.eventBridgeSummary } } : {})
   };
 }
@@ -275,6 +294,9 @@ export function previewStorageBucketDeletion({ bucket, now = DEFAULT_NOW } = {})
 export function buildStorageObjectRecord({
   bucket,
   objectKey,
+  applicationId = null,
+  applicationSlug = null,
+  requestedPrefix = null,
   sizeBytes = 0,
   contentType = DEFAULT_OBJECT_CONTENT_TYPE,
   metadata = {},
@@ -284,10 +306,21 @@ export function buildStorageObjectRecord({
   storageClass = DEFAULT_OBJECT_STORAGE_CLASS,
   now = DEFAULT_NOW,
   updatedAt = now,
-  versionId = null
+  versionId = null,
+  organization = null
 } = {}) {
   const bucketRecord = bucket?.resourceId ? bucket : buildStorageBucketRecord(bucket ?? {});
   assertObjectKey(objectKey);
+  const logicalOrganization = organization?.strategy
+    ? organization
+    : buildStorageObjectOrganization({
+        bucket: bucketRecord,
+        organization: bucketRecord.organization,
+        objectKey,
+        applicationId,
+        applicationSlug,
+        requestedPrefix
+      });
 
   return {
     resourceId: buildResourceId(`${bucketRecord.resourceId}:${objectKey}`),
@@ -296,6 +329,7 @@ export function buildStorageObjectRecord({
     bucketResourceId: bucketRecord.resourceId,
     bucketName: bucketRecord.bucketName,
     objectKey,
+    applicationId: logicalOrganization.applicationId ?? null,
     namespace: bucketRecord.namespace,
     providerType: bucketRecord.providerType,
     contentType,
@@ -305,6 +339,7 @@ export function buildStorageObjectRecord({
     versionId,
     metadata: { ...metadata },
     storageClass,
+    organization: logicalOrganization,
     timestamps: {
       createdAt: now,
       updatedAt,
@@ -326,6 +361,7 @@ export function buildStorageObjectMetadata(input = {}) {
     bucketResourceId: object.bucketResourceId,
     bucketName: object.bucketName,
     objectKey: object.objectKey,
+    ...(object.applicationId ? { applicationId: object.applicationId } : {}),
     namespace: object.namespace,
     providerType: object.providerType,
     contentType: object.contentType,
@@ -335,6 +371,7 @@ export function buildStorageObjectMetadata(input = {}) {
     versionId: object.versionId,
     metadata: { ...object.metadata },
     storageClass: object.storageClass,
+    ...(object.organization ? { organization: JSON.parse(JSON.stringify(object.organization)) } : {}),
     timestamps: { ...object.timestamps }
   };
 }

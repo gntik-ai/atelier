@@ -32,11 +32,18 @@ import {
   previewStorageObjectDownload,
   previewStorageObjectUpload
 } from '../../../services/adapters/src/storage-bucket-object-ops.mjs';
+import {
+  STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES,
+  buildStorageLogicalOrganization,
+  buildStorageObjectOrganization,
+  isStorageReservedPrefix
+} from '../../../services/adapters/src/storage-logical-organization.mjs';
 
 export const storageApiFamily = getApiFamily('storage');
 export const STORAGE_ADMIN_ERROR_CODES = STORAGE_PROVIDER_ERROR_CODES;
 export const TENANT_STORAGE_ERROR_CODES = TENANT_STORAGE_CONTEXT_ERROR_CODES;
 export const STORAGE_BUCKET_OBJECT_ERRORS = STORAGE_BUCKET_OBJECT_ERROR_CODES;
+export const STORAGE_LOGICAL_ORGANIZATION_ERRORS = STORAGE_LOGICAL_ORGANIZATION_ERROR_CODES;
 export const STORAGE_PROVIDER_CAPABILITIES = STORAGE_PROVIDER_CAPABILITY_FIELDS;
 
 function matchesRouteFilters(route, filters = {}) {
@@ -129,6 +136,18 @@ export function buildTenantStorageEvent(input = {}) {
 
 export function previewWorkspaceStorageBootstrapContext(input = {}) {
   return previewWorkspaceStorageBootstrap(input);
+}
+
+export function previewStorageLogicalOrganization(input = {}) {
+  return buildStorageLogicalOrganization(input);
+}
+
+export function previewStorageObjectOrganization(input = {}) {
+  return buildStorageObjectOrganization(input);
+}
+
+export function previewReservedStoragePrefix(input = {}) {
+  return isStorageReservedPrefix(input);
 }
 
 export function previewStorageBucket(input = {}) {

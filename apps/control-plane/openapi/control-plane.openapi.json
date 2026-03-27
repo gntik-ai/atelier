@@ -55188,6 +55188,9 @@
           },
           "eventBridgeSummary": {
             "$ref": "#/components/schemas/EventBridgeSummary"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/StorageLogicalOrganization"
           }
         }
       },
@@ -78001,6 +78004,15 @@
               "type": "string",
               "maxLength": 255
             }
+          },
+          "applicationId": {
+            "type": "string",
+            "pattern": "^app_[0-9a-z]+$"
+          },
+          "applicationSlug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
           }
         }
       },
@@ -78116,6 +78128,13 @@
                 "format": "date-time"
               }
             }
+          },
+          "applicationId": {
+            "type": "string",
+            "pattern": "^app_[0-9a-z]+$"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/StorageObjectOrganization"
           }
         }
       },
@@ -78190,6 +78209,199 @@
           },
           "page": {
             "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "StorageReservedPrefix": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "key",
+          "prefix",
+          "purpose"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "prefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 255
+          }
+        }
+      },
+      "StorageLogicalOrganization": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy",
+          "layoutVersion",
+          "tenantRootPrefix",
+          "workspaceRootPrefix",
+          "workspaceSharedPrefix",
+          "applicationRootPrefixTemplate",
+          "reservedPrefixes",
+          "quotaAttributionMode",
+          "auditScopeMode",
+          "slugIndependent"
+        ],
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "tenant-workspace-application-prefix-v1"
+            ]
+          },
+          "layoutVersion": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "tenantRootPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "workspaceRootPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "workspaceSharedPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "applicationRootPrefixTemplate": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "reservedPrefixes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageReservedPrefix"
+            },
+            "minItems": 1
+          },
+          "quotaAttributionMode": {
+            "type": "string",
+            "enum": [
+              "tenant>workspace>application"
+            ]
+          },
+          "auditScopeMode": {
+            "type": "string",
+            "enum": [
+              "tenant_workspace_application"
+            ]
+          },
+          "slugIndependent": {
+            "type": "boolean"
+          },
+          "workspaceSlug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "namespace": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          }
+        }
+      },
+      "StorageObjectOrganization": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy",
+          "layoutVersion",
+          "placementType",
+          "tenantRootPrefix",
+          "workspaceRootPrefix",
+          "objectPrefix",
+          "canonicalObjectPath",
+          "quotaAttributionKey",
+          "auditResourceKey"
+        ],
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "tenant-workspace-application-prefix-v1"
+            ]
+          },
+          "layoutVersion": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "placementType": {
+            "type": "string",
+            "enum": [
+              "workspace_shared",
+              "application"
+            ]
+          },
+          "tenantRootPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "workspaceRootPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "workspaceSharedPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "applicationId": {
+            "type": "string",
+            "pattern": "^app_[0-9a-z]+$"
+          },
+          "applicationSlug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "applicationRootPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "objectPrefix": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 512
+          },
+          "canonicalObjectPath": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1024
+          },
+          "quotaAttributionKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
+          },
+          "auditResourceKey": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 255
           }
         }
       }

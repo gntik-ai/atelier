@@ -442,6 +442,9 @@
           "eventBridgeSummary": {
             "$ref": "#/components/schemas/EventBridgeSummary"
           },
+          "organization": {
+            "$ref": "#/components/schemas/StorageLogicalOrganization"
+          },
           "provisioning": {
             "$ref": "#/components/schemas/ProvisioningResourceState"
           },
@@ -567,6 +570,88 @@
         ],
         "type": "object"
       },
+      "StorageLogicalOrganization": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationRootPrefixTemplate": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "auditScopeMode": {
+            "enum": [
+              "tenant_workspace_application"
+            ],
+            "type": "string"
+          },
+          "layoutVersion": {
+            "enum": [
+              "v1"
+            ],
+            "type": "string"
+          },
+          "namespace": {
+            "maxLength": 120,
+            "minLength": 3,
+            "type": "string"
+          },
+          "quotaAttributionMode": {
+            "enum": [
+              "tenant>workspace>application"
+            ],
+            "type": "string"
+          },
+          "reservedPrefixes": {
+            "items": {
+              "$ref": "#/components/schemas/StorageReservedPrefix"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "slugIndependent": {
+            "type": "boolean"
+          },
+          "strategy": {
+            "enum": [
+              "tenant-workspace-application-prefix-v1"
+            ],
+            "type": "string"
+          },
+          "tenantRootPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "workspaceRootPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "workspaceSharedPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "workspaceSlug": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "strategy",
+          "layoutVersion",
+          "tenantRootPrefix",
+          "workspaceRootPrefix",
+          "workspaceSharedPrefix",
+          "applicationRootPrefixTemplate",
+          "reservedPrefixes",
+          "quotaAttributionMode",
+          "auditScopeMode",
+          "slugIndependent"
+        ],
+        "type": "object"
+      },
       "StorageObjectCollection": {
         "additionalProperties": false,
         "properties": {
@@ -605,6 +690,10 @@
       "StorageObjectMetadata": {
         "additionalProperties": false,
         "properties": {
+          "applicationId": {
+            "pattern": "^app_[0-9a-z]+$",
+            "type": "string"
+          },
           "bucketName": {
             "maxLength": 120,
             "minLength": 3,
@@ -645,6 +734,9 @@
             "maxLength": 1024,
             "minLength": 1,
             "type": "string"
+          },
+          "organization": {
+            "$ref": "#/components/schemas/StorageObjectOrganization"
           },
           "providerType": {
             "maxLength": 80,
@@ -717,6 +809,91 @@
         ],
         "type": "object"
       },
+      "StorageObjectOrganization": {
+        "additionalProperties": false,
+        "properties": {
+          "applicationId": {
+            "pattern": "^app_[0-9a-z]+$",
+            "type": "string"
+          },
+          "applicationRootPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "applicationSlug": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "auditResourceKey": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "canonicalObjectPath": {
+            "maxLength": 1024,
+            "minLength": 3,
+            "type": "string"
+          },
+          "layoutVersion": {
+            "enum": [
+              "v1"
+            ],
+            "type": "string"
+          },
+          "objectPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "placementType": {
+            "enum": [
+              "workspace_shared",
+              "application"
+            ],
+            "type": "string"
+          },
+          "quotaAttributionKey": {
+            "maxLength": 255,
+            "minLength": 3,
+            "type": "string"
+          },
+          "strategy": {
+            "enum": [
+              "tenant-workspace-application-prefix-v1"
+            ],
+            "type": "string"
+          },
+          "tenantRootPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "workspaceRootPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "workspaceSharedPrefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "strategy",
+          "layoutVersion",
+          "placementType",
+          "tenantRootPrefix",
+          "workspaceRootPrefix",
+          "objectPrefix",
+          "canonicalObjectPath",
+          "quotaAttributionKey",
+          "auditResourceKey"
+        ],
+        "type": "object"
+      },
       "StorageObjectPayload": {
         "additionalProperties": false,
         "properties": {
@@ -759,6 +936,15 @@
       "StorageObjectWriteRequest": {
         "additionalProperties": false,
         "properties": {
+          "applicationId": {
+            "pattern": "^app_[0-9a-z]+$",
+            "type": "string"
+          },
+          "applicationSlug": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
           "checksumSha256": {
             "maxLength": 128,
             "minLength": 16,
@@ -794,6 +980,32 @@
           "workspaceId",
           "contentType",
           "contentBase64"
+        ],
+        "type": "object"
+      },
+      "StorageReservedPrefix": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 80,
+            "minLength": 2,
+            "type": "string"
+          },
+          "prefix": {
+            "maxLength": 512,
+            "minLength": 3,
+            "type": "string"
+          },
+          "purpose": {
+            "maxLength": 255,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "prefix",
+          "purpose"
         ],
         "type": "object"
       }

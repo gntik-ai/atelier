@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   STORAGE_ADMIN_ERROR_CODES,
   STORAGE_BUCKET_OBJECT_ERRORS,
+  STORAGE_LOGICAL_ORGANIZATION_ERRORS,
   STORAGE_PROVIDER_CAPABILITIES,
   TENANT_STORAGE_ERROR_CODES,
   buildStorageOperationEvent,
@@ -16,8 +17,11 @@ import {
   listStorageAdminRoutes,
   listStorageBucketsPreview,
   listStorageObjectsPreview,
+  previewReservedStoragePrefix,
   previewStorageBucket,
+  previewStorageLogicalOrganization,
   previewStorageObject,
+  previewStorageObjectOrganization,
   previewTenantStorageContext,
   previewWorkspaceStorageBootstrapContext,
   rotateTenantStorageCredentialPreview,
@@ -193,6 +197,57 @@ test('tenant storage context summary is tenant-isolated, introspectable, and sec
   assert.equal(event.quotaAssignment.maxBuckets >= 8, true);
 });
 
+test('storage logical organization previews are deterministic and reserve platform prefixes', () => {
+  const activeContext = previewTenantStorageContext({
+    tenant: {
+      tenantId: 'ten_01layoutactive',
+      slug: 'layout-active',
+      state: 'active',
+      planId: 'pln_01starter'
+    },
+    storage: {
+      config: {
+        inline: {
+          providerType: 'minio'
+        }
+      }
+    },
+    now: '2026-03-27T20:44:00Z'
+  });
+  const organization = previewStorageLogicalOrganization({
+    tenantStorageContext: activeContext,
+    workspaceId: 'wrk_01layoutactive',
+    workspaceSlug: 'layout-dev'
+  });
+  const appPlacement = previewStorageObjectOrganization({
+    tenantStorageContext: activeContext,
+    workspaceId: 'wrk_01layoutactive',
+    workspaceSlug: 'layout-dev',
+    applicationId: 'app_01layoutactive',
+    applicationSlug: 'console-app',
+    objectKey: 'avatars/logo.png'
+  });
+  const sharedPlacement = previewStorageObjectOrganization({
+    tenantStorageContext: activeContext,
+    workspaceId: 'wrk_01layoutactive',
+    workspaceSlug: 'layout-dev',
+    objectKey: 'shared/logo.png'
+  });
+
+  assert.equal(STORAGE_LOGICAL_ORGANIZATION_ERRORS.RESERVED_PREFIX_CONFLICT, 'RESERVED_PREFIX_CONFLICT');
+  assert.equal(organization.strategy, 'tenant-workspace-application-prefix-v1');
+  assert.equal(organization.workspaceRootPrefix, 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/');
+  assert.equal(organization.workspaceSharedPrefix, 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/shared/');
+  assert.equal(organization.reservedPrefixes.length, 3);
+  assert.equal(previewReservedStoragePrefix({ organization, candidatePrefix: 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/_platform/multipart/' }), true);
+  assert.equal(previewReservedStoragePrefix({ organization, candidatePrefix: 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/shared/' }), false);
+  assert.equal(appPlacement.placementType, 'application');
+  assert.equal(appPlacement.applicationRootPrefix, 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/apps/app_01layoutactive/data/');
+  assert.equal(appPlacement.canonicalObjectPath, 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/apps/app_01layoutactive/data/avatars/logo.png');
+  assert.equal(sharedPlacement.placementType, 'workspace_shared');
+  assert.equal(sharedPlacement.workspaceSharedPrefix, 'tenants/ten_01layoutactive/workspaces/wrk_01layoutactive/shared/');
+});
+
 test('bucket and object previews stay scope-bound and expose bounded metadata/download surfaces', () => {
   const activeContext = previewTenantStorageContext({
     tenant: {
@@ -212,6 +267,7 @@ test('bucket and object previews stay scope-bound and expose bounded metadata/do
   });
   const bucket = previewStorageBucket({
     workspaceId: 'wrk_01atelieractive',
+    workspaceSlug: 'atelier-live',
     bucketName: 'atelier-assets',
     region: 'us-east-1',
     tenantStorageContext: activeContext,
@@ -224,6 +280,8 @@ test('bucket and object previews stay scope-bound and expose bounded metadata/do
   const objectRecord = previewStorageObject({
     bucket,
     objectKey: 'avatars/logo.png',
+    applicationId: 'app_01atelieractive',
+    applicationSlug: 'console-app',
     sizeBytes: 128,
     contentType: 'image/png',
     metadata: {
@@ -248,10 +306,14 @@ test('bucket and object previews stay scope-bound and expose bounded metadata/do
 
   assert.equal(bucketSummary.route.operationId, 'getStorage');
   assert.equal(bucketSummary.bucket.objectStats.objectCount, 1);
+  assert.equal(bucketSummary.bucket.organization.workspaceSharedPrefix, 'tenants/ten_01atelieractive/workspaces/wrk_01atelieractive/shared/');
   assert.equal(bucketList.route.operationId, 'listStorage');
   assert.equal(bucketList.collection.items.length, 1);
   assert.equal(metadata.route.operationId, 'getStorageObjectMetadata');
   assert.equal(metadata.object.objectKey, 'avatars/logo.png');
+  assert.equal(metadata.object.applicationId, 'app_01atelieractive');
+  assert.equal(metadata.object.organization.placementType, 'application');
+  assert.equal(metadata.object.organization.canonicalObjectPath, 'tenants/ten_01atelieractive/workspaces/wrk_01atelieractive/apps/app_01atelieractive/data/avatars/logo.png');
   assert.equal(Object.prototype.hasOwnProperty.call(metadata.object, 'contentBase64'), false);
   assert.equal(objectList.route.operationId, 'listStorageObjects');
   assert.equal(objectList.collection.items.length, 1);
