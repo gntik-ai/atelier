@@ -1271,6 +1271,23 @@
       ],
       "reason": "Console backend activations must preserve actor, tenant/workspace scope, correlation, and initiating surface attribution for runtime enforcement and audit traceability.",
       "redacted_fields": []
+    },
+    {
+      "target": "definition_import_context",
+      "carrier": "validated_attestation",
+      "required_fields": [
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "effective_roles",
+        "scopes",
+        "import_operation",
+        "visibility_policy"
+      ],
+      "redacted_fields": [
+        "bundle_payload"
+      ],
+      "reason": "Function definition import/export flows must keep scope, operator intent, and visibility policy explicit across command handling."
     }
   ],
   "negative_scenarios": [
@@ -1357,6 +1374,20 @@
       "category": "console_backend_missing_scope",
       "expected_effect": "deny",
       "summary": "A console backend activation without tenant_id or workspace_id annotation must be rejected before dispatch."
+    },
+    {
+      "id": "AUTHZ-FN-IMP-001",
+      "surface": "functions_runtime",
+      "category": "definition_import_cross_scope",
+      "expected_effect": "deny",
+      "summary": "A function definition import must be denied when the bundle tenant or workspace scope does not match the caller scope."
+    },
+    {
+      "id": "AUTHZ-FN-IMP-002",
+      "surface": "functions_runtime",
+      "category": "definition_import_visibility_policy",
+      "expected_effect": "deny",
+      "summary": "A function definition import must be denied when a requested web-action visibility value falls outside the governed public/private policy set."
     }
   ]
 }

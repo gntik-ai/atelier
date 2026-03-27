@@ -397,6 +397,7 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 | GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/result` | workspace | function_activation_result | Fetch the result envelope for one governed function action activation when policy allows it |
 | POST | `/v1/functions/actions/{resourceId}/cron-triggers` | workspace | function_cron_trigger | Register one cron trigger for a governed function action when scheduled delivery is enabled |
 | GET | `/v1/functions/actions/{resourceId}/cron-triggers/{triggerId}` | workspace | function_cron_trigger | Fetch one cron trigger bound to a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/definition-export` | workspace | function_definition_export | Export one governed function action definition for bounded workspace-safe import/export workflows |
 | DELETE | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Delete one APISIX-managed HTTP exposure for a governed function action |
 | GET | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Fetch the APISIX-managed HTTP exposure for one governed function action |
 | PATCH | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Update one APISIX-managed HTTP exposure for a governed function action |
@@ -411,12 +412,15 @@ Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, a
 | GET | `/v1/functions/actions/{resourceId}/versions/{versionId}` | workspace | function_version | Fetch one immutable version for a governed function action |
 | GET | `/v1/functions/tenants/{tenantId}/quota` | tenant | function_quota | Fetch governed function quota posture for one tenant |
 | GET | `/v1/functions/workspaces/{workspaceId}/actions` | workspace | function_action | List governed function actions for one workspace including runtime, source, policy, and exposure summaries |
+| POST | `/v1/functions/workspaces/{workspaceId}/definition-imports` | workspace | function_definition_import | Import one governed function action definition into the same workspace scope with collision and visibility policy enforcement |
 | GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
+| POST | `/v1/functions/workspaces/{workspaceId}/package-definition-imports` | workspace | function_definition_import | Import one governed function package definition into the same workspace scope with collision and visibility policy enforcement |
 | GET | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | List governed OpenWhisk packages for one workspace logical serverless context |
 | POST | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | Create one governed OpenWhisk package inside the workspace logical serverless context |
 | DELETE | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Delete one governed OpenWhisk package from the workspace logical serverless context |
 | GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Fetch one governed OpenWhisk package for the workspace logical serverless context |
 | PATCH | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Update one governed OpenWhisk package without exposing native namespace or subject administration |
+| GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}/definition-export` | workspace | function_definition_export | Export one governed function package definition for bounded workspace-safe import/export workflows |
 | GET | `/v1/functions/workspaces/{workspaceId}/quota` | workspace | function_quota | Fetch governed function quota posture for one workspace |
 | GET | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | List governed OpenWhisk rules for one workspace logical serverless context |
 | POST | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | Create one governed OpenWhisk rule that binds a workspace trigger to a workspace action |

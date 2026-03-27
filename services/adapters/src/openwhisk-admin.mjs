@@ -23,6 +23,7 @@ export const OPENWHISK_SUPPORTED_ACTION_RUNTIMES = Object.freeze([
 ]);
 export const OPENWHISK_ALLOWED_TRIGGER_SOURCE_TYPES = Object.freeze(['manual', 'event_topic', 'cron', 'http']);
 export const OPENWHISK_ALLOWED_PACKAGE_VISIBILITY = Object.freeze(['private', 'workspace_shared']);
+export const OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY = Object.freeze(['public', 'private']);
 export const OPENWHISK_ALLOWED_RULE_STATES = Object.freeze(['active', 'inactive']);
 export const OPENWHISK_ALLOWED_HTTP_AUTH_MODES = Object.freeze(['workspace_token', 'signed_url', 'public_readonly']);
 export const OPENWHISK_ALLOWED_HTTP_METHODS = Object.freeze(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
@@ -654,6 +655,10 @@ function validateActionRequest(action, payload, context, profile) {
     }
   }
 
+  if (payload.execution?.webAction?.visibility && !OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY.includes(payload.execution.webAction.visibility)) {
+    violations.push(`webAction.visibility ${payload.execution.webAction.visibility} is unsupported for governed OpenWhisk actions.`);
+  }
+
   if ((payload.execution?.limits?.timeoutSeconds ?? 0) > 900) {
     violations.push('timeoutSeconds must be 900 seconds or lower for governed OpenWhisk actions.');
   }
@@ -1117,6 +1122,9 @@ export function normalizeOpenWhiskAdminResource(resourceKind, payload = {}, cont
         }),
         webAction: compactDefined({
           enabled: payload.execution?.webAction?.enabled ?? false,
+          visibility: OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY.includes(payload.execution?.webAction?.visibility)
+            ? payload.execution?.webAction?.visibility
+            : undefined,
           requireAuthentication: payload.execution?.webAction?.requireAuthentication ?? true,
           rawHttpResponse: payload.execution?.webAction?.rawHttpResponse ?? false,
           responseMode: payload.execution?.webAction?.responseMode ?? 'json'

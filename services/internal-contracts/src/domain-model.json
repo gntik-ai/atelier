@@ -1317,7 +1317,8 @@
     "Membership grants at tenant scope and workspace scope are evaluated independently; mixed-role access must be resolved by combining both scopes without leaking permissions across tenants or workspaces.",
     "Any accepted invitation, membership mutation, revocation, suspension, or ownership transfer must enqueue effective-permission recalculation for already-provisioned resources in the affected scope.",
     "Tenant labels, quotas, inventories, and export checkpoints remain tenant-scoped and must never leak cross-tenant identifiers or policy state.",
-    "Tenant deletion is logical first; definitive purge requires a retained audit trail, a recovery-oriented export checkpoint, elapsed retention, and elevated dual confirmation."
+    "Tenant deletion is logical first; definitive purge requires a retained audit trail, a recovery-oriented export checkpoint, elapsed retention, and elevated dual confirmation.",
+    "Function definition import/export stays workspace-scoped; exported bundles and imported definitions must preserve tenant/workspace bindings, reject name collisions unless explicitly remapped, and only allow managed web-action visibility values of public or private."
   ],
   "business_state_machines": [
     {

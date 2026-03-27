@@ -6,6 +6,7 @@ import {
   OPENWHISK_ADMIN_CAPABILITY_MATRIX,
   OPENWHISK_ALLOWED_ACTIVATION_STATUSES,
   OPENWHISK_ALLOWED_SECRET_REFERENCE_STATUSES,
+  OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY,
   OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE,
   OPENWHISK_MINIMUM_ENGINE_POLICY,
   OPENWHISK_SUPPORTED_ACTION_RUNTIMES,
@@ -76,6 +77,7 @@ test('openwhisk admin adapter exports governed serverless capability, runtime, a
   assert.equal(enterpriseProfile.quotaGuardrails.maxRulesPerWorkspace, 960);
   assert.equal(OPENWHISK_MINIMUM_ENGINE_POLICY.logical_namespace_subject.nativeAdminCrudExposed, false);
   assert.equal(OPENWHISK_MINIMUM_ENGINE_POLICY.logical_namespace_subject.forbiddenUserFields.includes('physicalActionName'), true);
+  assert.deepEqual(OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY, ['public', 'private']);
 });
 
 test('openwhisk admin adapter normalizes governed actions, packages, triggers, and rules into workspace-safe resource shapes', () => {
@@ -95,7 +97,7 @@ test('openwhisk admin adapter normalizes governed actions, packages, triggers, a
         parameters: { channel: 'billing' },
         environment: { LOG_LEVEL: 'info' },
         limits: { timeoutSeconds: 90, memoryMb: 256 },
-        webAction: { enabled: true, requireAuthentication: true, rawHttpResponse: false }
+        webAction: { enabled: true, visibility: 'public', requireAuthentication: true, rawHttpResponse: false }
       },
       activationPolicy: {
         logsAccess: 'workspace_developers',
@@ -179,6 +181,7 @@ test('openwhisk admin adapter normalizes governed actions, packages, triggers, a
   assert.equal(action.physicalActionName, 'act-alpha-dev-dev-dispatch-billing');
   assert.equal(action.namespaceName, 'ia-01growthalpha-alpha-dev-dev');
   assert.equal(action.execution.runtime, 'nodejs:20');
+  assert.equal(action.execution.webAction.visibility, 'public');
   assert.equal(action.httpExposure.apisixRouteRef, 'apisix:functions:dispatch-billing');
   assert.equal(action.storageTriggers[0].deliveryMode, 'managed_bridge');
   assert.equal(action.cronTriggers[0].overlapPolicy, 'skip');
@@ -268,7 +271,7 @@ test('openwhisk admin adapter blocks unsafe native admin fields and respects quo
         parameters: {},
         environment: {},
         limits: { timeoutSeconds: 901, memoryMb: 4096 },
-        webAction: { enabled: true, requireAuthentication: true, rawHttpResponse: false }
+        webAction: { enabled: true, visibility: 'internet', requireAuthentication: true, rawHttpResponse: false }
       },
       activationPolicy: {
         logsAccess: 'disabled',
@@ -295,6 +298,10 @@ test('openwhisk admin adapter blocks unsafe native admin fields and respects quo
   );
   assert.equal(
     badValidation.violations.includes('runtime nodejs:20 does not support source kind runtime_image.'),
+    true
+  );
+  assert.equal(
+    badValidation.violations.includes('webAction.visibility internet is unsupported for governed OpenWhisk actions.'),
     true
   );
   assert.equal(

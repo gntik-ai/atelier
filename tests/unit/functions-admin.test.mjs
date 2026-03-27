@@ -3,16 +3,21 @@ import assert from 'node:assert/strict';
 
 import {
   FUNCTION_SECRET_NAME_PATTERN,
+  IMPORT_ERROR_CODES,
   SUPPORTED_FUNCTION_RUNTIMES,
   SUPPORTED_FUNCTION_SOURCE_KINDS,
   SUPPORTED_FUNCTION_TRIGGER_KINDS,
+  SUPPORTED_WEB_ACTION_VISIBILITY_STATES,
   buildConsoleBackendInvocationEnvelope,
+  buildScopeValidatedExportRequest,
+  buildScopeValidatedImportRequest,
   getConsoleBackendFunctionsIdentityContract,
   getFunctionsAdminRoute,
   getOpenWhiskCompatibilitySummary,
   listFunctionsAdminRoutes,
   summarizeFunctionRuntimeCoverage,
-  summarizeFunctionsAdminSurface
+  summarizeFunctionsAdminSurface,
+  validateImportBundle
 } from '../../apps/control-plane/src/functions-admin.mjs';
 
 test('functions admin control-plane helper exposes CRUD, lifecycle versioning, rollback, invocation, activation, HTTP exposure, and trigger routes', () => {
@@ -33,6 +38,8 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   const getSecretRoute = getFunctionsAdminRoute('getFunctionWorkspaceSecret');
   const updateSecretRoute = getFunctionsAdminRoute('updateFunctionWorkspaceSecret');
   const deleteSecretRoute = getFunctionsAdminRoute('deleteFunctionWorkspaceSecret');
+  const exportDefinitionRoute = getFunctionsAdminRoute('exportFunctionDefinition');
+  const importDefinitionRoute = getFunctionsAdminRoute('importFunctionDefinition');
   const surface = summarizeFunctionsAdminSurface();
 
   for (const operationId of [
@@ -70,7 +77,11 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
     'createFunctionWorkspaceSecret',
     'getFunctionWorkspaceSecret',
     'updateFunctionWorkspaceSecret',
-    'deleteFunctionWorkspaceSecret'
+    'deleteFunctionWorkspaceSecret',
+    'exportFunctionDefinition',
+    'exportFunctionPackageDefinition',
+    'importFunctionDefinition',
+    'importFunctionPackageDefinition'
   ]) {
     assert.ok(routes.some((route) => route.operationId === operationId), `missing ${operationId}`);
   }
@@ -91,6 +102,8 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   assert.equal(getSecretRoute.resourceType, 'function_workspace_secret');
   assert.equal(updateSecretRoute.resourceType, 'function_workspace_secret');
   assert.equal(deleteSecretRoute.resourceType, 'function_workspace_secret');
+  assert.equal(exportDefinitionRoute.resourceType, 'function_definition_export');
+  assert.equal(importDefinitionRoute.resourceType, 'function_definition_import');
   assert.equal(surface.find((entry) => entry.resourceKind === 'action').routeCount, 5);
   assert.equal(surface.find((entry) => entry.resourceKind === 'invocation').actions.includes('rerun'), true);
   assert.equal(surface.find((entry) => entry.resourceKind === 'activation').routeCount, 4);
@@ -102,6 +115,10 @@ test('functions admin control-plane helper exposes CRUD, lifecycle versioning, r
   assert.equal(surface.find((entry) => entry.resourceKind === 'quota').routeCount, 2);
   assert.deepEqual(surface.find((entry) => entry.resourceKind === 'workspace_secret').actions, ['list', 'create', 'get', 'update', 'delete']);
   assert.equal(surface.find((entry) => entry.resourceKind === 'workspace_secret').routeCount, 5);
+  assert.deepEqual(surface.find((entry) => entry.resourceKind === 'function_definition_export').actions, ['export']);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'function_definition_export').routeCount, 2);
+  assert.deepEqual(surface.find((entry) => entry.resourceKind === 'function_definition_import').actions, ['import']);
+  assert.equal(surface.find((entry) => entry.resourceKind === 'function_definition_import').routeCount, 2);
 });
 
 test('functions admin helper exposes console backend identity and envelope builders without regressing discoverability', () => {
@@ -160,6 +177,7 @@ test('functions admin helper summarizes governed OpenWhisk compatibility, runtim
   assert.equal(growthSummary.rollbackSupported, true);
   assert.equal(growthSummary.lifecycleGovernance.rollbackPreservesHistory, true);
   assert.equal(growthSummary.workspaceSecretsSupported, true);
+  assert.equal(growthSummary.definitionImportExportSupported, true);
   assert.equal(growthSummary.secretGovernance.writeOnlyValue, true);
   assert.equal(growthSummary.httpExposureSupported, true);
   assert.equal(growthSummary.storageTriggersSupported, true);
@@ -175,6 +193,8 @@ test('functions admin helper summarizes governed OpenWhisk compatibility, runtim
 
   assert.deepEqual(SUPPORTED_FUNCTION_SOURCE_KINDS, ['inline_code', 'packaged_artifact', 'stored_reference', 'runtime_image']);
   assert.deepEqual(SUPPORTED_FUNCTION_TRIGGER_KINDS, ['http', 'kafka', 'storage', 'cron']);
+  assert.deepEqual(SUPPORTED_WEB_ACTION_VISIBILITY_STATES, ['public', 'private']);
+  assert.equal(growthSummary.supportedWebActionVisibility.includes('public'), true);
   assert.equal(SUPPORTED_FUNCTION_RUNTIMES.some((entry) => entry.runtime === 'nodejs:20'), true);
   assert.equal(runtimeCoverage.find((entry) => entry.runtime === 'python:3.11').supportedTriggerKinds.includes('cron'), true);
   assert.equal(runtimeCoverage.find((entry) => entry.runtime === 'container:image').webActionSupported, true);
@@ -182,4 +202,51 @@ test('functions admin helper summarizes governed OpenWhisk compatibility, runtim
   assert.equal(FUNCTION_SECRET_NAME_PATTERN.test('my-secret'), true);
   assert.equal(FUNCTION_SECRET_NAME_PATTERN.test('api_key_prod'), true);
   assert.equal(FUNCTION_SECRET_NAME_PATTERN.test('BadSecret'), false);
+});
+
+test('function import-export helpers preserve caller scope and return bounded collision policy errors', () => {
+  const exportRequest = buildScopeValidatedExportRequest({
+    actor: 'usr_01alice',
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    correlationId: 'corr_fn_export_01'
+  }, {
+    resourceType: 'function_action',
+    actionName: 'dispatch-billing'
+  });
+  const importRequest = buildScopeValidatedImportRequest({
+    actor: 'usr_01alice',
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    correlationId: 'corr_fn_import_01'
+  }, {
+    bundleVersion: '2026-03-27',
+    resources: [
+      {
+        resourceType: 'function_action',
+        actionName: 'dispatch-billing-copy',
+        visibility: 'public'
+      }
+    ]
+  });
+  const collision = validateImportBundle({
+    bundleVersion: '2026-03-27',
+    resources: [
+      {
+        resourceType: 'function_action',
+        actionName: 'dispatch-billing',
+        name: 'dispatch-billing',
+        visibility: 'public'
+      }
+    ]
+  }, {
+    tenantId: 'ten_01growthalpha',
+    workspaceId: 'wrk_01alphadev',
+    existingNames: ['dispatch-billing']
+  });
+
+  assert.equal(exportRequest.resourceRef.workspaceId, 'wrk_01alphadev');
+  assert.equal(importRequest.bundle.scope.tenantId, 'ten_01growthalpha');
+  assert.equal(collision.valid, false);
+  assert.equal(collision.code, IMPORT_ERROR_CODES.COLLISION);
 });

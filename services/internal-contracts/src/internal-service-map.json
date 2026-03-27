@@ -36,7 +36,9 @@
         "Accept workspace-scoped event-bridge definitions that route PostgreSQL, MongoDB, storage, OpenWhisk, and IAM source envelopes into managed Kafka topics with traceable audit context.",
         "Accept Kafka-triggered OpenWhisk execution policies and bounded function-trigger definitions without exposing broker-native consumers.",
         "Expose topic metadata, lag, retention, compaction, bridge health, and tenant/workspace event dashboard projections when providers and policy allow the data to be surfaced safely.",
-        "Accept console backend invocation requests and annotate them with the initiating console surface before dispatch, without exposing a private API path for the same business actions."
+        "Accept console backend invocation requests and annotate them with the initiating console surface before dispatch, without exposing a private API path for the same business actions.",
+        "Accept governed function definition export and import workflows for action and package metadata without exposing native OpenWhisk package or web-action administration.",
+        "Enforce public/private managed web-action visibility policy during function definition import before downstream orchestration dispatch."
       ],
       "owned_resources": [
         "public route contract",
@@ -57,7 +59,9 @@
         "kafka topic governance inventory projection",
         "kafka admin audit summary",
         "event bridge request envelope",
-        "kafka function-trigger request envelope"
+        "kafka function-trigger request envelope",
+        "function definition import context",
+        "function definition export bundle"
       ],
       "service_dependencies": [
         "provisioning_orchestrator",
@@ -604,7 +608,11 @@
         "openwhisk_http_exposure_upsert",
         "openwhisk_http_exposure_delete",
         "openwhisk_storage_trigger_upsert",
-        "openwhisk_cron_trigger_upsert"
+        "openwhisk_cron_trigger_upsert",
+        "openwhisk_action_definition_export",
+        "openwhisk_action_definition_import",
+        "openwhisk_package_definition_export",
+        "openwhisk_package_definition_import"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",

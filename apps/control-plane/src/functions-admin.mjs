@@ -8,6 +8,7 @@ import {
   OPENWHISK_ACTION_SOURCE_KINDS,
   OPENWHISK_ADMIN_CAPABILITY_MATRIX,
   OPENWHISK_ADMIN_RESOURCE_KINDS,
+  OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY,
   OPENWHISK_CONSOLE_BACKEND_INITIATING_SURFACE,
   OPENWHISK_SUPPORTED_ACTION_RUNTIMES,
   OPENWHISK_SUPPORTED_TRIGGER_KINDS,
@@ -19,6 +20,13 @@ import {
   resolveOpenWhiskAdminProfile,
   validateConsoleBackendInvocationRequest
 } from '../../../services/adapters/src/openwhisk-admin.mjs';
+import {
+  IMPORT_ERROR_CODES,
+  WEB_ACTION_VISIBILITY_STATES,
+  buildScopeValidatedExportRequest,
+  buildScopeValidatedImportRequest,
+  validateImportBundle
+} from './functions-import-export.mjs';
 
 export const functionsApiFamily = getApiFamily('functions');
 export const functionAdminRequestContract = getContract('function_admin_request');
@@ -29,8 +37,17 @@ export const SUPPORTED_FUNCTION_SOURCE_KINDS = OPENWHISK_ACTION_SOURCE_KINDS;
 export const SUPPORTED_FUNCTION_TRIGGER_KINDS = OPENWHISK_SUPPORTED_TRIGGER_KINDS;
 export const SUPPORTED_FUNCTION_RUNTIMES = OPENWHISK_SUPPORTED_ACTION_RUNTIMES;
 export const FUNCTION_SECRET_NAME_PATTERN = /^[a-z][a-z0-9_-]{0,62}$/;
+export const SUPPORTED_WEB_ACTION_VISIBILITY_STATES = OPENWHISK_ALLOWED_WEB_ACTION_VISIBILITY;
 
-export { buildConsoleBackendActivationAnnotation, validateConsoleBackendInvocationRequest };
+export {
+  buildConsoleBackendActivationAnnotation,
+  validateConsoleBackendInvocationRequest,
+  WEB_ACTION_VISIBILITY_STATES,
+  IMPORT_ERROR_CODES,
+  buildScopeValidatedExportRequest,
+  buildScopeValidatedImportRequest,
+  validateImportBundle
+};
 
 export function listFunctionsAdminRoutes(filters = {}) {
   return filterPublicRoutes({ family: 'functions', ...filters });
@@ -103,6 +120,16 @@ export function summarizeFunctionsAdminSurface() {
       resourceKind: 'action_collection',
       actions: ['list'],
       routeCount: actionRoutes.filter((route) => route.method === 'GET').length
+    },
+    {
+      resourceKind: 'function_definition_export',
+      actions: ['export'],
+      routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_definition_export').length
+    },
+    {
+      resourceKind: 'function_definition_import',
+      actions: ['import'],
+      routeCount: functionsAdminRoutes.filter((route) => route.resourceType === 'function_definition_import').length
     }
   ]);
 }
@@ -154,6 +181,7 @@ export function getOpenWhiskCompatibilitySummary(context = {}) {
       scope: 'function_action'
     },
     workspaceSecretsSupported: true,
+    definitionImportExportSupported: true,
     secretGovernance: {
       writeOnlyValue: true,
       scope: 'workspace_secret',
@@ -163,6 +191,7 @@ export function getOpenWhiskCompatibilitySummary(context = {}) {
     },
     supportedSourceKinds: [...SUPPORTED_FUNCTION_SOURCE_KINDS],
     supportedTriggerKinds: [...SUPPORTED_FUNCTION_TRIGGER_KINDS],
+    supportedWebActionVisibility: [...SUPPORTED_WEB_ACTION_VISIBILITY_STATES],
     supportedRuntimes: summarizeFunctionRuntimeCoverage(),
     supportedVersions: SUPPORTED_OPENWHISK_VERSION_RANGES.map(
       ({ range, label, namespaceStrategy, subjectProvisioning, resourceSurface }) => ({
