@@ -130,7 +130,7 @@ test('traceWorkspaceAuditCorrelation derives complete traces and masks protected
   assert.equal(trace.auditRecords[0].detail.safeValue, 'keep-me');
 });
 
-test('traceWorkspaceAuditCorrelation marks incomplete traces as partial', () => {
+test('traceWorkspaceAuditCorrelation marks console-only traces as broken', () => {
   const trace = traceWorkspaceAuditCorrelation(
     { tenantId: 'ten_01a', workspaceId: 'wrk_01a', targetCorrelationId: 'corr_target' },
     {
@@ -151,7 +151,7 @@ test('traceWorkspaceAuditCorrelation marks incomplete traces as partial', () => 
     }
   );
 
-  assert.equal(trace.traceStatus, 'partial');
+  assert.equal(trace.traceStatus, 'broken');
   assert.deepEqual(trace.missingLinks, ['downstream_system_effect_missing']);
 });
 

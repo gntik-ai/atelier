@@ -7,6 +7,7 @@ import {
   listAuditQueryFilters,
   listAuditQueryScopes
 } from '../../../services/internal-contracts/src/index.mjs';
+import { applyAuditExportMasking } from './observability-audit-export.mjs';
 
 export const AUDIT_QUERY_ERROR_CODES = Object.freeze({
   SCOPE_VIOLATION: 'AUDIT_QUERY_SCOPE_VIOLATION',
@@ -149,6 +150,25 @@ function buildAvailableFilters() {
   }));
 }
 
+function normalizeAuditRecord(record = {}) {
+  return {
+    eventId: record.eventId ?? record.event_id,
+    eventTimestamp: record.eventTimestamp ?? record.event_timestamp,
+    actor: record.actor ?? {},
+    scope: record.scope ?? {},
+    resource: record.resource ?? {},
+    action: record.action ?? {},
+    result: record.result ?? {},
+    correlationId: record.correlationId ?? record.correlation_id,
+    origin: record.origin ?? {},
+    detail: record.detail ?? {}
+  };
+}
+
+function buildMaskedAuditItems(items = []) {
+  return items.map((record) => applyAuditExportMasking(normalizeAuditRecord(record)));
+}
+
 function buildConsoleHints(scopeId) {
   const surface = getAuditConsoleSurface();
   return {
@@ -171,7 +191,7 @@ function executeScopedQuery(scopeId, context = {}, params = {}) {
   const responseContract = getAuditQueryResponseContract();
 
   return {
-    items: result.items ?? [],
+    items: buildMaskedAuditItems(result.items ?? []),
     page: {
       size: result.page?.size ?? query.limit,
       nextCursor: result.page?.nextCursor,

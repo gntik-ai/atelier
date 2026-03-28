@@ -374,3 +374,75 @@ This increment defines the bounded correlation layer that later verification wor
 Downstream work remains:
 
 - `US-OBS-02-T06` — end-to-end verification and data-protection testing
+
+## Scope delivered in `US-OBS-02-T06`
+
+This increment establishes the **end-to-end audit traceability and sensitive-data protection verification baseline** for the platform.
+
+Delivered artifacts:
+
+- `tests/reference/audit-traceability-matrix.yaml` as the machine-readable source of truth for the verification categories, RF coverage, and T01–T05 contract-surface mappings
+- `scripts/lib/audit-traceability.mjs` as the deterministic reader/alignment helper for the traceability matrix and its contract dependencies
+- `tests/unit/observability-audit-traceability.test.mjs` for focused invariant coverage around matrix alignment, masking consistency, scope rejection, and bounded `not_found` handling
+- `tests/e2e/observability/audit-traceability.test.mjs` for executable verification of full-chain traceability, masking consistency, tenant/workspace isolation, permission boundaries, and trace-state diagnostics
+- `tests/reference/README.md`, `tests/e2e/README.md`, and `docs/reference/architecture/README.md` updates so the verification baseline is discoverable from the existing testing and architecture indexes
+
+## Main decisions in `US-OBS-02-T06`
+
+### One executable matrix now anchors the whole audit assurance slice
+
+The platform now defines one machine-readable verification matrix that links:
+
+- the T01 pipeline baseline
+- the T02 canonical audit envelope
+- the T03 consultation surface
+- the T04 export + masking surface
+- the T05 correlation surface
+
+This closes the previous assurance gap where each increment had local validation but no bounded end-to-end verification baseline.
+
+### Consultation, export, and correlation now share one masking expectation
+
+The verification baseline checks the same protected fields through all three audit access paths so sensitive values stay masked consistently instead of relying on per-surface assumptions.
+
+### Trace-state diagnostics are now regression-testable
+
+The verification suite now exercises the four declared correlation states:
+
+- `complete`
+- `partial`
+- `broken`
+- `not_found`
+
+This makes missing-link diagnostics and bounded not-found behavior part of the standard repository test flow.
+
+### The increment stays verification-only
+
+This increment does **not** add:
+
+- new audit routes
+- new contract JSON files
+- new masking categories
+- new emitters or downstream integrations
+- case-management or remediation workflows
+
+## Validation for `US-OBS-02-T06`
+
+Primary validation entry points:
+
+```bash
+node --test tests/unit/observability-audit-traceability.test.mjs
+node --test tests/e2e/observability/audit-traceability.test.mjs
+```
+
+Repository-level confirmation:
+
+```bash
+npm run lint
+npm test
+```
+
+## Residual note for `US-OBS-02-T06`
+
+This increment proves the current T01–T05 audit chain behavior through bounded executable verification.
+If future work changes masking, permissions, or correlation semantics, the matrix and tests must be updated deliberately rather than relying on implicit behavior drift.

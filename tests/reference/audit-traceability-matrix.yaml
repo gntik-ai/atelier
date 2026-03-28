@@ -1,0 +1,425 @@
+version: 2026-03-28
+
+surface_contracts:
+  pipeline: observability_audit_pipeline
+  schema: observability_audit_event_schema
+  consultation: observability_audit_query_surface
+  export: observability_audit_export_surface
+  correlation: observability_audit_correlation_surface
+
+shared_expectations:
+  required_correlation_statuses:
+    - complete
+    - partial
+    - broken
+    - not_found
+  required_audit_scopes:
+    - tenant
+    - workspace
+  required_subsystems:
+    - iam
+    - postgresql
+    - mongodb
+    - kafka
+    - openwhisk
+    - storage
+    - quota_metering
+    - tenant_control_plane
+  required_masking_categories:
+    - credential_material
+    - provider_locator
+  required_audit_permissions:
+    - tenant.audit.read
+    - tenant.audit.export
+    - tenant.audit.correlate
+    - workspace.audit.read
+    - workspace.audit.export
+    - workspace.audit.correlate
+
+verification_scenarios:
+  - id: TRACE-CHAIN-001
+    category: full_chain_traceability
+    priority: P1
+    description: One console-initiated administrative change stays linked across consultation, export, and correlation for the same workspace-scoped correlation id.
+    preconditions:
+      - A workspace-scoped administrative action emits at least one canonical audit record.
+      - At least one downstream subsystem emits evidence linked to the same correlation id.
+    actions:
+      - Query the workspace audit consultation surface for the target correlation id.
+      - Build a workspace audit export preview for the same bounded record set.
+      - Retrieve the workspace audit correlation trace for the same correlation id.
+    expected_outcomes:
+      - All three surfaces expose the same correlation id.
+      - The correlation trace status is complete.
+      - Timeline entries remain time-ordered and subsystem-attributed.
+    requirement_refs:
+      - RF-OBS-004
+      - RF-OBS-005
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_pipeline
+      - observability_audit_event_schema
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-CHAIN-002
+    category: full_chain_traceability
+    priority: P1
+    description: A control-plane accepted action with downstream rejection remains traceable and highlights the failure point.
+    preconditions:
+      - The initiating audit record uses one correlation id.
+      - The downstream evidence records a failed outcome for the same correlation id.
+    actions:
+      - Query the tenant consultation surface for the target correlation id.
+      - Build a tenant export preview for the same record set.
+      - Retrieve the tenant correlation trace.
+    expected_outcomes:
+      - The failure outcome is visible in the consultation, export, and correlation projections.
+      - The correlation trace status is partial or broken rather than complete.
+      - The trace identifies the downstream failure point.
+    requirement_refs:
+      - RF-OBS-004
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_pipeline
+      - observability_audit_event_schema
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-CHAIN-003
+    category: full_chain_traceability
+    priority: P1
+    description: A multi-stage administrative flow preserves a deterministic timeline order across console, control-plane, and downstream evidence.
+    preconditions:
+      - The trace contains console initiation, control-plane execution, and downstream evidence records.
+      - All records use the same correlation id.
+    actions:
+      - Retrieve the correlation trace for the target action.
+    expected_outcomes:
+      - Timeline entries are sorted by eventTimestamp.
+      - Console, control-plane, and downstream phases remain individually identifiable.
+      - Every timeline entry is attributed to one subsystem id.
+    requirement_refs:
+      - RF-OBS-005
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_event_schema
+      - observability_audit_correlation_surface
+
+  - id: TRACE-MASK-001
+    category: masking_consistency
+    priority: P1
+    description: Credential-bearing detail fields remain masked consistently in consultation, export, and correlation projections.
+    preconditions:
+      - One canonical audit record contains password, secret, token, or connection-string fields in detail.
+    actions:
+      - Query the consultation projection for the record.
+      - Build the export preview for the same record.
+      - Retrieve the correlation trace that includes the same record.
+    expected_outcomes:
+      - Credential-bearing detail fields are replaced with the masking placeholder in every projection.
+      - Protected fields remain listed through maskedFieldRefs and sensitivityCategories when the projection exposes them.
+      - Safe non-sensitive fields remain visible.
+    requirement_refs:
+      - RF-OBS-006
+      - RF-OBS-007
+      - RF-OBS-020
+    contract_surfaces:
+      - observability_audit_event_schema
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-MASK-002
+    category: masking_consistency
+    priority: P1
+    description: Provider locator fields remain masked consistently in consultation, export, and correlation projections.
+    preconditions:
+      - One canonical audit record contains raw_hostname, raw_endpoint, object_key, or raw_topic_name in detail.
+    actions:
+      - Query the consultation projection for the record.
+      - Build the export preview for the same record.
+      - Retrieve the correlation trace that includes the same record.
+    expected_outcomes:
+      - Provider locator fields are replaced with the masking placeholder in every projection.
+      - Safe non-sensitive fields remain visible.
+      - The masking category includes provider_locator whenever those fields are present.
+    requirement_refs:
+      - RF-OBS-006
+      - RF-OBS-007
+    contract_surfaces:
+      - observability_audit_event_schema
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-MASK-003
+    category: masking_consistency
+    priority: P1
+    description: Correlated evidence pointers remain display-safe and do not leak raw endpoints, object keys, or credentials.
+    preconditions:
+      - The correlation trace contains at least one downstream evidence pointer with a safe reference.
+    actions:
+      - Retrieve the correlation trace for the target correlation id.
+    expected_outcomes:
+      - Evidence pointers expose only safeRef metadata.
+      - No evidence pointer reveals raw endpoints, object keys, passwords, secrets, or tokens.
+      - The trace keeps the pointer linked to the right downstream subsystem.
+    requirement_refs:
+      - RF-OBS-007
+      - RF-OBS-020
+    contract_surfaces:
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-MASK-004
+    category: masking_consistency
+    priority: P1
+    description: Mixed records preserve safe fields while masking only protected fields.
+    preconditions:
+      - One canonical audit record contains both protected and safe detail fields.
+    actions:
+      - Query the consultation projection for the record.
+      - Build the export preview for the same record.
+      - Retrieve the correlation trace for the same correlation id.
+    expected_outcomes:
+      - Protected fields are masked.
+      - Safe fields remain unchanged.
+      - The entire detail block is not blanked when only some fields are protected.
+    requirement_refs:
+      - RF-OBS-006
+      - RF-OBS-020
+    contract_surfaces:
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-TENANT-001
+    category: tenant_isolation
+    priority: P1
+    description: Tenant-scoped audit surfaces never leak another tenant's records or traces.
+    preconditions:
+      - Tenant A and tenant B each own audit records with overlapping timestamps.
+      - Both tenants have distinct correlation ids.
+    actions:
+      - Query consultation, export, and correlation for tenant A.
+    expected_outcomes:
+      - Only tenant A records are returned.
+      - No tenant B audit record or correlation metadata is disclosed.
+      - Cross-tenant attempts are treated as scope violations.
+    requirement_refs:
+      - RF-OBS-018
+    contract_surfaces:
+      - observability_audit_pipeline
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-TENANT-002
+    category: tenant_isolation
+    priority: P1
+    description: Requesting another tenant's correlation id is rejected without disclosing foreign trace metadata.
+    preconditions:
+      - Tenant A and tenant B have distinct correlation ids.
+    actions:
+      - Attempt to retrieve a tenant correlation trace for tenant A using tenant B's correlation id.
+    expected_outcomes:
+      - The request is rejected as a scope violation or returns a bounded not-found response in the caller scope.
+      - No tenant B trace metadata is disclosed.
+    requirement_refs:
+      - RF-OBS-018
+    contract_surfaces:
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-WS-001
+    category: workspace_isolation
+    priority: P1
+    description: Workspace-scoped audit surfaces stay bounded to one workspace inside the same tenant.
+    preconditions:
+      - Workspace W1 and W2 exist under one tenant.
+      - Each workspace has distinct audit records and correlation ids.
+    actions:
+      - Query consultation, export, and correlation for workspace W1.
+    expected_outcomes:
+      - Only W1-scoped records and traces are returned.
+      - W2 records remain invisible.
+      - The query scope remains workspace.
+    requirement_refs:
+      - RF-OBS-018
+    contract_surfaces:
+      - observability_audit_pipeline
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-WS-002
+    category: workspace_isolation
+    priority: P1
+    description: Requesting another workspace's trace from a workspace-scoped actor is rejected.
+    preconditions:
+      - Workspace W1 and W2 exist under one tenant.
+      - Each workspace has a distinct correlation id.
+    actions:
+      - Attempt to retrieve a workspace correlation trace for W1 while targeting W2.
+    expected_outcomes:
+      - The request is rejected with a scope-violation error.
+      - No W2 trace data is returned to W1.
+    requirement_refs:
+      - RF-OBS-018
+    contract_surfaces:
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-PERM-001
+    category: permission_boundary
+    priority: P2
+    description: Tenant consultation permission does not imply tenant correlation permission.
+    preconditions:
+      - An actor permission set contains tenant.audit.read but omits tenant.audit.correlate.
+    actions:
+      - Evaluate access to tenant consultation and tenant correlation operations.
+    expected_outcomes:
+      - Tenant consultation remains allowed.
+      - Tenant correlation is denied.
+      - Permission checks use the declared contract permission ids rather than adjacent permissions.
+    requirement_refs:
+      - RF-OBS-004
+      - RF-OBS-005
+    contract_surfaces:
+      - observability_audit_query_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-PERM-002
+    category: permission_boundary
+    priority: P2
+    description: Workspace export permission does not imply workspace correlation permission.
+    preconditions:
+      - An actor permission set contains workspace.audit.export but omits workspace.audit.correlate.
+    actions:
+      - Evaluate access to workspace export and workspace correlation operations.
+    expected_outcomes:
+      - Workspace export remains allowed.
+      - Workspace correlation is denied.
+      - No adjacent workspace permission grants implicit correlation access.
+    requirement_refs:
+      - RF-OBS-005
+    contract_surfaces:
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-PERM-003
+    category: permission_boundary
+    priority: P2
+    description: Tenant correlation permission does not imply tenant export permission.
+    preconditions:
+      - An actor permission set contains tenant.audit.correlate but omits tenant.audit.export.
+    actions:
+      - Evaluate access to tenant export and tenant correlation operations.
+    expected_outcomes:
+      - Tenant export is denied.
+      - Tenant correlation remains allowed.
+      - The permission boundary is enforced independently for each audit surface.
+    requirement_refs:
+      - RF-OBS-004
+      - RF-OBS-005
+    contract_surfaces:
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-PERM-004
+    category: permission_boundary
+    priority: P2
+    description: An actor with no explicit audit permissions is denied consultation, export, and correlation.
+    preconditions:
+      - An actor permission set omits all audit-specific permission ids.
+    actions:
+      - Evaluate access to tenant/workspace consultation, export, and correlation operations.
+    expected_outcomes:
+      - Every audited operation is denied.
+      - No read, export, or correlation action is reachable through adjacent non-audit permissions.
+    requirement_refs:
+      - RF-OBS-004
+      - RF-OBS-005
+    contract_surfaces:
+      - observability_audit_query_surface
+      - observability_audit_export_surface
+      - observability_audit_correlation_surface
+
+  - id: TRACE-STATE-001
+    category: trace_state_diagnostics
+    priority: P2
+    description: Missing downstream evidence after a console-initiated action produces a broken trace with explicit missing-link diagnostics.
+    preconditions:
+      - The initiating console audit record exists.
+      - No downstream evidence is linked for the same correlation id.
+    actions:
+      - Retrieve the correlation trace for the target action.
+    expected_outcomes:
+      - The trace status is broken.
+      - Missing-link diagnostics identify the absent downstream effect.
+      - The trace does not report complete.
+    requirement_refs:
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_pipeline
+      - observability_audit_correlation_surface
+
+  - id: TRACE-STATE-002
+    category: trace_state_diagnostics
+    priority: P2
+    description: Downstream evidence without a visible initiating action produces an explicit missing-root diagnostic.
+    preconditions:
+      - Downstream evidence exists for one correlation id.
+      - No console initiation record is found in scope.
+    actions:
+      - Retrieve the correlation trace for the target action.
+    expected_outcomes:
+      - The trace status is broken.
+      - Missing-link diagnostics identify the missing console initiation.
+      - The available downstream evidence remains listed.
+    requirement_refs:
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_event_schema
+      - observability_audit_correlation_surface
+
+  - id: TRACE-STATE-003
+    category: trace_state_diagnostics
+    priority: P2
+    description: A syntactically valid but unknown correlation id produces a bounded not_found response.
+    preconditions:
+      - The queried correlation id does not exist in scope.
+    actions:
+      - Retrieve the correlation trace for the unknown correlation id.
+    expected_outcomes:
+      - The trace status is not_found.
+      - The response remains bounded with no unbounded search or timeout semantics.
+      - Missing-link diagnostics include the not-found marker.
+    requirement_refs:
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_correlation_surface
+
+  - id: TRACE-STATE-004
+    category: trace_state_diagnostics
+    priority: P2
+    description: A partially populated chain reports partial and identifies each missing subsystem link.
+    preconditions:
+      - The trace contains console initiation and at least one downstream effect.
+      - One or more expected downstream subsystems are missing.
+    actions:
+      - Retrieve the correlation trace for the target correlation id.
+    expected_outcomes:
+      - The trace status is partial.
+      - Participating subsystems are listed.
+      - Missing-link diagnostics enumerate the absent links individually.
+    requirement_refs:
+      - RF-OBS-008
+    contract_surfaces:
+      - observability_audit_pipeline
+      - observability_audit_correlation_surface

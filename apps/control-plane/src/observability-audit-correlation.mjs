@@ -198,7 +198,7 @@ function defaultLoader() {
   return { auditRecords: [], downstreamEvents: [] };
 }
 
-function deriveMissingLinks({ timeline = [], auditRecords = [], evidencePointers = [] } = {}) {
+function deriveMissingLinks({ timeline = [], auditRecords = [], evidencePointers = [], downstreamEvents = [], expectedSubsystemIds = [] } = {}) {
   const missingLinks = [];
   const hasConsoleInitiation = timeline.some((entry) => entry.phase === 'console_initiation');
   const hasDownstreamEffect = timeline.some((entry) => entry.phase === 'downstream_system_effect') || evidencePointers.length > 0;
@@ -207,6 +207,16 @@ function deriveMissingLinks({ timeline = [], auditRecords = [], evidencePointers
   if (!hasConsoleInitiation) missingLinks.push('console_initiation_missing');
   if (!hasDownstreamEffect) missingLinks.push('downstream_system_effect_missing');
   if (!hasAuditLink) missingLinks.push('audit_link_missing');
+
+  const presentSubsystems = new Set((downstreamEvents ?? []).map((event) => event?.subsystemId).filter(Boolean));
+  const requiredSubsystems = Array.from(new Set(expectedSubsystemIds ?? [])).filter(Boolean);
+  if (presentSubsystems.size > 0 && requiredSubsystems.length > 0) {
+    for (const subsystemId of requiredSubsystems) {
+      if (!presentSubsystems.has(subsystemId)) {
+        missingLinks.push(`subsystem_missing:${subsystemId}`);
+      }
+    }
+  }
 
   return missingLinks;
 }
@@ -221,13 +231,13 @@ function deriveTraceStatus({ timeline = [], auditRecords = [], evidencePointers 
   }
 
   const hasConsoleInitiation = timeline.some((entry) => entry.phase === 'console_initiation');
-  const hasAnyOperationalData = timeline.length > 0 || auditRecords.length > 0 || evidencePointers.length > 0;
+  const hasDownstreamEffect = timeline.some((entry) => entry.phase === 'downstream_system_effect') || evidencePointers.length > 0;
 
-  if (hasConsoleInitiation && hasAnyOperationalData) {
-    return 'partial';
+  if (!hasConsoleInitiation || !hasDownstreamEffect) {
+    return 'broken';
   }
 
-  return 'broken';
+  return 'partial';
 }
 
 export function normalizeAuditCorrelationRequest(scopeId, context = {}, input = {}) {
@@ -266,7 +276,13 @@ export function buildAuditCorrelationTrace(scopeId, context = {}, input = {}) {
     .filter((entry) => Boolean(entry.eventTimestamp))
     .sort(compareTimelineEntries)
     .slice(0, request.maxItems);
-  const missingLinks = deriveMissingLinks({ timeline, auditRecords, evidencePointers });
+  const missingLinks = deriveMissingLinks({
+    timeline,
+    auditRecords,
+    evidencePointers,
+    downstreamEvents,
+    expectedSubsystemIds: input.expectedSubsystemIds ?? input.expectedSubsystems
+  });
   const traceStatus = deriveTraceStatus({ timeline, auditRecords, evidencePointers, missingLinks });
   const subsystems = Array.from(new Set(timeline.map((entry) => entry.subsystemId).filter(Boolean))).sort();
   const startedAt = timeline[0]?.eventTimestamp ?? null;
