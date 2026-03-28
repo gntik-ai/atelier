@@ -16,6 +16,7 @@ describe('WelcomePage', () => {
     expect(heading).toBeInTheDocument()
     expect(screen.getByText(/consola administrativa del producto baas multi-tenant/i)).toBeInTheDocument()
     expect(screen.getByText(/fundación de consola lista/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /ir al login/i })).toHaveAttribute('href', '/login')
     expect(screen.getByRole('link', { name: /ver alcance inicial/i })).toHaveAttribute('href', '#foundation-overview')
   })
 })

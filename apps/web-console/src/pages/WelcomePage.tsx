@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, KeyRound } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,14 +16,15 @@ export function WelcomePage() {
         <div className="space-y-6">
           <div className="space-y-3">
             <p className="text-sm font-medium uppercase tracking-[0.3em] text-muted-foreground">
-              EP-14 / US-UI-01-T01
+              EP-14 / US-UI-01-T02
             </p>
             <h1 id="foundation-title" className="text-4xl font-semibold tracking-tight sm:text-5xl">
               In Atelier Console
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
               Consola administrativa del producto BaaS multi-tenant preparada para crecer con login,
-              navegación contextual y flujos seguros basados en Keycloak en las siguientes tareas del backlog.
+              navegación contextual y flujos seguros basados en Keycloak por medio de la familia pública
+              `/v1/auth/*`.
             </p>
           </div>
 
@@ -35,28 +36,35 @@ export function WelcomePage() {
               </p>
             </article>
             <article className="rounded-2xl border border-border/80 bg-background/60 p-5">
-              <h2 className="text-base font-semibold">Siguiente incremento</h2>
+              <h2 className="text-base font-semibold">Acceso listo para validar</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                La siguiente tarea añadirá el flujo de login integrado con Keycloak sobre esta fundación.
+                La consola ya puede exponer el flujo de login con feedback para estados especiales,
+                recuperación de contraseña y descubrimiento de signup.
               </p>
             </article>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild>
+              <a href="/login">
+                Ir al login
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </Button>
+            <Button asChild variant="outline">
               <a href="#foundation-overview">
                 Ver alcance inicial
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </Button>
-            <Badge variant="outline">Sin dependencia de APIs para este primer release</Badge>
+            <Badge variant="outline">Sin dependencia de SDKs de navegador para autenticar</Badge>
           </div>
 
           <div id="foundation-overview" className="rounded-2xl border border-dashed border-border/80 p-5">
             <p className="text-sm leading-6 text-muted-foreground">
-              Esta pantalla valida la disponibilidad de la SPA, el sistema de estilos y el enrutamiento base.
-              Las capacidades de autenticación, registro y shell persistente se incorporarán de forma incremental
-              sin rehacer la base tecnológica.
+              Esta pantalla valida la disponibilidad de la SPA, el sistema de estilos, el enrutamiento base
+              y el acceso inicial de la consola. Las rutas protegidas, la persistencia robusta de sesión y
+              el shell persistente se incorporarán en tareas posteriores sin rehacer la base tecnológica.
             </p>
           </div>
         </div>

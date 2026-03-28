@@ -1,14 +1,18 @@
 import { createBrowserRouter } from 'react-router-dom'
 
+import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { WelcomePage } from '@/pages/WelcomePage'
 
-// T01 declara únicamente la ruta raíz y el fallback.
-// Las rutas con shell, login y navegación protegida se añadirán en T04/T05.
+// T02 añade login público. Las rutas con shell y protección llegarán en T05.
 export const appRoutes = [
   {
     path: '/',
     element: <WelcomePage />
+  },
+  {
+    path: '/login',
+    element: <LoginPage />
   },
   {
     path: '*',
