@@ -53224,6 +53224,224 @@
           "platform_team"
         ]
       }
+    },
+    "/v1/metrics/tenants/{tenantId}/usage": {
+      "get": {
+        "operationId": "getTenantUsageSnapshot",
+        "summary": "Fetch one tenant-scoped usage consumption snapshot through the unified observability surface",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant usage snapshot returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream observability query did not complete before the gateway timeout profile expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_usage_snapshot",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "none",
+        "x-owning-service": "control_api",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer",
+          "platform_team"
+        ]
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/usage": {
+      "get": {
+        "operationId": "getWorkspaceUsageSnapshot",
+        "summary": "Fetch one workspace-scoped usage consumption snapshot through the unified observability surface",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace usage snapshot returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageSnapshot"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream observability query did not complete before the gateway timeout profile expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace_usage_snapshot",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "required",
+        "x-owning-service": "control_api",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ]
+      }
     }
   },
   "components": {
@@ -83573,6 +83791,176 @@
           },
           "consoleSummary": {
             "$ref": "#/components/schemas/AuditCorrelationConsoleSummary"
+          }
+        }
+      },
+      "UsageDimensionSnapshot": {
+        "type": "object",
+        "required": [
+          "dimensionId",
+          "displayName",
+          "value",
+          "unit",
+          "scope",
+          "freshnessStatus",
+          "sourceMode",
+          "sourceRef",
+          "observedAt"
+        ],
+        "properties": {
+          "dimensionId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "freshnessStatus": {
+            "enum": [
+              "fresh",
+              "degraded",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "sourceMode": {
+            "enum": [
+              "business_metric_family",
+              "control_plane_inventory"
+            ],
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "observedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
+      "UsageObservationWindow": {
+        "type": "object",
+        "required": [
+          "startedAt",
+          "endedAt"
+        ],
+        "properties": {
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "endedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
+      "UsageCalculationCycleAudit": {
+        "type": "object",
+        "required": [
+          "cycleId",
+          "cadenceSeconds",
+          "processedScopes",
+          "degradedDimensions",
+          "snapshotTimestamp"
+        ],
+        "properties": {
+          "cycleId": {
+            "type": "string"
+          },
+          "cadenceSeconds": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "processedScopes": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "tenant",
+                "workspace"
+              ],
+              "type": "string"
+            }
+          },
+          "degradedDimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "snapshotTimestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      },
+      "UsageSnapshot": {
+        "type": "object",
+        "required": [
+          "snapshotId",
+          "queryScope",
+          "tenantId",
+          "workspaceId",
+          "snapshotTimestamp",
+          "observationWindow",
+          "dimensions",
+          "degradedDimensions",
+          "calculationCycle"
+        ],
+        "properties": {
+          "snapshotId": {
+            "type": "string"
+          },
+          "queryScope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "snapshotTimestamp": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "observationWindow": {
+            "$ref": "#/components/schemas/UsageObservationWindow"
+          },
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageDimensionSnapshot"
+            }
+          },
+          "degradedDimensions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "calculationCycle": {
+            "$ref": "#/components/schemas/UsageCalculationCycleAudit"
           }
         }
       }

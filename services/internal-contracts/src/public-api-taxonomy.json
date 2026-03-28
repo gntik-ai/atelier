@@ -994,6 +994,20 @@
       "scope": "workspace",
       "summary": "Workspace-scoped audit correlation trace.",
       "authorization_resource": "workspace"
+    },
+    {
+      "resource_type": "tenant_usage_snapshot",
+      "family": "metrics",
+      "scope": "tenant",
+      "summary": "Tenant-scoped usage consumption snapshot across metered dimensions.",
+      "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "workspace_usage_snapshot",
+      "family": "metrics",
+      "scope": "workspace",
+      "summary": "Workspace-scoped usage consumption snapshot across metered dimensions.",
+      "authorization_resource": "workspace"
     }
   ]
 }

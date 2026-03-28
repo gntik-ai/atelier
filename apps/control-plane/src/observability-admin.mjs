@@ -20,6 +20,12 @@ import {
   getObservabilityHealthExposureTemplates,
   getObservabilityHealthProjection,
   getObservabilityProbeType,
+  getPublicRoute,
+  getUsageCalculationAuditContract,
+  getUsageConsumptionScope,
+  getUsageFreshnessState,
+  getUsageMeteredDimension,
+  getUsageRefreshPolicy,
   getObservedSubsystem,
   listAlertCategories,
   listAlertLifecycleStates,
@@ -36,11 +42,15 @@ import {
   listObservabilityMetricFamilies,
   listObservabilityProbeTypes,
   listObservedSubsystems,
+  listUsageConsumptionScopes,
+  listUsageFreshnessStates,
+  listUsageMeteredDimensions,
   readObservabilityBusinessMetrics,
   readObservabilityConsoleAlerts,
   readObservabilityDashboards,
   readObservabilityHealthChecks,
-  readObservabilityMetricsStack
+  readObservabilityMetricsStack,
+  readObservabilityUsageConsumption
 } from '../../../services/internal-contracts/src/index.mjs';
 
 export const observabilityApiFamily = getApiFamily('metrics');
@@ -67,6 +77,12 @@ export const observabilityHealthSummaryStatuses = listHealthSummaryStatuses();
 export const observabilityAlertCategories = listAlertCategories();
 export const observabilityAlertSeverityLevels = listAlertSeverityLevels();
 export const observabilityAlertLifecycleStates = listAlertLifecycleStates();
+export const observabilityUsageConsumption = readObservabilityUsageConsumption();
+export const usageConsumptionScopes = listUsageConsumptionScopes();
+export const usageFreshnessStates = listUsageFreshnessStates();
+export const usageMeteredDimensions = listUsageMeteredDimensions();
+export const usageRefreshPolicy = getUsageRefreshPolicy();
+export const usageCalculationAuditContract = getUsageCalculationAuditContract();
 
 export function listObservabilitySubsystems() {
   return listObservedSubsystems();
@@ -675,4 +691,303 @@ export function summarizeConsoleAlertsContract() {
     auditContext: observabilityConsoleAlerts.audit_context ?? {},
     downstreamConsumers: observabilityConsoleAlerts.downstream_consumers ?? []
   };
+}
+
+export const USAGE_CONSUMPTION_ERROR_CODES = Object.freeze({
+  SCOPE_VIOLATION: 'USAGE_CONSUMPTION_SCOPE_VIOLATION',
+  UNKNOWN_DIMENSION: 'USAGE_CONSUMPTION_UNKNOWN_DIMENSION',
+  UNKNOWN_FRESHNESS_STATE: 'USAGE_CONSUMPTION_UNKNOWN_FRESHNESS_STATE',
+  INVALID_SNAPSHOT: 'USAGE_CONSUMPTION_INVALID_SNAPSHOT'
+});
+
+function usageInvariant(condition, message, code) {
+  if (!condition) {
+    const error = new Error(message);
+    error.code = code;
+    throw error;
+  }
+}
+
+function normalizeTimestamp(value, fieldName) {
+  usageInvariant(typeof value === 'string' && value.length > 0, `${fieldName} must be a non-empty ISO timestamp.`, USAGE_CONSUMPTION_ERROR_CODES.INVALID_SNAPSHOT);
+  const date = new Date(value);
+  usageInvariant(!Number.isNaN(date.valueOf()), `${fieldName} must be a valid ISO timestamp.`, USAGE_CONSUMPTION_ERROR_CODES.INVALID_SNAPSHOT);
+  return value;
+}
+
+function normalizeObservationWindow(window = {}) {
+  const startedAt = normalizeTimestamp(window.startedAt, 'observationWindow.startedAt');
+  const endedAt = normalizeTimestamp(window.endedAt, 'observationWindow.endedAt');
+  usageInvariant(new Date(startedAt).valueOf() <= new Date(endedAt).valueOf(), 'observationWindow.startedAt must be earlier than or equal to observationWindow.endedAt.', USAGE_CONSUMPTION_ERROR_CODES.INVALID_SNAPSHOT);
+  return { startedAt, endedAt };
+}
+
+function toNumber(value, fallback = 0) {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+function slugTimestamp(timestamp) {
+  return String(timestamp).replace(/[:.]/g, '-');
+}
+
+function resolveUsageScope(scopeId) {
+  const scope = getUsageConsumptionScope(scopeId);
+  usageInvariant(Boolean(scope), `Unknown usage consumption scope ${scopeId}.`, USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+  return scope;
+}
+
+function resolveUsageDimension(dimensionId) {
+  const dimension = getUsageMeteredDimension(dimensionId);
+  usageInvariant(Boolean(dimension), `Unknown usage metered dimension ${dimensionId}.`, USAGE_CONSUMPTION_ERROR_CODES.UNKNOWN_DIMENSION);
+  return dimension;
+}
+
+function resolveUsageFreshnessState(stateId) {
+  const state = getUsageFreshnessState(stateId);
+  usageInvariant(Boolean(state), `Unknown usage freshness state ${stateId}.`, USAGE_CONSUMPTION_ERROR_CODES.UNKNOWN_FRESHNESS_STATE);
+  return state;
+}
+
+function normalizeUsageScopeBinding(scope, context = {}, input = {}) {
+  if (scope.id === 'tenant') {
+    const tenantId = input.tenantId ?? context.routeTenantId ?? context.targetTenantId ?? context.tenantId;
+    usageInvariant(Boolean(tenantId), 'tenantId is required for tenant usage snapshots.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+
+    if (context.tenantId && tenantId !== context.tenantId) {
+      usageInvariant(false, 'tenant usage snapshot must stay within the caller tenant scope.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+    }
+
+    usageInvariant(!(input.workspaceId ?? context.routeWorkspaceId ?? context.targetWorkspaceId ?? context.workspaceId), 'tenant usage snapshot does not allow workspace scope widening.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+
+    return {
+      tenantId,
+      workspaceId: null,
+      queryScope: 'tenant'
+    };
+  }
+
+  const workspaceId = input.workspaceId ?? context.routeWorkspaceId ?? context.targetWorkspaceId ?? context.workspaceId;
+  usageInvariant(Boolean(workspaceId), 'workspaceId is required for workspace usage snapshots.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+
+  if (context.workspaceId && workspaceId !== context.workspaceId) {
+    usageInvariant(false, 'workspace usage snapshot must stay within the caller workspace scope.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+  }
+
+  const tenantId = input.tenantId ?? context.tenantId ?? context.routeTenantId ?? context.targetTenantId;
+  usageInvariant(Boolean(tenantId), 'tenantId is required for workspace usage snapshots.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+
+  if (context.tenantId && tenantId !== context.tenantId) {
+    usageInvariant(false, 'workspace usage snapshot must stay within the caller tenant scope.', USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+  }
+
+  return {
+    tenantId,
+    workspaceId,
+    queryScope: 'workspace'
+  };
+}
+
+function normalizeDimensionValueMap(input = {}) {
+  const valueMap = new Map();
+
+  for (const [dimensionId, value] of Object.entries(input.values ?? {})) {
+    valueMap.set(dimensionId, { value });
+  }
+
+  for (const dimension of input.dimensions ?? []) {
+    if (!dimension?.dimensionId) {
+      continue;
+    }
+
+    valueMap.set(dimension.dimensionId, {
+      value: dimension.value,
+      freshnessStatus: dimension.freshnessStatus,
+      observedAt: dimension.observedAt,
+      sourceMode: dimension.sourceMode,
+      sourceRef: dimension.sourceRef
+    });
+  }
+
+  return valueMap;
+}
+
+export function summarizeObservabilityUsageConsumption() {
+  return {
+    version: observabilityUsageConsumption.version,
+    sourceContracts: {
+      businessMetrics: observabilityUsageConsumption.source_business_metrics_contract,
+      healthChecks: observabilityUsageConsumption.source_health_contract,
+      auditEventSchema: observabilityUsageConsumption.source_audit_event_schema_contract,
+      authorizationModel: observabilityUsageConsumption.source_authorization_contract,
+      publicApi: observabilityUsageConsumption.source_public_api_contract
+    },
+    refreshPolicy: usageRefreshPolicy,
+    scopes: usageConsumptionScopes.map((scope) => ({
+      id: scope.id,
+      displayName: scope.display_name,
+      requiredPermission: scope.required_permission,
+      requiredContextFields: scope.required_context_fields ?? [],
+      routeOperationId: scope.route_operation_id,
+      resourceType: scope.resource_type
+    })),
+    freshnessStates: usageFreshnessStates.map((state) => ({
+      id: state.id,
+      label: state.label,
+      usableForQuotaEvaluation: state.usable_for_quota_evaluation
+    })),
+    meteredDimensions: usageMeteredDimensions.map((dimension) => ({
+      id: dimension.id,
+      displayName: dimension.display_name,
+      unit: dimension.unit,
+      aggregationKind: dimension.aggregation_kind,
+      sourceMode: dimension.source_mode,
+      sourceRef: dimension.source_ref,
+      supportedScopes: dimension.supported_scopes ?? []
+    })),
+    calculationAudit: usageCalculationAuditContract,
+    boundaries: observabilityUsageConsumption.boundaries ?? []
+  };
+}
+
+export function buildUsageDimensionSnapshot(input = {}) {
+  const dimension = resolveUsageDimension(input.dimensionId ?? input.id);
+  const scopeId = input.scopeId ?? input.queryScope ?? 'tenant';
+  usageInvariant((dimension.supported_scopes ?? []).includes(scopeId), `Usage dimension ${dimension.id} does not support scope ${scopeId}.`, USAGE_CONSUMPTION_ERROR_CODES.SCOPE_VIOLATION);
+  const freshnessState = resolveUsageFreshnessState(input.freshnessStatus ?? 'fresh');
+
+  return {
+    dimensionId: dimension.id,
+    displayName: dimension.display_name,
+    value: toNumber(input.value, 0),
+    unit: input.unit ?? dimension.unit,
+    scope: scopeId,
+    freshnessStatus: freshnessState.id,
+    sourceMode: input.sourceMode ?? dimension.source_mode,
+    sourceRef: input.sourceRef ?? dimension.source_ref,
+    observedAt: normalizeTimestamp(input.observedAt, 'observedAt')
+  };
+}
+
+function buildUsageSnapshot(scopeId, context = {}, input = {}) {
+  const scope = resolveUsageScope(scopeId);
+  const scopeBinding = normalizeUsageScopeBinding(scope, context, input);
+  const snapshotTimestamp = normalizeTimestamp(input.snapshotTimestamp, 'snapshotTimestamp');
+  const observationWindow = normalizeObservationWindow(input.observationWindow ?? {});
+  const dimensionValueMap = normalizeDimensionValueMap(input);
+
+  const dimensions = usageMeteredDimensions
+    .filter((dimension) => (dimension.supported_scopes ?? []).includes(scopeId))
+    .map((dimension) => {
+      const overrides = dimensionValueMap.get(dimension.id) ?? {};
+
+      return buildUsageDimensionSnapshot({
+        dimensionId: dimension.id,
+        scopeId,
+        value: overrides.value,
+        freshnessStatus: overrides.freshnessStatus ?? (input.dimensionFreshness?.[dimension.id] ?? 'fresh'),
+        observedAt: overrides.observedAt ?? (input.dimensionObservedAt?.[dimension.id] ?? observationWindow.endedAt),
+        sourceMode: overrides.sourceMode,
+        sourceRef: overrides.sourceRef
+      });
+    });
+
+  const degradedDimensions = dimensions
+    .filter((dimension) => dimension.freshnessStatus !== 'fresh')
+    .map((dimension) => dimension.dimensionId);
+
+  const calculationCycle = {
+    cycleId: input.cycleId ?? `usage-cycle-${scopeId}-${slugTimestamp(snapshotTimestamp)}`,
+    cadenceSeconds: input.cadenceSeconds ?? usageRefreshPolicy.default_cadence_seconds ?? 300,
+    processedScopes: input.processedScopes ?? [scopeId],
+    degradedDimensions,
+    snapshotTimestamp
+  };
+
+  return {
+    snapshotId: input.snapshotId ?? `usage-${scopeId}-${scopeBinding.tenantId}-${scopeBinding.workspaceId ?? 'all'}-${slugTimestamp(snapshotTimestamp)}`,
+    queryScope: scopeBinding.queryScope,
+    tenantId: scopeBinding.tenantId,
+    workspaceId: scopeBinding.workspaceId,
+    snapshotTimestamp,
+    observationWindow,
+    dimensions,
+    degradedDimensions,
+    calculationCycle
+  };
+}
+
+export function buildTenantUsageSnapshot(input = {}) {
+  return buildUsageSnapshot('tenant', {}, input);
+}
+
+export function buildWorkspaceUsageSnapshot(input = {}) {
+  return buildUsageSnapshot('workspace', {}, input);
+}
+
+export function buildUsageCalculationCycleAuditRecord(input = {}) {
+  const startedAt = normalizeTimestamp(input.startedAt ?? input.snapshotTimestamp, 'startedAt');
+  const completedAt = normalizeTimestamp(input.completedAt ?? input.snapshotTimestamp, 'completedAt');
+  const snapshotTimestamp = normalizeTimestamp(input.snapshotTimestamp ?? completedAt, 'snapshotTimestamp');
+
+  return {
+    subsystemId: usageCalculationAuditContract.subsystem_id,
+    actionCategory: usageCalculationAuditContract.action_category,
+    originSurface: usageCalculationAuditContract.origin_surface,
+    resultOutcome: input.resultOutcome ?? usageCalculationAuditContract.result_outcome_default ?? 'succeeded',
+    detail: {
+      cycleId: input.cycleId ?? `usage-cycle-${slugTimestamp(snapshotTimestamp)}`,
+      processedScopes: input.processedScopes ?? [],
+      degradedDimensions: input.degradedDimensions ?? [],
+      snapshotTimestamp,
+      startedAt,
+      completedAt
+    }
+  };
+}
+
+function defaultUsageLoader(_query, input = {}) {
+  return input;
+}
+
+function executeUsageSnapshotQuery(scopeId, context = {}, input = {}) {
+  const scope = resolveUsageScope(scopeId);
+  const scopeBinding = normalizeUsageScopeBinding(scope, context, input);
+  const loader = context.loadUsageSnapshot ?? defaultUsageLoader;
+  const loaded = loader({
+    scopeId,
+    tenantId: scopeBinding.tenantId,
+    workspaceId: scopeBinding.workspaceId,
+    requiredPermission: scope.required_permission,
+    routeOperationId: scope.route_operation_id
+  }, input) ?? {};
+
+  const resolvedInput = {
+    ...input,
+    ...loaded,
+    tenantId: scopeBinding.tenantId,
+    workspaceId: scopeBinding.workspaceId
+  };
+
+  return scopeId === 'tenant'
+    ? buildTenantUsageSnapshot(resolvedInput)
+    : buildWorkspaceUsageSnapshot(resolvedInput);
+}
+
+export function queryTenantUsageSnapshot(context = {}, input = {}) {
+  return executeUsageSnapshotQuery('tenant', context, input);
+}
+
+export function queryWorkspaceUsageSnapshot(context = {}, input = {}) {
+  return executeUsageSnapshotQuery('workspace', context, input);
+}
+
+export function listUsageConsumptionRoutes() {
+  return usageConsumptionScopes
+    .map((scope) => getPublicRoute(scope.route_operation_id))
+    .filter(Boolean);
 }

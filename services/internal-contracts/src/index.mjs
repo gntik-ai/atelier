@@ -13,6 +13,7 @@ export const OBSERVABILITY_AUDIT_QUERY_SURFACE_URL = new URL('./observability-au
 export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_URL = new URL('./observability-audit-export-surface.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_URL = new URL('./observability-audit-correlation-surface.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
+const OBSERVABILITY_USAGE_CONSUMPTION_URL = new URL('./observability-usage-consumption.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
@@ -30,6 +31,7 @@ let cachedObservabilityAuditQuerySurface;
 let cachedObservabilityAuditExportSurface;
 let cachedObservabilityAuditCorrelationSurface;
 let cachedObservabilityBusinessMetrics;
+let cachedObservabilityUsageConsumption;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
@@ -138,6 +140,14 @@ export function readObservabilityBusinessMetrics() {
   return cachedObservabilityBusinessMetrics;
 }
 
+export function readObservabilityUsageConsumption() {
+  if (!cachedObservabilityUsageConsumption) {
+    cachedObservabilityUsageConsumption = JSON.parse(readFileSync(OBSERVABILITY_USAGE_CONSUMPTION_URL, 'utf8'));
+  }
+
+  return cachedObservabilityUsageConsumption;
+}
+
 export function readObservabilityConsoleAlerts() {
   if (!cachedObservabilityConsoleAlerts) {
     cachedObservabilityConsoleAlerts = JSON.parse(readFileSync(OBSERVABILITY_CONSOLE_ALERTS_URL, 'utf8'));
@@ -175,6 +185,7 @@ export const OBSERVABILITY_AUDIT_QUERY_SURFACE_VERSION = readObservabilityAuditQ
 export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_VERSION = readObservabilityAuditExportSurface().version;
 export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_VERSION = readObservabilityAuditCorrelationSurface().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
+export const OBSERVABILITY_USAGE_CONSUMPTION_VERSION = readObservabilityUsageConsumption().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
@@ -592,6 +603,38 @@ export function getObservabilityBusinessMetricControls() {
     auditContext: businessMetrics.audit_context ?? {},
     freshnessAndCollection: businessMetrics.freshness_and_collection ?? {}
   };
+}
+
+export function listUsageConsumptionScopes() {
+  return readObservabilityUsageConsumption().supported_snapshot_scopes ?? [];
+}
+
+export function getUsageConsumptionScope(scopeId) {
+  return listUsageConsumptionScopes().find((scope) => scope.id === scopeId);
+}
+
+export function listUsageMeteredDimensions() {
+  return readObservabilityUsageConsumption().metered_dimensions ?? [];
+}
+
+export function getUsageMeteredDimension(dimensionId) {
+  return listUsageMeteredDimensions().find((dimension) => dimension.id === dimensionId);
+}
+
+export function listUsageFreshnessStates() {
+  return readObservabilityUsageConsumption().freshness_states ?? [];
+}
+
+export function getUsageFreshnessState(stateId) {
+  return listUsageFreshnessStates().find((state) => state.id === stateId);
+}
+
+export function getUsageRefreshPolicy() {
+  return readObservabilityUsageConsumption().refresh_policy ?? {};
+}
+
+export function getUsageCalculationAuditContract() {
+  return readObservabilityUsageConsumption().calculation_audit ?? {};
 }
 
 export function listHealthSummaryScopes() {

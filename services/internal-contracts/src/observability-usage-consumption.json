@@ -1,0 +1,269 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-03-T01",
+  "system": "in-atelier-usage-consumption",
+  "source_business_metrics_contract": "2026-03-28",
+  "source_health_contract": "2026-03-28",
+  "source_audit_event_schema_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_public_api_contract": "2026-03-26",
+  "principles": [
+    "Usage consumption must be calculated from the existing observability plane and bounded inventory counts instead of from static quota configuration.",
+    "Every published usage snapshot must preserve tenant and workspace isolation and must never widen scope beyond the caller's authorization boundary.",
+    "Usage snapshots must remain trustworthy under telemetry degradation by marking freshness explicitly instead of silently presenting stale or missing evidence as current usage.",
+    "This baseline publishes the authoritative usage input layer for downstream quota policy, alerting, blocking, console, and verification work without preempting those later concerns."
+  ],
+  "supported_snapshot_scopes": [
+    {
+      "id": "tenant",
+      "display_name": "Tenant usage snapshot",
+      "required_permission": "tenant.usage.read",
+      "required_context_fields": [
+        "tenantId"
+      ],
+      "route_operation_id": "getTenantUsageSnapshot",
+      "resource_type": "tenant_usage_snapshot",
+      "allowed_dimension_source_modes": [
+        "business_metric_family",
+        "control_plane_inventory"
+      ]
+    },
+    {
+      "id": "workspace",
+      "display_name": "Workspace usage snapshot",
+      "required_permission": "workspace.usage.read",
+      "required_context_fields": [
+        "tenantId",
+        "workspaceId"
+      ],
+      "route_operation_id": "getWorkspaceUsageSnapshot",
+      "resource_type": "workspace_usage_snapshot",
+      "allowed_dimension_source_modes": [
+        "business_metric_family",
+        "control_plane_inventory"
+      ]
+    }
+  ],
+  "freshness_states": [
+    {
+      "id": "fresh",
+      "label": "Fresh",
+      "usable_for_quota_evaluation": true,
+      "description": "The underlying collection signals are current enough to be treated as the authoritative usage baseline."
+    },
+    {
+      "id": "degraded",
+      "label": "Degraded",
+      "usable_for_quota_evaluation": true,
+      "description": "The latest evidence is present but older than the preferred cadence; consumers must surface the degraded state."
+    },
+    {
+      "id": "unavailable",
+      "label": "Unavailable",
+      "usable_for_quota_evaluation": false,
+      "description": "The usage evidence is missing or no trustworthy source was available for the dimension at calculation time."
+    }
+  ],
+  "refresh_policy": {
+    "default_cadence_seconds": 300,
+    "degraded_after_seconds": 900,
+    "collection_health_metric": "in_atelier_observability_collection_health",
+    "lag_metric": "in_atelier_observability_collection_lag_seconds",
+    "rules": [
+      "The default calculation cadence is five minutes unless a narrower operational profile overrides it.",
+      "Freshness is evaluated per dimension and summarized at snapshot level through the degradedDimensions list.",
+      "Unavailable dimensions must remain visible in the response catalog instead of being dropped from the snapshot."
+    ]
+  },
+  "metered_dimensions": [
+    {
+      "id": "api_requests",
+      "display_name": "API requests",
+      "unit": "request",
+      "aggregation_kind": "counter_delta",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "business_metric_family",
+      "source_ref": "api_requests_total",
+      "source_domain": "api_usage",
+      "description": "Total REST and gateway-facing API requests attributed to the target scope during the observation window."
+    },
+    {
+      "id": "function_invocations",
+      "display_name": "Function invocations",
+      "unit": "invocation",
+      "aggregation_kind": "counter_delta",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "business_metric_family",
+      "source_ref": "function_invocations_total",
+      "source_domain": "function_usage",
+      "description": "OpenWhisk-backed function invocations attributed to the target scope during the observation window."
+    },
+    {
+      "id": "storage_volume_bytes",
+      "display_name": "Storage logical volume",
+      "unit": "byte",
+      "aggregation_kind": "gauge",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "business_metric_family",
+      "source_ref": "storage_logical_volume_bytes",
+      "source_domain": "storage_usage",
+      "description": "Logical object-storage volume attributed to the target scope at snapshot time."
+    },
+    {
+      "id": "data_service_operations",
+      "display_name": "Data service operations",
+      "unit": "operation",
+      "aggregation_kind": "counter_delta",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "business_metric_family",
+      "source_ref": "data_service_operations_total",
+      "source_domain": "data_service_usage",
+      "description": "Aggregated PostgreSQL and MongoDB workload operations attributed to the target scope during the observation window."
+    },
+    {
+      "id": "realtime_connections",
+      "display_name": "Realtime connections",
+      "unit": "connection",
+      "aggregation_kind": "gauge",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "business_metric_family",
+      "source_ref": "realtime_connections_active",
+      "source_domain": "realtime_event_activity",
+      "description": "Active realtime connection posture attributed to the target scope at snapshot time."
+    },
+    {
+      "id": "logical_databases",
+      "display_name": "Logical databases",
+      "unit": "database",
+      "aggregation_kind": "exact_inventory_count",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "control_plane_inventory",
+      "source_ref": "logical_database_inventory",
+      "source_domain": "data_service_usage",
+      "description": "Exact count of logical PostgreSQL and MongoDB database resources bound to the target scope."
+    },
+    {
+      "id": "topics",
+      "display_name": "Topics",
+      "unit": "topic",
+      "aggregation_kind": "exact_inventory_count",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "control_plane_inventory",
+      "source_ref": "kafka_topic_inventory",
+      "source_domain": "realtime_event_activity",
+      "description": "Exact count of governed Kafka topics bound to the target scope."
+    },
+    {
+      "id": "collections_tables",
+      "display_name": "Collections and tables",
+      "unit": "relation",
+      "aggregation_kind": "exact_inventory_count",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "control_plane_inventory",
+      "source_ref": "data_relation_inventory",
+      "source_domain": "data_service_usage",
+      "description": "Exact count of tenant/workspace-managed MongoDB collections and PostgreSQL tables bound to the target scope."
+    },
+    {
+      "id": "error_count",
+      "display_name": "Errors",
+      "unit": "error",
+      "aggregation_kind": "counter_delta",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "source_mode": "business_metric_family",
+      "source_ref": "identity_events_total",
+      "source_domain": "identity_activity",
+      "description": "Bounded error-count projection for workload and control-plane failures during the observation window, represented through normalized observability inputs rather than raw error payloads."
+    }
+  ],
+  "snapshot_contract": {
+    "required_fields": [
+      "snapshotId",
+      "queryScope",
+      "tenantId",
+      "workspaceId",
+      "snapshotTimestamp",
+      "observationWindow",
+      "dimensions",
+      "degradedDimensions",
+      "calculationCycle"
+    ],
+    "observation_window": {
+      "required_fields": [
+        "startedAt",
+        "endedAt"
+      ],
+      "rules": [
+        "startedAt must be earlier than or equal to endedAt.",
+        "All dimension observations in one snapshot share the same observation window unless a future task explicitly adds per-dimension override metadata."
+      ]
+    },
+    "dimension_projection": {
+      "required_fields": [
+        "dimensionId",
+        "displayName",
+        "value",
+        "unit",
+        "freshnessStatus",
+        "sourceMode",
+        "sourceRef",
+        "observedAt"
+      ],
+      "rules": [
+        "Every snapshot must include every catalog dimension supported by the requested scope.",
+        "Dimensions with unavailable evidence remain present with value 0 and freshnessStatus unavailable unless a future task introduces a different explicit null policy."
+      ]
+    }
+  },
+  "calculation_audit": {
+    "subsystem_id": "quota_metering",
+    "action_category": "configuration_change",
+    "origin_surface": "scheduled_operation",
+    "result_outcome_default": "succeeded",
+    "required_detail_fields": [
+      "cycleId",
+      "processedScopes",
+      "degradedDimensions",
+      "snapshotTimestamp"
+    ],
+    "rules": [
+      "The calculation-cycle audit summary must stay compatible with the canonical audit event schema and reuse the quota_metering subsystem id.",
+      "Workspace-scoped responses may reference only their own workspace while tenant-scoped responses may summarize tenant-wide processing for the requested tenant.",
+      "The audit summary must never embed raw per-request identifiers, secret material, or cross-tenant payload detail."
+    ]
+  },
+  "boundaries": [
+    "threshold_policy_evaluation_is_defined_in_us_obs_03_t02",
+    "alert_emission_is_defined_in_us_obs_03_t03",
+    "hard_limit_blocking_is_defined_in_us_obs_03_t04",
+    "console_usage_projection_is_defined_in_us_obs_03_t05",
+    "cross_module_consumption_and_enforcement_tests_are_defined_in_us_obs_03_t06"
+  ]
+}

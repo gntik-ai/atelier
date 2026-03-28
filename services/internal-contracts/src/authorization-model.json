@@ -456,6 +456,7 @@
       "workspace.effective_permissions.read",
       "workspace.audit.read",
       "workspace.audit.correlate",
+      "workspace.usage.read",
       "workspace.effective_permissions.recalculate",
       "workspace.audit.export"
     ],
@@ -719,6 +720,7 @@
           "tenant.suspend",
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "workspace.audit.correlate",
           "workspace.update",
           "workspace.members.manage",
@@ -741,6 +743,7 @@
           "tenant.usage.read",
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "app.read",
           "service_account.read"
         ],
@@ -758,6 +761,7 @@
           "tenant.read",
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "workspace.audit.correlate",
           "app.read",
           "service_account.read",
@@ -784,6 +788,7 @@
           "tenant.audit.read",
           "tenant.audit.correlate",
           "tenant.usage.read",
+          "workspace.usage.read",
           "tenant.invitations.manage",
           "tenant.role_mappings.manage",
           "tenant.ownership.transfer",
@@ -829,6 +834,7 @@
           "tenant.audit.read",
           "tenant.audit.correlate",
           "tenant.usage.read",
+          "workspace.usage.read",
           "tenant.invitations.manage",
           "tenant.role_mappings.manage",
           "tenant.ownership_transfers.read",
@@ -872,6 +878,7 @@
         "allowed_actions": [
           "tenant.read",
           "tenant.usage.read",
+          "workspace.usage.read",
           "tenant.effective_permissions.read",
           "tenant.ownership_transfers.read",
           "workspace.read",
@@ -919,6 +926,7 @@
           "tenant.read",
           "tenant.audit.read",
           "tenant.usage.read",
+          "workspace.usage.read",
           "tenant.effective_permissions.read",
           "tenant.ownership_transfers.read",
           "workspace.read",
@@ -967,6 +975,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "workspace.audit.correlate",
           "workspace.update",
           "workspace.members.manage",
@@ -1007,6 +1016,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "workspace.audit.correlate",
           "workspace.update",
           "workspace.members.manage",
@@ -1063,7 +1073,8 @@
           "app.federation.read",
           "app.attribute_mappers.manage",
           "app.templates.read",
-          "database.rpc.execute"
+          "database.rpc.execute",
+          "workspace.usage.read"
         ],
         "denied_actions": [
           "workspace.members.manage",
@@ -1089,6 +1100,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "workspace.audit.correlate",
           "database.read",
           "bucket.read",
@@ -1120,6 +1132,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "workspace.audit.correlate",
           "database.read",
           "bucket.read",
@@ -1147,6 +1160,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.usage.read",
           "database.read",
           "bucket.read",
           "topic.read",

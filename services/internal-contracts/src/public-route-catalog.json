@@ -8481,6 +8481,78 @@
       "allowAnonymousOptions": true,
       "allowedContentTypes": [],
       "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "tenant_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "getTenantUsageSnapshot",
+      "path": "/v1/metrics/tenants/{tenantId}/usage",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "default",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "tenant_usage_snapshot",
+      "scope": "tenant",
+      "summary": "Fetch one tenant-scoped usage consumption snapshot through the unified observability surface",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "none"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
         "workspace_owner",
         "workspace_admin",
         "workspace_operator",
@@ -8993,6 +9065,78 @@
       "resourceType": "metric_series",
       "scope": "workspace",
       "summary": "Fetch one workspace metric series window through the unified metrics family",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
+        "workspace_owner",
+        "workspace_operator",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "getWorkspaceUsageSnapshot",
+      "path": "/v1/metrics/workspaces/{workspaceId}/usage",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "default",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "workspace_usage_snapshot",
+      "scope": "workspace",
+      "summary": "Fetch one workspace-scoped usage consumption snapshot through the unified observability surface",
       "supportsIdempotencyKey": false,
       "tags": [
         "Metrics"
