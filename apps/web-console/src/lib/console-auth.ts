@@ -92,6 +92,10 @@ export interface ConsoleLoginSession {
   principal?: ConsoleSessionPrincipal
 }
 
+export interface ConsoleTokenRefreshRequest {
+  refreshToken: string
+}
+
 export interface ConsoleSignupRegistration {
   registrationId: string
   userId: string
@@ -131,6 +135,21 @@ export async function createConsoleLoginSession(
   return requestJson<ConsoleLoginSession>('/v1/auth/login-sessions', {
     method: 'POST',
     body: payload as unknown as Record<string, string | boolean>,
+    idempotent: true,
+    signal
+  })
+}
+
+export async function refreshConsoleLoginSession(
+  sessionId: string,
+  refreshToken: string,
+  signal?: AbortSignal
+): Promise<ConsoleLoginSession> {
+  return requestJson<ConsoleLoginSession>(`/v1/auth/login-sessions/${encodeURIComponent(sessionId)}/refresh`, {
+    method: 'POST',
+    body: {
+      refreshToken
+    },
     idempotent: true,
     signal
   })

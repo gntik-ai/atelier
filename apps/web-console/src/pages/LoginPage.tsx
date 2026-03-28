@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -12,11 +12,15 @@ import {
   getConsoleSignupPolicy,
   inferStatusViewFromError,
   type ConsoleAccountStatusView,
-  type ConsoleLoginSession,
   type ConsoleSignupPolicy
 } from '@/lib/console-auth'
 import { consoleAuthConfig } from '@/lib/console-config'
-import { persistConsoleShellSession } from '@/lib/console-session'
+import {
+  consumeConsoleAuthStatusHint,
+  consumeProtectedRouteIntent,
+  ensureConsoleSession,
+  persistConsoleShellSession
+} from '@/lib/console-session'
 import type { ApiError } from '@/lib/http'
 
 type FeedbackState =
@@ -29,12 +33,16 @@ const initialForm = {
   rememberMe: false
 }
 
+function resolvePostLoginDestination(): string {
+  return consumeProtectedRouteIntent() ?? '/console/overview'
+}
+
 export function LoginPage() {
+  const navigate = useNavigate()
   const [form, setForm] = useState(initialForm)
   const [signupPolicy, setSignupPolicy] = useState<ConsoleSignupPolicy | null>(null)
   const [policyLoading, setPolicyLoading] = useState(true)
   const [feedback, setFeedback] = useState<FeedbackState>(null)
-  const [session, setSession] = useState<ConsoleLoginSession | null>(null)
   const [statusView, setStatusView] = useState<ConsoleAccountStatusView | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -54,6 +62,33 @@ export function LoginPage() {
 
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    const hint = consumeConsoleAuthStatusHint()
+    if (hint) {
+      setFeedback({
+        variant: 'default',
+        title: hint.title,
+        message: hint.message
+      })
+    }
+
+    let active = true
+
+    ensureConsoleSession()
+      .then((session) => {
+        if (!active || !session) {
+          return
+        }
+
+        navigate(resolvePostLoginDestination(), { replace: true })
+      })
+      .catch(() => undefined)
+
+    return () => {
+      active = false
+    }
+  }, [navigate])
 
   const signupVisible = Boolean(signupPolicy?.allowed)
 
@@ -78,7 +113,6 @@ export function LoginPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFeedback(null)
-    setSession(null)
     setStatusView(null)
     setIsSubmitting(true)
 
@@ -90,12 +124,12 @@ export function LoginPage() {
       })
 
       persistConsoleShellSession(createdSession)
-      setSession(createdSession)
       setFeedback({
         variant: 'success',
         title: 'Sesión creada correctamente',
-        message: 'La autenticación fue evaluada por la familia pública de auth y la consola ya puede abrir el shell base persistente.'
+        message: 'Redirigiendo al destino protegido solicitado…'
       })
+      navigate(resolvePostLoginDestination(), { replace: true })
     } catch (rawError) {
       const error = rawError as ApiError
       const inferredStatus = inferStatusViewFromError(error)
@@ -143,7 +177,7 @@ export function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16 text-foreground">
       <section className="w-full max-w-3xl rounded-3xl border border-border bg-card/80 p-10 shadow-2xl shadow-black/20 backdrop-blur">
         <div className="mb-8 space-y-3">
-          <Badge variant="secondary">EP-14 / US-UI-01-T02</Badge>
+          <Badge variant="secondary">EP-14 / US-UI-01-T05</Badge>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">{consoleAuthConfig.headings.title}</h1>
           <p className="max-w-2xl text-lg leading-8 text-muted-foreground">{consoleAuthConfig.headings.subtitle}</p>
           <p className="text-sm leading-6 text-muted-foreground">
@@ -211,24 +245,6 @@ export function LoginPage() {
               </Alert>
             ) : null}
 
-            {session ? (
-              <Alert variant="success">
-                <AlertTitle>Resumen de la sesión</AlertTitle>
-                <AlertDescription>
-                  <span className="block">Session ID: {session.sessionId}</span>
-                  <span className="block">Estado: {session.authenticationState}</span>
-                  <span className="block">Status view: {session.statusView}</span>
-                  {session.principal ? <span className="block">Principal: {session.principal.username}</span> : null}
-                  <span className="block">Expira: {new Date(session.expiresAt).toLocaleString('es-ES')}</span>
-                  <span className="block">Refresh hasta: {new Date(session.refreshExpiresAt).toLocaleString('es-ES')}</span>
-                  {session.nextAction ? <span className="block">Siguiente acción: {session.nextAction}</span> : null}
-                  <Link className="mt-3 inline-flex font-medium text-primary underline underline-offset-4" to="/console/overview">
-                    Abrir shell base de la consola
-                  </Link>
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
             {statusView ? (
               <Alert>
                 <AlertTitle>{statusView.title}</AlertTitle>
@@ -247,7 +263,7 @@ export function LoginPage() {
           <aside className="space-y-4 rounded-3xl border border-border/70 bg-background/40 p-6">
             <h2 className="text-lg font-semibold">Acceso y descubribilidad</h2>
             <p className="text-sm leading-6 text-muted-foreground">
-              La consola consulta la policy efectiva de auto-registro y presenta acciones honestas según el entorno.
+              La consola consulta la policy efectiva de auto-registro y, si la sesión expira, devuelve al usuario al destino protegido una vez vuelva a autenticarse.
             </p>
             {policyLoading ? (
               <p className="text-sm text-muted-foreground">Cargando policy de registro…</p>
@@ -262,7 +278,7 @@ export function LoginPage() {
               </Alert>
             )}
             <div className="rounded-2xl border border-dashed border-border/70 p-4 text-sm leading-6 text-muted-foreground">
-              Esta iteración valida login, estados especiales y copy de soporte. La persistencia robusta de sesión llegará en T05.
+              Esta iteración ya protege el shell, conserva el destino solicitado y prepara la base para que T06 valide login, logout y navegación por E2E.
             </div>
           </aside>
         </div>

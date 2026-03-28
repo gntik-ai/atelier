@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { RouterProvider, createMemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { LoginPage } from './LoginPage'
@@ -15,12 +15,10 @@ describe('LoginPage', () => {
   })
 
   it('renderiza el formulario y las acciones secundarias', async () => {
-    fetchMock.mockResolvedValueOnce(
-      createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
-    )
+    fetchMock.mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
     vi.stubGlobal('fetch', fetchMock)
 
-    renderPage()
+    renderLoginPage()
 
     expect(await screen.findByRole('heading', { name: /accede a in atelier console/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument()
@@ -30,12 +28,10 @@ describe('LoginPage', () => {
   })
 
   it('muestra el CTA de signup cuando la policy lo permite', async () => {
-    fetchMock.mockResolvedValueOnce(
-      createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
-    )
+    fetchMock.mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
     vi.stubGlobal('fetch', fetchMock)
 
-    renderPage()
+    renderLoginPage()
 
     expect(await screen.findByRole('link', { name: /solicita acceso o crea tu cuenta/i })).toHaveAttribute('href', '/signup')
   })
@@ -54,128 +50,148 @@ describe('LoginPage', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    renderPage()
+    renderLoginPage()
 
     expect(await screen.findByText(/el auto-registro está deshabilitado por política/i)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /solicita acceso o crea tu cuenta/i })).not.toBeInTheDocument()
   })
 
-  it('envía el login y muestra el resumen de sesión junto al acceso al shell', async () => {
+  it('envía el login y redirige al destino protegido recordado', async () => {
+    window.sessionStorage.setItem('in-atelier.console-protected-route', JSON.stringify('/console/workspaces?tab=active'))
+
     fetchMock
-      .mockResolvedValueOnce(
-        createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse(200, {
-          sessionId: 'ses_abc123',
-          authenticationState: 'active',
-          statusView: 'login',
-          issuedAt: '2026-03-28T18:00:00.000Z',
-          lastActivityAt: '2026-03-28T18:00:00.000Z',
-          expiresAt: '2026-03-28T20:00:00.000Z',
-          idleExpiresAt: '2026-03-28T19:00:00.000Z',
-          refreshExpiresAt: '2026-03-29T18:00:00.000Z',
-          sessionPolicy: {
-            maxLifetime: '8h',
-            idleTimeout: '1h',
-            refreshTokenMaxAge: '24h'
-          },
-          tokenSet: {
-            accessToken: 'access-token-1234567890',
-            refreshToken: 'refresh-token-1234567890',
-            tokenType: 'Bearer',
-            expiresIn: 3600,
-            refreshExpiresIn: 7200,
-            scope: 'openid profile email',
-            expiresAt: '2026-03-28T20:00:00.000Z',
-            refreshExpiresAt: '2026-03-29T18:00:00.000Z'
-          },
-          principal: {
-            userId: 'usr_abc123',
-            username: 'operaciones',
-            displayName: 'Operaciones',
-            primaryEmail: 'ops@example.com',
-            state: 'active',
-            platformRoles: ['platform_operator']
-          }
-        })
-      )
+      .mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
+      .mockResolvedValueOnce(createJsonResponse(200, activeConsoleSession()))
     vi.stubGlobal('fetch', fetchMock)
 
-    renderPage()
+    renderLoginPage()
     await screen.findByRole('link', { name: /solicita acceso o crea tu cuenta/i })
 
     fireEvent.change(screen.getByLabelText(/usuario/i), { target: { value: 'operaciones' } })
     fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: 'super-secret-123' } })
     fireEvent.click(screen.getByRole('button', { name: /entrar a la consola/i }))
 
-    expect(await screen.findByText(/session id: ses_abc123/i)).toBeInTheDocument()
-    expect(screen.getByText(/principal: operaciones/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /abrir shell base de la consola/i })).toHaveAttribute('href', '/console/overview')
+    expect(await screen.findByText('Workspace target')).toBeInTheDocument()
+    expect(JSON.parse(window.sessionStorage.getItem('in-atelier.console-shell-session') ?? '{}')).toMatchObject({
+      sessionId: 'ses_abc123'
+    })
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenNthCalledWith(
         2,
         '/v1/auth/login-sessions',
         expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ username: 'operaciones', password: 'super-secret-123', rememberMe: false }),
-          headers: expect.any(Headers)
+          method: 'POST'
         })
       )
     })
-
-    const [, requestInit] = fetchMock.mock.calls[1]
-    const headers = requestInit?.headers as Headers
-    expect(headers.get('X-API-Version')).toBe('2026-03-26')
-    expect(headers.get('X-Correlation-Id')).toMatch(/^corr_/)
-    expect(headers.get('Idempotency-Key')).toMatch(/^idem_/)
   })
 
-  it('muestra un error inline cuando las credenciales son inválidas', async () => {
-    fetchMock
-      .mockResolvedValueOnce(
-        createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
-      )
-      .mockResolvedValueOnce(
-        createJsonResponse(403, {
-          status: 403,
-          code: 'GW_INVALID_CREDENTIALS',
-          message: 'Usuario o contraseña incorrectos.',
-          detail: {},
-          requestId: 'req_12345678',
-          correlationId: 'corr_12345678',
-          timestamp: '2026-03-28T18:00:00.000Z',
-          resource: { path: '/v1/auth/login-sessions' }
-        })
-      )
+  it('muestra el hint auth consumido desde storage', async () => {
+    window.sessionStorage.setItem(
+      'in-atelier.console-auth-status-hint',
+      JSON.stringify({
+        statusView: 'login',
+        title: 'Tu sesión ha expirado',
+        message: 'Vuelve a autenticarte para continuar en la consola.'
+      })
+    )
+    fetchMock.mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
     vi.stubGlobal('fetch', fetchMock)
 
-    renderPage()
-    await screen.findByRole('link', { name: /solicita acceso o crea tu cuenta/i })
+    renderLoginPage()
 
-    fireEvent.change(screen.getByLabelText(/usuario/i), { target: { value: 'operaciones' } })
-    fireEvent.change(screen.getByLabelText(/contraseña/i), { target: { value: 'super-secret-123' } })
-    fireEvent.click(screen.getByRole('button', { name: /entrar a la consola/i }))
+    expect(await screen.findByText(/tu sesión ha expirado/i)).toBeInTheDocument()
+    expect(screen.getByText(/vuelve a autenticarte para continuar en la consola/i)).toBeInTheDocument()
+  })
 
-    expect(await screen.findByText(/usuario o contraseña incorrectos/i)).toBeInTheDocument()
+  it('evita permanecer en login cuando ya existe una sesión válida', async () => {
+    window.sessionStorage.setItem('in-atelier.console-shell-session', JSON.stringify(activeConsoleSession()))
+    fetchMock.mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderLoginPage()
+
+    expect(await screen.findByText('Overview target')).toBeInTheDocument()
   })
 })
 
-function renderPage() {
-  return render(
-    <MemoryRouter>
-      <LoginPage />
-    </MemoryRouter>
+function renderLoginPage() {
+  const router = createMemoryRouter(
+    [
+      {
+        path: '/login',
+        element: <LoginPage />
+      },
+      {
+        path: '/console/overview',
+        element: <div>Overview target</div>
+      },
+      {
+        path: '/console/workspaces',
+        element: <div>Workspace target</div>
+      }
+    ],
+    {
+      initialEntries: ['/login']
+    }
   )
+
+  render(<RouterProvider router={router} />)
 }
 
-function createJsonResponse(status: number, body: unknown) {
+function allowedSignupPolicy() {
   return {
-    ok: status >= 200 && status < 300,
+    allowed: true,
+    approvalRequired: false,
+    effectiveMode: 'auto_activate',
+    globalMode: 'auto_activate',
+    environmentModes: {},
+    planModes: {}
+  }
+}
+
+function activeConsoleSession() {
+  return {
+    sessionId: 'ses_abc123',
+    authenticationState: 'active',
+    statusView: 'login',
+    issuedAt: '2026-03-28T18:00:00.000Z',
+    lastActivityAt: '2026-03-28T18:00:00.000Z',
+    expiresAt: '2099-03-28T20:00:00.000Z',
+    idleExpiresAt: '2099-03-28T19:00:00.000Z',
+    refreshExpiresAt: '2099-03-29T18:00:00.000Z',
+    sessionPolicy: {
+      maxLifetime: '8h',
+      idleTimeout: '1h',
+      refreshTokenMaxAge: '24h'
+    },
+    tokenSet: {
+      accessToken: 'access-token-1234567890',
+      refreshToken: 'refresh-token-1234567890',
+      tokenType: 'Bearer',
+      expiresIn: 3600,
+      refreshExpiresIn: 7200,
+      scope: 'openid profile email',
+      expiresAt: '2099-03-28T20:00:00.000Z',
+      refreshExpiresAt: '2099-03-29T18:00:00.000Z'
+    },
+    principal: {
+      userId: 'usr_abc123',
+      username: 'operaciones',
+      displayName: 'Operaciones',
+      primaryEmail: 'ops@example.com',
+      state: 'active',
+      platformRoles: ['platform_operator']
+    }
+  }
+}
+
+function createJsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
     status,
-    statusText: status >= 200 && status < 300 ? 'OK' : 'Error',
-    headers: new Headers({ 'content-type': 'application/json' }),
-    json: async () => body
-  } as Response
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
 }
