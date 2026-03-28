@@ -1,0 +1,303 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-02-T01",
+  "system": "in-atelier-observability-plane",
+  "source_metrics_contract": "2026-03-28",
+  "source_health_contract": "2026-03-28",
+  "principles": [
+    "Every administrative platform subsystem emits audit events into one common pipeline before any query, export, masking, or correlation features are built on top.",
+    "Kafka is the authoritative audit transport backbone and durable storage is downstream of the transport, not a subsystem-local side channel.",
+    "Tenant isolation is enforced at transport and storage boundaries so tenant-scoped views never expose platform-scoped or other-tenant events.",
+    "Missing, delayed, unclassified, or unattributed audit events surface as first-class observability conditions rather than silent compliance gaps."
+  ],
+  "subsystem_roster": [
+    {
+      "id": "iam",
+      "display_name": "IAM (Keycloak)",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification",
+        "privilege_escalation"
+      ],
+      "optional_event_categories": [
+        "authentication_flow_change",
+        "realm_configuration_change",
+        "client_credential_rotation"
+      ],
+      "emission_freshness_threshold_seconds": 300,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "postgresql",
+      "display_name": "PostgreSQL",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification"
+      ],
+      "optional_event_categories": [
+        "privilege_escalation",
+        "schema_change"
+      ],
+      "emission_freshness_threshold_seconds": 300,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "mongodb",
+      "display_name": "MongoDB",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification"
+      ],
+      "optional_event_categories": [
+        "privilege_escalation",
+        "collection_change"
+      ],
+      "emission_freshness_threshold_seconds": 300,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "kafka",
+      "display_name": "Kafka",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification"
+      ],
+      "optional_event_categories": [
+        "privilege_escalation",
+        "topic_policy_change"
+      ],
+      "emission_freshness_threshold_seconds": 180,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "openwhisk",
+      "display_name": "OpenWhisk",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "quota_adjustment"
+      ],
+      "optional_event_categories": [
+        "access_control_modification",
+        "trigger_binding_change"
+      ],
+      "emission_freshness_threshold_seconds": 180,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "storage",
+      "display_name": "S3-compatible storage",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification"
+      ],
+      "optional_event_categories": [
+        "bucket_policy_change",
+        "credential_rotation"
+      ],
+      "emission_freshness_threshold_seconds": 300,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "quota_metering",
+      "display_name": "Quota and metering layer",
+      "required_event_categories": [
+        "quota_adjustment",
+        "configuration_change",
+        "resource_creation",
+        "resource_deletion"
+      ],
+      "optional_event_categories": [
+        "access_control_modification",
+        "billing_boundary_change"
+      ],
+      "emission_freshness_threshold_seconds": 180,
+      "scope_attribution": "both"
+    },
+    {
+      "id": "tenant_control_plane",
+      "display_name": "Tenant and workspace control plane",
+      "required_event_categories": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification",
+        "privilege_escalation"
+      ],
+      "optional_event_categories": [
+        "workspace_lifecycle_change",
+        "tenant_governance_change"
+      ],
+      "emission_freshness_threshold_seconds": 120,
+      "scope_attribution": "both"
+    }
+  ],
+  "pipeline_topology": {
+    "transport_backbone": "kafka",
+    "topology_path": [
+      "subsystem_emitter",
+      "kafka_audit_transport",
+      "durable_audit_store"
+    ],
+    "schema_contract_reference": "US-OBS-02-T02",
+    "topic_naming": {
+      "tenant_scoped_pattern": "audit.<tenant_id>",
+      "platform_scoped_topic": "audit.platform",
+      "unattributed_dead_letter_topic": "audit.platform"
+    },
+    "partitioning": {
+      "tenant_partition_key": "tenant_id",
+      "platform_partition_key": "platform",
+      "workspace_attribution": "workspace_id is optional metadata and must not override tenant partitioning"
+    },
+    "ordering_guarantee": {
+      "within_tenant_partition": "ordered_by_emission_timestamp",
+      "cross_partition": "not_guaranteed"
+    }
+  },
+  "delivery_guarantees": {
+    "semantics": "at_least_once",
+    "idempotent_consumer_responsibility": true,
+    "buffer_on_transport_unavailability": "emitters_retry_and_buffer_until_local_limits_are_reached_then_raise_failure_signal",
+    "storage_write_behavior": "transport_retains_events_until_durable_store_acknowledges_write_or_retention_window_expires",
+    "back_pressure_behavior": "apply back-pressure and retry; never silently drop audit events",
+    "failure_signaling": [
+      "emission_stale",
+      "transport_degraded",
+      "storage_degraded"
+    ]
+  },
+  "tenant_isolation": {
+    "required_fields": [
+      "tenant_id"
+    ],
+    "optional_fields": [
+      "workspace_id"
+    ],
+    "missing_tenant_id_routing": "route_to_audit.platform_as_unattributed",
+    "workspace_id_policy": "workspace_id may be present when the subsystem can safely attribute it and must never be fabricated",
+    "platform_event_routing": "platform-scoped events are routed only to audit.platform",
+    "storage_isolation": "tenant-scoped records remain logically segregated from platform-scoped records and must not be co-mingled in query surfaces",
+    "cross_tenant_prohibition": "cross-tenant event leakage is a security incident"
+  },
+  "health_signals": [
+    {
+      "id": "audit_emission_freshness",
+      "metric_name": "in_atelier_audit_emission_freshness_seconds",
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode"
+      ],
+      "healthy_condition": "freshness_within_threshold",
+      "degraded_condition": "last_emission_exceeds_subsystem_threshold",
+      "status_values": [
+        "healthy",
+        "degraded",
+        "stale",
+        "unknown"
+      ]
+    },
+    {
+      "id": "audit_transport_health",
+      "metric_name": "in_atelier_audit_transport_health",
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode"
+      ],
+      "healthy_condition": "kafka_transport_available_and_lag_within_threshold",
+      "degraded_condition": "broker_unavailable_or_consumer_lag_exceeds_threshold",
+      "status_values": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "unknown"
+      ]
+    },
+    {
+      "id": "audit_storage_health",
+      "metric_name": "in_atelier_audit_storage_health",
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode"
+      ],
+      "healthy_condition": "durable_store_writes_succeed_within_latency_budget",
+      "degraded_condition": "durable_store_write_failures_or_unavailability_detected",
+      "status_values": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "unknown"
+      ]
+    }
+  ],
+  "resilience_rules": {
+    "unclassified_event_policy": "retain_event_and_flag_as_unclassified_for_operator_review",
+    "unattributed_event_policy": "retain_event_in_platform-scoped_dead_letter_partition_and_flag_as_unattributed",
+    "startup_context_policy": "accept_incomplete_context_during_startup_and_flag_for_review",
+    "transport_unavailable_policy": "retry_and_buffer_until_local_limits_then_surface_transport_degraded",
+    "storage_unavailable_policy": "retain_events_in_transport_until_store_recovers_or_retention_window_expires",
+    "volume_spike_policy": "apply_back_pressure_with_retry_and_visible_degradation_without_silent_drop"
+  },
+  "self_audit": {
+    "config_change_audit_requirement": "pipeline_configuration_changes_must_emit_audit_events_through_this_same_pipeline",
+    "restricted_actors": [
+      "superadmin"
+    ],
+    "audit_trail_attributable_fields": [
+      "actor_id",
+      "timestamp",
+      "change_type",
+      "target_subsystem",
+      "correlation_id"
+    ]
+  },
+  "masking_policy": {
+    "forbidden_exposed_fields": [
+      "password",
+      "secret",
+      "token",
+      "authorization_header",
+      "connection_string",
+      "raw_hostname",
+      "raw_endpoint",
+      "object_key",
+      "raw_topic_name"
+    ],
+    "routing_rule": "routing_and_partitioning_must_not_depend_on_sensitive_payload_fields"
+  },
+  "observability_projection": {
+    "source_contracts": {
+      "metrics_stack": "2026-03-28",
+      "health_checks": "2026-03-28"
+    },
+    "required_status_vocabulary": [
+      "healthy",
+      "degraded",
+      "unavailable",
+      "unknown",
+      "stale"
+    ],
+    "rules": [
+      "Audit pipeline health reuses the in_atelier metric prefix and the common required labels from the observability plane.",
+      "Missing emission from a required subsystem must surface as degraded or stale rather than healthy.",
+      "Transport and storage degradation must remain visible even when individual emitters continue producing events."
+    ]
+  }
+}

@@ -7,6 +7,7 @@ const DOMAIN_MODEL_URL = new URL('./domain-model.json', import.meta.url);
 const OBSERVABILITY_METRICS_STACK_URL = new URL('./observability-metrics-stack.json', import.meta.url);
 const OBSERVABILITY_DASHBOARDS_URL = new URL('./observability-dashboards.json', import.meta.url);
 const OBSERVABILITY_HEALTH_CHECKS_URL = new URL('./observability-health-checks.json', import.meta.url);
+export const OBSERVABILITY_AUDIT_PIPELINE_URL = new URL('./observability-audit-pipeline.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
@@ -19,6 +20,7 @@ let cachedDomainModel;
 let cachedObservabilityMetricsStack;
 let cachedObservabilityDashboards;
 let cachedObservabilityHealthChecks;
+let cachedObservabilityAuditPipeline;
 let cachedObservabilityBusinessMetrics;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
@@ -80,6 +82,14 @@ export function readObservabilityHealthChecks() {
   return cachedObservabilityHealthChecks;
 }
 
+export function readObservabilityAuditPipeline() {
+  if (!cachedObservabilityAuditPipeline) {
+    cachedObservabilityAuditPipeline = JSON.parse(readFileSync(OBSERVABILITY_AUDIT_PIPELINE_URL, 'utf8'));
+  }
+
+  return cachedObservabilityAuditPipeline;
+}
+
 export function readObservabilityBusinessMetrics() {
   if (!cachedObservabilityBusinessMetrics) {
     cachedObservabilityBusinessMetrics = JSON.parse(readFileSync(OBSERVABILITY_BUSINESS_METRICS_URL, 'utf8'));
@@ -119,6 +129,7 @@ export const DOMAIN_MODEL_VERSION = readDomainModel().version;
 export const OBSERVABILITY_METRICS_STACK_VERSION = readObservabilityMetricsStack().version;
 export const OBSERVABILITY_DASHBOARDS_VERSION = readObservabilityDashboards().version;
 export const OBSERVABILITY_HEALTH_CHECKS_VERSION = readObservabilityHealthChecks().version;
+export const OBSERVABILITY_AUDIT_PIPELINE_VERSION = readObservabilityAuditPipeline().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
@@ -345,6 +356,22 @@ export function getObservabilityHealthExposureTemplates() {
 
 export function getObservabilityHealthProjection() {
   return readObservabilityHealthChecks().observability_projection ?? {};
+}
+
+export function listAuditPipelineSubsystems() {
+  return readObservabilityAuditPipeline().subsystem_roster ?? [];
+}
+
+export function getAuditPipelineTopology() {
+  return readObservabilityAuditPipeline().pipeline_topology ?? {};
+}
+
+export function getAuditPipelineHealthSignals() {
+  return readObservabilityAuditPipeline().health_signals ?? [];
+}
+
+export function getAuditPipelineTenantIsolation() {
+  return readObservabilityAuditPipeline().tenant_isolation ?? {};
 }
 
 export function listObservabilityBusinessDomains() {
