@@ -26,11 +26,56 @@ interface PageInfo {
   after?: string | null
 }
 
+interface ProvisioningSummary {
+  status?: string
+}
+
+interface TenantGovernanceProfile {
+  governanceStatus?: string
+}
+
+interface TenantQuotaLimit {
+  metricKey: string
+  scope: string
+  limit: number
+  used: number
+  remaining: number
+  unit?: string
+}
+
+interface TenantQuotaProfile {
+  governanceStatus?: string
+  limits?: TenantQuotaLimit[]
+}
+
+interface TenantInventoryWorkspaceSummary {
+  workspaceId: string
+  workspaceSlug: string
+  environment?: string
+  state?: string
+  applicationCount: number
+  serviceAccountCount: number
+  managedResourceCount: number
+}
+
+interface TenantInventoryResponse {
+  tenantId: string
+  workspaceCount: number
+  applicationCount: number
+  managedResourceCount: number
+  serviceAccountCount: number
+  workspaces?: TenantInventoryWorkspaceSummary[]
+}
+
 interface Tenant {
   tenantId: string
   displayName: string
   slug: string
   state?: string
+  governance?: TenantGovernanceProfile
+  provisioning?: ProvisioningSummary
+  quotaProfile?: TenantQuotaProfile
+  inventorySummary?: TenantInventoryResponse
 }
 
 interface Workspace {
@@ -40,7 +85,10 @@ interface Workspace {
   slug: string
   environment?: string
   state?: string
+  provisioning?: ProvisioningSummary
 }
+
+export type ConsoleQuotaSeverity = 'nominal' | 'warning' | 'blocked'
 
 export interface PersistedConsoleContextSnapshot {
   userId: string
@@ -49,11 +97,57 @@ export interface PersistedConsoleContextSnapshot {
   updatedAt: string
 }
 
+export interface ConsoleQuotaSummaryItem {
+  metricKey: string
+  scope: string
+  used: number
+  limit: number
+  remaining: number
+  utilizationPercent: number
+  severity: ConsoleQuotaSeverity
+  unit: string | null
+}
+
+export interface ConsoleQuotaSummary {
+  totals: Record<ConsoleQuotaSeverity, number>
+  items: ConsoleQuotaSummaryItem[]
+}
+
+export interface ConsoleInventoryWorkspaceSummary {
+  workspaceId: string
+  workspaceSlug: string
+  environment: string | null
+  state: string | null
+  applicationCount: number
+  serviceAccountCount: number
+  managedResourceCount: number
+}
+
+export interface ConsoleTenantInventorySummary {
+  tenantId: string
+  workspaceCount: number
+  applicationCount: number
+  managedResourceCount: number
+  serviceAccountCount: number
+  workspaces: ConsoleInventoryWorkspaceSummary[]
+}
+
+export interface ConsoleOperationalAlert {
+  key: string
+  level: 'warning' | 'destructive' | 'info'
+  title: string
+  description: string
+}
+
 export interface ConsoleTenantOption {
   tenantId: string
   label: string
   secondary: string
   state: string | null
+  governanceStatus: string | null
+  provisioningStatus: string | null
+  quotaSummary: ConsoleQuotaSummary | null
+  inventorySummary: ConsoleTenantInventorySummary | null
 }
 
 export interface ConsoleWorkspaceOption {
@@ -63,6 +157,7 @@ export interface ConsoleWorkspaceOption {
   secondary: string
   environment: string | null
   state: string | null
+  provisioningStatus: string | null
 }
 
 export interface ConsoleContextValue {
@@ -72,6 +167,7 @@ export interface ConsoleContextValue {
   activeWorkspaceId: string | null
   activeTenant: ConsoleTenantOption | null
   activeWorkspace: ConsoleWorkspaceOption | null
+  operationalAlerts: ConsoleOperationalAlert[]
   tenantsLoading: boolean
   workspacesLoading: boolean
   tenantsError: string | null
@@ -91,6 +187,7 @@ const emptyConsoleContextValue: ConsoleContextValue = {
   activeWorkspaceId: null,
   activeTenant: null,
   activeWorkspace: null,
+  operationalAlerts: [],
   tenantsLoading: false,
   workspacesLoading: false,
   tenantsError: null,
@@ -295,6 +392,10 @@ export function ConsoleContextProvider({
     () => workspaces.find((workspace) => workspace.workspaceId === activeWorkspaceId) ?? null,
     [activeWorkspaceId, workspaces]
   )
+  const operationalAlerts = useMemo(
+    () => getConsoleOperationalAlerts(activeTenant, activeWorkspace),
+    [activeTenant, activeWorkspace]
+  )
 
   const value = useMemo<ConsoleContextValue>(
     () => ({
@@ -304,6 +405,7 @@ export function ConsoleContextProvider({
       activeWorkspaceId,
       activeTenant,
       activeWorkspace,
+      operationalAlerts,
       tenantsLoading,
       workspacesLoading,
       tenantsError,
@@ -318,6 +420,7 @@ export function ConsoleContextProvider({
       activeTenantId,
       activeWorkspace,
       activeWorkspaceId,
+      operationalAlerts,
       reloadTenants,
       reloadWorkspaces,
       selectTenant,
@@ -421,6 +524,191 @@ export function resolveInitialWorkspaceId(options: ConsoleWorkspaceOption[], pre
   return options.length === 1 ? options[0].workspaceId : null
 }
 
+export function getConsoleTenantStatusMeta(tenant: ConsoleTenantOption | null): {
+  tone: 'healthy' | 'warning' | 'restricted' | 'neutral'
+  label: string
+  description: string
+} {
+  if (!tenant) {
+    return {
+      tone: 'neutral',
+      label: 'Sin tenant activo',
+      description: 'Selecciona un tenant para conocer su estado operativo.'
+    }
+  }
+
+  const quotaBlocked = tenant.quotaSummary?.totals.blocked ?? 0
+  const quotaWarning = tenant.quotaSummary?.totals.warning ?? 0
+
+  if (tenant.state === 'suspended' || tenant.state === 'deleted') {
+    return {
+      tone: 'restricted',
+      label: formatConsoleEnumLabel(tenant.state),
+      description: 'El tenant activo tiene operaciones restringidas.'
+    }
+  }
+
+  if (tenant.governanceStatus && ['suspended', 'retention', 'purge_pending'].includes(tenant.governanceStatus)) {
+    return {
+      tone: 'restricted',
+      label: formatConsoleEnumLabel(tenant.governanceStatus),
+      description: 'La gobernanza del tenant requiere atención inmediata.'
+    }
+  }
+
+  if (tenant.state === 'pending_activation') {
+    return {
+      tone: 'warning',
+      label: 'Pending activation',
+      description: 'El tenant todavía no está plenamente operativo.'
+    }
+  }
+
+  if (quotaBlocked > 0) {
+    return {
+      tone: 'restricted',
+      label: 'Cuotas bloqueadas',
+      description: `Hay ${quotaBlocked} cuota${quotaBlocked === 1 ? '' : 's'} agotada${quotaBlocked === 1 ? '' : 's'} en el tenant activo.`
+    }
+  }
+
+  if (tenant.governanceStatus === 'warning' || quotaWarning > 0 || isProvisioningDegraded(tenant.provisioningStatus)) {
+    return {
+      tone: 'warning',
+      label: tenant.governanceStatus === 'warning' ? 'Warning' : 'Con atención',
+      description: 'El tenant está operativo, pero presenta señales que conviene revisar.'
+    }
+  }
+
+  return {
+    tone: 'healthy',
+    label: 'Operativo',
+    description: 'Tenant activo y sin restricciones visibles en la consola.'
+  }
+}
+
+export function getConsoleWorkspaceStatusMeta(workspace: ConsoleWorkspaceOption | null): {
+  tone: 'healthy' | 'warning' | 'restricted' | 'neutral'
+  label: string
+  description: string
+} {
+  if (!workspace) {
+    return {
+      tone: 'neutral',
+      label: 'Sin workspace activo',
+      description: 'Selecciona un workspace para completar el contexto operativo.'
+    }
+  }
+
+  if (workspace.state && ['suspended', 'soft_deleted', 'deleted'].includes(workspace.state)) {
+    return {
+      tone: 'restricted',
+      label: formatConsoleEnumLabel(workspace.state),
+      description: 'El workspace activo tiene operaciones restringidas.'
+    }
+  }
+
+  if (workspace.provisioningStatus === 'partially_failed') {
+    return {
+      tone: 'warning',
+      label: 'Provisioning parcial',
+      description: 'Algunos recursos del workspace podrían no estar disponibles.'
+    }
+  }
+
+  if (
+    (workspace.state && ['draft', 'provisioning', 'pending_activation'].includes(workspace.state)) ||
+    isProvisioningPending(workspace.provisioningStatus)
+  ) {
+    return {
+      tone: 'warning',
+      label: 'Provisionando',
+      description: 'El workspace todavía no está listo para operar con normalidad.'
+    }
+  }
+
+  return {
+    tone: 'healthy',
+    label: 'Operativo',
+    description: 'Workspace listo para operar dentro del contexto activo.'
+  }
+}
+
+export function getConsoleOperationalAlerts(
+  tenant: ConsoleTenantOption | null,
+  workspace: ConsoleWorkspaceOption | null
+): ConsoleOperationalAlert[] {
+  const alerts: ConsoleOperationalAlert[] = []
+
+  if (tenant?.state && tenant.state !== 'active') {
+    alerts.push({
+      key: `tenant-state-${tenant.state}`,
+      level: tenant.state === 'pending_activation' ? 'warning' : 'destructive',
+      title: `Tenant ${formatConsoleEnumLabel(tenant.state)}`,
+      description: 'El tenant activo no está completamente operativo y algunas acciones de la consola pueden fallar o quedar limitadas.'
+    })
+  }
+
+  if (tenant?.governanceStatus && tenant.governanceStatus !== 'nominal') {
+    alerts.push({
+      key: `tenant-governance-${tenant.governanceStatus}`,
+      level: tenant.governanceStatus === 'warning' ? 'warning' : 'destructive',
+      title: `Gobernanza del tenant: ${formatConsoleEnumLabel(tenant.governanceStatus)}`,
+      description: 'La gobernanza del tenant activo requiere atención antes de continuar con cambios operativos.'
+    })
+  }
+
+  if ((tenant?.quotaSummary?.totals.blocked ?? 0) > 0) {
+    const blockedItems = tenant?.quotaSummary?.items.filter((item) => item.severity === 'blocked') ?? []
+    const blockedLabel = blockedItems.slice(0, 2).map((item) => item.metricKey).join(', ')
+
+    alerts.push({
+      key: 'tenant-quota-blocked',
+      level: 'destructive',
+      title: 'Cuotas agotadas en el tenant activo',
+      description: blockedLabel
+        ? `Hay cuotas bloqueadas (${blockedLabel}${blockedItems.length > 2 ? ', …' : ''}) y algunas operaciones podrían ser rechazadas.`
+        : 'Al menos una cuota del tenant activo está agotada y puede bloquear operaciones.'
+    })
+  }
+
+  if (workspace?.state && workspace.state !== 'active') {
+    alerts.push({
+      key: `workspace-state-${workspace.state}`,
+      level: ['suspended', 'soft_deleted', 'deleted'].includes(workspace.state) ? 'destructive' : 'warning',
+      title: `Workspace ${formatConsoleEnumLabel(workspace.state)}`,
+      description: 'El workspace activo no está plenamente disponible para operar desde la consola.'
+    })
+  }
+
+  if (workspace?.provisioningStatus === 'partially_failed') {
+    alerts.push({
+      key: 'workspace-provisioning-partially-failed',
+      level: 'warning',
+      title: 'Provisioning del workspace incompleto',
+      description: 'El aprovisionamiento del workspace quedó parcialmente fallido y algunos recursos pueden no estar disponibles.'
+    })
+  } else if (workspace?.provisioningStatus && isProvisioningPending(workspace.provisioningStatus)) {
+    alerts.push({
+      key: `workspace-provisioning-${workspace.provisioningStatus}`,
+      level: 'warning',
+      title: 'Provisioning del workspace en curso',
+      description: 'El workspace activo todavía está terminando de aprovisionarse y puede responder de forma parcial.'
+    })
+  }
+
+  return alerts
+}
+
+export function formatConsoleEnumLabel(value: string | null | undefined): string {
+  if (!value) {
+    return 'No disponible'
+  }
+
+  const normalized = value.replace(/_/g, ' ')
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
 async function listAccessibleTenants(): Promise<TenantCollectionResponse> {
   const searchParams = new URLSearchParams({ 'page[size]': '100', sort: 'displayName' })
   return requestConsoleSessionJson<TenantCollectionResponse>(`/v1/tenants?${searchParams.toString()}`)
@@ -438,7 +726,11 @@ function normalizeTenantOptions(items: Tenant[]): ConsoleTenantOption[] {
     tenantId: tenant.tenantId,
     label: tenant.displayName,
     secondary: tenant.slug,
-    state: tenant.state ?? null
+    state: tenant.state ?? null,
+    governanceStatus: tenant.governance?.governanceStatus ?? tenant.quotaProfile?.governanceStatus ?? null,
+    provisioningStatus: tenant.provisioning?.status ?? null,
+    quotaSummary: summarizeTenantQuotaProfile(tenant.quotaProfile),
+    inventorySummary: normalizeTenantInventorySummary(tenant.inventorySummary)
   }))
 }
 
@@ -449,8 +741,69 @@ function normalizeWorkspaceOptions(items: Workspace[]): ConsoleWorkspaceOption[]
     label: workspace.displayName,
     secondary: workspace.environment ? `${workspace.slug} · ${workspace.environment}` : workspace.slug,
     environment: workspace.environment ?? null,
-    state: workspace.state ?? null
+    state: workspace.state ?? null,
+    provisioningStatus: workspace.provisioning?.status ?? null
   }))
+}
+
+function summarizeTenantQuotaProfile(profile?: TenantQuotaProfile | null): ConsoleQuotaSummary | null {
+  if (!profile) {
+    return null
+  }
+
+  const items = Array.isArray(profile.limits)
+    ? profile.limits.map((limit) => {
+        const utilizationPercent = deriveUtilizationPercent(limit.limit, limit.used)
+        const severity = deriveQuotaSeverity(limit.limit, limit.used, limit.remaining, utilizationPercent)
+
+        return {
+          metricKey: limit.metricKey,
+          scope: limit.scope,
+          used: limit.used,
+          limit: limit.limit,
+          remaining: limit.remaining,
+          utilizationPercent,
+          severity,
+          unit: limit.unit?.trim() || null
+        } satisfies ConsoleQuotaSummaryItem
+      })
+    : []
+
+  const totals: Record<ConsoleQuotaSeverity, number> = {
+    nominal: items.filter((item) => item.severity === 'nominal').length,
+    warning: items.filter((item) => item.severity === 'warning').length,
+    blocked: items.filter((item) => item.severity === 'blocked').length
+  }
+
+  return {
+    totals,
+    items: items.sort((left, right) => quotaSeverityRank(right.severity) - quotaSeverityRank(left.severity))
+  }
+}
+
+function normalizeTenantInventorySummary(summary?: TenantInventoryResponse | null): ConsoleTenantInventorySummary | null {
+  if (!summary) {
+    return null
+  }
+
+  return {
+    tenantId: summary.tenantId,
+    workspaceCount: summary.workspaceCount,
+    applicationCount: summary.applicationCount,
+    managedResourceCount: summary.managedResourceCount,
+    serviceAccountCount: summary.serviceAccountCount,
+    workspaces: Array.isArray(summary.workspaces)
+      ? summary.workspaces.map((workspace) => ({
+          workspaceId: workspace.workspaceId,
+          workspaceSlug: workspace.workspaceSlug,
+          environment: workspace.environment ?? null,
+          state: workspace.state ?? null,
+          applicationCount: workspace.applicationCount,
+          serviceAccountCount: workspace.serviceAccountCount,
+          managedResourceCount: workspace.managedResourceCount
+        }))
+      : []
+  }
 }
 
 function filterTenantOptions(options: ConsoleTenantOption[], allowedTenantIds: string[]): ConsoleTenantOption[] {
@@ -469,6 +822,51 @@ function filterWorkspaceOptions(options: ConsoleWorkspaceOption[], allowedWorksp
 
   const allowedSet = new Set(allowedWorkspaceIds)
   return options.filter((option) => allowedSet.has(option.workspaceId))
+}
+
+function deriveUtilizationPercent(limit: number, used: number): number {
+  if (limit <= 0) {
+    return used > 0 ? 100 : 0
+  }
+
+  return Math.round((used / limit) * 1000) / 10
+}
+
+function deriveQuotaSeverity(
+  limit: number,
+  used: number,
+  remaining: number,
+  utilizationPercent: number
+): ConsoleQuotaSeverity {
+  if (remaining <= 0 || (limit > 0 && used >= limit)) {
+    return 'blocked'
+  }
+
+  if (utilizationPercent >= 80) {
+    return 'warning'
+  }
+
+  return 'nominal'
+}
+
+function quotaSeverityRank(value: ConsoleQuotaSeverity): number {
+  if (value === 'blocked') {
+    return 3
+  }
+
+  if (value === 'warning') {
+    return 2
+  }
+
+  return 1
+}
+
+function isProvisioningPending(status: string | null | undefined): boolean {
+  return status === 'pending' || status === 'in_progress'
+}
+
+function isProvisioningDegraded(status: string | null | undefined): boolean {
+  return isProvisioningPending(status) || status === 'partially_failed'
 }
 
 function getConsoleContextErrorMessage(rawError: unknown, fallback: string): string {

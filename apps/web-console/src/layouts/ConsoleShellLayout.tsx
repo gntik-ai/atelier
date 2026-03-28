@@ -16,7 +16,13 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { terminateConsoleLoginSession } from '@/lib/console-auth'
-import { ConsoleContextProvider, useConsoleContext } from '@/lib/console-context'
+import {
+  ConsoleContextProvider,
+  formatConsoleEnumLabel,
+  getConsoleTenantStatusMeta,
+  getConsoleWorkspaceStatusMeta,
+  useConsoleContext
+} from '@/lib/console-context'
 import {
   clearConsoleShellSession,
   getConsolePrincipalInitials,
@@ -184,7 +190,7 @@ export function ConsoleShellLayout() {
                 <Link className="block truncate text-base font-semibold tracking-tight" to="/console/overview">
                   In Atelier Console
                 </Link>
-                <p className="truncate text-xs text-muted-foreground">Shell persistente base · EP-14 / US-UI-02-T01</p>
+                <p className="truncate text-xs text-muted-foreground">Shell persistente + estado contextual · EP-14 / US-UI-02-T02</p>
               </div>
             </div>
 
@@ -311,14 +317,15 @@ export function ConsoleShellLayout() {
           </aside>
 
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:px-8 lg:py-8">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-5xl space-y-6">
+              <ConsoleContextStatusPanel />
               <Outlet />
             </div>
           </main>
         </div>
 
         <div className="border-t border-border bg-background/95 px-4 py-3 lg:hidden">
-          <p className="text-xs text-muted-foreground">La experiencia optimizada para móvil llegará en una iteración posterior. T01 cubre el selector de contexto dentro del shell de escritorio.</p>
+          <p className="text-xs text-muted-foreground">La experiencia optimizada para móvil llegará en una iteración posterior. T02 prioriza el estado contextual dentro del shell de escritorio.</p>
         </div>
       </div>
     </ConsoleContextProvider>
@@ -327,7 +334,9 @@ export function ConsoleShellLayout() {
 
 function ConsoleHeaderContextControls() {
   const {
+    activeTenant,
     activeTenantId,
+    activeWorkspace,
     activeWorkspaceId,
     reloadTenants,
     reloadWorkspaces,
@@ -377,8 +386,19 @@ function ConsoleHeaderContextControls() {
       return 'Selecciona un workspace para completar el contexto activo.'
     }
 
-    return 'El contexto activo se mantiene durante la navegación y al recargar la consola.'
-  }, [activeTenantId, activeWorkspaceId, hasNoTenants, hasNoWorkspaces, tenantsError, tenantsLoading, workspacesError, workspacesLoading])
+    return `Contexto activo: ${activeTenant?.label ?? 'Tenant'} / ${activeWorkspace?.label ?? 'Workspace'}`
+  }, [
+    activeTenant?.label,
+    activeTenantId,
+    activeWorkspace?.label,
+    activeWorkspaceId,
+    hasNoTenants,
+    hasNoWorkspaces,
+    tenantsError,
+    tenantsLoading,
+    workspacesError,
+    workspacesLoading
+  ])
 
   const workspaceDisabled = tenantsLoading || !activeTenantId || workspacesLoading || Boolean(tenantsError) || hasNoTenants
 
@@ -453,4 +473,135 @@ function ConsoleHeaderContextControls() {
       </div>
     </section>
   )
+}
+
+function ConsoleContextStatusPanel() {
+  const {
+    activeTenant,
+    activeWorkspace,
+    operationalAlerts,
+    tenantsError,
+    tenantsLoading,
+    workspacesError,
+    workspacesLoading
+  } = useConsoleContext()
+
+  const tenantStatus = useMemo(() => getConsoleTenantStatusMeta(activeTenant), [activeTenant])
+  const workspaceStatus = useMemo(() => getConsoleWorkspaceStatusMeta(activeWorkspace), [activeWorkspace])
+
+  return (
+    <section aria-label="Estado operativo del contexto" className="space-y-4" data-testid="console-context-status-panel">
+      <div className="grid gap-4 xl:grid-cols-2">
+        <article
+          role="status"
+          aria-live="polite"
+          data-testid="console-context-tenant-status"
+          className="rounded-3xl border border-border bg-card/70 p-5 shadow-sm"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">Tenant activo</p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{activeTenant?.label ?? 'Sin tenant seleccionado'}</h2>
+              <p className="text-sm text-muted-foreground">{activeTenant?.secondary ?? 'Selecciona un tenant para ver su estado operativo.'}</p>
+            </div>
+            <Badge variant="outline" className={getStatusBadgeClasses(tenantStatus.tone)}>
+              {tenantStatus.label}
+            </Badge>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {activeTenant?.state ? <Badge variant="secondary">Lifecycle: {formatConsoleEnumLabel(activeTenant.state)}</Badge> : null}
+            {activeTenant?.governanceStatus ? (
+              <Badge variant="secondary">Gobernanza: {formatConsoleEnumLabel(activeTenant.governanceStatus)}</Badge>
+            ) : null}
+            {activeTenant?.quotaSummary ? (
+              <Badge variant="secondary">
+                Cuotas: {activeTenant.quotaSummary.totals.blocked} bloqueadas · {activeTenant.quotaSummary.totals.warning} en alerta
+              </Badge>
+            ) : null}
+            {activeTenant?.inventorySummary ? (
+              <Badge variant="secondary">Inventario: {activeTenant.inventorySummary.workspaceCount} workspaces</Badge>
+            ) : null}
+          </div>
+
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">
+            {tenantsLoading && !activeTenant ? 'Cargando el estado del tenant seleccionado…' : tenantStatus.description}
+          </p>
+          {tenantsError ? <p className="mt-2 text-sm text-destructive">{tenantsError}</p> : null}
+        </article>
+
+        <article
+          role="status"
+          aria-live="polite"
+          data-testid="console-context-workspace-status"
+          className="rounded-3xl border border-border bg-card/70 p-5 shadow-sm"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-2">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">Workspace activo</p>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">{activeWorkspace?.label ?? 'Sin workspace seleccionado'}</h2>
+              <p className="text-sm text-muted-foreground">
+                {activeWorkspace?.secondary ?? 'Selecciona un workspace para completar el contexto operativo.'}
+              </p>
+            </div>
+            <Badge variant="outline" className={getStatusBadgeClasses(workspaceStatus.tone)}>
+              {workspaceStatus.label}
+            </Badge>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {activeWorkspace?.environment ? <Badge variant="secondary">Entorno: {formatConsoleEnumLabel(activeWorkspace.environment)}</Badge> : null}
+            {activeWorkspace?.state ? <Badge variant="secondary">Lifecycle: {formatConsoleEnumLabel(activeWorkspace.state)}</Badge> : null}
+            {activeWorkspace?.provisioningStatus ? (
+              <Badge variant="secondary">Provisioning: {formatConsoleEnumLabel(activeWorkspace.provisioningStatus)}</Badge>
+            ) : null}
+          </div>
+
+          <p className="mt-4 text-sm leading-6 text-muted-foreground">
+            {workspacesLoading && !activeWorkspace ? 'Cargando el estado del workspace seleccionado…' : workspaceStatus.description}
+          </p>
+          {workspacesError ? <p className="mt-2 text-sm text-destructive">{workspacesError}</p> : null}
+        </article>
+      </div>
+
+      {operationalAlerts.length > 0 ? (
+        <div className="space-y-3" aria-label="Alertas operativas del contexto">
+          {operationalAlerts.map((alert) => (
+            <article
+              key={alert.key}
+              role="alert"
+              data-testid="console-context-operational-alert"
+              className={cn(
+                'rounded-2xl border px-4 py-3 shadow-sm',
+                alert.level === 'destructive'
+                  ? 'border-destructive/30 bg-destructive/5'
+                  : alert.level === 'warning'
+                    ? 'border-amber-500/30 bg-amber-500/10'
+                    : 'border-border bg-card/70'
+              )}
+            >
+              <p className="text-sm font-semibold text-foreground">{alert.title}</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">{alert.description}</p>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+function getStatusBadgeClasses(tone: 'healthy' | 'warning' | 'restricted' | 'neutral') {
+  if (tone === 'healthy') {
+    return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+  }
+
+  if (tone === 'warning') {
+    return 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+  }
+
+  if (tone === 'restricted') {
+    return 'border-destructive/30 bg-destructive/10 text-destructive'
+  }
+
+  return 'border-border bg-background text-muted-foreground'
 }

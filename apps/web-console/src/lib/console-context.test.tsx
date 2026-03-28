@@ -173,6 +173,73 @@ describe('console-context', () => {
       workspaceId: null
     })
   })
+
+  it('enriquece el tenant activo con gobernanza, cuotas e inventario y expone alertas operativas', async () => {
+    stubContextApi({
+      tenants: [
+        createTenant('ten_alpha', 'Tenant Alpha', {
+          governance: { governanceStatus: 'warning' },
+          quotaProfile: {
+            governanceStatus: 'warning',
+            limits: [
+              {
+                metricKey: 'storage_gb',
+                scope: 'tenant',
+                used: 80,
+                limit: 100,
+                remaining: 20,
+                unit: 'GB'
+              },
+              {
+                metricKey: 'invocations_per_minute',
+                scope: 'workspace',
+                used: 1000,
+                limit: 1000,
+                remaining: 0,
+                unit: 'rpm'
+              }
+            ]
+          },
+          inventorySummary: {
+            tenantId: 'ten_alpha',
+            workspaceCount: 2,
+            applicationCount: 6,
+            managedResourceCount: 12,
+            serviceAccountCount: 3,
+            workspaces: [
+              {
+                workspaceId: 'wrk_alpha',
+                workspaceSlug: 'workspace-alpha',
+                environment: 'sandbox',
+                state: 'active',
+                applicationCount: 4,
+                serviceAccountCount: 2,
+                managedResourceCount: 8
+              }
+            ]
+          }
+        })
+      ],
+      workspacesByTenant: {
+        ten_alpha: [
+          createWorkspace('wrk_alpha', 'ten_alpha', 'Workspace Alpha', {
+            provisioning: { status: 'partially_failed' }
+          })
+        ]
+      }
+    })
+
+    renderContextProbe()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('tenant-governance')).toHaveTextContent('warning')
+      expect(screen.getByTestId('tenant-quota-warning')).toHaveTextContent('1')
+      expect(screen.getByTestId('tenant-quota-blocked')).toHaveTextContent('1')
+      expect(screen.getByTestId('tenant-inventory-applications')).toHaveTextContent('6')
+      expect(screen.getByTestId('workspace-provisioning')).toHaveTextContent('partially_failed')
+      expect(screen.getByTestId('operational-alerts-count')).toHaveTextContent('3')
+    })
+  })
 })
 
 function ContextProbe() {
@@ -183,6 +250,12 @@ function ContextProbe() {
       <div data-testid="active-tenant">{context.activeTenantId ?? 'none'}</div>
       <div data-testid="active-workspace">{context.activeWorkspaceId ?? 'none'}</div>
       <div data-testid="tenants-count">{context.tenants.length}</div>
+      <div data-testid="tenant-governance">{context.activeTenant?.governanceStatus ?? 'none'}</div>
+      <div data-testid="tenant-quota-warning">{context.activeTenant?.quotaSummary?.totals.warning ?? '0'}</div>
+      <div data-testid="tenant-quota-blocked">{context.activeTenant?.quotaSummary?.totals.blocked ?? '0'}</div>
+      <div data-testid="tenant-inventory-applications">{context.activeTenant?.inventorySummary?.applicationCount ?? '0'}</div>
+      <div data-testid="workspace-provisioning">{context.activeWorkspace?.provisioningStatus ?? 'none'}</div>
+      <div data-testid="operational-alerts-count">{context.operationalAlerts.length}</div>
       <button type="button" onClick={() => context.selectTenant('ten_beta')}>
         Seleccionar tenant beta
       </button>
@@ -230,23 +303,52 @@ function stubContextApi({
   })
 }
 
-function createTenant(tenantId: string, displayName: string) {
+function createTenant(
+  tenantId: string,
+  displayName: string,
+  overrides: Record<string, unknown> = {}
+) {
   return {
     tenantId,
     displayName,
     slug: displayName.toLowerCase().replace(/\s+/g, '-'),
-    state: 'active'
+    state: 'active',
+    governance: {
+      governanceStatus: 'nominal'
+    },
+    quotaProfile: {
+      governanceStatus: 'nominal',
+      limits: []
+    },
+    inventorySummary: {
+      tenantId,
+      workspaceCount: 1,
+      applicationCount: 1,
+      managedResourceCount: 1,
+      serviceAccountCount: 1,
+      workspaces: []
+    },
+    ...overrides
   }
 }
 
-function createWorkspace(workspaceId: string, tenantId: string, displayName: string) {
+function createWorkspace(
+  workspaceId: string,
+  tenantId: string,
+  displayName: string,
+  overrides: Record<string, unknown> = {}
+) {
   return {
     workspaceId,
     tenantId,
     displayName,
     slug: displayName.toLowerCase().replace(/\s+/g, '-'),
     environment: 'sandbox',
-    state: 'active'
+    state: 'active',
+    provisioning: {
+      status: 'completed'
+    },
+    ...overrides
   }
 }
 

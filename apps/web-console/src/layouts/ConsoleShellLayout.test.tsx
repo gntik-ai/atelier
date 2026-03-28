@@ -52,7 +52,7 @@ describe('ConsoleShellLayout', () => {
     window.localStorage.clear()
   })
 
-  it('renderiza header, sidebar, avatar y bloque de contexto usando la sesión persistida', async () => {
+  it('renderiza header, sidebar, avatar y panel de estado usando la sesión persistida', async () => {
     stubShellApi({
       tenants: [createTenant('ten_alpha', 'Tenant Alpha')],
       workspacesByTenant: {
@@ -68,11 +68,16 @@ describe('ConsoleShellLayout', () => {
     expect(screen.getByText(/operaciones plataforma/i)).toBeInTheDocument()
     expect(screen.getByTestId('console-shell-avatar')).toHaveTextContent('OP')
     expect(screen.getByLabelText(/contexto activo de consola/i)).toBeInTheDocument()
+    expect(screen.getByTestId('console-context-status-panel')).toBeInTheDocument()
 
     await waitFor(() => {
       expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_alpha')
       expect(screen.getByTestId('console-context-workspace-select')).toHaveValue('wrk_alpha')
+      expect(screen.getByTestId('console-context-tenant-status')).toHaveTextContent(/tenant alpha/i)
+      expect(screen.getByTestId('console-context-workspace-status')).toHaveTextContent(/workspace alpha/i)
     })
+
+    expect(screen.queryByTestId('console-context-operational-alert')).not.toBeInTheDocument()
   })
 
   it('abre el dropdown y lo cierra con escape', async () => {
@@ -180,7 +185,7 @@ describe('ConsoleShellLayout', () => {
     renderShell('/console/overview')
 
     const retryButton = await screen.findByRole('button', { name: /reintentar tenants/i })
-    expect(screen.getByText(/tenants degradados/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/tenants degradados/i).length).toBeGreaterThan(0)
 
     await user.click(retryButton)
 
@@ -188,6 +193,61 @@ describe('ConsoleShellLayout', () => {
       expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_alpha')
       expect(screen.getByTestId('console-context-workspace-select')).toHaveValue('wrk_alpha')
     })
+  })
+
+  it('muestra un banner cuando el tenant activo está suspendido', async () => {
+    stubShellApi({
+      tenants: [createTenant('ten_alpha', 'Tenant Alpha', { state: 'suspended' })]
+    })
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/functions')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/tenant suspended/i)
+  })
+
+  it('muestra un banner cuando el workspace activo tiene provisioning parcialmente fallido', async () => {
+    stubShellApi({
+      workspacesByTenant: {
+        ten_alpha: [
+          createWorkspace('wrk_alpha', 'ten_alpha', 'Workspace Alpha', {
+            provisioning: { status: 'partially_failed' }
+          })
+        ]
+      }
+    })
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/storage')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/provisioning del workspace incompleto/i)
+  })
+
+  it('muestra un banner cuando existe una cuota bloqueada en el tenant activo', async () => {
+    stubShellApi({
+      tenants: [
+        createTenant('ten_alpha', 'Tenant Alpha', {
+          quotaProfile: {
+            governanceStatus: 'nominal',
+            limits: [
+              {
+                metricKey: 'invocations_per_minute',
+                scope: 'workspace',
+                used: 1000,
+                limit: 1000,
+                remaining: 0,
+                unit: 'rpm'
+              }
+            ]
+          }
+        })
+      ]
+    })
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/observability')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/cuotas agotadas en el tenant activo/i)
   })
 
   it('ejecuta logout, limpia storage y redirige a login', async () => {
@@ -330,23 +390,48 @@ function createShellApiImplementation({
   }
 }
 
-function createTenant(tenantId: string, displayName: string) {
+function createTenant(tenantId: string, displayName: string, overrides: Record<string, unknown> = {}) {
   return {
     tenantId,
     displayName,
     slug: displayName.toLowerCase().replace(/\s+/g, '-'),
-    state: 'active'
+    state: 'active',
+    governance: {
+      governanceStatus: 'nominal'
+    },
+    quotaProfile: {
+      governanceStatus: 'nominal',
+      limits: []
+    },
+    inventorySummary: {
+      tenantId,
+      workspaceCount: 1,
+      applicationCount: 1,
+      managedResourceCount: 1,
+      serviceAccountCount: 1,
+      workspaces: []
+    },
+    ...overrides
   }
 }
 
-function createWorkspace(workspaceId: string, tenantId: string, displayName: string) {
+function createWorkspace(
+  workspaceId: string,
+  tenantId: string,
+  displayName: string,
+  overrides: Record<string, unknown> = {}
+) {
   return {
     workspaceId,
     tenantId,
     displayName,
     slug: displayName.toLowerCase().replace(/\s+/g, '-'),
     environment: 'sandbox',
-    state: 'active'
+    state: 'active',
+    provisioning: {
+      status: 'completed'
+    },
+    ...overrides
   }
 }
 
