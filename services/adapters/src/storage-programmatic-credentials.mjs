@@ -264,6 +264,10 @@ export function rotateStorageProgrammaticCredential(input = {}) {
     : buildStorageProgrammaticCredentialRecord(input);
   const requestedAt = toIso(input.requestedAt ?? input.now ?? DEFAULT_NOW);
 
+  if (current.state !== STORAGE_PROGRAMMATIC_CREDENTIAL_STATES.ACTIVE) {
+    throw new Error(STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES.INVALID_STATE);
+  }
+
   return buildStorageProgrammaticCredentialSecretEnvelope({
     ...current,
     actorId: input.actorId ?? current.issuer.actorId,

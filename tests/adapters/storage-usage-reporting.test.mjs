@@ -39,3 +39,32 @@ test('workspace usage composition stays additively consistent end to end', () =>
   assert.equal(snapshot.buckets.length, 3);
   assert.equal(breaches.length, 0);
 });
+
+test('workspace usage helpers surface threshold breaches deterministically for warning and critical states', () => {
+  const buckets = [
+    buildStorageBucketUsageEntry({ bucketId: 'b1', workspaceId: 'w1', tenantId: 't1', totalBytes: 80, objectCount: 8, largestObjectSizeBytes: 20 }),
+    buildStorageBucketUsageEntry({ bucketId: 'b2', workspaceId: 'w1', tenantId: 't1', totalBytes: 30, objectCount: 4, largestObjectSizeBytes: 15 })
+  ];
+  const snapshot = buildStorageUsageSnapshot({
+    scopeType: 'workspace',
+    scopeId: 'w1',
+    tenantId: 't1',
+    dimensions: [
+      buildStorageUsageDimensionStatus({ dimension: 'total_bytes', used: 110, limit: 100 }),
+      buildStorageUsageDimensionStatus({ dimension: 'bucket_count', used: 2, limit: 5 }),
+      buildStorageUsageDimensionStatus({ dimension: 'object_count', used: 12, limit: 12 }),
+      buildStorageUsageDimensionStatus({ dimension: 'object_size_bytes', used: 20, limit: 25 })
+    ],
+    breakdown: buckets,
+    collectionMethod: 'provider_admin_api',
+    collectionStatus: 'ok',
+    snapshotAt: '2026-03-28T00:10:00Z'
+  });
+  const breaches = detectStorageUsageThresholdBreaches({ snapshot });
+
+  assert.equal(snapshot.buckets.length, 2);
+  assert.equal(breaches.length, 3);
+  assert.equal(breaches.find((entry) => entry.dimension === 'total_bytes').severity, 'critical');
+  assert.equal(breaches.find((entry) => entry.dimension === 'object_count').severity, 'critical');
+  assert.equal(breaches.find((entry) => entry.dimension === 'object_size_bytes').severity, 'warning');
+});

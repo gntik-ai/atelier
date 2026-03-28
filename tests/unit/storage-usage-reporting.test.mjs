@@ -124,3 +124,79 @@ test('cross tenant usage summary sorts by total bytes and truncates topN', () =>
   assert.deepEqual(summary.tenants.map((entry) => entry.tenantId), ['t2', 't1']);
   assert.equal(typeof summary.generatedAt, 'string');
 });
+
+test('provider unavailable snapshots keep cached breakdowns but empty uncached breakdowns deterministically', () => {
+  const bucket = buildStorageBucketUsageEntry({
+    bucketId: 'b1',
+    workspaceId: 'w1',
+    tenantId: 't1',
+    totalBytes: 40,
+    objectCount: 4,
+    largestObjectSizeBytes: 15
+  });
+  const dimensions = [
+    buildStorageUsageDimensionStatus({ dimension: 'total_bytes', used: 40, limit: 100 }),
+    buildStorageUsageDimensionStatus({ dimension: 'bucket_count', used: 1, limit: 5 }),
+    buildStorageUsageDimensionStatus({ dimension: 'object_count', used: 4, limit: 10 }),
+    buildStorageUsageDimensionStatus({ dimension: 'object_size_bytes', used: 15, limit: 50 })
+  ];
+  const uncached = buildStorageUsageSnapshot({
+    scopeType: 'workspace',
+    scopeId: 'w1',
+    tenantId: 't1',
+    dimensions,
+    breakdown: [bucket],
+    collectionMethod: 'cached_snapshot',
+    collectionStatus: STORAGE_USAGE_COLLECTION_STATUSES.PROVIDER_UNAVAILABLE,
+    cacheSnapshotAt: null,
+    snapshotAt: '2026-03-28T00:00:00Z'
+  });
+  const cached = buildStorageUsageSnapshot({
+    scopeType: 'workspace',
+    scopeId: 'w1',
+    tenantId: 't1',
+    dimensions,
+    breakdown: [bucket],
+    collectionMethod: 'cached_snapshot',
+    collectionStatus: STORAGE_USAGE_COLLECTION_STATUSES.PROVIDER_UNAVAILABLE,
+    cacheSnapshotAt: '2026-03-28T00:00:00Z',
+    snapshotAt: '2026-03-28T00:05:00Z'
+  });
+
+  assert.deepEqual(uncached.breakdown, []);
+  assert.deepEqual(uncached.buckets, []);
+  assert.equal(cached.breakdown.length, 1);
+  assert.equal(cached.buckets[0].bucketId, 'b1');
+  assert.equal(cached.collectionMethod, 'cached_snapshot');
+});
+
+test('cross tenant usage summary can rank by object count while preserving quota and utilization metadata', () => {
+  const makeSnapshot = ({ tenantId, totalBytes, objectCount, bucketCount, largestObjectSizeBytes }) => buildStorageUsageSnapshot({
+    scopeType: 'tenant',
+    scopeId: tenantId,
+    tenantId,
+    dimensions: [
+      buildStorageUsageDimensionStatus({ dimension: 'total_bytes', used: totalBytes, limit: totalBytes * 2 }),
+      buildStorageUsageDimensionStatus({ dimension: 'bucket_count', used: bucketCount, limit: 10 }),
+      buildStorageUsageDimensionStatus({ dimension: 'object_count', used: objectCount, limit: 500 }),
+      buildStorageUsageDimensionStatus({ dimension: 'object_size_bytes', used: largestObjectSizeBytes, limit: 1000 })
+    ],
+    breakdown: [],
+    collectionMethod: 'platform_estimate',
+    collectionStatus: 'partial',
+    snapshotAt: '2026-03-28T00:00:00Z',
+    status: 'degraded'
+  });
+  const summary = buildStorageCrossTenantUsageSummary({
+    tenantSnapshots: [
+      makeSnapshot({ tenantId: 't1', totalBytes: 400, objectCount: 25, bucketCount: 3, largestObjectSizeBytes: 80 }),
+      makeSnapshot({ tenantId: 't2', totalBytes: 300, objectCount: 50, bucketCount: 4, largestObjectSizeBytes: 70 })
+    ],
+    sortDimension: 'object_count'
+  });
+
+  assert.deepEqual(summary.tenants.map((entry) => entry.tenantId), ['t2', 't1']);
+  assert.equal(summary.tenants[0].quotaLimits.total_bytes, 600);
+  assert.equal(summary.tenants[0].utilizationPercents.object_count, 10);
+  assert.equal(summary.tenants[0].status, 'degraded');
+});

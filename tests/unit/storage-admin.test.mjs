@@ -641,6 +641,95 @@ test('storage usage previews expose usage routes constants and threshold helpers
   }
 });
 
+test('storage credential previews preserve scope during rotation and block unsafe reactivation after revocation', () => {
+  const issuance = issueStorageProgrammaticCredentialPreview({
+    tenantId: 'ten_01secure',
+    workspaceId: 'wrk_01secure',
+    displayName: 'Deploy bot',
+    principal: {
+      principalType: 'service_account',
+      principalId: 'svc_01deploy'
+    },
+    scopes: [{
+      workspaceId: 'wrk_01secure',
+      bucketId: 'bucket_01deploy',
+      objectPrefix: 'releases/',
+      allowedActions: ['object.list', 'object.get', 'object.put', 'object.head']
+    }],
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    now: '2026-03-28T00:10:00Z'
+  });
+  const rotated = rotateStorageProgrammaticCredentialPreview({
+    credential: issuance.envelope.credential,
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    requestedAt: '2026-03-28T00:11:00Z'
+  });
+  const revoked = revokeStorageProgrammaticCredentialPreview({
+    credential: rotated.envelope.credential,
+    actorId: 'usr_01security',
+    actorType: 'user',
+    requestedAt: '2026-03-28T00:12:00Z'
+  });
+
+  assert.equal(rotated.envelope.credential.workspaceId, issuance.envelope.credential.workspaceId);
+  assert.deepEqual(rotated.envelope.credential.scopes, issuance.envelope.credential.scopes);
+  assert.notEqual(rotated.envelope.accessKeyId, issuance.envelope.accessKeyId);
+  assert.equal(revoked.credential.state, 'revoked');
+  assert.equal(revoked.credential.issuer.actorId, 'usr_01security');
+  assert.throws(() => rotateStorageProgrammaticCredentialPreview({
+    credential: revoked.credential,
+    requestedAt: '2026-03-28T00:13:00Z'
+  }), /INVALID_STATE/);
+});
+
+test('storage usage previews make degraded collection explicit while keeping audit-safe summaries', () => {
+  const workspacePreview = previewWorkspaceStorageUsage({
+    tenantId: 'ten_01degraded',
+    workspaceId: 'wrk_01degraded',
+    buckets: [{ bucketId: 'b1', totalBytes: 120, objectCount: 12, largestObjectSizeBytes: 30 }],
+    totalBytesLimit: 100,
+    bucketCountLimit: 5,
+    objectCountLimit: 20,
+    largestObjectSizeBytesLimit: 40,
+    collectionMethod: STORAGE_USAGE_COLLECTION_METHODS.CACHED_SNAPSHOT,
+    collectionStatus: STORAGE_USAGE_COLLECTION_STATUSES.PROVIDER_UNAVAILABLE,
+    cacheSnapshotAt: null,
+    snapshotAt: '2026-03-28T00:15:00Z',
+    actorPrincipal: 'usr_01ops'
+  });
+  const tenantPreview = previewTenantStorageUsage({
+    tenantId: 'ten_01degraded',
+    workspaces: [{
+      workspaceId: 'wrk_01degraded',
+      tenantId: 'ten_01degraded',
+      totalBytes: 120,
+      objectCount: 12,
+      bucketCount: 1,
+      buckets: [
+        { bucketId: 'b1', workspaceId: 'wrk_01degraded', tenantId: 'ten_01degraded', totalBytes: 120, objectCount: 12, largestObjectSizeBytes: 30 }
+      ]
+    }],
+    collectionMethod: STORAGE_USAGE_COLLECTION_METHODS.PROVIDER_ADMIN_API,
+    collectionStatus: STORAGE_USAGE_COLLECTION_STATUSES.PARTIAL,
+    status: 'degraded',
+    snapshotAt: '2026-03-28T00:15:00Z'
+  });
+  const crossTenantPreview = previewCrossTenantStorageUsage({
+    tenantSnapshots: [tenantPreview.snapshot],
+    generatedAt: '2026-03-28T00:16:00Z'
+  });
+
+  assert.deepEqual(workspacePreview.snapshot.breakdown, []);
+  assert.equal(workspacePreview.thresholdBreaches.length >= 1, true);
+  assert.equal(workspacePreview.auditEvent.actorPrincipal, 'usr_01ops');
+  assert.equal('totalBytes' in workspacePreview.auditEvent, false);
+  assert.equal(tenantPreview.snapshot.collectionStatus, 'partial');
+  assert.equal(crossTenantPreview.summary.tenants[0].status, 'degraded');
+  assert.equal(crossTenantPreview.auditEvent.scopeId, 'cross-tenant');
+});
+
 test('storage import/export previews are discoverable and bounded', () => {
   const exportPreview = previewStorageExportManifest({
     sourceBucketId: 'bucket_01',

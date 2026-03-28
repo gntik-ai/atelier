@@ -113,3 +113,81 @@ test('storage programmatic credential helpers reject unsupported actions and cro
     }]
   }), new RegExp(STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES.SCOPE_OUTSIDE_WORKSPACE));
 });
+
+test('storage programmatic credential rotation keeps identity and scope while refreshing secret material', () => {
+  const issued = buildStorageProgrammaticCredentialSecretEnvelope({
+    tenantId: 'ten_01atelier',
+    workspaceId: 'wrk_01atelier',
+    displayName: 'CI uploader',
+    principal: {
+      principalType: 'service_account',
+      principalId: 'svc_01ci'
+    },
+    scopes: [{
+      workspaceId: 'wrk_01atelier',
+      bucketId: 'bucket_01assets',
+      objectPrefix: 'uploads/ci/',
+      allowedActions: ['object.list', 'object.get', 'object.put', 'object.head']
+    }],
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    now: '2026-03-28T02:20:00Z'
+  });
+  const rotated = rotateStorageProgrammaticCredential({
+    credential: issued.credential,
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    correlationId: 'cor_credential_rotate_01',
+    requestedAt: '2026-03-28T02:25:00Z'
+  });
+
+  assert.equal(rotated.credential.credentialId, issued.credential.credentialId);
+  assert.deepEqual(rotated.credential.principal, issued.credential.principal);
+  assert.deepEqual(rotated.credential.scopes, issued.credential.scopes);
+  assert.equal(rotated.credential.secretVersion, issued.credential.secretVersion + 1);
+  assert.equal(rotated.credential.lastRotatedAt, '2026-03-28T02:25:00.000Z');
+  assert.equal(rotated.credential.updatedAt, '2026-03-28T02:25:00.000Z');
+  assert.equal(rotated.credential.createdAt, issued.credential.createdAt);
+  assert.notEqual(rotated.accessKeyId, issued.accessKeyId);
+  assert.notEqual(rotated.secretAccessKey, issued.secretAccessKey);
+  assert.equal(rotated.credential.accessKeyIdMasked, `${rotated.accessKeyId.slice(0, 4)}…${rotated.accessKeyId.slice(-4)}`);
+  assert.equal(rotated.credential.issuer.correlationId, 'cor_credential_rotate_01');
+});
+
+test('storage programmatic credential helpers reject rotation of revoked credentials and keep revocation traceable', () => {
+  const record = buildStorageProgrammaticCredentialRecord({
+    tenantId: 'ten_01atelier',
+    workspaceId: 'wrk_01atelier',
+    displayName: 'Emergency revoke',
+    principal: {
+      principalType: 'user',
+      principalId: 'usr_01operator'
+    },
+    scopes: [{
+      workspaceId: 'wrk_01atelier',
+      allowedActions: ['object.list', 'object.get']
+    }],
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    now: '2026-03-28T02:30:00Z'
+  });
+  const revoked = revokeStorageProgrammaticCredential({
+    credential: record,
+    actorId: 'usr_01security',
+    actorType: 'user',
+    correlationId: 'cor_credential_revoke_01',
+    requestedAt: '2026-03-28T02:31:00Z'
+  });
+
+  assert.equal(revoked.state, 'revoked');
+  assert.equal(revoked.revokedAt, '2026-03-28T02:31:00.000Z');
+  assert.equal(revoked.updatedAt, '2026-03-28T02:31:00.000Z');
+  assert.equal(revoked.lastRotatedAt, record.lastRotatedAt);
+  assert.equal(revoked.issuer.actorId, 'usr_01security');
+  assert.equal(revoked.issuer.correlationId, 'cor_credential_revoke_01');
+  assert.match(revoked.accessKeyIdMasked, /^AKST…[A-Z0-9]{4}$/);
+  assert.throws(() => rotateStorageProgrammaticCredential({
+    credential: revoked,
+    requestedAt: '2026-03-28T02:32:00Z'
+  }), new RegExp(STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES.INVALID_STATE));
+});
