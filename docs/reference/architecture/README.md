@@ -18,6 +18,7 @@ This directory documents architecture baselines that future tasks should extend 
 - `services/internal-contracts/src/domain-model.json` is the machine-readable source of truth for shared identifiers, entity relationships, lifecycle events, and OpenAPI mapping metadata.
 - `docs/reference/architecture/core-domain-model.md` is the human-readable architecture companion for the core domain model.
 - `docs/reference/architecture/console-authentication.md` records the console login, signup, activation, and password-recovery baseline introduced by `US-IAM-03`.
+- `docs/reference/architecture/storage-provider-operability.md` records the supported storage provider posture, planning limits, internal operating targets, and qualitative cost guidance introduced by `US-STO-03-T06`.
 
 ## Usage rules
 
