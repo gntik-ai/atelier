@@ -10,6 +10,10 @@ import {
   getAlertEventEnvelopeSchema,
   getAlertKafkaTopicConfig,
   getAlertSuppressionCause,
+  getHardLimitAuditContract,
+  getHardLimitDimension,
+  getHardLimitEnforcementPolicy,
+  getHardLimitErrorContract,
   getHealthSummaryAggregationRule,
   getHealthSummaryFreshnessThreshold,
   getHealthSummaryScope,
@@ -41,6 +45,8 @@ import {
   listAlertLifecycleStates,
   listAlertSeverityLevels,
   listAlertSuppressionCauses,
+  listHardLimitDimensions,
+  listHardLimitSurfaceMappings,
   listHealthSummaryScopes,
   listHealthSummaryStatuses,
   listObservabilityBusinessDomains,
@@ -61,6 +67,7 @@ import {
   listUsageMeteredDimensions,
   readObservabilityBusinessMetrics,
   readObservabilityConsoleAlerts,
+  readObservabilityHardLimitEnforcement,
   readObservabilityThresholdAlerts,
   readObservabilityDashboards,
   readObservabilityHealthChecks,
@@ -111,6 +118,12 @@ export const thresholdAlertSuppressionCauses = listAlertSuppressionCauses();
 export const thresholdAlertKafkaConfig = getAlertKafkaTopicConfig();
 export const thresholdAlertEnvelopeSchema = getAlertEventEnvelopeSchema();
 export const thresholdAlertCorrelationStrategy = getAlertCorrelationStrategy();
+export const observabilityHardLimitEnforcement = readObservabilityHardLimitEnforcement();
+export const hardLimitDimensions = listHardLimitDimensions();
+export const hardLimitSurfaceMappings = listHardLimitSurfaceMappings();
+export const hardLimitErrorContract = getHardLimitErrorContract();
+export const hardLimitAuditContract = getHardLimitAuditContract();
+export const hardLimitEnforcementPolicy = getHardLimitEnforcementPolicy();
 
 export function listObservabilitySubsystems() {
   return listObservedSubsystems();
@@ -1862,4 +1875,186 @@ export function evaluateWorkspaceAlerts(context = {}, input = {}) {
     { ...context, tenantId: input.tenantId ?? context.tenantId, workspaceId: input.workspaceId ?? context.workspaceId },
     { ...input, tenantId: input.tenantId ?? context.tenantId, workspaceId: input.workspaceId ?? context.workspaceId }
   );
+}
+
+function normalizeHardLimitDimensionId(dimensionId) {
+  const dimension = getHardLimitDimension(dimensionId);
+  return dimension?.id ?? dimensionId ?? null;
+}
+
+function normalizeScopePriority(scopeType) {
+  if (scopeType === 'workspace') {
+    return 2;
+  }
+  if (scopeType === 'tenant') {
+    return 1;
+  }
+  return 0;
+}
+
+function toFiniteNumberOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+export function summarizeObservabilityHardLimitEnforcement() {
+  return {
+    version: observabilityHardLimitEnforcement.version,
+    sources: {
+      usageConsumption: observabilityHardLimitEnforcement.source_usage_contract,
+      quotaPolicies: observabilityHardLimitEnforcement.source_quota_policy_contract,
+      thresholdAlerts: observabilityHardLimitEnforcement.source_threshold_alert_contract,
+      publicApi: observabilityHardLimitEnforcement.source_public_api_contract
+    },
+    policy: hardLimitEnforcementPolicy,
+    errorContract: hardLimitErrorContract,
+    dimensions: hardLimitDimensions.map((dimension) => ({
+      id: dimension.id,
+      sourceDimensions: dimension.source_dimensions ?? [],
+      scopeTypes: dimension.scope_types ?? [],
+      blockingMode: dimension.blocking_mode ?? 'resource_creation'
+    })),
+    surfaces: hardLimitSurfaceMappings,
+    boundaries: observabilityHardLimitEnforcement.boundaries ?? []
+  };
+}
+
+export function listEnforceableQuotaDimensions() {
+  return hardLimitDimensions;
+}
+
+export function getHardLimitErrorResponseSchema() {
+  return hardLimitErrorContract;
+}
+
+export function buildQuotaHardLimitDecision(input = {}) {
+  const dimensionId = normalizeHardLimitDimensionId(input.dimensionId);
+  const scopeType = input.scopeType ?? (input.workspaceId ? 'workspace' : 'tenant');
+  const scopeId = input.scopeId ?? (scopeType === 'workspace' ? input.workspaceId ?? null : input.tenantId ?? null);
+  const currentUsage = toFiniteNumberOrNull(input.currentUsage);
+  const hardLimit = toFiniteNumberOrNull(input.hardLimit);
+  const evidenceAvailable = input.evidenceAvailable !== false;
+  const isDenied = input.allowed === false || (evidenceAvailable === false && hardLimitEnforcementPolicy.fail_closed_on_missing_evidence === true)
+    || (currentUsage != null && hardLimit != null && currentUsage >= hardLimit);
+  const blockingAction = input.blockingAction ?? 'create_resource';
+  const fallbackScopeId = scopeId ?? (scopeType === 'workspace' ? input.workspaceId ?? input.tenantId ?? 'unknown-scope' : input.tenantId ?? 'unknown-scope');
+
+  return Object.freeze({
+    allowed: !isDenied,
+    denied: isDenied,
+    errorCode: hardLimitErrorContract.error_code ?? 'QUOTA_HARD_LIMIT_REACHED',
+    httpStatus: hardLimitErrorContract.http_status ?? 429,
+    retryable: input.retryable ?? hardLimitErrorContract.retryable ?? false,
+    dimensionId,
+    scopeType,
+    scopeId: fallbackScopeId,
+    tenantId: input.tenantId ?? null,
+    workspaceId: input.workspaceId ?? null,
+    currentUsage: currentUsage ?? 0,
+    hardLimit: hardLimit ?? 0,
+    blockingAction,
+    message:
+      input.message
+      ?? `Quota hard limit reached for ${dimensionId ?? 'unknown_dimension'} at ${scopeType} scope ${fallbackScopeId}.`,
+    metricKey: input.metricKey ?? null,
+    sourceDimensionIds: getHardLimitDimension(dimensionId)?.source_dimensions ?? [],
+    evaluatedAt: input.evaluatedAt ?? new Date().toISOString(),
+    evidenceAvailable,
+    reasonCode: input.reasonCode ?? null,
+    violation: input.violation ?? null,
+    surfaceId: input.surfaceId ?? null,
+    resourceKind: input.resourceKind ?? null
+  });
+}
+
+export function pickStrictestHardLimitDecision(decisions = []) {
+  const normalized = decisions.filter(Boolean).map((decision) => (decision.errorCode ? decision : buildQuotaHardLimitDecision(decision)));
+  const denied = normalized.filter((decision) => decision.denied === true);
+  if (denied.length === 0) {
+    return normalized[0] ?? null;
+  }
+
+  return denied.sort((left, right) => {
+    const priorityDelta = normalizeScopePriority(right.scopeType) - normalizeScopePriority(left.scopeType);
+    if (priorityDelta !== 0) {
+      return priorityDelta;
+    }
+    return (right.currentUsage - right.hardLimit) - (left.currentUsage - left.hardLimit);
+  })[0];
+}
+
+export function buildQuotaHardLimitErrorResponse(decision = {}, context = {}) {
+  const resolved = decision.errorCode ? decision : buildQuotaHardLimitDecision({ ...context, ...decision });
+  return Object.freeze({
+    error_code: resolved.errorCode,
+    dimension_id: resolved.dimensionId,
+    scope_type: resolved.scopeType,
+    scope_id: resolved.scopeId,
+    current_usage: resolved.currentUsage,
+    hard_limit: resolved.hardLimit,
+    blocking_action: resolved.blockingAction,
+    retryable: resolved.retryable,
+    message: resolved.message,
+    tenant_id: resolved.tenantId,
+    workspace_id: resolved.workspaceId,
+    evaluated_at: resolved.evaluatedAt,
+    metric_key: resolved.metricKey,
+    reason_code: resolved.reasonCode
+  });
+}
+
+export function buildQuotaHardLimitAuditEvent(decision = {}, context = {}) {
+  const resolved = decision.errorCode ? decision : buildQuotaHardLimitDecision({ ...context, ...decision });
+  return Object.freeze({
+    eventType: hardLimitAuditContract.event_type ?? 'quota.hard_limit.evaluated',
+    decision: resolved.denied ? 'denied' : 'allowed',
+    tenantId: resolved.tenantId ?? context.tenantId ?? null,
+    workspaceId: resolved.workspaceId ?? context.workspaceId ?? null,
+    dimensionId: resolved.dimensionId,
+    scopeType: resolved.scopeType,
+    scopeId: resolved.scopeId,
+    blockingAction: resolved.blockingAction,
+    currentUsage: resolved.currentUsage,
+    hardLimit: resolved.hardLimit,
+    evaluatedAt: resolved.evaluatedAt,
+    errorCode: resolved.errorCode,
+    surfaceId: resolved.surfaceId,
+    resourceKind: resolved.resourceKind
+  });
+}
+
+export function mapAdapterQuotaDecisionToEnforcementDecision(input = {}) {
+  if (input.decision?.errorCode) {
+    return input.decision;
+  }
+
+  if (input.effectiveViolation) {
+    const violation = input.effectiveViolation;
+    const delta = toFiniteNumberOrNull(violation.delta) ?? 1;
+    const currentUsage = toFiniteNumberOrNull(input.currentUsage)
+      ?? toFiniteNumberOrNull(violation.used)
+      ?? Math.max((toFiniteNumberOrNull(violation.nextUsed) ?? delta) - delta, 0);
+    const hardLimit = toFiniteNumberOrNull(input.hardLimit)
+      ?? toFiniteNumberOrNull(violation.limit)
+      ?? toFiniteNumberOrNull(violation.used)
+      ?? 0;
+    return buildQuotaHardLimitDecision({
+      ...input,
+      allowed: input.allowed ?? false,
+      scopeType: input.scopeType ?? violation.scope ?? (input.workspaceId ? 'workspace' : 'tenant'),
+      scopeId: input.scopeId ?? violation.scopeId,
+      currentUsage,
+      hardLimit,
+      metricKey: input.metricKey ?? violation.metricKey,
+      reasonCode: input.reasonCode ?? violation.reasonCode ?? violation.normalizedCode,
+      violation
+    });
+  }
+
+  return buildQuotaHardLimitDecision(input);
+}
+
+export function isQuotaHardLimitReached(decision = {}) {
+  const resolved = decision.errorCode ? decision : buildQuotaHardLimitDecision(decision);
+  return resolved.denied === true;
 }

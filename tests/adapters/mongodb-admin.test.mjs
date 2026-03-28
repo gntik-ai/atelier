@@ -490,3 +490,24 @@ test('mongodb admin adapter builds stable adapter envelopes, inventory snapshots
   assert.equal(normalizedError.detail.indexName, 'idx_customer_expiry');
   assert.equal(normalizedError.retryable, false);
 });
+
+test('mongodb create validation exposes structured quotaDecision metadata at hard limits', () => {
+  const result = validateMongoAdminRequest({
+    resourceKind: 'database',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01starteralpha',
+      workspaceId: 'wrk_01starterdev',
+      planId: 'pln_01growth',
+      currentDatabaseCount: 4,
+      currentTenantDatabaseCount: 10
+    },
+    payload: {
+      databaseName: 'tenant_alpha_workspace_dev'
+    }
+  });
+
+  assert.equal(result.quotaDecision.errorCode, 'QUOTA_HARD_LIMIT_REACHED');
+  assert.equal(result.quotaDecision.dimensionId, 'logical_databases');
+  assert.equal(result.quotaDecision.scopeType, 'workspace');
+});

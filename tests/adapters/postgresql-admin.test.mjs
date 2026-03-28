@@ -995,3 +995,27 @@ test('postgres admin adapter builds stable adapter envelopes, inventory projecti
   assert.equal(dataApiDecision.allowed, true);
   assert.equal(dataApiDecision.reason, 'grant_and_rls_allow');
 });
+
+test('postgres create validation exposes structured quotaDecision metadata at hard limits', () => {
+  const result = validatePostgresAdminRequest({
+    resourceKind: 'database',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      tenantNamePrefix: 'tenant_alpha',
+      planId: 'pln_01growth',
+      currentInventory: {
+        counts: { databases: 3 }
+      }
+    },
+    payload: {
+      databaseName: 'tenant_alpha_reporting',
+      ownerRoleName: 'workspace_owner'
+    }
+  });
+
+  assert.ok(result.quotaDecision);
+  assert.equal(result.quotaDecision.errorCode, 'QUOTA_HARD_LIMIT_REACHED');
+  assert.equal(result.quotaDecision.dimensionId, 'logical_databases');
+});

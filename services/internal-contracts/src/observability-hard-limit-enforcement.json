@@ -1,0 +1,232 @@
+{
+  "version": "2026-03-28",
+  "source_usage_contract": "2026-03-28",
+  "source_quota_policy_contract": "2026-03-28",
+  "source_threshold_alert_contract": "2026-03-28",
+  "source_public_api_contract": "2026-03-26",
+  "error_contract": {
+    "http_status": 429,
+    "error_code": "QUOTA_HARD_LIMIT_REACHED",
+    "retryable": false,
+    "required_fields": [
+      "error_code",
+      "dimension_id",
+      "scope_type",
+      "scope_id",
+      "current_usage",
+      "hard_limit",
+      "blocking_action",
+      "retryable",
+      "message"
+    ],
+    "message_template": "Quota hard limit reached for {dimension_id} at {scope_type} scope {scope_id}."
+  },
+  "audit_contract": {
+    "event_type": "quota.hard_limit.evaluated",
+    "required_fields": [
+      "eventType",
+      "decision",
+      "tenantId",
+      "workspaceId",
+      "dimensionId",
+      "scopeType",
+      "scopeId",
+      "blockingAction",
+      "currentUsage",
+      "hardLimit",
+      "evaluatedAt"
+    ],
+    "decision_values": [
+      "allowed",
+      "denied"
+    ]
+  },
+  "enforcement_policy": {
+    "scope_precedence": "strictest_breached_scope",
+    "fail_closed_on_missing_evidence": true,
+    "policy_refresh": "per_evaluation",
+    "currently_implemented_surfaces": [
+      "storage.bucket.create",
+      "functions.action.create",
+      "events.topic.create",
+      "postgres.database.create",
+      "postgres.role.create",
+      "postgres.user.create",
+      "postgres.schema.create",
+      "postgres.table.create",
+      "mongo.database.create",
+      "mongo.collection.create"
+    ]
+  },
+  "dimensions": [
+    {
+      "id": "api_requests",
+      "source_dimensions": [
+        "api_requests"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "request_admission"
+    },
+    {
+      "id": "serverless_functions",
+      "source_dimensions": [
+        "function_invocations"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "resource_creation"
+    },
+    {
+      "id": "storage_buckets",
+      "source_dimensions": [
+        "storage_volume_bytes"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "resource_creation"
+    },
+    {
+      "id": "logical_databases",
+      "source_dimensions": [
+        "logical_databases"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "resource_creation"
+    },
+    {
+      "id": "kafka_topics",
+      "source_dimensions": [
+        "topics"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "resource_creation"
+    },
+    {
+      "id": "collections_tables",
+      "source_dimensions": [
+        "collections_tables"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "resource_creation"
+    },
+    {
+      "id": "realtime_connections",
+      "source_dimensions": [
+        "realtime_connections"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "connection_admission"
+    },
+    {
+      "id": "error_budget",
+      "source_dimensions": [
+        "error_count"
+      ],
+      "scope_types": [
+        "tenant",
+        "workspace"
+      ],
+      "blocking_mode": "request_admission"
+    }
+  ],
+  "surface_mappings": [
+    {
+      "id": "storage.bucket.create",
+      "dimension_id": "storage_buckets",
+      "family": "storage",
+      "operation_id": "createStorage",
+      "path": "/v1/storage/buckets"
+    },
+    {
+      "id": "functions.action.create",
+      "dimension_id": "serverless_functions",
+      "family": "functions",
+      "operation_id": "createFunctions",
+      "path": "/v1/functions/actions"
+    },
+    {
+      "id": "events.topic.create",
+      "dimension_id": "kafka_topics",
+      "family": "events",
+      "operation_id": "createEvents",
+      "path": "/v1/events/topics"
+    },
+    {
+      "id": "postgres.database.create",
+      "dimension_id": "logical_databases",
+      "family": "postgres",
+      "operation_id": "createPostgresDatabase",
+      "path": "/v1/postgres/databases"
+    },
+    {
+      "id": "postgres.role.create",
+      "dimension_id": "collections_tables",
+      "family": "postgres",
+      "operation_id": "createPostgresRole",
+      "path": "/v1/postgres/roles"
+    },
+    {
+      "id": "postgres.user.create",
+      "dimension_id": "collections_tables",
+      "family": "postgres",
+      "operation_id": "createPostgresUser",
+      "path": "/v1/postgres/users"
+    },
+    {
+      "id": "postgres.schema.create",
+      "dimension_id": "collections_tables",
+      "family": "postgres",
+      "operation_id": "createPostgresSchema",
+      "path": "/v1/postgres/databases/{databaseName}/schemas"
+    },
+    {
+      "id": "postgres.table.create",
+      "dimension_id": "collections_tables",
+      "family": "postgres",
+      "operation_id": "createPostgresTable",
+      "path": "/v1/postgres/databases/{databaseName}/schemas/{schemaName}/tables"
+    },
+    {
+      "id": "mongo.database.create",
+      "dimension_id": "logical_databases",
+      "family": "mongo",
+      "operation_id": "createMongoDatabase",
+      "path": "/v1/mongo/databases"
+    },
+    {
+      "id": "mongo.collection.create",
+      "dimension_id": "collections_tables",
+      "family": "mongo",
+      "operation_id": "createMongoCollection",
+      "path": "/v1/mongo/databases/{databaseName}/collections"
+    }
+  ],
+  "boundaries": [
+    "console_usage_projection_is_defined_in_us_obs_03_t05",
+    "cross_module_consumption_and_enforcement_tests_are_defined_in_us_obs_03_t06"
+  ],
+  "non_goals": [
+    "Does not deliver the tenant-facing console usage presentation from US-OBS-03-T05.",
+    "Does not deliver the broad end-to-end cross-module quota matrix from US-OBS-03-T06.",
+    "Does not require full control-plane OpenAPI reads during implementation."
+  ]
+}

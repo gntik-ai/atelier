@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { mapAdapterQuotaDecisionToEnforcementDecision } from '../../../apps/control-plane/src/observability-admin.mjs';
 import {
   getAdapterPort,
   getCommercialPlan,
@@ -1353,6 +1354,71 @@ export function normalizePostgresAdminResource(resourceKind, payload = {}, conte
   }
 }
 
+function derivePostgresQuotaDecision({ resourceKind, action, context = {}, currentInventory = {}, profile }) {
+  if (action !== 'create') {
+    return null;
+  }
+
+  const mappings = {
+    role: {
+      quota: profile.quotaGuardrails.roles,
+      used: Number(currentInventory?.counts?.roles ?? currentInventory?.roles?.length ?? 0),
+      dimensionId: 'collections_tables',
+      blockingAction: 'create_postgres_role',
+      surfaceId: 'postgres.role.create'
+    },
+    user: {
+      quota: profile.quotaGuardrails.users,
+      used: Number(currentInventory?.counts?.users ?? currentInventory?.users?.length ?? 0),
+      dimensionId: 'collections_tables',
+      blockingAction: 'create_postgres_user',
+      surfaceId: 'postgres.user.create'
+    },
+    database: {
+      quota: profile.quotaGuardrails.databases,
+      used: Number(currentInventory?.counts?.databases ?? currentInventory?.databases?.length ?? 0),
+      dimensionId: 'logical_databases',
+      blockingAction: 'create_postgres_database',
+      surfaceId: 'postgres.database.create'
+    },
+    schema: {
+      quota: profile.quotaGuardrails.schemas,
+      used: Number(currentInventory?.counts?.schemas ?? currentInventory?.schemas?.length ?? 0),
+      dimensionId: 'collections_tables',
+      blockingAction: 'create_postgres_schema',
+      surfaceId: 'postgres.schema.create'
+    },
+    table: {
+      quota: profile.quotaGuardrails.tables,
+      used: Number(currentInventory?.counts?.tables ?? currentInventory?.tables?.length ?? 0),
+      dimensionId: 'collections_tables',
+      blockingAction: 'create_postgres_table',
+      surfaceId: 'postgres.table.create'
+    }
+  };
+
+  const mapping = mappings[resourceKind];
+  if (!mapping?.quota || mapping.used < Number(mapping.quota.limit)) {
+    return null;
+  }
+
+  return mapAdapterQuotaDecisionToEnforcementDecision({
+    allowed: false,
+    dimensionId: mapping.dimensionId,
+    scopeType: context.workspaceId ? 'workspace' : 'tenant',
+    scopeId: context.workspaceId ?? context.tenantId ?? 'unknown-scope',
+    tenantId: context.tenantId ?? null,
+    workspaceId: context.workspaceId ?? null,
+    currentUsage: mapping.used,
+    hardLimit: Number(mapping.quota.limit),
+    blockingAction: mapping.blockingAction,
+    metricKey: mapping.quota.metricKey,
+    reasonCode: 'postgres_quota_exceeded',
+    resourceKind,
+    surfaceId: mapping.surfaceId
+  });
+}
+
 export function validatePostgresAdminRequest(request = {}) {
   const violations = [];
   const { resourceKind, action, payload = {}, context = {} } = request;
@@ -1580,9 +1646,12 @@ export function validatePostgresAdminRequest(request = {}) {
     }
   }
 
+  const quotaDecision = derivePostgresQuotaDecision({ resourceKind, action, context, currentInventory, profile });
+
   return {
     ok: violations.length === 0,
     violations,
+    ...(quotaDecision ? { quotaDecision } : {}),
     profile
   };
 }

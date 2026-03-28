@@ -1,3 +1,4 @@
+import { mapAdapterQuotaDecisionToEnforcementDecision } from '../../../apps/control-plane/src/observability-admin.mjs';
 import { STORAGE_NORMALIZED_ERROR_CODES } from './storage-error-taxonomy.mjs';
 
 const DEFAULT_NOW = '2026-03-28T00:00:00Z';
@@ -547,13 +548,35 @@ export function validateStorageQuotaGuardrails({
     }
   }
 
+  const effectiveViolation = violations[0] ?? null;
+  const quotaDecision = effectiveViolation
+    ? mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: effectiveViolation.dimension === STORAGE_QUOTA_DIMENSIONS.BUCKET_COUNT ? 'storage_buckets' : 'storage_buckets',
+        scopeType: effectiveViolation.scope,
+        scopeId: effectiveViolation.scopeId,
+        tenantId: profile.tenantId ?? null,
+        workspaceId: profile.workspaceId ?? null,
+        currentUsage: effectiveViolation.used,
+        hardLimit: effectiveViolation.limit,
+        blockingAction: normalizeAction(action),
+        metricKey: effectiveViolation.metricKey,
+        reasonCode: effectiveViolation.reasonCode,
+        effectiveViolation,
+        resourceKind: 'bucket',
+        surfaceId: 'storage.bucket.create',
+        evaluatedAt
+      })
+    : null;
+
   return deepFreeze({
     allowed: violations.length === 0,
     action: normalizeAction(action),
     tenantId: profile.tenantId ?? null,
     workspaceId: profile.workspaceId ?? null,
     violations,
-    ...(violations[0] ? { effectiveViolation: violations[0] } : {}),
+    ...(effectiveViolation ? { effectiveViolation } : {}),
+    ...(quotaDecision ? { quotaDecision } : {}),
     quotaProfile: profile,
     evaluatedAt
   });

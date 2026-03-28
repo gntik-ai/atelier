@@ -257,3 +257,71 @@ visualization, or the final cross-module enforcement matrix.
 It establishes the threshold-alert contract, Kafka topic posture, posture-store migration,
 helper/evaluation surface, documentation, and tests required before those later tasks expand the
 feature.
+
+## Scope delivered in `US-OBS-03-T04`
+
+This increment establishes the **hard-limit enforcement baseline** for quota-driven create/admission
+flows.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-hard-limit-enforcement.json` as the machine-readable
+  source of truth for the canonical hard-limit denial contract, enforceable dimension aliases,
+  create-surface mappings, scope precedence, and fail-closed posture
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for the hard-limit
+  enforcement contract
+- `scripts/lib/observability-hard-limit-enforcement.mjs` and
+  `scripts/validate-observability-hard-limit-enforcement.mjs` for deterministic contract validation
+  and dependency-alignment checks
+- additive helper surfaces in `apps/control-plane/src/observability-admin.mjs` for canonical
+  hard-limit decisions, error payloads, audit events, and strictest-scope resolution
+- additive `quotaDecision` metadata across the bounded storage/functions/events/postgres/mongo
+  create/admission validations
+- bounded family OpenAPI denial docs for storage, functions, events, postgres, and mongo, followed
+  by `npm run generate:public-api`
+- `docs/reference/architecture/observability-hard-limit-enforcement.md` as the human-readable
+  architecture guide for the hard-limit enforcement baseline
+- targeted unit, contract, and adapter tests covering the shared contract and additive structured
+  quota denials
+
+## Main decisions in `US-OBS-03-T04`
+
+### Hard-limit denials use one canonical response shape
+
+Adapters may keep native validation strings for compatibility, but the structured admission denial
+shape is centralized and always uses `QUOTA_HARD_LIMIT_REACHED`.
+
+### Scope precedence is deterministic
+
+When more than one scope is exhausted, the bounded helper picks the strictest breached scope rather
+than leaving the effective denial ambiguous.
+
+### Missing evidence fails closed
+
+This baseline treats missing quota evidence as unsafe for create/admission flows. The contract
+therefore denies when hard-limit evidence is unavailable instead of silently allowing the request.
+
+## Validation for `US-OBS-03-T04`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-hard-limit-enforcement
+```
+
+## Downstream dependency note for `US-OBS-03-T04`
+
+This increment defines the trusted hard-limit blocking baseline required before the remaining story
+work can extend the user-facing experience.
+
+Downstream work remains separate:
+
+- `US-OBS-03-T05` — console usage vs quota and provisioning state
+- `US-OBS-03-T06` — end-to-end cross-module verification
+
+## Residual implementation note for `US-OBS-03-T04`
+
+This increment does **not** implement the final console rendering from `T05` or the broad
+cross-module end-to-end matrix from `T06`.
+It only establishes the bounded hard-limit contract, helper surfaces, adapter metadata, public API
+notes, documentation, and tests required for those later tasks.

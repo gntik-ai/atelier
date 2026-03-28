@@ -1,4 +1,8 @@
 import {
+  mapAdapterQuotaDecisionToEnforcementDecision,
+  pickStrictestHardLimitDecision
+} from '../../../apps/control-plane/src/observability-admin.mjs';
+import {
   getAdapterPort,
   getContract
 } from '../../internal-contracts/src/index.mjs';
@@ -1291,6 +1295,90 @@ function validateRoleBindingRequest(action, payload = {}, context = {}, profile)
   return violations;
 }
 
+function deriveMongoQuotaDecision({ resourceKind, action, context = {}, profile }) {
+  if (action !== 'create') {
+    return null;
+  }
+
+  const candidates = [];
+
+  if (resourceKind === 'database') {
+    if ((context.currentDatabaseCount ?? 0) >= profile.quotaGuardrails.maxDatabasesPerWorkspace) {
+      candidates.push(mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: 'logical_databases',
+        scopeType: 'workspace',
+        scopeId: context.workspaceId ?? context.tenantId ?? 'unknown-scope',
+        tenantId: context.tenantId ?? null,
+        workspaceId: context.workspaceId ?? null,
+        currentUsage: Number(context.currentDatabaseCount ?? 0),
+        hardLimit: Number(profile.quotaGuardrails.maxDatabasesPerWorkspace),
+        blockingAction: 'create_mongo_database',
+        metricKey: 'workspace.mongodb.databases.max',
+        reasonCode: 'workspace_database_quota_exceeded',
+        resourceKind: 'database',
+        surfaceId: 'mongo.database.create'
+      }));
+    }
+    if ((context.currentTenantDatabaseCount ?? 0) >= profile.quotaGuardrails.maxDatabasesPerTenant) {
+      candidates.push(mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: 'logical_databases',
+        scopeType: 'tenant',
+        scopeId: context.tenantId ?? 'unknown-scope',
+        tenantId: context.tenantId ?? null,
+        workspaceId: context.workspaceId ?? null,
+        currentUsage: Number(context.currentTenantDatabaseCount ?? 0),
+        hardLimit: Number(profile.quotaGuardrails.maxDatabasesPerTenant),
+        blockingAction: 'create_mongo_database',
+        metricKey: 'tenant.mongodb.databases.max',
+        reasonCode: 'tenant_database_quota_exceeded',
+        resourceKind: 'database',
+        surfaceId: 'mongo.database.create'
+      }));
+    }
+  }
+
+  if (resourceKind === 'collection') {
+    if ((context.currentCollectionCount ?? 0) >= profile.quotaGuardrails.maxCollectionsPerDatabase) {
+      candidates.push(mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: 'collections_tables',
+        scopeType: 'workspace',
+        scopeId: context.workspaceId ?? context.tenantId ?? 'unknown-scope',
+        tenantId: context.tenantId ?? null,
+        workspaceId: context.workspaceId ?? null,
+        currentUsage: Number(context.currentCollectionCount ?? 0),
+        hardLimit: Number(profile.quotaGuardrails.maxCollectionsPerDatabase),
+        blockingAction: 'create_mongo_collection',
+        metricKey: 'workspace.mongodb.collections.max',
+        reasonCode: 'workspace_collection_quota_exceeded',
+        resourceKind: 'collection',
+        surfaceId: 'mongo.collection.create'
+      }));
+    }
+    if ((context.currentTenantCollectionCount ?? 0) >= profile.quotaGuardrails.maxCollectionsPerTenant) {
+      candidates.push(mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: 'collections_tables',
+        scopeType: 'tenant',
+        scopeId: context.tenantId ?? 'unknown-scope',
+        tenantId: context.tenantId ?? null,
+        workspaceId: context.workspaceId ?? null,
+        currentUsage: Number(context.currentTenantCollectionCount ?? 0),
+        hardLimit: Number(profile.quotaGuardrails.maxCollectionsPerTenant),
+        blockingAction: 'create_mongo_collection',
+        metricKey: 'tenant.mongodb.collections.max',
+        reasonCode: 'tenant_collection_quota_exceeded',
+        resourceKind: 'collection',
+        surfaceId: 'mongo.collection.create'
+      }));
+    }
+  }
+
+  return pickStrictestHardLimitDecision(candidates);
+}
+
 export function validateMongoAdminRequest({ resourceKind, action, context = {}, payload = {} }) {
   const profile = resolveMongoAdminProfile(context);
   const violations = collectBaseViolations(resourceKind, action, context, profile);
@@ -1321,9 +1409,12 @@ export function validateMongoAdminRequest({ resourceKind, action, context = {}, 
       break;
   }
 
+  const quotaDecision = deriveMongoQuotaDecision({ resourceKind, action, context, profile });
+
   return {
     ok: violations.length === 0,
     violations,
+    ...(quotaDecision ? { quotaDecision } : {}),
     profile
   };
 }

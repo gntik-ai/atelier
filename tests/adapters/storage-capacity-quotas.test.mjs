@@ -115,3 +115,18 @@ test('provider catalog object admission preview blocks oversize and preserves au
   assert.equal(auditEvent.action, 'multipart_complete');
   assert.equal(Object.isFrozen(auditEvent), true);
 });
+
+test('provider catalog bucket admission exposes structured quotaDecision metadata', () => {
+  const decision = previewStorageBucketQuotaAdmission({
+    quotaProfile: buildStorageQuotaProfile({
+      tenantStorageContext: buildTenantContext(),
+      workspaceId: 'wrk_01catalogquota',
+      workspaceUsage: { bucketCount: 2 },
+      workspaceLimits: { maxBuckets: 2 }
+    })
+  });
+
+  assert.equal(decision.quotaDecision.errorCode, 'QUOTA_HARD_LIMIT_REACHED');
+  assert.equal(decision.quotaDecision.dimensionId, 'storage_buckets');
+  assert.equal(decision.quotaDecision.scopeType, 'workspace');
+});

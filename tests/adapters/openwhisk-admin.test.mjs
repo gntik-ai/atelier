@@ -844,3 +844,29 @@ test('action normalization carries secret references without disclosing secret v
   assert.equal(auditSummary.capturesSecretReferenceAudit, true);
   assert.equal(metadata.auditSummary.capturesSecretReferenceAudit, true);
 });
+
+test('openwhisk create validation exposes structured quotaDecision metadata at hard limits', () => {
+  const result = validateOpenWhiskAdminRequest({
+    resourceKind: 'action',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceSlug: 'alpha-dev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth',
+      currentActionCount: 24,
+      tenantCurrentActionCount: 24
+    },
+    payload: {
+      actionName: 'quota-gated-action',
+      source: { kind: 'inline_code', language: 'javascript', inlineCode: 'function main() { return { ok: true }; }' },
+      execution: { runtime: 'nodejs:20', entrypoint: 'main', limits: { timeoutSeconds: 30, memoryMb: 256 }, webAction: { enabled: false } }
+    }
+  });
+
+  assert.ok(result.quotaDecision);
+  assert.equal(result.quotaDecision.errorCode, 'QUOTA_HARD_LIMIT_REACHED');
+  assert.equal(result.quotaDecision.dimensionId, 'serverless_functions');
+  assert.equal(result.quotaDecision.scopeType, 'workspace');
+});

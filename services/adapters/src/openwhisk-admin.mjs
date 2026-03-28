@@ -1,3 +1,4 @@
+import { mapAdapterQuotaDecisionToEnforcementDecision } from '../../../apps/control-plane/src/observability-admin.mjs';
 import { getContract, resolveWorkspaceEffectiveCapabilities } from '../../internal-contracts/src/index.mjs';
 
 const functionAdminRequestContract = getContract('function_admin_request');
@@ -906,11 +907,12 @@ export function buildFunctionWorkspaceSecretCollection({ items = [], nextCursor,
 }
 
 export function validateOpenWhiskAdminRequest({ resourceKind, action, context = {}, payload = {} }) {
-  const profile = resolveOpenWhiskAdminProfile({
+  const resolvedContext = {
     ...context,
     tenantId: context.tenantId ?? payload.tenantId,
     workspaceId: context.workspaceId ?? payload.workspaceId
-  });
+  };
+  const profile = resolveOpenWhiskAdminProfile(resolvedContext);
   const violations = collectBaseViolations(resourceKind, action, payload, context, profile);
 
   if (resourceKind === 'action') {
@@ -929,9 +931,37 @@ export function validateOpenWhiskAdminRequest({ resourceKind, action, context = 
     violations.push(...validateRuleRequest(action, payload, context, profile));
   }
 
+  const quotaEvaluation = resourceKind === 'action' && action === 'create'
+    ? validateFunctionQuotaGuardrails({
+        context: resolvedContext,
+        profile,
+        action: 'creating another action',
+        delta: { function_count: 1 }
+      })
+    : null;
+  const quotaDecision = quotaEvaluation?.effectiveViolation
+    ? mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: 'serverless_functions',
+        scopeType: quotaEvaluation.effectiveViolation.scope,
+        scopeId: quotaEvaluation.effectiveViolation.scopeId,
+        tenantId: resolvedContext.tenantId ?? null,
+        workspaceId: resolvedContext.workspaceId ?? null,
+        currentUsage: quotaEvaluation.effectiveViolation.used,
+        hardLimit: quotaEvaluation.effectiveViolation.limit,
+        blockingAction: 'create_function',
+        metricKey: quotaEvaluation.effectiveViolation.metricKey,
+        reasonCode: 'workspace_function_quota_exceeded',
+        effectiveViolation: quotaEvaluation.effectiveViolation,
+        resourceKind: 'action',
+        surfaceId: 'functions.action.create'
+      })
+    : null;
+
   return {
     ok: violations.length === 0,
     violations,
+    ...(quotaDecision ? { quotaDecision } : {}),
     profile
   };
 }

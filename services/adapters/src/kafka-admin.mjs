@@ -1,3 +1,4 @@
+import { mapAdapterQuotaDecisionToEnforcementDecision } from '../../../apps/control-plane/src/observability-admin.mjs';
 import { getContract, resolveWorkspaceEffectiveCapabilities } from '../../internal-contracts/src/index.mjs';
 
 const kafkaAdminRequestContract = getContract('kafka_admin_request');
@@ -471,7 +472,8 @@ function validateTopicAclRequest(action, payload, context, profile) {
 }
 
 export function validateKafkaAdminRequest({ resourceKind, action, context = {}, payload = {} }) {
-  const profile = resolveKafkaAdminProfile({ ...context, tenantId: context.tenantId ?? payload.tenantId, workspaceId: context.workspaceId ?? payload.workspaceId });
+  const resolvedContext = { ...context, tenantId: context.tenantId ?? payload.tenantId, workspaceId: context.workspaceId ?? payload.workspaceId };
+  const profile = resolveKafkaAdminProfile(resolvedContext);
   const violations = collectBaseViolations(resourceKind, action, context, profile);
 
   if (resourceKind === 'topic') {
@@ -482,9 +484,28 @@ export function validateKafkaAdminRequest({ resourceKind, action, context = {}, 
     violations.push(...validateTopicAclRequest(action, payload, context, profile));
   }
 
+  const quotaDecision = resourceKind === 'topic' && action === 'create' && Number(profile.quotaGuardrails.usedTopics) >= Number(profile.quotaGuardrails.maxTopicsPerWorkspace)
+    ? mapAdapterQuotaDecisionToEnforcementDecision({
+        allowed: false,
+        dimensionId: 'kafka_topics',
+        scopeType: 'workspace',
+        scopeId: resolvedContext.workspaceId ?? resolvedContext.tenantId ?? 'unknown-scope',
+        tenantId: resolvedContext.tenantId ?? null,
+        workspaceId: resolvedContext.workspaceId ?? null,
+        currentUsage: Number(profile.quotaGuardrails.usedTopics),
+        hardLimit: Number(profile.quotaGuardrails.maxTopicsPerWorkspace),
+        blockingAction: 'create_topic',
+        metricKey: profile.quotaGuardrails.metricKey,
+        reasonCode: 'workspace_topic_quota_exceeded',
+        resourceKind: 'topic',
+        surfaceId: 'events.topic.create'
+      })
+    : null;
+
   return {
     ok: violations.length === 0,
     violations,
+    ...(quotaDecision ? { quotaDecision } : {}),
     profile
   };
 }

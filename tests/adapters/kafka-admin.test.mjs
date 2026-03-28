@@ -304,3 +304,25 @@ test('kafka admin adapter builds contract-rich adapter calls, metadata, inventor
   assert.equal(error.code, 'EVT_KAFKA_QUOTA_EXCEEDED');
   assert.equal(error.retryable, false);
 });
+
+test('kafka create validation exposes structured quotaDecision metadata at hard limits', () => {
+  const result = validateKafkaAdminRequest({
+    resourceKind: 'topic',
+    action: 'create',
+    context: {
+      tenantId: 'ten_01growthalpha',
+      workspaceId: 'wrk_01alphadev',
+      workspaceSlug: 'alpha-dev',
+      workspaceEnvironment: 'dev',
+      planId: 'pln_01growth',
+      currentTopicCount: 20
+    },
+    payload: {
+      topicName: 'billing-events'
+    }
+  });
+
+  assert.equal(result.quotaDecision.errorCode, 'QUOTA_HARD_LIMIT_REACHED');
+  assert.equal(result.quotaDecision.dimensionId, 'kafka_topics');
+  assert.equal(result.quotaDecision.scopeType, 'workspace');
+});
