@@ -179,6 +179,30 @@ test('storage provider support fails safely for missing, unknown, and ambiguous 
   assert.deepEqual(introspection.capabilityFields, STORAGE_PROVIDER_CAPABILITIES);
 });
 
+test('storage admin summaries preserve canonical capability ordering and stable unavailable fallback shape', () => {
+  const profiles = [
+    summarizeStorageProviderSupport({ providerType: 'minio' }),
+    summarizeStorageProviderSupport({ providerType: 'ceph-rgw' }),
+    summarizeStorageProviderSupport({ providerType: 'garage' }),
+    summarizeStorageProviderSupport({ providerType: 'unknown-provider' })
+  ];
+  const introspection = summarizeStorageProviderIntrospection({ providerType: 'unknown-provider' });
+  const expectedEntryKeys = ['capabilityId', 'required', 'state', 'summary', 'constraints'];
+  const allowedStates = Object.values(STORAGE_PROVIDER_CAPABILITY_ENTRY_STATE_CATALOG);
+
+  for (const profile of profiles) {
+    assert.deepEqual(profile.capabilityDetails.map((entry) => entry.capabilityId), STORAGE_PROVIDER_CAPABILITY_IDS_CATALOG);
+    assert.equal(profile.capabilityDetails.every((entry) => JSON.stringify(Object.keys(entry)) === JSON.stringify(expectedEntryKeys)), true);
+    assert.equal(profile.capabilityDetails.every((entry) => allowedStates.includes(entry.state)), true);
+  }
+
+  assert.equal(profiles[3].status, 'unavailable');
+  assert.equal(Object.values(profiles[3].capabilityManifest).every((value) => value === false), true);
+  assert.equal(profiles[3].capabilityDetails.every((entry) => entry.state === STORAGE_PROVIDER_CAPABILITY_ENTRY_STATE_CATALOG.UNSATISFIED), true);
+  assert.deepEqual(introspection.profile.capabilityDetails.map((entry) => entry.capabilityId), STORAGE_PROVIDER_CAPABILITY_IDS_CATALOG);
+  assert.equal(Object.values(introspection.profile.capabilityManifest).every((value) => value === false), true);
+});
+
 test('tenant storage context summary is tenant-isolated, introspectable, and secret-safe', () => {
   const preview = previewTenantStorageContext({
     tenant: {

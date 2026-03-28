@@ -34,13 +34,16 @@ import {
   evaluateStorageAccessDecision,
   evaluateStorageEventNotifications,
   getStorageBucketRecord,
+  getStorageProviderProfile,
   previewStorageBucketQuotaAdmission,
   previewStorageObjectQuotaAdmission,
   storageEventNotificationErrorCodes,
   storageMultipartNormalizedErrorCodes,
   storageNormalizedErrorCodes,
   storagePolicyNormalizedErrorCodes,
-  storageQuotaGuardrailErrorCodes
+  storageProviderCapabilityIds,
+  storageQuotaGuardrailErrorCodes,
+  supportedStorageProviderTypes
 } from '../../services/adapters/src/provider-catalog.mjs';
 import {
   VERIFICATION_VERDICT,
@@ -195,6 +198,22 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   assert.ok(providerSchema.properties.capabilityDetails.items.properties.capabilityId);
   assert.ok(providerSchema.properties.capabilityBaseline.properties.eligible);
   assert.ok(tenantContextSchema.properties.providerCapabilities.properties.baseline.properties.insufficientCapabilities);
+});
+
+test('storage provider contract keeps canonical capability completeness across supported and unavailable profiles', () => {
+  const expectedEntryKeys = ['capabilityId', 'required', 'state', 'summary', 'constraints'];
+
+  for (const providerType of supportedStorageProviderTypes) {
+    const profile = getStorageProviderProfile({ providerType });
+
+    assert.deepEqual(profile.capabilityDetails.map((entry) => entry.capabilityId), storageProviderCapabilityIds);
+    assert.equal(profile.capabilityDetails.every((entry) => JSON.stringify(Object.keys(entry)) === JSON.stringify(expectedEntryKeys)), true);
+  }
+
+  const unavailable = summarizeStorageProviderIntrospection({ providerType: 'unknown-provider' }).profile;
+  assert.deepEqual(unavailable.capabilityDetails.map((entry) => entry.capabilityId), storageProviderCapabilityIds);
+  assert.equal(unavailable.capabilityDetails.every((entry) => entry.state === 'unsatisfied'), true);
+  assert.equal(Object.values(unavailable.capabilityManifest).every((value) => value === false), true);
 });
 
 test('storage contracts preserve route discoverability, taxonomy, service-map coverage, and bounded previews', () => {

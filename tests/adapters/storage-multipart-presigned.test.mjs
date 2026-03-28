@@ -69,6 +69,12 @@ test('unsatisfied multipart capability produces additive not-available error', (
   });
 
   assert.equal(result.allowed, false);
+  assert.equal(result.capabilityId, 'object.multipart_upload');
+  assert.equal(result.satisfactionState, 'unsatisfied');
+  assert.equal(result.errorEnvelope.code, 'STORAGE_UNKNOWN_ERROR');
+  assert.equal(result.errorEnvelope.normalizedCode, 'CAPABILITY_NOT_AVAILABLE');
+  assert.equal(result.errorEnvelope.httpStatus, 501);
+  assert.equal(result.errorEnvelope.missingCapabilityId, 'object.multipart_upload');
   assert.equal(error.normalizedCode, 'CAPABILITY_NOT_AVAILABLE');
   assert.equal(error.httpStatus, 501);
 });

@@ -51,6 +51,30 @@ import {
   supportedStorageProviderTypes,
   uploadStorageObjectPreview
 } from '../../services/adapters/src/provider-catalog.mjs';
+
+const CAPABILITY_ENTRY_KEYS = ['capabilityId', 'required', 'state', 'summary', 'constraints'];
+const MANIFEST_CAPABILITY_MAP = Object.freeze({
+  bucketOperations: ['bucket.create', 'bucket.delete', 'bucket.list'],
+  objectCrud: ['object.put', 'object.get', 'object.delete', 'object.list', 'object.metadata.get'],
+  presignedUrls: ['bucket.presigned_urls'],
+  multipartUpload: ['object.multipart_upload'],
+  objectVersioning: ['object.versioning'],
+  bucketPolicies: ['bucket.policy'],
+  bucketLifecycle: ['bucket.lifecycle'],
+  objectLock: ['object.lock'],
+  eventNotifications: ['bucket.event_notifications']
+});
+
+function deriveManifestFromDetails(details) {
+  const entryMap = new Map(details.map((entry) => [entry.capabilityId, entry]));
+
+  return Object.fromEntries(
+    Object.entries(MANIFEST_CAPABILITY_MAP).map(([field, capabilityIds]) => [
+      field,
+      capabilityIds.every((capabilityId) => entryMap.get(capabilityId)?.state === storageProviderCapabilityEntryStates.SATISFIED)
+    ])
+  );
+}
 import {
   adapterContextTargets,
   adapterEnforcementSurfaces,
@@ -405,4 +429,108 @@ test('provider catalog exposes additive storage event notification helpers', () 
   assert.equal(governance.allowedDestinationTypes[0], storageEventNotificationDestinationTypes.KAFKA_TOPIC);
   assert.equal(evaluation.matches.length, 1);
   assert.equal(storageEventNotificationErrorCodes.CAPABILITY_NOT_AVAILABLE.httpStatus, 501);
+});
+
+test('supported storage provider profiles remain complete, structurally stable, and manifest-derived', () => {
+  const observedStates = new Set();
+
+  for (const providerType of supportedStorageProviderTypes) {
+    const profile = getStorageProviderProfile({ providerType });
+    const derivedManifest = deriveManifestFromDetails(profile.capabilityDetails);
+
+    assert.equal(profile.status, 'ready');
+    assert.deepEqual(profile.capabilityDetails.map((entry) => entry.capabilityId), storageProviderCapabilityIds);
+    assert.deepEqual(profile.capabilityManifest, derivedManifest);
+
+    for (const entry of profile.capabilityDetails) {
+      observedStates.add(entry.state);
+      assert.deepEqual(Object.keys(entry), CAPABILITY_ENTRY_KEYS);
+      assert.equal(typeof entry.summary, 'string');
+      assert.equal(entry.summary.length > 0, true);
+      assert.equal(Array.isArray(entry.constraints), true);
+      assert.equal(Object.values(storageProviderCapabilityEntryStates).includes(entry.state), true);
+
+      if (entry.state === storageProviderCapabilityEntryStates.PARTIALLY_SATISFIED) {
+        assert.equal(entry.constraints.length > 0, true, `${providerType}:${entry.capabilityId} should explain partial support`);
+      }
+
+      if (entry.state === storageProviderCapabilityEntryStates.UNSATISFIED && entry.capabilityId.startsWith('bucket.')) {
+        assert.equal(entry.summary.toLowerCase().includes('not assumed') || entry.summary.toLowerCase().includes('capability'), true);
+      }
+    }
+  }
+
+  assert.deepEqual([...observedStates].sort(), [
+    storageProviderCapabilityEntryStates.PARTIALLY_SATISFIED,
+    storageProviderCapabilityEntryStates.SATISFIED,
+    storageProviderCapabilityEntryStates.UNSATISFIED
+  ]);
+});
+
+test('unavailable storage provider variants expose a stable all-unsatisfied capability surface', () => {
+  const variants = [
+    {
+      errorCode: 'MISSING_PROVIDER_TYPE',
+      input: {}
+    },
+    {
+      errorCode: 'AMBIGUOUS_PROVIDER_SELECTION',
+      input: {
+        providerType: 'minio',
+        storage: {
+          config: {
+            inline: {
+              providerType: 'garage'
+            }
+          }
+        }
+      }
+    },
+    {
+      errorCode: 'UNKNOWN_PROVIDER_TYPE',
+      input: {
+        providerType: 'unknown-provider'
+      }
+    }
+  ];
+
+  for (const variant of variants) {
+    const profile = getStorageProviderProfile(variant.input);
+
+    assert.equal(profile.status, 'unavailable');
+    assert.equal(profile.errorCode, variant.errorCode);
+    assert.deepEqual(profile.capabilityDetails.map((entry) => entry.capabilityId), storageProviderCapabilityIds);
+    assert.equal(profile.capabilityDetails.every((entry) => entry.state === storageProviderCapabilityEntryStates.UNSATISFIED), true);
+    assert.equal(Object.values(profile.capabilityManifest).every((value) => value === false), true);
+    assert.equal(profile.capabilityBaseline.eligible, false);
+    assert.equal(profile.capabilityBaseline.missingCapabilities.length > 0, true);
+    assert.equal(profile.capabilityBaseline.insufficientCapabilities.length, 0);
+  }
+});
+
+test('storage provider limitations only reference canonical degraded capabilities', () => {
+  const canonicalCapabilityIds = new Set(storageProviderCapabilityIds);
+  const bucketPolicyStates = [];
+
+  for (const providerType of supportedStorageProviderTypes) {
+    const profile = getStorageProviderProfile({ providerType });
+    bucketPolicyStates.push(
+      profile.capabilityDetails.find((entry) => entry.capabilityId === 'bucket.policy')?.state
+    );
+
+    for (const limitation of profile.limitations) {
+      for (const capabilityId of limitation.affectsCapabilities ?? []) {
+        const detail = profile.capabilityDetails.find((entry) => entry.capabilityId === capabilityId);
+
+        assert.equal(canonicalCapabilityIds.has(capabilityId), true, `${capabilityId} must exist in canonical catalog`);
+        assert.notEqual(detail, undefined);
+        assert.notEqual(detail.state, storageProviderCapabilityEntryStates.SATISFIED);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    bucketPolicyStates,
+    supportedStorageProviderTypes.map(() => storageProviderCapabilityEntryStates.SATISFIED)
+  );
 });

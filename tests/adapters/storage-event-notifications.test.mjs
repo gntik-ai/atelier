@@ -102,3 +102,38 @@ test('provider catalog validates and evaluates notification rules through additi
   assert.equal(match.matched, true);
   assert.equal(evaluation.matches.length, 1);
 });
+
+test('Garage event-notification capability degrades predictably when unsupported', () => {
+  const providerProfile = buildStorageProviderProfile({ providerType: 'garage' });
+  const capability = checkStorageEventNotificationCapability({ providerProfile });
+  const rule = buildStorageEventNotificationRule({
+    ruleId: 'sen_garage_01',
+    tenantId: 'ten_01',
+    workspaceId: 'wrk_01',
+    bucketId: 'bucket_01',
+    destinationType: storageEventNotificationDestinationTypes.KAFKA_TOPIC,
+    destinationRef: 'topic.storage.events',
+    eventTypes: [storageEventNotificationEventTypes.OBJECT_CREATED]
+  });
+  const evaluation = evaluateStorageEventNotifications({
+    rules: [rule],
+    event: {
+      tenantId: 'ten_01',
+      workspaceId: 'wrk_01',
+      bucketId: 'bucket_01',
+      eventType: storageEventNotificationEventTypes.OBJECT_CREATED,
+      objectKey: 'uploads/file.jpg'
+    },
+    providerProfile
+  });
+
+  assert.equal(capability.allowed, false);
+  assert.equal(capability.satisfactionState, 'unsatisfied');
+  assert.equal(capability.errorEnvelope.code, 'CAPABILITY_NOT_AVAILABLE');
+  assert.equal(capability.errorEnvelope.httpStatus, 501);
+  assert.equal(capability.errorEnvelope.missingCapabilityId, storageEventNotificationCapabilityId);
+  assert.equal(evaluation.supported, false);
+  assert.equal(evaluation.allowed, false);
+  assert.equal(evaluation.matches.length, 0);
+  assert.deepEqual(evaluation.nonMatches, [{ ruleId: 'sen_garage_01', reasons: ['capability_not_available'] }]);
+});
