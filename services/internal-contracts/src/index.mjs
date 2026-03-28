@@ -6,6 +6,7 @@ const AUTHORIZATION_MODEL_URL = new URL('./authorization-model.json', import.met
 const DOMAIN_MODEL_URL = new URL('./domain-model.json', import.meta.url);
 const OBSERVABILITY_METRICS_STACK_URL = new URL('./observability-metrics-stack.json', import.meta.url);
 const OBSERVABILITY_DASHBOARDS_URL = new URL('./observability-dashboards.json', import.meta.url);
+const OBSERVABILITY_HEALTH_CHECKS_URL = new URL('./observability-health-checks.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 
@@ -15,6 +16,7 @@ let cachedAuthorizationModel;
 let cachedDomainModel;
 let cachedObservabilityMetricsStack;
 let cachedObservabilityDashboards;
+let cachedObservabilityHealthChecks;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
 
@@ -66,6 +68,14 @@ export function readObservabilityDashboards() {
   return cachedObservabilityDashboards;
 }
 
+export function readObservabilityHealthChecks() {
+  if (!cachedObservabilityHealthChecks) {
+    cachedObservabilityHealthChecks = JSON.parse(readFileSync(OBSERVABILITY_HEALTH_CHECKS_URL, 'utf8'));
+  }
+
+  return cachedObservabilityHealthChecks;
+}
+
 export function readPublicApiTaxonomy() {
   if (!cachedPublicApiTaxonomy) {
     cachedPublicApiTaxonomy = JSON.parse(readFileSync(PUBLIC_API_TAXONOMY_URL, 'utf8'));
@@ -88,6 +98,7 @@ export const AUTHORIZATION_MODEL_VERSION = readAuthorizationModel().version;
 export const DOMAIN_MODEL_VERSION = readDomainModel().version;
 export const OBSERVABILITY_METRICS_STACK_VERSION = readObservabilityMetricsStack().version;
 export const OBSERVABILITY_DASHBOARDS_VERSION = readObservabilityDashboards().version;
+export const OBSERVABILITY_HEALTH_CHECKS_VERSION = readObservabilityHealthChecks().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
@@ -288,6 +299,30 @@ export function listObservabilityDashboardWidgets() {
 
 export function getObservabilityDashboardWidget(widgetId) {
   return listObservabilityDashboardWidgets().find((widget) => widget.id === widgetId);
+}
+
+export function listObservabilityProbeTypes() {
+  return readObservabilityHealthChecks().probe_types ?? [];
+}
+
+export function getObservabilityProbeType(probeTypeId) {
+  return listObservabilityProbeTypes().find((probeType) => probeType.id === probeTypeId);
+}
+
+export function listObservabilityHealthComponents() {
+  return readObservabilityHealthChecks().components ?? [];
+}
+
+export function getObservabilityHealthComponent(componentId) {
+  return listObservabilityHealthComponents().find((component) => component.id === componentId);
+}
+
+export function getObservabilityHealthExposureTemplates() {
+  return readObservabilityHealthChecks().exposure_templates ?? {};
+}
+
+export function getObservabilityHealthProjection() {
+  return readObservabilityHealthChecks().observability_projection ?? {};
 }
 
 export function getPublicRoute(operationId) {

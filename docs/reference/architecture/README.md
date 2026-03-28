@@ -23,6 +23,8 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/reference/architecture/observability-metrics-stack.md` is the human-readable architecture companion for the unified observability metrics baseline introduced by `US-OBS-01-T01`.
 - `services/internal-contracts/src/observability-dashboards.json` is the machine-readable source of truth for the canonical observability health dashboard hierarchy, scope semantics, widget catalog, and workspace fallback behavior introduced by `US-OBS-01-T02`.
 - `docs/reference/architecture/observability-health-dashboards.md` is the human-readable architecture companion for the observability dashboard baseline introduced by `US-OBS-01-T02`.
+- `services/internal-contracts/src/observability-health-checks.json` is the machine-readable source of truth for the canonical component liveness, readiness, and health baseline introduced by `US-OBS-01-T03`.
+- `docs/reference/architecture/observability-health-checks.md` is the human-readable architecture companion for the observability health-check baseline introduced by `US-OBS-01-T03`.
 
 ## Usage rules
 

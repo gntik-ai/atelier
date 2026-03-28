@@ -2,13 +2,20 @@ import {
   getApiFamily,
   getObservabilityCollectionHealth,
   getObservabilityDashboardScope,
+  getObservabilityHealthComponent,
+  getObservabilityHealthExposureTemplates,
+  getObservabilityHealthProjection,
+  getObservabilityProbeType,
   getObservedSubsystem,
   listObservabilityDashboardDimensions,
   listObservabilityDashboardScopes,
   listObservabilityDashboardWidgets,
+  listObservabilityHealthComponents,
   listObservabilityMetricFamilies,
+  listObservabilityProbeTypes,
   listObservedSubsystems,
   readObservabilityDashboards,
+  readObservabilityHealthChecks,
   readObservabilityMetricsStack
 } from '../../../services/internal-contracts/src/index.mjs';
 
@@ -20,6 +27,11 @@ export const observabilityDashboards = readObservabilityDashboards();
 export const observabilityDashboardScopes = listObservabilityDashboardScopes();
 export const observabilityDashboardDimensions = listObservabilityDashboardDimensions();
 export const observabilityDashboardWidgets = listObservabilityDashboardWidgets();
+export const observabilityHealthChecks = readObservabilityHealthChecks();
+export const observabilityProbeTypes = listObservabilityProbeTypes();
+export const observabilityHealthComponents = listObservabilityHealthComponents();
+export const observabilityHealthExposureTemplates = getObservabilityHealthExposureTemplates();
+export const observabilityHealthProjection = getObservabilityHealthProjection();
 
 export function listObservabilitySubsystems() {
   return listObservedSubsystems();
@@ -185,5 +197,106 @@ export function buildObservabilityDashboardScope(input = {}) {
     authorization: dashboardScope.authorization ?? {},
     traceability: dashboardScope.traceability ?? {},
     collectionFreshnessMetric: observabilityCollectionHealth.metric_name
+  };
+}
+
+export function summarizeObservabilityHealthChecks() {
+  return {
+    version: observabilityHealthChecks.version,
+    sourceMetricsContract: observabilityHealthChecks.source_metrics_contract,
+    sourceDashboardContract: observabilityHealthChecks.source_dashboard_contract,
+    principles: observabilityHealthChecks.principles ?? [],
+    probeTypes: observabilityProbeTypes.map((probeType) => ({
+      id: probeType.id,
+      displayName: probeType.display_name,
+      primaryAudience: probeType.primary_audience,
+      allowedStatuses: probeType.allowed_statuses ?? []
+    })),
+    exposureTemplates: observabilityHealthExposureTemplates,
+    projection: observabilityHealthProjection,
+    maskingPolicy: observabilityHealthChecks.masking_policy ?? {},
+    auditContext: observabilityHealthChecks.audit_context ?? {},
+    components: observabilityHealthComponents.map((component) => ({
+      id: component.id,
+      displayName: component.display_name,
+      probeSupport: component.probe_support ?? [],
+      supportedMetricScopes: component.supported_metric_scopes ?? [],
+      readinessDependencies: component.readiness_dependencies ?? [],
+      healthDependencies: component.health_dependencies ?? [],
+      narrowerScopePolicy: component.narrower_scope_policy
+    }))
+  };
+}
+
+export function buildObservabilityPlatformProbeRollup(input = {}) {
+  const requestedProbeType = input.probeType ?? 'health';
+  const probeType = getObservabilityProbeType(requestedProbeType);
+
+  if (!probeType) {
+    throw new Error(`Unknown observability probe type ${requestedProbeType}.`);
+  }
+
+  const aggregateExposure = observabilityHealthExposureTemplates.aggregate?.[probeType.id];
+
+  return {
+    probeType: probeType.id,
+    displayName: probeType.display_name,
+    aggregateExposure,
+    componentCount: observabilityHealthComponents.length,
+    requiredComponentIds: observabilityHealthComponents.map((component) => component.id),
+    compatibleDashboardStateModel: observabilityHealthChecks.dashboard_alignment?.compatible_health_states ?? [],
+    auditFields: observabilityHealthChecks.audit_context?.required_fields ?? [],
+    projection: observabilityHealthProjection
+  };
+}
+
+export function buildComponentHealthProbeSummary(input = {}) {
+  const componentId = input.componentId ?? input.subsystem;
+  const requestedProbeType = input.probeType ?? 'health';
+  const component = getObservabilityHealthComponent(componentId);
+  const probeType = getObservabilityProbeType(requestedProbeType);
+
+  if (!component) {
+    throw new Error(`Unknown observability health component ${componentId}.`);
+  }
+
+  if (!probeType) {
+    throw new Error(`Unknown observability probe type ${requestedProbeType}.`);
+  }
+
+  if (!(component.probe_support ?? []).includes(probeType.id)) {
+    throw new Error(`Component ${component.id} does not support probe type ${probeType.id}.`);
+  }
+
+  const dashboardScope = buildObservabilityDashboardScope({
+    dashboardScope: input.dashboardScope,
+    subsystem: component.id,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId
+  });
+  const componentExposure = observabilityHealthExposureTemplates.component?.[probeType.id] ?? {};
+  const aggregateExposure = observabilityHealthExposureTemplates.aggregate?.[probeType.id] ?? {};
+
+  return {
+    componentId: component.id,
+    displayName: component.display_name,
+    probeType: probeType.id,
+    dashboardScope: dashboardScope.dashboardScope,
+    requiredContext: dashboardScope.requiredContext,
+    queryScope: dashboardScope.queryScope,
+    supportedMetricScopes: component.supported_metric_scopes ?? [],
+    narrowerScopePolicy: component.narrower_scope_policy,
+    readinessDependencies: component.readiness_dependencies ?? [],
+    healthDependencies: component.health_dependencies ?? [],
+    exposure: {
+      aggregatePath: aggregateExposure.path,
+      componentPathTemplate: componentExposure.path,
+      componentPath: componentExposure.path?.replace('{componentId}', component.id) ?? null,
+      audience: componentExposure.audience,
+      internalOnly: componentExposure.internal_only === true
+    },
+    projection: component.metric_projection ?? observabilityHealthProjection,
+    dashboardCompatibility: observabilityHealthChecks.dashboard_alignment ?? {},
+    auditFields: observabilityHealthChecks.audit_context?.required_fields ?? []
   };
 }

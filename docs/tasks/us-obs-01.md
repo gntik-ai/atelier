@@ -132,3 +132,60 @@ npm run validate:observability-dashboards
 ## Residual implementation note for `US-OBS-01-T02`
 
 `US-OBS-01-T01` and `US-OBS-01-T02` now define the canonical metrics-plane and dashboard-plane semantics for observability. Remaining work still includes health/readiness/liveness endpoints, business metrics, console-facing health summaries, alerting behavior, smoke tests, and any live dashboard rendering.
+
+## Scope delivered in `US-OBS-01-T03`
+
+This increment establishes the **canonical component health-check baseline** for the platform.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-health-checks.json` as the machine-readable source of truth for canonical `liveness`, `readiness`, and `health` semantics, aggregate/internal exposure templates, masking rules, audit context, and component-specific dependency metadata
+- additive probe metric families in `services/internal-contracts/src/observability-metrics-stack.json` so health outcomes are queryable from the common observability plane
+- `services/internal-contracts/src/index.mjs` shared readers for health-check probe types, component metadata, and exposure templates
+- `apps/control-plane/src/observability-admin.mjs` summary helpers for health-check semantics, platform rollups, and component probe summaries
+- `scripts/lib/observability-health-checks.mjs` and `scripts/validate-observability-health-checks.mjs` for deterministic validation of the health baseline and its alignment with the existing observability contracts
+- `docs/reference/architecture/observability-health-checks.md` as the human-readable architecture guide for the health-check baseline
+- `docs/reference/architecture/README.md` index updates so the new guidance is discoverable
+
+## Main decisions in `US-OBS-01-T03`
+
+### Liveness, readiness, and health are intentionally different
+
+The platform now treats:
+
+- `liveness` as proof that the runtime is alive enough to avoid dead-process restart loops,
+- `readiness` as proof that the component can safely serve or participate in platform traffic,
+- and `health` as the broader operational posture that can express degraded-but-serving or inherited conditions.
+
+This prevents orchestration from confusing dependency-blocked behavior with a dead runtime.
+
+### Health exposure is internal and operational
+
+The baseline defines aggregate and per-component internal exposure templates such as:
+
+- `/internal/live`
+- `/internal/ready`
+- `/internal/health`
+- `/internal/*/components/{componentId}`
+
+These are internal operational contracts, not new public API commitments.
+
+### Sensitive dependency detail must be normalized or masked
+
+Health outputs can carry useful dependency posture, but they must not leak credentials, raw endpoints, hostnames, object keys, or raw topic names.
+
+### Probe outcomes project into the common observability plane
+
+`US-OBS-01-T03` extends the normalized metric-family baseline with probe-specific health metrics so later dashboards, alerting, and smoke tests can consume one consistent health signal model.
+
+## Validation for `US-OBS-01-T03`
+
+Primary validation entry points for the health baseline:
+
+```bash
+npm run validate:observability-health-checks
+```
+
+## Residual implementation note for `US-OBS-01-T03`
+
+`US-OBS-01-T01` through `US-OBS-01-T03` now define the canonical metrics-plane, dashboard-plane, and health-probe semantics for observability. Remaining work still includes business metrics, console-facing health summaries, internal alerting behavior, smoke verification, and any live runtime implementation details that consume these contracts.

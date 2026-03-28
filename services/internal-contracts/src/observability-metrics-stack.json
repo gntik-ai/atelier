@@ -166,6 +166,48 @@
           "operation"
         ],
         "description": "Normalized latency histogram for subsystem operations."
+      },
+      {
+        "id": "component_probe_status",
+        "name": "in_atelier_component_probe_status",
+        "type": "gauge",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "probe_type",
+          "exposure_kind"
+        ],
+        "description": "Normalized component liveness, readiness, and health probe result."
+      },
+      {
+        "id": "component_probe_duration_seconds",
+        "name": "in_atelier_component_probe_duration_seconds",
+        "type": "histogram",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "probe_type",
+          "exposure_kind"
+        ],
+        "description": "Normalized duration histogram for component liveness, readiness, and health probes."
+      },
+      {
+        "id": "component_probe_failures_total",
+        "name": "in_atelier_component_probe_failures_total",
+        "type": "counter",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "probe_type",
+          "exposure_kind"
+        ],
+        "description": "Normalized failure counter for component liveness, readiness, and health probes."
       }
     ]
   },
