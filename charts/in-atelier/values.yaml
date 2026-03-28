@@ -1895,6 +1895,83 @@ observability:
   config:
     inline:
       scrapeModel: platform-wide
+      metricsStack:
+        version: 2026-03-28
+        model: hybrid
+        retention:
+          hotRetention: 15d
+          downsampleAfter: 90d
+          coldRetention: 395d
+          defaultResolution: 30s
+          downsampledResolutions:
+            - 5m
+            - 1h
+        requiredLabels:
+          - environment
+          - subsystem
+          - metricScope
+          - collectionMode
+        tenantIsolation:
+          metricScopeLabel: metric_scope
+          tenantLabel: tenant_id
+          workspaceLabel: workspace_id
+          platformValue: platform
+          tenantValue: tenant
+          workspaceValue: workspace
+        collectionHealth:
+          metricName: in_atelier_observability_collection_health
+          failureCounter: in_atelier_observability_collection_failures_total
+          lagMetric: in_atelier_observability_collection_lag_seconds
+        componentTargets:
+          apisix:
+            collectionMode: scrape
+            component: apisix
+            portName: http
+            metricsPath: /apisix/prometheus/metrics
+            interval: 30s
+            maxStaleness: 120s
+          kafka:
+            collectionMode: scrape
+            component: kafka
+            portName: metrics
+            metricsPath: /metrics
+            interval: 30s
+            maxStaleness: 120s
+          postgresql:
+            collectionMode: scrape
+            component: postgresql
+            portName: metrics
+            metricsPath: /metrics
+            interval: 30s
+            maxStaleness: 120s
+          mongodb:
+            collectionMode: scrape
+            component: mongodb
+            portName: metrics
+            metricsPath: /metrics
+            interval: 30s
+            maxStaleness: 120s
+          openwhisk:
+            collectionMode: scrape
+            component: openwhisk
+            portName: metrics
+            metricsPath: /metrics
+            interval: 30s
+            maxStaleness: 120s
+          storage:
+            collectionMode: hybrid
+            component: storage
+            portName: metrics
+            metricsPath: /metrics
+            interval: 60s
+            maxStaleness: 180s
+          controlPlane:
+            collectionMode: scrape
+            component: controlPlane
+            portName: http
+            metricsPath: /metrics
+            interval: 15s
+            maxStaleness: 60s
   initContainers: []
   volumePermissions:
     enabled: false

@@ -19,6 +19,8 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/reference/architecture/core-domain-model.md` is the human-readable architecture companion for the core domain model.
 - `docs/reference/architecture/console-authentication.md` records the console login, signup, activation, and password-recovery baseline introduced by `US-IAM-03`.
 - `docs/reference/architecture/storage-provider-operability.md` records the supported storage provider posture, planning limits, internal operating targets, and qualitative cost guidance introduced by `US-STO-03-T06`.
+- `services/internal-contracts/src/observability-metrics-stack.json` is the machine-readable source of truth for the unified observability metrics plane, including subsystem coverage, normalized metric families, selector labels, collection health, and collection topology.
+- `docs/reference/architecture/observability-metrics-stack.md` is the human-readable architecture companion for the unified observability metrics baseline introduced by `US-OBS-01-T01`.
 
 ## Usage rules
 
