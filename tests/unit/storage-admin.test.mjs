@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
   STORAGE_ADMIN_ERROR_CODES,
+  STORAGE_IMPORT_CONFLICT_POLICIES,
+  STORAGE_IMPORT_ENTRY_STATUSES,
+  STORAGE_IMPORT_EXPORT_ERROR_CODES,
+  STORAGE_IMPORT_EXPORT_MANIFEST_VERSION,
+  STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS,
   STORAGE_BUCKET_OBJECT_ERRORS,
   STORAGE_LOGICAL_ORGANIZATION_ERRORS,
   STORAGE_NORMALIZED_ERROR_CATALOG,
@@ -36,6 +41,8 @@ import {
   previewStorageBucket,
   previewStorageErrorEnvelope,
   previewStorageInternalErrorRecord,
+  previewStorageExportManifest,
+  previewStorageImportResult,
   previewStorageLogicalOrganization,
   previewStorageObject,
   previewStorageNormalizedError,
@@ -43,6 +50,8 @@ import {
   previewBucketStorageUsage,
   previewCrossTenantStorageUsage,
   previewStorageProgrammaticCredential,
+  validateStorageImportManifest,
+  checkStorageImportExportLimit,
   previewTenantStorageContext,
   previewTenantStorageUsage,
   previewWorkspaceStorageBootstrapContext,
@@ -618,6 +627,47 @@ test('storage usage previews expose usage routes constants and threshold helpers
   for (const catalog of [STORAGE_USAGE_COLLECTION_METHODS, STORAGE_USAGE_COLLECTION_STATUSES, STORAGE_USAGE_THRESHOLD_SEVERITIES, STORAGE_USAGE_THRESHOLD_DEFAULTS, STORAGE_USAGE_ERROR_CODES]) {
     assert.equal(Object.keys(catalog).length > 0, true);
     assert.equal(Object.isFrozen(catalog), true);
+  }
+});
+
+test('storage import/export previews are discoverable and bounded', () => {
+  const exportPreview = previewStorageExportManifest({
+    sourceBucketId: 'bucket_01',
+    sourceWorkspaceId: 'wrk_01',
+    sourceTenantId: 'ten_01',
+    actingPrincipal: { type: 'user', id: 'usr_01' },
+    exportedAt: '2026-03-28T00:00:00Z',
+    entries: []
+  });
+  const importPreview = previewStorageImportResult({
+    targetBucketId: 'bucket_02',
+    targetWorkspaceId: 'wrk_02',
+    targetTenantId: 'ten_01',
+    actingPrincipal: { type: 'user', id: 'usr_01' },
+    importedAt: '2026-03-28T00:00:00Z',
+    conflictPolicy: STORAGE_IMPORT_CONFLICT_POLICIES.SKIP,
+    outcomes: [{ objectKey: 'a.txt', status: STORAGE_IMPORT_ENTRY_STATUSES.IMPORTED, reason: null, sizeBytes: 10 }]
+  });
+  const manifestValidation = validateStorageImportManifest({
+    manifest: { formatVersion: STORAGE_IMPORT_EXPORT_MANIFEST_VERSION, entries: [{ objectKey: 'a.txt' }] },
+    maxObjectsPerOperation: STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS.maxObjectsPerOperation
+  });
+  const limit = checkStorageImportExportLimit({ objectCount: STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS.maxObjectsPerOperation + 1 });
+  const routes = listStorageAdminRoutes();
+
+  assert.equal(exportPreview.manifest.entityType, 'storage_export_manifest');
+  assert.equal(exportPreview.auditEvent.operationType, 'export');
+  assert.equal(exportPreview.auditEvent.outcome, 'export_empty_result');
+  assert.equal(importPreview.summary.entityType, 'storage_import_result_summary');
+  assert.equal(importPreview.auditEvent.operationType, 'import');
+  assert.equal(importPreview.auditEvent.outcome, 'success');
+  assert.deepEqual(manifestValidation, { valid: true, errors: [] });
+  assert.deepEqual(limit, { allowed: false, appliedLimit: STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS.maxObjectsPerOperation });
+  assert.ok(routes.some((route) => route.operationId === 'exportStorageBucketObjects'));
+  assert.ok(routes.some((route) => route.operationId === 'importStorageBucketObjects'));
+  assert.ok(routes.some((route) => route.operationId === 'getStorageBucketExportManifest'));
+  for (const catalog of [STORAGE_IMPORT_CONFLICT_POLICIES, STORAGE_IMPORT_ENTRY_STATUSES, STORAGE_IMPORT_EXPORT_ERROR_CODES, STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS]) {
+    assert.equal(Object.keys(catalog).length > 0, true);
   }
 });
 

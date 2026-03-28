@@ -46,6 +46,7 @@ import {
 } from '../../../services/adapters/src/storage-logical-organization.mjs';
 import {
   STORAGE_ERROR_RETRYABILITY,
+  STORAGE_IMPORT_EXPORT_ERROR_CODES as STORAGE_IMPORT_EXPORT_ERROR_CODES_CATALOG,
   STORAGE_NORMALIZED_ERROR_CODES,
   STORAGE_USAGE_ERROR_CODES as STORAGE_USAGE_ERROR_CODES_CATALOG,
   buildNormalizedStorageError,
@@ -79,6 +80,17 @@ import {
   detectStorageUsageThresholdBreaches,
   rankBucketsByUsage
 } from '../../../services/adapters/src/storage-usage-reporting.mjs';
+import {
+  STORAGE_IMPORT_CONFLICT_POLICIES as STORAGE_IMPORT_CONFLICT_POLICIES_CATALOG,
+  STORAGE_IMPORT_ENTRY_STATUSES as STORAGE_IMPORT_ENTRY_STATUSES_CATALOG,
+  STORAGE_IMPORT_EXPORT_MANIFEST_VERSION as STORAGE_IMPORT_EXPORT_MANIFEST_VERSION_CATALOG,
+  STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS as STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS_CATALOG,
+  buildStorageExportManifest,
+  buildStorageImportExportAuditEvent,
+  buildStorageImportResultSummary,
+  checkImportExportOperationLimit,
+  validateImportManifest
+} from '../../../services/adapters/src/storage-import-export.mjs';
 
 export const storageApiFamily = getApiFamily('storage');
 export const STORAGE_ADMIN_ERROR_CODES = STORAGE_PROVIDER_ERROR_CODES;
@@ -101,6 +113,16 @@ export const STORAGE_USAGE_COLLECTION_STATUSES = STORAGE_USAGE_COLLECTION_STATUS
 export const STORAGE_USAGE_THRESHOLD_SEVERITIES = STORAGE_USAGE_THRESHOLD_SEVERITIES_CATALOG;
 export const STORAGE_USAGE_THRESHOLD_DEFAULTS = STORAGE_USAGE_THRESHOLD_DEFAULTS_CATALOG;
 export const STORAGE_USAGE_ERROR_CODES = STORAGE_USAGE_ERROR_CODES_CATALOG;
+export const STORAGE_IMPORT_CONFLICT_POLICIES = STORAGE_IMPORT_CONFLICT_POLICIES_CATALOG;
+export const STORAGE_IMPORT_ENTRY_STATUSES = STORAGE_IMPORT_ENTRY_STATUSES_CATALOG;
+export const STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS = STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS_CATALOG;
+export const STORAGE_IMPORT_EXPORT_ERROR_CODES = STORAGE_IMPORT_EXPORT_ERROR_CODES_CATALOG;
+export const STORAGE_IMPORT_EXPORT_MANIFEST_VERSION = STORAGE_IMPORT_EXPORT_MANIFEST_VERSION_CATALOG;
+export const STORAGE_IMPORT_CONFLICT_POLICY_CATALOG = STORAGE_IMPORT_CONFLICT_POLICIES_CATALOG;
+export const STORAGE_IMPORT_ENTRY_STATUS_CATALOG = STORAGE_IMPORT_ENTRY_STATUSES_CATALOG;
+export const STORAGE_IMPORT_EXPORT_DEFAULTS = STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS_CATALOG;
+export const STORAGE_IMPORT_EXPORT_ERRORS = STORAGE_IMPORT_EXPORT_ERROR_CODES;
+export const STORAGE_IMPORT_EXPORT_MANIFEST_SCHEMA_VERSION = STORAGE_IMPORT_EXPORT_MANIFEST_VERSION_CATALOG;
 export const STORAGE_USAGE_COLLECTION_METHOD_CATALOG = STORAGE_USAGE_COLLECTION_METHODS_CATALOG;
 export const STORAGE_USAGE_COLLECTION_STATUS_CATALOG = STORAGE_USAGE_COLLECTION_STATUSES_CATALOG;
 export const STORAGE_USAGE_THRESHOLD_SEVERITY_CATALOG = STORAGE_USAGE_THRESHOLD_SEVERITIES_CATALOG;
@@ -129,13 +151,19 @@ export function listStorageAdminRoutes(filters = {}) {
     getPublicRoute('getBucketStorageUsage'),
     getPublicRoute('listCrossTenantStorageUsage')
   ];
+  const storageImportExportRoutes = [
+    getPublicRoute('exportStorageBucketObjects'),
+    getPublicRoute('importStorageBucketObjects'),
+    getPublicRoute('getStorageBucketExportManifest')
+  ];
   const combinedRoutes = [
     ...storageRoutes,
     providerRoute,
     tenantContextRoute,
     tenantRotationRoute,
     ...storageCredentialRoutes,
-    ...storageUsageRoutes
+    ...storageUsageRoutes,
+    ...storageImportExportRoutes
   ].filter(Boolean);
 
   return combinedRoutes.filter((route) => matchesRouteFilters(route, filters));
@@ -400,6 +428,73 @@ export function deleteStorageObjectPreviewResult(input = {}) {
 
 export function buildStorageOperationEvent(input = {}) {
   return buildStorageMutationEvent(input);
+}
+
+export function checkStorageImportExportLimit(input = {}) {
+  return checkImportExportOperationLimit(input);
+}
+
+export function validateStorageImportManifest(input = {}) {
+  return validateImportManifest(input);
+}
+
+export function previewStorageExportManifest(input = {}) {
+  const limit = checkImportExportOperationLimit({
+    objectCount: input.entries?.length ?? 0,
+    platformLimit: input.operationLimits?.platformLimit,
+    tenantLimitOverride: input.operationLimits?.tenantLimitOverride
+  });
+
+  if (!limit.allowed) {
+    return {
+      error: {
+        code: STORAGE_IMPORT_EXPORT_ERROR_CODES.OPERATION_LIMIT_EXCEEDED,
+        appliedLimit: limit.appliedLimit
+      }
+    };
+  }
+
+  const manifest = buildStorageExportManifest(input);
+  const auditEvent = buildStorageImportExportAuditEvent({
+    operationType: 'export',
+    actingPrincipal: input.actingPrincipal,
+    manifestId: manifest.manifestId,
+    sourceBucketId: input.sourceBucketId,
+    sourceWorkspaceId: input.sourceWorkspaceId,
+    sourceTenantId: input.sourceTenantId,
+    filterCriteria: input.filterCriteria ?? null,
+    objectCount: manifest.totalObjects,
+    totalBytes: manifest.totalBytes,
+    outcome: manifest.totalObjects === 0 ? 'export_empty_result' : 'success',
+    timestamp: input.exportedAt
+  });
+
+  return { manifest, auditEvent };
+}
+
+export function previewStorageImportResult(input = {}) {
+  const summary = buildStorageImportResultSummary(input);
+  const auditEvent = buildStorageImportExportAuditEvent({
+    operationType: 'import',
+    actingPrincipal: input.actingPrincipal,
+    manifestId: input.manifestId ?? summary.importId,
+    targetBucketId: input.targetBucketId,
+    targetWorkspaceId: input.targetWorkspaceId,
+    targetTenantId: input.targetTenantId,
+    conflictPolicy: input.conflictPolicy,
+    importedCount: summary.importedCount,
+    skippedCount: summary.skippedCount,
+    failedCount: summary.failedCount,
+    totalBytesImported: summary.totalBytesImported,
+    outcome: summary.failedCount > 0 && summary.importedCount > 0
+      ? 'partial_failure'
+      : summary.failedCount === 0
+        ? 'success'
+        : 'manifest_invalid',
+    timestamp: input.importedAt
+  });
+
+  return { summary, auditEvent };
 }
 
 function normalizeUsageDimensions(input = {}) {

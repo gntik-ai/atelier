@@ -940,6 +940,18 @@
       "family": "storage",
       "scope": "workspace",
       "authorization_resource": "bucket"
+    },
+    {
+      "resource_type": "storage_export_manifest",
+      "family": "storage",
+      "scope": "workspace",
+      "authorization_resource": "bucket"
+    },
+    {
+      "resource_type": "storage_import_result",
+      "family": "storage",
+      "scope": "workspace",
+      "authorization_resource": "bucket"
     }
   ]
 }

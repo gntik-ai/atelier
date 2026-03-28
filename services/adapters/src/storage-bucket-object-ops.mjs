@@ -47,7 +47,7 @@ function assertBucketName(bucketName) {
   }
 }
 
-function assertObjectKey(objectKey) {
+export function assertObjectKey(objectKey) {
   if (
     typeof objectKey !== 'string'
     || !objectKey.trim()
