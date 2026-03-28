@@ -8266,6 +8266,150 @@
       "allowAnonymousOptions": true,
       "allowedContentTypes": [],
       "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "tenant_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "listTenantAuditRecords",
+      "path": "/v1/metrics/tenants/{tenantId}/audit-records",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "default",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "tenant_audit_record",
+      "scope": "tenant",
+      "summary": "Query tenant-scoped audit records through the unified observability surface",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "none"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
+        "workspace_owner",
+        "workspace_operator",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "listWorkspaceAuditRecords",
+      "path": "/v1/metrics/workspaces/{workspaceId}/audit-records",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "default",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "workspace_audit_record",
+      "scope": "workspace",
+      "summary": "Query workspace-scoped audit records through the unified observability surface",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
         "developer_external",
         "tenant_owner",
         "tenant_admin",

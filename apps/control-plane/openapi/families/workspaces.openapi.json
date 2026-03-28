@@ -2767,7 +2767,7 @@
         "properties": {
           "audience": {
             "enum": [
-              "control_plane",
+              "tenant_control_plane",
               "console",
               "identity",
               "realtime",

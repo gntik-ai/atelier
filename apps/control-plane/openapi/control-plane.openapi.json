@@ -52039,6 +52039,570 @@
         "x-tenant-binding": "none",
         "x-workspace-binding": "none"
       }
+    },
+    "/v1/metrics/tenants/{tenantId}/audit-records": {
+      "get": {
+        "operationId": "listTenantAuditRecords",
+        "summary": "Query tenant-scoped audit records through the unified observability surface",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "name": "page[size]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "page[after]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "-eventTimestamp",
+                "eventTimestamp"
+              ]
+            }
+          },
+          {
+            "name": "filter[occurredAfter]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "filter[occurredBefore]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "filter[subsystem]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "iam",
+                "postgresql",
+                "mongodb",
+                "kafka",
+                "openwhisk",
+                "storage",
+                "quota_metering",
+                "tenant_control_plane"
+              ]
+            }
+          },
+          {
+            "name": "filter[actionCategory]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "resource_creation",
+                "resource_deletion",
+                "configuration_change",
+                "access_control_modification",
+                "quota_adjustment",
+                "privilege_escalation",
+                "secret_rotation",
+                "policy_override",
+                "backup_restore",
+                "provider_reconciliation"
+              ]
+            }
+          },
+          {
+            "name": "filter[actionId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[outcome]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed",
+                "denied",
+                "partial",
+                "accepted"
+              ]
+            }
+          },
+          {
+            "name": "filter[actorType]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform_user",
+                "tenant_user",
+                "workspace_user",
+                "service_account",
+                "system",
+                "provider_adapter"
+              ]
+            }
+          },
+          {
+            "name": "filter[actorId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[resourceType]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[resourceId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[originSurface]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "control_api",
+                "console_backend",
+                "internal_reconciler",
+                "provider_adapter",
+                "bootstrap_job",
+                "scheduled_operation"
+              ]
+            }
+          },
+          {
+            "name": "filter[correlationId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit records returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditRecordCollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream observability query did not complete before the gateway timeout profile expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_audit_record",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "none",
+        "x-owning-service": "control_api",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer",
+          "platform_team"
+        ]
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/audit-records": {
+      "get": {
+        "operationId": "listWorkspaceAuditRecords",
+        "summary": "Query workspace-scoped audit records through the unified observability surface",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "name": "page[size]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "name": "page[after]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "-eventTimestamp",
+                "eventTimestamp"
+              ]
+            }
+          },
+          {
+            "name": "filter[occurredAfter]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "filter[occurredBefore]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "filter[subsystem]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "iam",
+                "postgresql",
+                "mongodb",
+                "kafka",
+                "openwhisk",
+                "storage",
+                "quota_metering",
+                "tenant_control_plane"
+              ]
+            }
+          },
+          {
+            "name": "filter[actionCategory]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "resource_creation",
+                "resource_deletion",
+                "configuration_change",
+                "access_control_modification",
+                "quota_adjustment",
+                "privilege_escalation",
+                "secret_rotation",
+                "policy_override",
+                "backup_restore",
+                "provider_reconciliation"
+              ]
+            }
+          },
+          {
+            "name": "filter[actionId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[outcome]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "succeeded",
+                "failed",
+                "denied",
+                "partial",
+                "accepted"
+              ]
+            }
+          },
+          {
+            "name": "filter[actorType]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform_user",
+                "tenant_user",
+                "workspace_user",
+                "service_account",
+                "system",
+                "provider_adapter"
+              ]
+            }
+          },
+          {
+            "name": "filter[actorId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[resourceType]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[resourceId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "filter[originSurface]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "control_api",
+                "console_backend",
+                "internal_reconciler",
+                "provider_adapter",
+                "bootstrap_job",
+                "scheduled_operation"
+              ]
+            }
+          },
+          {
+            "name": "filter[correlationId]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit records returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditRecordCollectionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream observability query did not complete before the gateway timeout profile expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace_audit_record",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "required",
+        "x-owning-service": "control_api",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ]
+      }
     }
   },
   "components": {
@@ -62118,7 +62682,7 @@
           "audience": {
             "type": "string",
             "enum": [
-              "control_plane",
+              "tenant_control_plane",
               "console",
               "identity",
               "realtime",
@@ -81549,6 +82113,331 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "AuditRecordActor": {
+        "type": "object",
+        "required": [
+          "actorId",
+          "actorType"
+        ],
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "platform_user",
+              "tenant_user",
+              "workspace_user",
+              "service_account",
+              "system",
+              "provider_adapter"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditRecordScope": {
+        "type": "object",
+        "required": [
+          "scopeMode"
+        ],
+        "properties": {
+          "scopeMode": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "tenant_workspace",
+              "platform"
+            ]
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditRecordResource": {
+        "type": "object",
+        "required": [
+          "subsystemId",
+          "resourceType"
+        ],
+        "properties": {
+          "subsystemId": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceDisplayName": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditRecordAction": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "category"
+        ],
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "resource_creation",
+              "resource_deletion",
+              "configuration_change",
+              "access_control_modification",
+              "quota_adjustment",
+              "privilege_escalation",
+              "secret_rotation",
+              "policy_override",
+              "backup_restore",
+              "provider_reconciliation"
+            ]
+          }
+        }
+      },
+      "AuditRecordResult": {
+        "type": "object",
+        "required": [
+          "outcome"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "denied",
+              "partial",
+              "accepted"
+            ]
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditRecordOrigin": {
+        "type": "object",
+        "required": [
+          "originSurface",
+          "emittingService"
+        ],
+        "properties": {
+          "originSurface": {
+            "type": "string",
+            "enum": [
+              "control_api",
+              "console_backend",
+              "internal_reconciler",
+              "provider_adapter",
+              "bootstrap_job",
+              "scheduled_operation"
+            ]
+          },
+          "emittingService": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditRecord": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "eventTimestamp",
+          "actor",
+          "scope",
+          "resource",
+          "action",
+          "result",
+          "correlationId",
+          "origin"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/AuditRecordActor"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AuditRecordScope"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/AuditRecordResource"
+          },
+          "action": {
+            "$ref": "#/components/schemas/AuditRecordAction"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AuditRecordResult"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/AuditRecordOrigin"
+          }
+        }
+      },
+      "AuditQueryFilter": {
+        "type": "object",
+        "required": [
+          "id",
+          "param",
+          "label",
+          "type"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "param": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "allowedValues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AuditQueryPreset": {
+        "type": "object",
+        "required": [
+          "id",
+          "filters"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AuditQueryConsoleHints": {
+        "type": "object",
+        "required": [
+          "scopeId",
+          "defaultColumns",
+          "savedPresets",
+          "states"
+        ],
+        "properties": {
+          "scopeId": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace"
+            ]
+          },
+          "defaultColumns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "savedPresets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditQueryPreset"
+            }
+          },
+          "states": {
+            "type": "object"
+          }
+        }
+      },
+      "AuditRecordCollectionResponse": {
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "queryScope",
+          "appliedFilters",
+          "availableFilters",
+          "consoleHints"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditRecord"
+            }
+          },
+          "page": {
+            "type": "object",
+            "required": [
+              "size"
+            ],
+            "properties": {
+              "size": {
+                "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string"
+              },
+              "hasMore": {
+                "type": "boolean"
+              }
+            }
+          },
+          "queryScope": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace"
+            ]
+          },
+          "appliedFilters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "availableFilters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditQueryFilter"
+            }
+          },
+          "consoleHints": {
+            "$ref": "#/components/schemas/AuditQueryConsoleHints"
           }
         }
       }

@@ -149,3 +149,75 @@ This increment does **not** implement runtime emitters, Kafka topic provisioning
 storage adapters, query APIs, export logic, masking execution, or correlation behavior.
 It only establishes the bounded contract, validation, and documentation foundation required before
 those later tasks can proceed safely.
+
+## Scope delivered in `US-OBS-02-T03`
+
+This increment establishes the **canonical audit query and filter surface baseline** for the platform.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-audit-query-surface.json` as the machine-readable source of truth for tenant/workspace audit query scopes, supported filters, pagination policy, response metadata, and console explorer settings
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for the audit query-surface contract
+- `scripts/lib/observability-audit-query-surface.mjs` and `scripts/validate-observability-audit-query-surface.mjs` for deterministic validation of the query/filter surface and its alignment with the pipeline, schema, authorization, and public API baselines
+- `apps/control-plane/openapi/control-plane.openapi.json` additive tenant/workspace audit-record query routes under the metrics family plus generated route-catalog and family-doc refreshes
+- `apps/control-plane/src/observability-audit-query.mjs` and `apps/web-console/src/observability-audit.mjs` helpers that normalize scope-safe audit queries and expose console-facing explorer metadata from the shared contract
+- `docs/reference/architecture/observability-audit-query-surface.md` as the human-readable architecture guide for the audit query/filter baseline
+- `docs/reference/architecture/README.md` index updates so the new query guidance is discoverable
+
+## Main decisions in `US-OBS-02-T03`
+
+### Audit consultation is exposed first at tenant and workspace scope
+
+The initial audit read surface stays bounded to:
+
+- `/v1/metrics/tenants/{tenantId}/audit-records`
+- `/v1/metrics/workspaces/{workspaceId}/audit-records`
+
+This delivers real consultation value without widening the scope to a cross-tenant platform query surface.
+
+### API and console share one filter vocabulary
+
+Both API and console consumers now reuse the same declared filters for:
+
+- time range
+- subsystem
+- action category and action id
+- outcome
+- actor type and actor id
+- resource type and resource id
+- origin surface
+- correlation id
+
+That prevents drift between backend and console behavior before export/masking work lands.
+
+### Workspace audit consultation now uses an explicit permission
+
+The authorization model now introduces `workspace.audit.read` so workspace-scoped audit consultation does not have to overload unrelated read permissions.
+
+### Export, masking, and correlation remain explicitly deferred
+
+This increment only defines query/filter consultation behavior.
+It does **not** implement:
+
+- export/download flows (`US-OBS-02-T04`)
+- masking/sensitive-event handling (`US-OBS-02-T04`)
+- cross-system correlation execution (`US-OBS-02-T05`)
+- end-to-end traceability verification (`US-OBS-02-T06`)
+
+## Validation for `US-OBS-02-T03`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-audit-query-surface
+```
+
+## Downstream dependency note for `US-OBS-02-T03`
+
+This increment defines the bounded consultation surface required before later work can extend it.
+
+Downstream work remains:
+
+- `US-OBS-02-T04` — export, masking, and sensitive-event handling
+- `US-OBS-02-T05` — cross-system correlation and traceability
+- `US-OBS-02-T06` — end-to-end verification and data-protection testing

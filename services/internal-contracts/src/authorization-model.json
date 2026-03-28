@@ -452,6 +452,7 @@
       "workspace.role_mappings.manage",
       "workspace.policy.manage",
       "workspace.effective_permissions.read",
+      "workspace.audit.read",
       "workspace.effective_permissions.recalculate"
     ],
     "database": [
@@ -541,6 +542,7 @@
         "workspace.role_mappings.manage",
         "workspace.policy.manage",
         "workspace.effective_permissions.read",
+        "workspace.audit.read",
         "workspace.effective_permissions.recalculate"
       ],
       "forbidden_actions": [
@@ -709,6 +711,7 @@
           "tenant.usage.read",
           "tenant.suspend",
           "workspace.read",
+          "workspace.audit.read",
           "workspace.update",
           "workspace.members.manage",
           "workspace.delete",
@@ -727,6 +730,7 @@
           "tenant.read",
           "tenant.usage.read",
           "workspace.read",
+          "workspace.audit.read",
           "app.read",
           "service_account.read"
         ],
@@ -742,6 +746,7 @@
           "tenant.audit.read",
           "tenant.read",
           "workspace.read",
+          "workspace.audit.read",
           "app.read",
           "service_account.read",
           "function.audit.read",
@@ -943,6 +948,7 @@
         "role": "workspace_owner",
         "allowed_actions": [
           "workspace.read",
+          "workspace.audit.read",
           "workspace.update",
           "workspace.members.manage",
           "workspace.invitations.manage",
@@ -980,6 +986,7 @@
         "role": "workspace_admin",
         "allowed_actions": [
           "workspace.read",
+          "workspace.audit.read",
           "workspace.update",
           "workspace.members.manage",
           "workspace.invitations.manage",
@@ -1059,6 +1066,7 @@
         "role": "workspace_operator",
         "allowed_actions": [
           "workspace.read",
+          "workspace.audit.read",
           "database.read",
           "bucket.read",
           "topic.read",
@@ -1088,6 +1096,7 @@
         "role": "workspace_auditor",
         "allowed_actions": [
           "workspace.read",
+          "workspace.audit.read",
           "database.read",
           "bucket.read",
           "topic.read",
@@ -1112,6 +1121,7 @@
         "role": "workspace_viewer",
         "allowed_actions": [
           "workspace.read",
+          "workspace.audit.read",
           "database.read",
           "bucket.read",
           "topic.read",
@@ -1331,18 +1341,19 @@
       "target": "audit_query_context",
       "required_fields": [
         "actor",
-        "tenant_id",
-        "workspace_id",
         "correlation_id",
         "query_scope"
       ],
       "optional_fields": [
-        "action_type_filter"
+        "tenant_id",
+        "workspace_id",
+        "action_type_filter",
+        "filter_set_hash"
       ],
       "redacted_fields": [
         "raw_tokens"
       ],
-      "reason": "Audit queries must stay bound to the caller scope and optional action filter without leaking credential internals."
+      "reason": "Audit queries must stay bound to the caller scope while allowing tenant-only or workspace-specific query envelopes without leaking credential internals."
     }
   ],
   "negative_scenarios": [

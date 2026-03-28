@@ -1,0 +1,264 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-02-T03",
+  "system": "in-atelier-observability-plane",
+  "source_audit_pipeline_contract": "2026-03-28",
+  "source_audit_event_schema_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_public_api_contract": "2026-03-26",
+  "supported_query_scopes": [
+    {
+      "id": "tenant",
+      "label": "Tenant audit explorer",
+      "route_operation_id": "listTenantAuditRecords",
+      "required_permission": "tenant.audit.read",
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "correlation_id",
+        "query_scope"
+      ],
+      "scope_binding": {
+        "tenant_id": "required",
+        "workspace_id": "optional_narrowing_only"
+      },
+      "allowed_sort_keys": [
+        "-eventTimestamp",
+        "eventTimestamp"
+      ],
+      "default_sort": "-eventTimestamp"
+    },
+    {
+      "id": "workspace",
+      "label": "Workspace audit explorer",
+      "route_operation_id": "listWorkspaceAuditRecords",
+      "required_permission": "workspace.audit.read",
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "query_scope"
+      ],
+      "scope_binding": {
+        "tenant_id": "inherited_from_workspace",
+        "workspace_id": "required"
+      },
+      "allowed_sort_keys": [
+        "-eventTimestamp",
+        "eventTimestamp"
+      ],
+      "default_sort": "-eventTimestamp"
+    }
+  ],
+  "pagination": {
+    "style": "cursor",
+    "limit_param": "page[size]",
+    "cursor_param": "page[after]",
+    "sort_param": "sort",
+    "default_limit": 25,
+    "max_limit": 200
+  },
+  "filter_dimensions": [
+    {
+      "id": "occurred_after",
+      "param": "filter[occurredAfter]",
+      "label": "Occurred after",
+      "type": "date-time"
+    },
+    {
+      "id": "occurred_before",
+      "param": "filter[occurredBefore]",
+      "label": "Occurred before",
+      "type": "date-time"
+    },
+    {
+      "id": "subsystem",
+      "param": "filter[subsystem]",
+      "label": "Subsystem",
+      "type": "enum",
+      "allowed_values": [
+        "iam",
+        "postgresql",
+        "mongodb",
+        "kafka",
+        "openwhisk",
+        "storage",
+        "quota_metering",
+        "tenant_control_plane"
+      ]
+    },
+    {
+      "id": "action_category",
+      "param": "filter[actionCategory]",
+      "label": "Action category",
+      "type": "enum"
+    },
+    {
+      "id": "action_id",
+      "param": "filter[actionId]",
+      "label": "Action id",
+      "type": "string"
+    },
+    {
+      "id": "outcome",
+      "param": "filter[outcome]",
+      "label": "Outcome",
+      "type": "enum",
+      "allowed_values": [
+        "succeeded",
+        "failed",
+        "denied",
+        "partial",
+        "accepted"
+      ]
+    },
+    {
+      "id": "actor_type",
+      "param": "filter[actorType]",
+      "label": "Actor type",
+      "type": "enum",
+      "allowed_values": [
+        "platform_user",
+        "tenant_user",
+        "workspace_user",
+        "service_account",
+        "system",
+        "provider_adapter"
+      ]
+    },
+    {
+      "id": "actor_id",
+      "param": "filter[actorId]",
+      "label": "Actor id",
+      "type": "string"
+    },
+    {
+      "id": "resource_type",
+      "param": "filter[resourceType]",
+      "label": "Resource type",
+      "type": "string"
+    },
+    {
+      "id": "resource_id",
+      "param": "filter[resourceId]",
+      "label": "Resource id",
+      "type": "string"
+    },
+    {
+      "id": "origin_surface",
+      "param": "filter[originSurface]",
+      "label": "Origin surface",
+      "type": "enum",
+      "allowed_values": [
+        "control_api",
+        "console_backend",
+        "internal_reconciler",
+        "provider_adapter",
+        "bootstrap_job",
+        "scheduled_operation"
+      ]
+    },
+    {
+      "id": "correlation_id",
+      "param": "filter[correlationId]",
+      "label": "Correlation id",
+      "type": "string"
+    }
+  ],
+  "response_contract": {
+    "collection_schema": "AuditRecordCollectionResponse",
+    "required_fields": [
+      "items",
+      "page",
+      "queryScope",
+      "appliedFilters",
+      "availableFilters",
+      "consoleHints"
+    ],
+    "item_projection": {
+      "required_fields": [
+        "eventId",
+        "eventTimestamp",
+        "actor",
+        "scope",
+        "resource",
+        "action",
+        "result",
+        "correlationId",
+        "origin"
+      ]
+    }
+  },
+  "console_surface": {
+    "entry_scopes": [
+      "tenant",
+      "workspace"
+    ],
+    "default_columns": [
+      "eventTimestamp",
+      "subsystem",
+      "actionId",
+      "outcome",
+      "actor",
+      "resource",
+      "originSurface",
+      "correlationId"
+    ],
+    "saved_presets": [
+      {
+        "id": "recent_failures",
+        "scope_ids": [
+          "tenant",
+          "workspace"
+        ],
+        "filters": {
+          "outcome": "failed"
+        }
+      },
+      {
+        "id": "access_changes",
+        "scope_ids": [
+          "tenant",
+          "workspace"
+        ],
+        "filters": {
+          "action_category": "access_control_modification"
+        }
+      },
+      {
+        "id": "current_correlation_id",
+        "scope_ids": [
+          "tenant",
+          "workspace"
+        ],
+        "filters": {
+          "correlation_id": "$CURRENT_CORRELATION_ID"
+        }
+      }
+    ],
+    "states": {
+      "loading": "loading_audit_records",
+      "empty": {
+        "title": "No audit records found",
+        "message": "Adjust filters or widen the time range inside the current authorized scope."
+      },
+      "error": {
+        "title": "Audit records unavailable",
+        "message": "The audit query could not be completed with the supplied scope or filters."
+      }
+    }
+  },
+  "governance": {
+    "query_isolation_rules": [
+      "tenant queries may narrow to a workspace but may not expand outside the requested tenant",
+      "workspace queries may not substitute another workspace id",
+      "correlation filters only narrow results and never widen scope"
+    ],
+    "future_work_boundaries": [
+      "export_is_defined_in_us_obs_02_t04",
+      "masking_is_defined_in_us_obs_02_t04",
+      "correlation_execution_is_defined_in_us_obs_02_t05"
+    ]
+  }
+}

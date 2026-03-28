@@ -481,6 +481,8 @@ Workspace-scoped usage, quota, gateway-stream, and observability series exposed 
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/metrics/tenants/{tenantId}/audit-records` | tenant | tenant_audit_record | Query tenant-scoped audit records through the unified observability surface |
+| GET | `/v1/metrics/workspaces/{workspaceId}/audit-records` | workspace | workspace_audit_record | Query workspace-scoped audit records through the unified observability surface |
 | GET | `/v1/metrics/workspaces/{workspaceId}/event-dashboards` | workspace | event_dashboard | Fetch workspace-scoped Kafka bridge and trigger dashboard widgets |
 | GET | `/v1/metrics/workspaces/{workspaceId}/gateway-streams` | workspace | gateway_stream_metrics | Fetch gateway publish, connection, lag, and backpressure metrics for one workspace |
 | GET | `/v1/metrics/workspaces/{workspaceId}/kafka-topics` | workspace | kafka_topic_metrics | Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace |

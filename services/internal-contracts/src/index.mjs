@@ -9,6 +9,7 @@ const OBSERVABILITY_DASHBOARDS_URL = new URL('./observability-dashboards.json', 
 const OBSERVABILITY_HEALTH_CHECKS_URL = new URL('./observability-health-checks.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_PIPELINE_URL = new URL('./observability-audit-pipeline.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_EVENT_SCHEMA_URL = new URL('./observability-audit-event-schema.json', import.meta.url);
+export const OBSERVABILITY_AUDIT_QUERY_SURFACE_URL = new URL('./observability-audit-query-surface.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
@@ -23,6 +24,7 @@ let cachedObservabilityDashboards;
 let cachedObservabilityHealthChecks;
 let cachedObservabilityAuditPipeline;
 let cachedObservabilityAuditEventSchema;
+let cachedObservabilityAuditQuerySurface;
 let cachedObservabilityBusinessMetrics;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
@@ -100,6 +102,14 @@ export function readObservabilityAuditEventSchema() {
   return cachedObservabilityAuditEventSchema;
 }
 
+export function readObservabilityAuditQuerySurface() {
+  if (!cachedObservabilityAuditQuerySurface) {
+    cachedObservabilityAuditQuerySurface = JSON.parse(readFileSync(OBSERVABILITY_AUDIT_QUERY_SURFACE_URL, 'utf8'));
+  }
+
+  return cachedObservabilityAuditQuerySurface;
+}
+
 export function readObservabilityBusinessMetrics() {
   if (!cachedObservabilityBusinessMetrics) {
     cachedObservabilityBusinessMetrics = JSON.parse(readFileSync(OBSERVABILITY_BUSINESS_METRICS_URL, 'utf8'));
@@ -141,6 +151,7 @@ export const OBSERVABILITY_DASHBOARDS_VERSION = readObservabilityDashboards().ve
 export const OBSERVABILITY_HEALTH_CHECKS_VERSION = readObservabilityHealthChecks().version;
 export const OBSERVABILITY_AUDIT_PIPELINE_VERSION = readObservabilityAuditPipeline().version;
 export const OBSERVABILITY_AUDIT_EVENT_SCHEMA_VERSION = readObservabilityAuditEventSchema().version;
+export const OBSERVABILITY_AUDIT_QUERY_SURFACE_VERSION = readObservabilityAuditQuerySurface().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
@@ -411,6 +422,34 @@ export function getAuditResultSchema() {
 
 export function getAuditOriginSchema() {
   return readObservabilityAuditEventSchema().origin ?? {};
+}
+
+export function listAuditQueryScopes() {
+  return readObservabilityAuditQuerySurface().supported_query_scopes ?? [];
+}
+
+export function getAuditQueryScope(scopeId) {
+  return listAuditQueryScopes().find((scope) => scope.id === scopeId);
+}
+
+export function listAuditQueryFilters() {
+  return readObservabilityAuditQuerySurface().filter_dimensions ?? [];
+}
+
+export function getAuditQueryFilter(filterId) {
+  return listAuditQueryFilters().find((filter) => filter.id === filterId);
+}
+
+export function getAuditQueryPaginationPolicy() {
+  return readObservabilityAuditQuerySurface().pagination ?? {};
+}
+
+export function getAuditQueryResponseContract() {
+  return readObservabilityAuditQuerySurface().response_contract ?? {};
+}
+
+export function getAuditConsoleSurface() {
+  return readObservabilityAuditQuerySurface().console_surface ?? {};
 }
 
 export function listObservabilityBusinessDomains() {
