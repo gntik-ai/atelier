@@ -16,6 +16,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { terminateConsoleLoginSession } from '@/lib/console-auth'
+import { ConsoleContextProvider, useConsoleContext } from '@/lib/console-context'
 import {
   clearConsoleShellSession,
   getConsolePrincipalInitials,
@@ -171,151 +172,285 @@ export function ConsoleShellLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
-              IA
-            </div>
-            <div className="min-w-0">
-              <Link className="block truncate text-base font-semibold tracking-tight" to="/console/overview">
-                In Atelier Console
-              </Link>
-              <p className="truncate text-xs text-muted-foreground">Shell persistente base · EP-14 / US-UI-01-T04</p>
-            </div>
-          </div>
-
-          <div className="relative flex items-center gap-3">
-            <div className="hidden text-right md:block">
-              <p className="text-sm font-medium text-foreground">{principalLabel}</p>
-              <p className="text-xs text-muted-foreground">{principalSecondary}</p>
-            </div>
-
-            <button
-              ref={avatarButtonRef}
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label={`Abrir menú de usuario de ${principalLabel}`}
-              data-testid="console-shell-avatar"
-              onClick={() => setMenuOpen((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground">
-                {principalInitials ? principalInitials : <User className="h-4 w-4" aria-hidden="true" />}
-              </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            </button>
-
-            {menuOpen ? (
-              <div
-                ref={menuRef}
-                role="menu"
-                aria-label="Menú de usuario"
-                onKeyDown={handleMenuKeyDown}
-                className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-72 rounded-2xl border border-border bg-popover p-2 shadow-2xl"
-              >
-                <div className="rounded-xl border border-border/70 bg-background/60 p-3">
-                  <p className="text-sm font-semibold text-popover-foreground">{principalLabel}</p>
-                  <p className="text-xs text-muted-foreground">{principalSecondary}</p>
-                  {principalRoles.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {principalRoles.slice(0, 3).map((role) => (
-                        <Badge key={role} variant="outline">
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="mt-2 grid gap-1">
-                  <Link
-                    to="/console/profile"
-                    role="menuitem"
-                    data-shell-menu-item="true"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-popover-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <User className="h-4 w-4" aria-hidden="true" />
-                    Profile
-                  </Link>
-                  <Link
-                    to="/console/settings"
-                    role="menuitem"
-                    data-shell-menu-item="true"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-popover-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <Settings className="h-4 w-4" aria-hidden="true" />
-                    Settings
-                  </Link>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    data-shell-menu-item="true"
-                    disabled={isLoggingOut}
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-popover-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <LogOut className="h-4 w-4" aria-hidden="true" />
-                    {isLoggingOut ? 'Cerrando sesión…' : 'Logout'}
-                  </button>
-                </div>
+    <ConsoleContextProvider session={session}>
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="fixed inset-x-0 top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+          <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
+                IA
               </div>
-            ) : null}
+              <div className="min-w-0">
+                <Link className="block truncate text-base font-semibold tracking-tight" to="/console/overview">
+                  In Atelier Console
+                </Link>
+                <p className="truncate text-xs text-muted-foreground">Shell persistente base · EP-14 / US-UI-02-T01</p>
+              </div>
+            </div>
+
+            <ConsoleHeaderContextControls />
+
+            <div className="relative flex items-center gap-3">
+              <div className="hidden text-right md:block">
+                <p className="text-sm font-medium text-foreground">{principalLabel}</p>
+                <p className="text-xs text-muted-foreground">{principalSecondary}</p>
+              </div>
+
+              <button
+                ref={avatarButtonRef}
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={`Abrir menú de usuario de ${principalLabel}`}
+                data-testid="console-shell-avatar"
+                onClick={() => setMenuOpen((current) => !current)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-secondary-foreground">
+                  {principalInitials ? principalInitials : <User className="h-4 w-4" aria-hidden="true" />}
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+              </button>
+
+              {menuOpen ? (
+                <div
+                  ref={menuRef}
+                  role="menu"
+                  aria-label="Menú de usuario"
+                  onKeyDown={handleMenuKeyDown}
+                  className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-72 rounded-2xl border border-border bg-popover p-2 shadow-2xl"
+                >
+                  <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+                    <p className="text-sm font-semibold text-popover-foreground">{principalLabel}</p>
+                    <p className="text-xs text-muted-foreground">{principalSecondary}</p>
+                    {principalRoles.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {principalRoles.slice(0, 3).map((role) => (
+                          <Badge key={role} variant="outline">
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-2 grid gap-1">
+                    <Link
+                      to="/console/profile"
+                      role="menuitem"
+                      data-shell-menu-item="true"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-popover-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <User className="h-4 w-4" aria-hidden="true" />
+                      Profile
+                    </Link>
+                    <Link
+                      to="/console/settings"
+                      role="menuitem"
+                      data-shell-menu-item="true"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-popover-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <Settings className="h-4 w-4" aria-hidden="true" />
+                      Settings
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      data-shell-menu-item="true"
+                      disabled={isLoggingOut}
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-popover-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <LogOut className="h-4 w-4" aria-hidden="true" />
+                      {isLoggingOut ? 'Cerrando sesión…' : 'Logout'}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="mx-auto flex max-w-[1600px] pt-16">
-        <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-border bg-card/35 px-4 py-6 lg:block">
-          <div className="space-y-2 rounded-3xl border border-border/70 bg-background/50 p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Navegación principal</p>
-            <nav aria-label="Navegación principal de consola" className="space-y-1">
-              {consoleNavigationItems.map((item) => {
-                const Icon = item.icon
+        <div className="mx-auto flex max-w-[1600px] pt-16">
+          <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-72 shrink-0 overflow-y-auto border-r border-border bg-card/35 px-4 py-6 lg:block">
+            <div className="space-y-2 rounded-3xl border border-border/70 bg-background/50 p-4">
+              <p className="text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">Navegación principal</p>
+              <nav aria-label="Navegación principal de consola" className="space-y-1">
+                {consoleNavigationItems.map((item) => {
+                  const Icon = item.icon
 
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-start gap-3 rounded-2xl px-3 py-3 text-sm transition-colors',
-                        isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', isActive ? 'text-primary-foreground' : 'text-current')} aria-hidden="true" />
-                        <span className="min-w-0">
-                          <span className="block font-medium">{item.label}</span>
-                          <span className={cn('mt-1 block text-xs leading-5', isActive ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
-                            {item.description}
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex items-start gap-3 rounded-2xl px-3 py-3 text-sm transition-colors',
+                          isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                        )
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', isActive ? 'text-primary-foreground' : 'text-current')} aria-hidden="true" />
+                          <span className="min-w-0">
+                            <span className="block font-medium">{item.label}</span>
+                            <span className={cn('mt-1 block text-xs leading-5', isActive ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                              {item.description}
+                            </span>
                           </span>
-                        </span>
-                      </>
-                    )}
-                  </NavLink>
-                )
-              })}
-            </nav>
-          </div>
-        </aside>
+                        </>
+                      )}
+                    </NavLink>
+                  )
+                })}
+              </nav>
+            </div>
+          </aside>
 
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:px-8 lg:py-8">
-          <div className="mx-auto max-w-5xl">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:px-8 lg:py-8">
+            <div className="mx-auto max-w-5xl">
+              <Outlet />
+            </div>
+          </main>
+        </div>
 
-      <div className="border-t border-border bg-background/95 px-4 py-3 lg:hidden">
-        <p className="text-xs text-muted-foreground">La experiencia optimizada para móvil llegará en una iteración posterior. T04 cubre el shell de escritorio.</p>
+        <div className="border-t border-border bg-background/95 px-4 py-3 lg:hidden">
+          <p className="text-xs text-muted-foreground">La experiencia optimizada para móvil llegará en una iteración posterior. T01 cubre el selector de contexto dentro del shell de escritorio.</p>
+        </div>
       </div>
-    </div>
+    </ConsoleContextProvider>
+  )
+}
+
+function ConsoleHeaderContextControls() {
+  const {
+    activeTenantId,
+    activeWorkspaceId,
+    reloadTenants,
+    reloadWorkspaces,
+    selectTenant,
+    selectWorkspace,
+    tenants,
+    tenantsError,
+    tenantsLoading,
+    workspaces,
+    workspacesError,
+    workspacesLoading
+  } = useConsoleContext()
+
+  const hasNoTenants = !tenantsLoading && !tenantsError && tenants.length === 0
+  const hasNoWorkspaces = Boolean(activeTenantId) && !workspacesLoading && !workspacesError && workspaces.length === 0
+
+  const contextHint = useMemo(() => {
+    if (tenantsError) {
+      return tenantsError
+    }
+
+    if (workspacesError) {
+      return workspacesError
+    }
+
+    if (tenantsLoading) {
+      return 'Cargando tenants accesibles…'
+    }
+
+    if (hasNoTenants) {
+      return 'Tu cuenta no tiene tenants accesibles todavía.'
+    }
+
+    if (!activeTenantId) {
+      return 'Selecciona un tenant para establecer el contexto de trabajo.'
+    }
+
+    if (workspacesLoading) {
+      return 'Cargando workspaces del tenant seleccionado…'
+    }
+
+    if (hasNoWorkspaces) {
+      return 'El tenant activo no tiene workspaces accesibles para tu cuenta.'
+    }
+
+    if (!activeWorkspaceId) {
+      return 'Selecciona un workspace para completar el contexto activo.'
+    }
+
+    return 'El contexto activo se mantiene durante la navegación y al recargar la consola.'
+  }, [activeTenantId, activeWorkspaceId, hasNoTenants, hasNoWorkspaces, tenantsError, tenantsLoading, workspacesError, workspacesLoading])
+
+  const workspaceDisabled = tenantsLoading || !activeTenantId || workspacesLoading || Boolean(tenantsError) || hasNoTenants
+
+  return (
+    <section
+      aria-label="Contexto activo de consola"
+      className="hidden min-w-0 flex-1 items-center justify-center xl:flex"
+    >
+      <div className="flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-border bg-card/70 px-4 py-3 shadow-sm">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Contexto</p>
+          <p className="truncate text-xs text-muted-foreground">{contextHint}</p>
+        </div>
+
+        <label className="flex min-w-[220px] max-w-[260px] flex-1 flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Tenant</span>
+          <select
+            aria-label="Seleccionar tenant"
+            data-testid="console-context-tenant-select"
+            value={activeTenantId ?? ''}
+            disabled={tenantsLoading || hasNoTenants}
+            onChange={(event) => selectTenant(event.target.value || null)}
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">
+              {tenantsLoading ? 'Cargando tenants…' : hasNoTenants ? 'Sin tenants accesibles' : 'Selecciona un tenant'}
+            </option>
+            {tenants.map((tenant) => (
+              <option key={tenant.tenantId} value={tenant.tenantId}>
+                {tenant.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex min-w-[220px] max-w-[260px] flex-1 flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Workspace</span>
+          <select
+            aria-label="Seleccionar workspace"
+            data-testid="console-context-workspace-select"
+            value={activeWorkspaceId ?? ''}
+            disabled={workspaceDisabled}
+            onChange={(event) => selectWorkspace(event.target.value || null)}
+            className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value="">
+              {!activeTenantId
+                ? 'Selecciona un tenant primero'
+                : workspacesLoading
+                  ? 'Cargando workspaces…'
+                  : hasNoWorkspaces
+                    ? 'Sin workspaces accesibles'
+                    : 'Selecciona un workspace'}
+            </option>
+            {workspaces.map((workspace) => (
+              <option key={workspace.workspaceId} value={workspace.workspaceId}>
+                {workspace.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {tenantsError ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => void reloadTenants()}>
+            Reintentar tenants
+          </Button>
+        ) : workspacesError ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => void reloadWorkspaces()}>
+            Reintentar workspaces
+          </Button>
+        ) : null}
+      </div>
+    </section>
   )
 }

@@ -13,11 +13,11 @@ const baseSession = {
   sessionId: 'ses_abc123',
   authenticationState: 'active' as const,
   statusView: 'login' as const,
-  issuedAt: '2026-03-28T18:00:00.000Z',
-  lastActivityAt: '2026-03-28T18:00:00.000Z',
-  expiresAt: '2026-03-28T20:00:00.000Z',
-  idleExpiresAt: '2026-03-28T19:00:00.000Z',
-  refreshExpiresAt: '2026-03-29T18:00:00.000Z',
+  issuedAt: '2099-03-28T18:00:00.000Z',
+  lastActivityAt: '2099-03-28T18:00:00.000Z',
+  expiresAt: '2099-03-28T20:00:00.000Z',
+  idleExpiresAt: '2099-03-28T19:00:00.000Z',
+  refreshExpiresAt: '2099-03-29T18:00:00.000Z',
   sessionPolicy: {
     maxLifetime: '8h',
     idleTimeout: '1h',
@@ -30,8 +30,8 @@ const baseSession = {
     expiresIn: 3600,
     refreshExpiresIn: 7200,
     scope: 'openid profile email',
-    expiresAt: '2026-03-28T20:00:00.000Z',
-    refreshExpiresAt: '2026-03-29T18:00:00.000Z'
+    expiresAt: '2099-03-28T20:00:00.000Z',
+    refreshExpiresAt: '2099-03-29T18:00:00.000Z'
   },
   principal: {
     userId: 'usr_abc123',
@@ -49,10 +49,16 @@ describe('ConsoleShellLayout', () => {
     fetchMock.mockReset()
     vi.unstubAllGlobals()
     clearConsoleShellSession()
+    window.localStorage.clear()
   })
 
-  it('renderiza header, sidebar y avatar usando la sesión persistida', async () => {
-    vi.stubGlobal('fetch', fetchMock)
+  it('renderiza header, sidebar, avatar y bloque de contexto usando la sesión persistida', async () => {
+    stubShellApi({
+      tenants: [createTenant('ten_alpha', 'Tenant Alpha')],
+      workspacesByTenant: {
+        ten_alpha: [createWorkspace('wrk_alpha', 'ten_alpha', 'Workspace Alpha')]
+      }
+    })
     persistConsoleShellSession(baseSession)
 
     renderShell('/console/overview')
@@ -61,10 +67,16 @@ describe('ConsoleShellLayout', () => {
     expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByText(/operaciones plataforma/i)).toBeInTheDocument()
     expect(screen.getByTestId('console-shell-avatar')).toHaveTextContent('OP')
+    expect(screen.getByLabelText(/contexto activo de consola/i)).toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_alpha')
+      expect(screen.getByTestId('console-context-workspace-select')).toHaveValue('wrk_alpha')
+    })
   })
 
   it('abre el dropdown y lo cierra con escape', async () => {
-    vi.stubGlobal('fetch', fetchMock)
+    stubShellApi()
     persistConsoleShellSession(baseSession)
     const user = userEvent.setup()
 
@@ -85,7 +97,7 @@ describe('ConsoleShellLayout', () => {
   })
 
   it('navega a profile desde el menú de usuario', async () => {
-    vi.stubGlobal('fetch', fetchMock)
+    stubShellApi()
     persistConsoleShellSession(baseSession)
     const user = userEvent.setup()
 
@@ -97,15 +109,89 @@ describe('ConsoleShellLayout', () => {
     expect(await screen.findByRole('heading', { name: /perfil/i })).toBeInTheDocument()
   })
 
-  it('ejecuta logout, limpia storage y redirige a login', async () => {
-    fetchMock.mockResolvedValueOnce(
-      createJsonResponse(202, {
-        sessionId: 'ses_abc123',
-        status: 'accepted',
-        acceptedAt: '2026-03-28T18:05:00.000Z'
+  it('cambia de tenant manteniendo la ruta y reseteando el workspace anterior', async () => {
+    stubShellApi({
+      tenants: [
+        createTenant('ten_alpha', 'Tenant Alpha'),
+        createTenant('ten_beta', 'Tenant Beta')
+      ],
+      workspacesByTenant: {
+        ten_alpha: [createWorkspace('wrk_alpha', 'ten_alpha', 'Workspace Alpha')],
+        ten_beta: [
+          createWorkspace('wrk_beta_1', 'ten_beta', 'Workspace Beta 1'),
+          createWorkspace('wrk_beta_2', 'ten_beta', 'Workspace Beta 2')
+        ]
+      }
+    })
+    window.localStorage.setItem(
+      'in-atelier.console-active-context',
+      JSON.stringify({
+        userId: 'usr_abc123',
+        tenantId: 'ten_alpha',
+        workspaceId: 'wrk_alpha',
+        updatedAt: '2026-03-28T18:05:00.000Z'
       })
     )
+    persistConsoleShellSession(baseSession)
+    const user = userEvent.setup()
+
+    renderShell('/console/workspaces')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_alpha')
+      expect(screen.getByTestId('console-context-workspace-select')).toHaveValue('wrk_alpha')
+    })
+
+    await user.selectOptions(screen.getByTestId('console-context-tenant-select'), 'ten_beta')
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /workspaces/i })).toBeInTheDocument()
+      expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_beta')
+      expect(screen.getByTestId('console-context-workspace-select')).toHaveValue('')
+    })
+  })
+
+  it('muestra estado vacío cuando no hay tenants accesibles', async () => {
+    stubShellApi({ tenants: [] })
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/overview')
+
+    expect(await screen.findByText(/no tiene tenants accesibles/i)).toBeInTheDocument()
+    expect(screen.getByTestId('console-context-tenant-select')).toBeDisabled()
+    expect(screen.getByTestId('console-context-workspace-select')).toBeDisabled()
+  })
+
+  it('muestra reintento cuando falla la carga de tenants y se recupera al reintentar', async () => {
+    fetchMock
+      .mockImplementationOnce(async (input) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+        if (url.startsWith('/v1/tenants')) {
+          return createJsonResponse(500, { message: 'Tenants degradados' })
+        }
+
+        return createJsonResponse(404, { message: 'Not found' })
+      })
+      .mockImplementation(createShellApiImplementation())
     vi.stubGlobal('fetch', fetchMock)
+    persistConsoleShellSession(baseSession)
+    const user = userEvent.setup()
+
+    renderShell('/console/overview')
+
+    const retryButton = await screen.findByRole('button', { name: /reintentar tenants/i })
+    expect(screen.getByText(/tenants degradados/i)).toBeInTheDocument()
+
+    await user.click(retryButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_alpha')
+      expect(screen.getByTestId('console-context-workspace-select')).toHaveValue('wrk_alpha')
+    })
+  })
+
+  it('ejecuta logout, limpia storage y redirige a login', async () => {
+    stubShellApi({ logoutStatus: 202 })
     persistConsoleShellSession(baseSession)
     const user = userEvent.setup()
 
@@ -118,17 +204,21 @@ describe('ConsoleShellLayout', () => {
     expect(readConsoleShellSession()).toBeNull()
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/v1/auth/login-sessions/ses_abc123',
-        expect.objectContaining({
-          method: 'DELETE',
-          headers: expect.any(Headers)
-        })
-      )
+      const logoutCall = fetchMock.mock.calls.find(([request]) => {
+        const url = typeof request === 'string' ? request : request instanceof URL ? request.toString() : request.url
+        return url === '/v1/auth/login-sessions/ses_abc123'
+      })
+
+      expect(logoutCall).toBeDefined()
     })
 
-    const [, requestInit] = fetchMock.mock.calls[0]
+    const logoutCall = fetchMock.mock.calls.find(([request]) => {
+      const url = typeof request === 'string' ? request : request instanceof URL ? request.toString() : request.url
+      return url === '/v1/auth/login-sessions/ses_abc123'
+    })
+    const requestInit = logoutCall?.[1]
     const headers = requestInit?.headers as Headers
+
     expect(headers.get('Authorization')).toBe('Bearer access-token-1234567890')
     expect(headers.get('X-API-Version')).toBe('2026-03-26')
     expect(headers.get('Idempotency-Key')).toMatch(/^idem_/)
@@ -187,6 +277,77 @@ function renderShell(initialPath = '/console/overview') {
   )
 
   return render(<RouterProvider router={router} />)
+}
+
+function stubShellApi({
+  tenants = [createTenant('ten_alpha', 'Tenant Alpha')],
+  workspacesByTenant = {
+    ten_alpha: [createWorkspace('wrk_alpha', 'ten_alpha', 'Workspace Alpha')]
+  },
+  logoutStatus = 202
+}: {
+  tenants?: Array<ReturnType<typeof createTenant>>
+  workspacesByTenant?: Record<string, Array<ReturnType<typeof createWorkspace>>>
+  logoutStatus?: number
+} = {}) {
+  fetchMock.mockImplementation(createShellApiImplementation({ tenants, workspacesByTenant, logoutStatus }))
+  vi.stubGlobal('fetch', fetchMock)
+}
+
+function createShellApiImplementation({
+  tenants = [createTenant('ten_alpha', 'Tenant Alpha')],
+  workspacesByTenant = {
+    ten_alpha: [createWorkspace('wrk_alpha', 'ten_alpha', 'Workspace Alpha')]
+  },
+  logoutStatus = 202
+}: {
+  tenants?: Array<ReturnType<typeof createTenant>>
+  workspacesByTenant?: Record<string, Array<ReturnType<typeof createWorkspace>>>
+  logoutStatus?: number
+} = {}) {
+  return async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    const parsedUrl = new URL(url, 'http://localhost')
+
+    if (parsedUrl.pathname === '/v1/tenants') {
+      return createJsonResponse(200, { items: tenants, page: {} })
+    }
+
+    if (parsedUrl.pathname === '/v1/workspaces') {
+      const tenantId = parsedUrl.searchParams.get('filter[tenantId]') ?? ''
+      return createJsonResponse(200, { items: workspacesByTenant[tenantId] ?? [], page: {} })
+    }
+
+    if (parsedUrl.pathname === '/v1/auth/login-sessions/ses_abc123') {
+      return createJsonResponse(logoutStatus, {
+        sessionId: 'ses_abc123',
+        status: 'accepted',
+        acceptedAt: '2026-03-28T18:05:00.000Z'
+      })
+    }
+
+    return createJsonResponse(404, { message: 'Not found' })
+  }
+}
+
+function createTenant(tenantId: string, displayName: string) {
+  return {
+    tenantId,
+    displayName,
+    slug: displayName.toLowerCase().replace(/\s+/g, '-'),
+    state: 'active'
+  }
+}
+
+function createWorkspace(workspaceId: string, tenantId: string, displayName: string) {
+  return {
+    workspaceId,
+    tenantId,
+    displayName,
+    slug: displayName.toLowerCase().replace(/\s+/g, '-'),
+    environment: 'sandbox',
+    state: 'active'
+  }
 }
 
 function createJsonResponse(status: number, body: unknown) {
