@@ -11,10 +11,13 @@ describe('LoginPage', () => {
     cleanup()
     fetchMock.mockReset()
     vi.unstubAllGlobals()
+    window.sessionStorage.clear()
   })
 
   it('renderiza el formulario y las acciones secundarias', async () => {
-    fetchMock.mockResolvedValueOnce(createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} }))
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     renderPage()
@@ -27,7 +30,9 @@ describe('LoginPage', () => {
   })
 
   it('muestra el CTA de signup cuando la policy lo permite', async () => {
-    fetchMock.mockResolvedValueOnce(createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} }))
+    fetchMock.mockResolvedValueOnce(
+      createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     renderPage()
@@ -55,9 +60,11 @@ describe('LoginPage', () => {
     expect(screen.queryByRole('link', { name: /solicita acceso o crea tu cuenta/i })).not.toBeInTheDocument()
   })
 
-  it('envía el login y muestra el resumen de sesión', async () => {
+  it('envía el login y muestra el resumen de sesión junto al acceso al shell', async () => {
     fetchMock
-      .mockResolvedValueOnce(createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} }))
+      .mockResolvedValueOnce(
+        createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
+      )
       .mockResolvedValueOnce(
         createJsonResponse(200, {
           sessionId: 'ses_abc123',
@@ -72,6 +79,16 @@ describe('LoginPage', () => {
             maxLifetime: '8h',
             idleTimeout: '1h',
             refreshTokenMaxAge: '24h'
+          },
+          tokenSet: {
+            accessToken: 'access-token-1234567890',
+            refreshToken: 'refresh-token-1234567890',
+            tokenType: 'Bearer',
+            expiresIn: 3600,
+            refreshExpiresIn: 7200,
+            scope: 'openid profile email',
+            expiresAt: '2026-03-28T20:00:00.000Z',
+            refreshExpiresAt: '2026-03-29T18:00:00.000Z'
           },
           principal: {
             userId: 'usr_abc123',
@@ -94,6 +111,7 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText(/session id: ses_abc123/i)).toBeInTheDocument()
     expect(screen.getByText(/principal: operaciones/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /abrir shell base de la consola/i })).toHaveAttribute('href', '/console/overview')
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenNthCalledWith(
@@ -116,7 +134,9 @@ describe('LoginPage', () => {
 
   it('muestra un error inline cuando las credenciales son inválidas', async () => {
     fetchMock
-      .mockResolvedValueOnce(createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} }))
+      .mockResolvedValueOnce(
+        createJsonResponse(200, { allowed: true, approvalRequired: false, effectiveMode: 'auto_activate', globalMode: 'auto_activate', environmentModes: {}, planModes: {} })
+      )
       .mockResolvedValueOnce(
         createJsonResponse(403, {
           status: 403,
