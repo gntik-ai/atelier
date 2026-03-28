@@ -444,7 +444,8 @@
       "tenant.effective_permissions.read",
       "tenant.effective_permissions.recalculate",
       "tenant.audit.export",
-      "tenant.quota.read"
+      "tenant.quota.read",
+      "tenant.overview.read"
     ],
     "workspace": [
       "workspace.read",
@@ -460,7 +461,8 @@
       "workspace.usage.read",
       "workspace.effective_permissions.recalculate",
       "workspace.audit.export",
-      "workspace.quota.read"
+      "workspace.quota.read",
+      "workspace.overview.read"
     ],
     "database": [
       "database.read",
@@ -527,7 +529,8 @@
         "tenant.ownership_transfers.read",
         "tenant.effective_permissions.read",
         "tenant.effective_permissions.recalculate",
-        "tenant.quota.read"
+        "tenant.quota.read",
+        "tenant.overview.read"
       ],
       "forbidden_actions": [
         "cross_tenant.impersonate",
@@ -554,7 +557,8 @@
         "workspace.audit.correlate",
         "workspace.effective_permissions.recalculate",
         "workspace.audit.export",
-        "workspace.quota.read"
+        "workspace.quota.read",
+        "workspace.overview.read"
       ],
       "forbidden_actions": [
         "workspace.delete_without_tenant_admin",
@@ -738,7 +742,9 @@
           "tenant.audit.export",
           "workspace.audit.export",
           "tenant.quota.read",
-          "workspace.quota.read"
+          "tenant.overview.read",
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": []
       },
@@ -753,7 +759,9 @@
           "app.read",
           "service_account.read",
           "tenant.quota.read",
-          "workspace.quota.read"
+          "tenant.overview.read",
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -777,7 +785,8 @@
           "function.audit.coverage.read",
           "tenant.audit.export",
           "workspace.audit.export",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -814,7 +823,9 @@
           "workspace.effective_permissions.recalculate",
           "tenant.audit.export",
           "tenant.quota.read",
-          "workspace.quota.read"
+          "tenant.overview.read",
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "database.admin",
@@ -861,7 +872,9 @@
           "workspace.effective_permissions.recalculate",
           "tenant.audit.export",
           "tenant.quota.read",
-          "workspace.quota.read"
+          "tenant.overview.read",
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.suspend",
@@ -897,7 +910,9 @@
           "workspace.read",
           "app.templates.read",
           "tenant.quota.read",
-          "workspace.quota.read"
+          "tenant.overview.read",
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -947,7 +962,9 @@
           "workspace.read",
           "app.templates.read",
           "tenant.quota.read",
-          "workspace.quota.read"
+          "tenant.overview.read",
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.update",
@@ -1022,7 +1039,8 @@
           "database.admin_sql.execute",
           "function.audit.read",
           "workspace.audit.export",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -1064,7 +1082,8 @@
           "database.admin_sql.execute",
           "function.audit.read",
           "workspace.audit.export",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -1094,7 +1113,8 @@
           "app.templates.read",
           "database.rpc.execute",
           "workspace.usage.read",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "workspace.members.manage",
@@ -1131,7 +1151,8 @@
           "app.read",
           "service_account.read",
           "service_account.rotate",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "workspace.update",
@@ -1162,7 +1183,8 @@
           "app.read",
           "service_account.read",
           "workspace.audit.export",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "workspace.update",
@@ -1191,7 +1213,8 @@
           "service_account.read",
           "app.federation.read",
           "app.templates.read",
-          "workspace.quota.read"
+          "workspace.quota.read",
+          "workspace.overview.read"
         ],
         "denied_actions": [
           "workspace.update",

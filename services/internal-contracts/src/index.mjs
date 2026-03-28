@@ -18,6 +18,7 @@ const OBSERVABILITY_QUOTA_POLICIES_URL = new URL('./observability-quota-policies
 const OBSERVABILITY_THRESHOLD_ALERTS_URL = new URL('./observability-threshold-alerts.json', import.meta.url);
 const OBSERVABILITY_HARD_LIMIT_ENFORCEMENT_URL = new URL('./observability-hard-limit-enforcement.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
+const OBSERVABILITY_QUOTA_USAGE_VIEW_URL = new URL('./observability-quota-usage-view.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 
@@ -39,6 +40,7 @@ let cachedObservabilityQuotaPolicies;
 let cachedObservabilityThresholdAlerts;
 let cachedObservabilityHardLimitEnforcement;
 let cachedObservabilityConsoleAlerts;
+let cachedObservabilityQuotaUsageView;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
 
@@ -186,6 +188,14 @@ export function readObservabilityConsoleAlerts() {
   return cachedObservabilityConsoleAlerts;
 }
 
+export function readObservabilityQuotaUsageView() {
+  if (!cachedObservabilityQuotaUsageView) {
+    cachedObservabilityQuotaUsageView = JSON.parse(readFileSync(OBSERVABILITY_QUOTA_USAGE_VIEW_URL, 'utf8'));
+  }
+
+  return cachedObservabilityQuotaUsageView;
+}
+
 export function readPublicApiTaxonomy() {
   if (!cachedPublicApiTaxonomy) {
     cachedPublicApiTaxonomy = JSON.parse(readFileSync(PUBLIC_API_TAXONOMY_URL, 'utf8'));
@@ -220,6 +230,7 @@ export const OBSERVABILITY_QUOTA_POLICIES_VERSION = readObservabilityQuotaPolici
 export const OBSERVABILITY_THRESHOLD_ALERTS_VERSION = readObservabilityThresholdAlerts().version;
 export const OBSERVABILITY_HARD_LIMIT_ENFORCEMENT_VERSION = readObservabilityHardLimitEnforcement().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
+export const OBSERVABILITY_QUOTA_USAGE_VIEW_VERSION = readObservabilityQuotaUsageView().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
@@ -752,6 +763,53 @@ export function getHardLimitAuditContract() {
 
 export function getHardLimitEnforcementPolicy() {
   return readObservabilityHardLimitEnforcement().enforcement_policy ?? {};
+}
+
+export function listQuotaUsageViewScopes() {
+  return readObservabilityQuotaUsageView().supported_overview_scopes ?? [];
+}
+
+export function getQuotaUsageViewScope(scopeId) {
+  return listQuotaUsageViewScopes().find((scope) => scope.id === scopeId);
+}
+
+export function listQuotaUsageVisualStates() {
+  return readObservabilityQuotaUsageView().visual_states ?? [];
+}
+
+export function getQuotaUsageVisualState(stateId) {
+  return listQuotaUsageVisualStates().find((state) => state.id === stateId);
+}
+
+export function listProvisioningStateSummaries() {
+  return readObservabilityQuotaUsageView().provisioning_state_summaries ?? [];
+}
+
+export function getProvisioningStateSummary(stateId) {
+  return listProvisioningStateSummaries().find((state) => state.id === stateId);
+}
+
+export function listProvisioningComponents() {
+  return readObservabilityQuotaUsageView().provisioning_components ?? [];
+}
+
+export function getProvisioningComponent(componentId) {
+  return listProvisioningComponents().find((component) => component.id === componentId);
+}
+
+export function getQuotaUsageViewAccessAuditContract() {
+  return readObservabilityQuotaUsageView().access_audit ?? {};
+}
+
+export function getQuotaUsageViewDefaults() {
+  const contract = readObservabilityQuotaUsageView();
+  return {
+    supportedDimensions: contract.supported_dimensions ?? [],
+    postureVisualStateMappings: contract.posture_visual_state_mappings ?? [],
+    percentageRules: contract.percentage_rules ?? {},
+    policiesConfiguredRules: contract.policies_configured_rules ?? [],
+    consoleConsumers: contract.console_consumers ?? {}
+  };
 }
 
 export function listHealthSummaryScopes() {

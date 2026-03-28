@@ -1,0 +1,274 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-03-T05",
+  "system": "in-atelier-quota-usage-view",
+  "source_usage_contract": "2026-03-28",
+  "source_quota_policy_contract": "2026-03-28",
+  "source_hard_limit_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_public_api_contract": "2026-03-26",
+  "principles": [
+    "Console quota/usage views must consume the existing usage and quota baselines instead of inventing a second calculation path.",
+    "Tenant and workspace overview responses must preserve the caller scope boundary and never widen into adjacent scopes.",
+    "Overview responses must keep freshness and hard-limit context visible so operators can explain degraded or blocked posture without consulting multiple routes.",
+    "Tenant provisioning-state detail is a read projection for visibility only and must not mutate provisioning workflows or resource ownership."
+  ],
+  "supported_overview_scopes": [
+    {
+      "id": "tenant_overview",
+      "display_name": "Tenant quota usage overview",
+      "query_scope": "tenant",
+      "required_permission": "tenant.overview.read",
+      "required_context_fields": [
+        "tenantId"
+      ],
+      "route_operation_id": "getTenantQuotaUsageOverview",
+      "resource_type": "tenant_quota_usage_view"
+    },
+    {
+      "id": "workspace_overview",
+      "display_name": "Workspace quota usage overview",
+      "query_scope": "workspace",
+      "required_permission": "workspace.overview.read",
+      "required_context_fields": [
+        "tenantId",
+        "workspaceId"
+      ],
+      "route_operation_id": "getWorkspaceQuotaUsageOverview",
+      "resource_type": "workspace_quota_usage_view"
+    }
+  ],
+  "supported_dimensions": [
+    "api_requests",
+    "function_invocations",
+    "storage_volume_bytes",
+    "data_service_operations",
+    "realtime_connections",
+    "logical_databases",
+    "topics",
+    "collections_tables",
+    "error_count"
+  ],
+  "visual_states": [
+    {
+      "id": "healthy",
+      "description": "Usage is within policy and freshness remains trustworthy."
+    },
+    {
+      "id": "warning",
+      "description": "Usage reached the warning posture and should be surfaced with caution."
+    },
+    {
+      "id": "elevated",
+      "description": "Usage exceeded the soft limit and requires intervention soon."
+    },
+    {
+      "id": "critical",
+      "description": "Usage reached the hard limit or equivalent blocking posture."
+    },
+    {
+      "id": "degraded",
+      "description": "Freshness or provisioning evidence is degraded or unavailable."
+    },
+    {
+      "id": "unknown",
+      "description": "The platform does not yet have enough evidence to classify the state confidently."
+    }
+  ],
+  "posture_visual_state_mappings": [
+    {
+      "posture_id": "within_limit",
+      "visual_state": "healthy"
+    },
+    {
+      "posture_id": "within_limits",
+      "visual_state": "healthy"
+    },
+    {
+      "posture_id": "warning_threshold_reached",
+      "visual_state": "warning"
+    },
+    {
+      "posture_id": "warning_reached",
+      "visual_state": "warning"
+    },
+    {
+      "posture_id": "soft_limit_exceeded",
+      "visual_state": "elevated"
+    },
+    {
+      "posture_id": "hard_limit_reached",
+      "visual_state": "critical"
+    },
+    {
+      "posture_id": "evidence_degraded",
+      "visual_state": "degraded"
+    },
+    {
+      "posture_id": "evidence_unavailable",
+      "visual_state": "degraded"
+    },
+    {
+      "posture_id": "unbounded",
+      "visual_state": "unknown"
+    }
+  ],
+  "percentage_rules": {
+    "primary_threshold_order": [
+      "hardLimit",
+      "softLimit"
+    ],
+    "null_when_unbounded": true,
+    "allow_values_above_one_hundred": true,
+    "round_to_decimal_places": 1
+  },
+  "policies_configured_rules": [
+    "policiesConfigured is true when at least one dimension in the overview is policy_mode enforced or has any non-null threshold.",
+    "policiesConfigured is false when every dimension is unbounded and no threshold values are present.",
+    "Dimensions remain visible even when policiesConfigured is false."
+  ],
+  "dimension_view_contract": {
+    "required_fields": [
+      "dimensionId",
+      "displayName",
+      "scope",
+      "currentUsage",
+      "unit",
+      "warningThreshold",
+      "softLimit",
+      "hardLimit",
+      "usagePercentage",
+      "posture",
+      "visualState",
+      "freshnessStatus",
+      "lastUpdatedAt",
+      "blockingState",
+      "blockingReasonCode"
+    ],
+    "rules": [
+      "Every overview must include every supported dimension for the requested scope.",
+      "usagePercentage is calculated against hardLimit when present, otherwise softLimit when present, otherwise null.",
+      "blockingState remains advisory when no hard-limit decision evidence is available.",
+      "Freshness and timestamps are inherited from the underlying usage snapshot rather than recomputed."
+    ]
+  },
+  "overview_contract": {
+    "required_fields": [
+      "overviewId",
+      "queryScope",
+      "tenantId",
+      "workspaceId",
+      "generatedAt",
+      "policiesConfigured",
+      "dimensions",
+      "overallPosture",
+      "warningDimensions",
+      "softLimitDimensions",
+      "hardLimitDimensions",
+      "accessAudit"
+    ],
+    "tenant_additional_required_fields": [
+      "provisioningState"
+    ],
+    "workspace_additional_required_fields": []
+  },
+  "provisioning_state_summaries": [
+    {
+      "id": "active",
+      "visual_state": "healthy",
+      "description": "All required tenant provisioning components are ready."
+    },
+    {
+      "id": "provisioning",
+      "visual_state": "warning",
+      "description": "One or more required components are still in progress."
+    },
+    {
+      "id": "degraded",
+      "visual_state": "degraded",
+      "description": "Provisioning completed partially or one or more components are degraded."
+    },
+    {
+      "id": "error",
+      "visual_state": "critical",
+      "description": "Provisioning has one or more error states that require operator attention."
+    }
+  ],
+  "provisioning_component_states": [
+    {
+      "id": "ready",
+      "visual_state": "healthy"
+    },
+    {
+      "id": "in_progress",
+      "visual_state": "warning"
+    },
+    {
+      "id": "degraded",
+      "visual_state": "degraded"
+    },
+    {
+      "id": "error",
+      "visual_state": "critical"
+    }
+  ],
+  "provisioning_components": [
+    {
+      "id": "storage",
+      "display_name": "Storage"
+    },
+    {
+      "id": "databases",
+      "display_name": "Databases"
+    },
+    {
+      "id": "messaging",
+      "display_name": "Messaging"
+    },
+    {
+      "id": "functions",
+      "display_name": "Functions"
+    },
+    {
+      "id": "realtime",
+      "display_name": "Realtime"
+    }
+  ],
+  "provisioning_component_contract": {
+    "required_fields": [
+      "componentName",
+      "status",
+      "reason",
+      "lastCheckedAt"
+    ]
+  },
+  "access_audit": {
+    "event_type": "quota.overview.read",
+    "required_fields": [
+      "eventType",
+      "queryScope",
+      "tenantId",
+      "workspaceId",
+      "permissionId",
+      "routeOperationId",
+      "requestedBy",
+      "generatedAt"
+    ]
+  },
+  "console_consumers": {
+    "supported_builders": [
+      "buildTenantQuotaUsageCards",
+      "buildTenantProvisioningBanner",
+      "buildQuotaUsageTableRows",
+      "buildWorkspaceQuotaUsageRows"
+    ],
+    "rules": [
+      "Console helpers may derive emphasis and labels from visualState but must not recalculate posture thresholds.",
+      "Tenant provisioning detail is rendered only from tenant overview payloads.",
+      "Workspace overview rendering may not expose cross-workspace or tenant-internal provisioning detail."
+    ]
+  },
+  "boundaries": [
+    "cross_module_consumption_and_enforcement_tests_are_defined_in_us_obs_03_t06"
+  ]
+}

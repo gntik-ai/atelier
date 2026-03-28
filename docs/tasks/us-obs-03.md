@@ -182,6 +182,81 @@ experience, or deliver the broad cross-module enforcement matrix.
 It only establishes the bounded quota-policy contract, helper surfaces, route publication,
 documentation, and tests required for those later tasks.
 
+## Scope delivered in `US-OBS-03-T05`
+
+This increment establishes the **quota-usage overview** for tenant/workspace scope and the first
+bounded **tenant provisioning-state detail projection** used by console consumers.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-quota-usage-view.json` as the machine-readable
+  source of truth for overview scopes, required dimension fields, visual-state mapping,
+  provisioning-state detail, route / permission / resource-type alignment, and overview access-audit
+  metadata
+- additive shared readers/accessors in `services/internal-contracts/src/index.mjs`
+- `scripts/lib/observability-quota-usage-view.mjs` and
+  `scripts/validate-observability-quota-usage-view.mjs` for deterministic contract validation and
+  dependency alignment checks
+- additive `metrics` overview routes for tenant and workspace scope under the unified public API
+  surface
+- additive helper surfaces in `apps/control-plane/src/observability-admin.mjs` for building
+  overview projections, provisioning-state detail, and access-audit records
+- `apps/web-console/src/observability-quota-usage.mjs` as the bounded console-consumer helper
+  layer for cards, provisioning banners, and capacity rows
+- `docs/reference/architecture/observability-quota-usage-view.md` as the human-readable
+  architecture guide for this overview baseline
+- targeted unit and contract tests for the new contract, helper surfaces, route publication, and
+  console-helper outputs
+
+## Main decisions in `US-OBS-03-T05`
+
+### Overview responses consume T01, T02, and T04 instead of recalculating them
+
+T05 merges existing usage, quota posture, and hard-limit context into one operator-facing
+projection.
+It does not create a second quota engine.
+
+### Visual-state mapping is normalized once for console consumers
+
+The overview contract fixes one visual vocabulary (`healthy`, `warning`, `elevated`, `critical`,
+`degraded`, `unknown`) so presentation code does not need to infer severity from raw quota posture
+states.
+
+### Tenant provisioning detail remains bounded and read-only
+
+Tenant overviews now carry a provisioning summary with a fixed component roster and explicit
+operator-facing states.
+That detail is read-only and does not mutate provisioning workflows.
+
+### Workspace overviews stay scope-safe
+
+Workspace consumers receive quota/usage context for their own scope without inheriting the full
+cross-tenant provisioning detail from the tenant overview.
+
+## Validation for `US-OBS-03-T05`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-quota-usage-view
+```
+
+## Downstream dependency note for `US-OBS-03-T05`
+
+This increment defines the visibility layer required before the final verification work can prove
+cross-module consistency.
+
+Downstream work remains separate:
+
+- `US-OBS-03-T06` — end-to-end cross-module verification
+
+## Residual implementation note for `US-OBS-03-T05`
+
+This increment does **not** implement the full end-to-end verification matrix or a live React
+console page.
+It only delivers the bounded overview contract, helper surfaces, public route publication,
+console-helper projections, documentation, and tests required before `T06`.
+
 ## Scope delivered in `US-OBS-03-T03`
 
 This increment establishes the **threshold-alert baseline** for tenant and workspace quota posture.

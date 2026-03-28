@@ -15,6 +15,11 @@ import {
   getHardLimitEnforcementPolicy,
   getHardLimitErrorContract,
   getHealthSummaryAggregationRule,
+  getProvisioningStateSummary,
+  getQuotaUsageViewAccessAuditContract,
+  getQuotaUsageViewDefaults,
+  getQuotaUsageViewScope,
+  getQuotaUsageVisualState,
   getHealthSummaryFreshnessThreshold,
   getHealthSummaryScope,
   getHealthSummaryScopeIsolationRule,
@@ -48,6 +53,10 @@ import {
   listHardLimitDimensions,
   listHardLimitSurfaceMappings,
   listHealthSummaryScopes,
+  listProvisioningComponents,
+  listProvisioningStateSummaries,
+  listQuotaUsageViewScopes,
+  listQuotaUsageVisualStates,
   listHealthSummaryStatuses,
   listObservabilityBusinessDomains,
   listObservabilityBusinessMetricFamilies,
@@ -68,6 +77,7 @@ import {
   readObservabilityBusinessMetrics,
   readObservabilityConsoleAlerts,
   readObservabilityHardLimitEnforcement,
+  readObservabilityQuotaUsageView,
   readObservabilityThresholdAlerts,
   readObservabilityDashboards,
   readObservabilityHealthChecks,
@@ -112,6 +122,13 @@ export const quotaThresholdTypes = listQuotaThresholdTypes();
 export const quotaPostureStates = listQuotaPostureStates();
 export const quotaEvaluationDefaults = getQuotaEvaluationDefaults();
 export const quotaEvaluationAuditContract = getQuotaEvaluationAuditContract();
+export const observabilityQuotaUsageView = readObservabilityQuotaUsageView();
+export const quotaUsageViewScopes = listQuotaUsageViewScopes();
+export const quotaUsageVisualStates = listQuotaUsageVisualStates();
+export const provisioningStateSummaries = listProvisioningStateSummaries();
+export const provisioningComponents = listProvisioningComponents();
+export const quotaUsageViewDefaults = getQuotaUsageViewDefaults();
+export const quotaUsageViewAccessAuditContract = getQuotaUsageViewAccessAuditContract();
 export const observabilityThresholdAlerts = readObservabilityThresholdAlerts();
 export const thresholdAlertEventTypes = listAlertEventTypes();
 export const thresholdAlertSuppressionCauses = listAlertSuppressionCauses();
@@ -1436,6 +1453,399 @@ export function queryWorkspaceQuotaPosture(context = {}, input = {}) {
 
 export function listQuotaPolicyRoutes() {
   return quotaPolicyScopes
+    .map((scope) => getPublicRoute(scope.route_operation_id))
+    .filter(Boolean);
+}
+
+export const QUOTA_USAGE_VIEW_ERROR_CODES = Object.freeze({
+  SCOPE_VIOLATION: 'QUOTA_USAGE_VIEW_SCOPE_VIOLATION',
+  UNKNOWN_SCOPE: 'QUOTA_USAGE_VIEW_UNKNOWN_SCOPE',
+  UNKNOWN_VISUAL_STATE: 'QUOTA_USAGE_VIEW_UNKNOWN_VISUAL_STATE',
+  UNKNOWN_PROVISIONING_STATE: 'QUOTA_USAGE_VIEW_UNKNOWN_PROVISIONING_STATE',
+  INVALID_OVERVIEW: 'QUOTA_USAGE_VIEW_INVALID_OVERVIEW'
+});
+
+function quotaUsageViewInvariant(condition, message, code) {
+  if (!condition) {
+    const error = new Error(message);
+    error.code = code;
+    throw error;
+  }
+}
+
+function resolveQuotaUsageViewScopeContract(scopeId) {
+  const scope = getQuotaUsageViewScope(scopeId);
+  quotaUsageViewInvariant(Boolean(scope), `Unknown quota usage view scope ${scopeId}.`, QUOTA_USAGE_VIEW_ERROR_CODES.UNKNOWN_SCOPE);
+  return scope;
+}
+
+function resolveQuotaUsageVisualStateId(stateId = 'unknown') {
+  const state = getQuotaUsageVisualState(stateId);
+  quotaUsageViewInvariant(Boolean(state), `Unknown quota usage visual state ${stateId}.`, QUOTA_USAGE_VIEW_ERROR_CODES.UNKNOWN_VISUAL_STATE);
+  return state.id;
+}
+
+function resolveProvisioningSummaryId(stateId = 'active') {
+  const state = getProvisioningStateSummary(stateId);
+  quotaUsageViewInvariant(Boolean(state), `Unknown provisioning summary state ${stateId}.`, QUOTA_USAGE_VIEW_ERROR_CODES.UNKNOWN_PROVISIONING_STATE);
+  return state.id;
+}
+
+function normalizePostureForQuotaUsageView(posture = quotaEvaluationDefaults.normal_status ?? 'within_limit') {
+  if (posture === 'within_limits') return quotaEvaluationDefaults.normal_status ?? 'within_limit';
+  if (posture === 'warning_reached') return quotaEvaluationDefaults.warning_status ?? 'warning_threshold_reached';
+  return posture;
+}
+
+function mapQuotaPostureToVisualState(posture) {
+  const normalizedPosture = normalizePostureForQuotaUsageView(posture);
+  const mapping = (observabilityQuotaUsageView.posture_visual_state_mappings ?? []).find((entry) => entry.posture_id === normalizedPosture)
+    ?? (observabilityQuotaUsageView.posture_visual_state_mappings ?? []).find((entry) => entry.posture_id === posture);
+  return resolveQuotaUsageVisualStateId(mapping?.visual_state ?? 'unknown');
+}
+
+function calculateQuotaUsagePercentage({ currentUsage = null, hardLimit = null, softLimit = null } = {}) {
+  const usage = toFiniteNumberOrNull(currentUsage);
+  const hard = toFiniteNumberOrNull(hardLimit);
+  const soft = toFiniteNumberOrNull(softLimit);
+  const denominator = hard ?? soft;
+  if (usage == null || denominator == null || denominator <= 0) {
+    return null;
+  }
+  const decimals = observabilityQuotaUsageView.percentage_rules?.round_to_decimal_places ?? 1;
+  return Number(((usage / denominator) * 100).toFixed(decimals));
+}
+
+function buildBlockingDecisionLookup(decisions = []) {
+  const lookup = new Map();
+  for (const rawDecision of decisions ?? []) {
+    const decision = rawDecision?.errorCode ? rawDecision : buildQuotaHardLimitDecision(rawDecision ?? {});
+    if (decision.dimensionId) {
+      lookup.set(decision.dimensionId, decision);
+    }
+    for (const sourceDimensionId of decision.sourceDimensionIds ?? []) {
+      if (!lookup.has(sourceDimensionId)) {
+        lookup.set(sourceDimensionId, decision);
+      }
+    }
+  }
+  return lookup;
+}
+
+function determinePoliciesConfigured(dimensions = []) {
+  return dimensions.some((dimension) => dimension.policyMode === 'enforced' || dimension.warningThreshold != null || dimension.softLimit != null || dimension.hardLimit != null);
+}
+
+function determineOverviewPosture(dimensions = [], fallback = quotaEvaluationDefaults.normal_status ?? 'within_limit') {
+  const precedence = quotaEvaluationDefaults.overall_status_precedence ?? [
+    'hard_limit_reached',
+    'soft_limit_exceeded',
+    'warning_threshold_reached',
+    'evidence_unavailable',
+    'evidence_degraded',
+    'within_limit',
+    'unbounded'
+  ];
+  return precedence.find((postureId) => dimensions.some((dimension) => dimension.posture === postureId)) ?? normalizePostureForQuotaUsageView(fallback);
+}
+
+function normalizeProvisioningComponentStatus(status = 'ready') {
+  if (status === 'completed' || status === 'ready' || status === 'healthy') return 'ready';
+  if (status === 'pending' || status === 'in_progress') return 'in_progress';
+  if (status === 'partially_failed' || status === 'degraded') return 'degraded';
+  if (status === 'failed' || status === 'error') return 'error';
+  return 'ready';
+}
+
+function buildDefaultProvisioningComponents(tenant = {}, generatedAt) {
+  const tenantStatus = tenant?.provisioning?.status ?? 'completed';
+  const componentInputs = tenant?.provisioning?.components ?? tenant?.provisioning?.resourceStates ?? [];
+
+  if (componentInputs.length > 0) {
+    return componentInputs.map((component, index) => ({
+      componentName: component.componentName ?? component.id ?? component.resourceType ?? provisioningComponents[index % provisioningComponents.length]?.id ?? `component-${index + 1}`,
+      status: normalizeProvisioningComponentStatus(component.status ?? tenantStatus),
+      reason: component.reason ?? component.message ?? null,
+      lastCheckedAt: normalizeTimestamp(component.lastCheckedAt ?? component.updatedAt ?? component.startedAt ?? tenant?.provisioning?.updatedAt ?? generatedAt, 'lastCheckedAt')
+    }));
+  }
+
+  return provisioningComponents.map((component) => ({
+    componentName: component.id,
+    status: normalizeProvisioningComponentStatus(tenantStatus),
+    reason: tenant?.provisioning?.reason ?? null,
+    lastCheckedAt: normalizeTimestamp(tenant?.provisioning?.updatedAt ?? generatedAt, 'lastCheckedAt')
+  }));
+}
+
+export function summarizeObservabilityQuotaUsageView() {
+  return {
+    version: observabilityQuotaUsageView.version,
+    sourceContracts: {
+      usageConsumption: observabilityQuotaUsageView.source_usage_contract,
+      quotaPolicies: observabilityQuotaUsageView.source_quota_policy_contract,
+      hardLimitEnforcement: observabilityQuotaUsageView.source_hard_limit_contract,
+      authorizationModel: observabilityQuotaUsageView.source_authorization_contract,
+      publicApi: observabilityQuotaUsageView.source_public_api_contract
+    },
+    scopes: quotaUsageViewScopes.map((scope) => ({
+      id: scope.id,
+      displayName: scope.display_name,
+      queryScope: scope.query_scope,
+      requiredPermission: scope.required_permission,
+      routeOperationId: scope.route_operation_id,
+      resourceType: scope.resource_type
+    })),
+    visualStates: quotaUsageVisualStates.map((state) => ({
+      id: state.id,
+      description: state.description
+    })),
+    provisioningStates: provisioningStateSummaries.map((state) => ({
+      id: state.id,
+      visualState: state.visual_state
+    })),
+    provisioningComponents: provisioningComponents.map((component) => ({
+      id: component.id,
+      displayName: component.display_name
+    })),
+    supportedDimensions: observabilityQuotaUsageView.supported_dimensions ?? [],
+    accessAudit: quotaUsageViewAccessAuditContract,
+    boundaries: observabilityQuotaUsageView.boundaries ?? []
+  };
+}
+
+export function buildQuotaUsageDimensionView(input = {}) {
+  const quotaDimension = input.quotaDimension ?? {};
+  const usageDimension = input.usageDimension ?? {};
+  const blockingDecision = input.blockingDecision
+    ? (input.blockingDecision.errorCode ? input.blockingDecision : buildQuotaHardLimitDecision(input.blockingDecision))
+    : null;
+  const posture = normalizePostureForQuotaUsageView(quotaDimension.status ?? input.posture ?? quotaEvaluationDefaults.normal_status ?? 'within_limit');
+  const currentUsage = toFiniteNumberOrNull(quotaDimension.measuredValue) ?? toFiniteNumberOrNull(usageDimension.value) ?? 0;
+  const warningThreshold = toFiniteNumberOrNull(quotaDimension.warningThreshold);
+  const softLimit = toFiniteNumberOrNull(quotaDimension.softLimit);
+  const hardLimit = toFiniteNumberOrNull(quotaDimension.hardLimit);
+  const blockingState = blockingDecision
+    ? (blockingDecision.denied ? 'denied' : 'allowed')
+    : posture === (quotaEvaluationDefaults.hard_limit_status ?? 'hard_limit_reached')
+      ? 'breached'
+      : 'advisory';
+
+  return Object.freeze({
+    dimensionId: quotaDimension.dimensionId ?? usageDimension.dimensionId,
+    displayName: quotaDimension.displayName ?? usageDimension.displayName,
+    scope: quotaDimension.scope ?? usageDimension.scope ?? input.scope ?? 'tenant',
+    currentUsage,
+    unit: quotaDimension.unit ?? usageDimension.unit,
+    warningThreshold,
+    softLimit,
+    hardLimit,
+    usagePercentage: calculateQuotaUsagePercentage({ currentUsage, hardLimit, softLimit }),
+    posture,
+    visualState: mapQuotaPostureToVisualState(posture),
+    freshnessStatus: quotaDimension.freshnessStatus ?? usageDimension.freshnessStatus ?? 'fresh',
+    lastUpdatedAt: normalizeTimestamp(quotaDimension.usageSnapshotTimestamp ?? usageDimension.observedAt ?? input.generatedAt, 'lastUpdatedAt'),
+    blockingState,
+    blockingReasonCode: blockingDecision?.reasonCode ?? (blockingDecision?.denied ? blockingDecision.errorCode : null),
+    policyMode: quotaDimension.policyMode ?? null
+  });
+}
+
+export function buildTenantProvisioningStateView(input = {}) {
+  const generatedAt = normalizeTimestamp(input.generatedAt ?? new Date().toISOString(), 'generatedAt');
+  const components = (input.components ?? buildDefaultProvisioningComponents(input.tenant ?? {}, generatedAt)).map((component) => ({
+    componentName: component.componentName,
+    status: normalizeProvisioningComponentStatus(component.status),
+    reason: component.reason ?? null,
+    lastCheckedAt: normalizeTimestamp(component.lastCheckedAt ?? generatedAt, 'lastCheckedAt')
+  }));
+
+  const summaryState = components.some((component) => component.status === 'error')
+    ? 'error'
+    : components.some((component) => component.status === 'degraded')
+      ? 'degraded'
+      : components.some((component) => component.status === 'in_progress')
+        ? 'provisioning'
+        : 'active';
+  const degradedComponents = components.filter((component) => component.status === 'degraded' || component.status === 'error').map((component) => component.componentName);
+  const reasonSummary = degradedComponents.length > 0
+    ? components
+      .filter((component) => degradedComponents.includes(component.componentName) && component.reason)
+      .map((component) => `${component.componentName}: ${component.reason}`)
+      .join('; ') || 'One or more provisioning components require attention.'
+    : components.some((component) => component.status === 'in_progress')
+      ? 'Provisioning is still in progress for one or more components.'
+      : 'All provisioning components are ready.';
+
+  return Object.freeze({
+    state: resolveProvisioningSummaryId(summaryState),
+    visualState: resolveQuotaUsageVisualStateId(getProvisioningStateSummary(summaryState)?.visual_state ?? 'unknown'),
+    components,
+    degradedComponents,
+    lastCheckedAt: components.reduce((latest, component) => (component.lastCheckedAt > latest ? component.lastCheckedAt : latest), generatedAt),
+    reasonSummary
+  });
+}
+
+export function buildQuotaUsageOverviewAccessAuditRecord(input = {}) {
+  const queryScope = input.queryScope ?? (input.workspaceId ? 'workspace' : 'tenant');
+  const scopeContract = resolveQuotaUsageViewScopeContract(queryScope === 'workspace' ? 'workspace_overview' : 'tenant_overview');
+  const generatedAt = normalizeTimestamp(input.generatedAt ?? new Date().toISOString(), 'generatedAt');
+
+  return Object.freeze({
+    eventType: quotaUsageViewAccessAuditContract.event_type ?? 'quota.overview.read',
+    queryScope,
+    tenantId: input.tenantId ?? null,
+    workspaceId: input.workspaceId ?? null,
+    permissionId: scopeContract.required_permission,
+    routeOperationId: scopeContract.route_operation_id,
+    requestedBy: input.requestedBy ?? 'system',
+    generatedAt
+  });
+}
+
+export function buildTenantQuotaUsageOverview(input = {}) {
+  const usageSnapshot = input.usageSnapshot ?? buildTenantUsageSnapshot(input);
+  const quotaPosture = input.quotaPosture ?? buildTenantQuotaPosture({ ...input, tenantId: usageSnapshot.tenantId });
+  const blockingLookup = buildBlockingDecisionLookup(input.blockingDecisions ?? []);
+  const usageDimensions = new Map((usageSnapshot.dimensions ?? []).map((dimension) => [dimension.dimensionId, dimension]));
+  const dimensions = (quotaPosture.dimensions ?? []).map((dimension) => buildQuotaUsageDimensionView({
+    quotaDimension: dimension,
+    usageDimension: usageDimensions.get(dimension.dimensionId),
+    blockingDecision: blockingLookup.get(dimension.dimensionId),
+    generatedAt: input.generatedAt ?? quotaPosture.evaluatedAt
+  }));
+  const overallPosture = determineOverviewPosture(dimensions, quotaPosture.overallStatus);
+  const generatedAt = normalizeTimestamp(input.generatedAt ?? quotaPosture.evaluatedAt ?? usageSnapshot.snapshotTimestamp, 'generatedAt');
+
+  return Object.freeze({
+    overviewId: input.overviewId ?? `overview-tenant-${quotaPosture.tenantId}-${slugTimestamp(generatedAt)}`,
+    queryScope: 'tenant',
+    tenantId: quotaPosture.tenantId,
+    workspaceId: null,
+    generatedAt,
+    policiesConfigured: determinePoliciesConfigured(quotaPosture.dimensions ?? []),
+    dimensions,
+    overallPosture,
+    warningDimensions: dimensions.filter((dimension) => dimension.posture === (quotaEvaluationDefaults.warning_status ?? 'warning_threshold_reached')).map((dimension) => dimension.dimensionId),
+    softLimitDimensions: dimensions.filter((dimension) => dimension.posture === (quotaEvaluationDefaults.soft_limit_status ?? 'soft_limit_exceeded')).map((dimension) => dimension.dimensionId),
+    hardLimitDimensions: dimensions.filter((dimension) => dimension.posture === (quotaEvaluationDefaults.hard_limit_status ?? 'hard_limit_reached')).map((dimension) => dimension.dimensionId),
+    provisioningState: input.provisioningState ?? buildTenantProvisioningStateView({ tenant: input.tenant, components: input.provisioningComponents, generatedAt }),
+    accessAudit: buildQuotaUsageOverviewAccessAuditRecord({
+      queryScope: 'tenant',
+      tenantId: quotaPosture.tenantId,
+      requestedBy: input.requestedBy,
+      generatedAt
+    })
+  });
+}
+
+export function buildWorkspaceQuotaUsageOverview(input = {}) {
+  const usageSnapshot = input.usageSnapshot ?? buildWorkspaceUsageSnapshot(input);
+  const quotaPosture = input.quotaPosture ?? buildWorkspaceQuotaPosture({
+    ...input,
+    tenantId: usageSnapshot.tenantId,
+    workspaceId: usageSnapshot.workspaceId
+  });
+  const blockingLookup = buildBlockingDecisionLookup(input.blockingDecisions ?? []);
+  const usageDimensions = new Map((usageSnapshot.dimensions ?? []).map((dimension) => [dimension.dimensionId, dimension]));
+  const dimensions = (quotaPosture.dimensions ?? []).map((dimension) => buildQuotaUsageDimensionView({
+    quotaDimension: dimension,
+    usageDimension: usageDimensions.get(dimension.dimensionId),
+    blockingDecision: blockingLookup.get(dimension.dimensionId),
+    generatedAt: input.generatedAt ?? quotaPosture.evaluatedAt
+  }));
+  const overallPosture = determineOverviewPosture(dimensions, quotaPosture.overallStatus);
+  const generatedAt = normalizeTimestamp(input.generatedAt ?? quotaPosture.evaluatedAt ?? usageSnapshot.snapshotTimestamp, 'generatedAt');
+
+  return Object.freeze({
+    overviewId: input.overviewId ?? `overview-workspace-${quotaPosture.workspaceId}-${slugTimestamp(generatedAt)}`,
+    queryScope: 'workspace',
+    tenantId: quotaPosture.tenantId,
+    workspaceId: quotaPosture.workspaceId,
+    generatedAt,
+    policiesConfigured: determinePoliciesConfigured(quotaPosture.dimensions ?? []),
+    dimensions,
+    overallPosture,
+    warningDimensions: dimensions.filter((dimension) => dimension.posture === (quotaEvaluationDefaults.warning_status ?? 'warning_threshold_reached')).map((dimension) => dimension.dimensionId),
+    softLimitDimensions: dimensions.filter((dimension) => dimension.posture === (quotaEvaluationDefaults.soft_limit_status ?? 'soft_limit_exceeded')).map((dimension) => dimension.dimensionId),
+    hardLimitDimensions: dimensions.filter((dimension) => dimension.posture === (quotaEvaluationDefaults.hard_limit_status ?? 'hard_limit_reached')).map((dimension) => dimension.dimensionId),
+    accessAudit: buildQuotaUsageOverviewAccessAuditRecord({
+      queryScope: 'workspace',
+      tenantId: quotaPosture.tenantId,
+      workspaceId: quotaPosture.workspaceId,
+      requestedBy: input.requestedBy,
+      generatedAt
+    })
+  });
+}
+
+function defaultQuotaUsageOverviewLoader(_query, input = {}) {
+  return input;
+}
+
+function executeQuotaUsageOverviewQuery(scopeId, context = {}, input = {}) {
+  const scope = resolveQuotaUsageViewScopeContract(scopeId);
+  const loader = context.loadQuotaUsageOverview ?? defaultQuotaUsageOverviewLoader;
+  const loaded = loader({
+    scopeId,
+    queryScope: scope.query_scope,
+    tenantId: input.tenantId ?? context.tenantId ?? context.routeTenantId ?? context.targetTenantId ?? null,
+    workspaceId: input.workspaceId ?? context.workspaceId ?? context.routeWorkspaceId ?? context.targetWorkspaceId ?? null,
+    requiredPermission: scope.required_permission,
+    routeOperationId: scope.route_operation_id
+  }, input) ?? {};
+  const resolvedInput = { ...input, ...loaded };
+  const usageContext = { ...context, ...(loaded.usageContext ?? {}) };
+  const quotaContext = { ...context, ...(loaded.quotaContext ?? {}) };
+
+  if (scope.query_scope === 'tenant') {
+    const usageSnapshot = queryTenantUsageSnapshot(usageContext, resolvedInput);
+    const quotaPosture = queryTenantQuotaPosture(quotaContext, {
+      ...resolvedInput,
+      tenantId: usageSnapshot.tenantId
+    });
+
+    return buildTenantQuotaUsageOverview({
+      ...resolvedInput,
+      tenantId: usageSnapshot.tenantId,
+      usageSnapshot,
+      quotaPosture,
+      tenant: loaded.tenant ?? resolvedInput.tenant,
+      provisioningComponents: loaded.provisioningComponents ?? resolvedInput.provisioningComponents,
+      blockingDecisions: loaded.blockingDecisions ?? resolvedInput.blockingDecisions,
+      requestedBy: resolvedInput.requestedBy ?? context.actorId ?? context.userId ?? 'system'
+    });
+  }
+
+  const usageSnapshot = queryWorkspaceUsageSnapshot(usageContext, resolvedInput);
+  const quotaPosture = queryWorkspaceQuotaPosture(quotaContext, {
+    ...resolvedInput,
+    tenantId: usageSnapshot.tenantId,
+    workspaceId: usageSnapshot.workspaceId
+  });
+
+  return buildWorkspaceQuotaUsageOverview({
+    ...resolvedInput,
+    tenantId: usageSnapshot.tenantId,
+    workspaceId: usageSnapshot.workspaceId,
+    usageSnapshot,
+    quotaPosture,
+    blockingDecisions: loaded.blockingDecisions ?? resolvedInput.blockingDecisions,
+    requestedBy: resolvedInput.requestedBy ?? context.actorId ?? context.userId ?? 'system'
+  });
+}
+
+export function queryTenantQuotaUsageOverview(context = {}, input = {}) {
+  return executeQuotaUsageOverviewQuery('tenant_overview', context, input);
+}
+
+export function queryWorkspaceQuotaUsageOverview(context = {}, input = {}) {
+  return executeQuotaUsageOverviewQuery('workspace_overview', context, input);
+}
+
+export function listQuotaUsageOverviewRoutes() {
+  return quotaUsageViewScopes
     .map((scope) => getPublicRoute(scope.route_operation_id))
     .filter(Boolean);
 }

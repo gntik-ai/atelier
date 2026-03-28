@@ -484,6 +484,7 @@ Workspace-scoped usage, quota, gateway-stream, and observability series exposed 
 | GET | `/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}` | tenant | tenant_audit_correlation | Retrieve one tenant-scoped end-to-end audit correlation trace |
 | POST | `/v1/metrics/tenants/{tenantId}/audit-exports` | tenant | tenant_audit_export | Preview a bounded tenant-scoped audit export with masking metadata |
 | GET | `/v1/metrics/tenants/{tenantId}/audit-records` | tenant | tenant_audit_record | Query tenant-scoped audit records through the unified observability surface |
+| GET | `/v1/metrics/tenants/{tenantId}/overview` | tenant | tenant_quota_usage_view | Fetch one tenant-scoped quota usage overview with provisioning-state detail through the unified observability surface |
 | GET | `/v1/metrics/tenants/{tenantId}/quotas` | tenant | tenant_quota_posture | Fetch one tenant-scoped quota posture through the unified observability surface |
 | GET | `/v1/metrics/tenants/{tenantId}/usage` | tenant | tenant_usage_snapshot | Fetch one tenant-scoped usage consumption snapshot through the unified observability surface |
 | GET | `/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}` | workspace | workspace_audit_correlation | Retrieve one workspace-scoped end-to-end audit correlation trace |
@@ -492,6 +493,7 @@ Workspace-scoped usage, quota, gateway-stream, and observability series exposed 
 | GET | `/v1/metrics/workspaces/{workspaceId}/event-dashboards` | workspace | event_dashboard | Fetch workspace-scoped Kafka bridge and trigger dashboard widgets |
 | GET | `/v1/metrics/workspaces/{workspaceId}/gateway-streams` | workspace | gateway_stream_metrics | Fetch gateway publish, connection, lag, and backpressure metrics for one workspace |
 | GET | `/v1/metrics/workspaces/{workspaceId}/kafka-topics` | workspace | kafka_topic_metrics | Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace |
+| GET | `/v1/metrics/workspaces/{workspaceId}/overview` | workspace | workspace_quota_usage_view | Fetch one workspace-scoped quota usage overview through the unified observability surface |
 | GET | `/v1/metrics/workspaces/{workspaceId}/quotas` | workspace | workspace_quota_posture | Fetch one workspace-scoped quota posture through the unified observability surface |
 | GET | `/v1/metrics/workspaces/{workspaceId}/series` | workspace | metric_series | Fetch one workspace metric series window through the unified metrics family |
 | GET | `/v1/metrics/workspaces/{workspaceId}/usage` | workspace | workspace_usage_snapshot | Fetch one workspace-scoped usage consumption snapshot through the unified observability surface |

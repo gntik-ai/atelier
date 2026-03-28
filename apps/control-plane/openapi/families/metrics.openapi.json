@@ -1303,6 +1303,40 @@
         ],
         "type": "object"
       },
+      "ProvisioningComponentState": {
+        "additionalProperties": false,
+        "properties": {
+          "componentName": {
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "in_progress",
+              "degraded",
+              "error"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "componentName",
+          "status",
+          "reason",
+          "lastCheckedAt"
+        ],
+        "type": "object"
+      },
       "QuotaDimensionPosture": {
         "properties": {
           "dimensionId": {
@@ -1565,6 +1599,313 @@
         ],
         "type": "object"
       },
+      "QuotaUsageDimensionView": {
+        "additionalProperties": false,
+        "properties": {
+          "blockingReasonCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "blockingState": {
+            "enum": [
+              "advisory",
+              "allowed",
+              "breached",
+              "denied"
+            ],
+            "type": "string"
+          },
+          "currentUsage": {
+            "type": "number"
+          },
+          "dimensionId": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "freshnessStatus": {
+            "enum": [
+              "fresh",
+              "degraded",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "hardLimit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lastUpdatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "posture": {
+            "enum": [
+              "within_limit",
+              "warning_threshold_reached",
+              "soft_limit_exceeded",
+              "hard_limit_reached",
+              "evidence_degraded",
+              "evidence_unavailable",
+              "unbounded"
+            ],
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "softLimit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "usagePercentage": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "visualState": {
+            "enum": [
+              "healthy",
+              "warning",
+              "elevated",
+              "critical",
+              "degraded",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "warningThreshold": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "dimensionId",
+          "displayName",
+          "scope",
+          "currentUsage",
+          "unit",
+          "warningThreshold",
+          "softLimit",
+          "hardLimit",
+          "usagePercentage",
+          "posture",
+          "visualState",
+          "freshnessStatus",
+          "lastUpdatedAt",
+          "blockingState",
+          "blockingReasonCode"
+        ],
+        "type": "object"
+      },
+      "QuotaUsageOverviewAccessAudit": {
+        "additionalProperties": false,
+        "properties": {
+          "eventType": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "permissionId": {
+            "type": "string"
+          },
+          "queryScope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "requestedBy": {
+            "type": "string"
+          },
+          "routeOperationId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspaceId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "eventType",
+          "queryScope",
+          "tenantId",
+          "workspaceId",
+          "permissionId",
+          "routeOperationId",
+          "requestedBy",
+          "generatedAt"
+        ],
+        "type": "object"
+      },
+      "TenantProvisioningStateView": {
+        "additionalProperties": false,
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ProvisioningComponentState"
+            },
+            "type": "array"
+          },
+          "degradedComponents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "lastCheckedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reasonSummary": {
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "provisioning",
+              "degraded",
+              "error"
+            ],
+            "type": "string"
+          },
+          "visualState": {
+            "enum": [
+              "healthy",
+              "warning",
+              "elevated",
+              "critical",
+              "degraded",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "visualState",
+          "components",
+          "degradedComponents",
+          "lastCheckedAt",
+          "reasonSummary"
+        ],
+        "type": "object"
+      },
+      "TenantQuotaUsageOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "accessAudit": {
+            "$ref": "#/components/schemas/QuotaUsageOverviewAccessAudit"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaUsageDimensionView"
+            },
+            "type": "array"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hardLimitDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "overallPosture": {
+            "enum": [
+              "within_limit",
+              "warning_threshold_reached",
+              "soft_limit_exceeded",
+              "hard_limit_reached",
+              "evidence_degraded",
+              "evidence_unavailable",
+              "unbounded"
+            ],
+            "type": "string"
+          },
+          "overviewId": {
+            "type": "string"
+          },
+          "policiesConfigured": {
+            "type": "boolean"
+          },
+          "provisioningState": {
+            "$ref": "#/components/schemas/TenantProvisioningStateView"
+          },
+          "queryScope": {
+            "enum": [
+              "tenant"
+            ],
+            "type": "string"
+          },
+          "softLimitDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "warningDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "workspaceId": {
+            "type": [
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "overviewId",
+          "queryScope",
+          "tenantId",
+          "workspaceId",
+          "generatedAt",
+          "policiesConfigured",
+          "dimensions",
+          "overallPosture",
+          "warningDimensions",
+          "softLimitDimensions",
+          "hardLimitDimensions",
+          "provisioningState",
+          "accessAudit"
+        ],
+        "type": "object"
+      },
       "UsageCalculationCycleAudit": {
         "properties": {
           "cadenceSeconds": {
@@ -1795,6 +2136,87 @@
           "sampledAt",
           "widgets",
           "coverage"
+        ],
+        "type": "object"
+      },
+      "WorkspaceQuotaUsageOverview": {
+        "additionalProperties": false,
+        "properties": {
+          "accessAudit": {
+            "$ref": "#/components/schemas/QuotaUsageOverviewAccessAudit"
+          },
+          "dimensions": {
+            "items": {
+              "$ref": "#/components/schemas/QuotaUsageDimensionView"
+            },
+            "type": "array"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "hardLimitDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "overallPosture": {
+            "enum": [
+              "within_limit",
+              "warning_threshold_reached",
+              "soft_limit_exceeded",
+              "hard_limit_reached",
+              "evidence_degraded",
+              "evidence_unavailable",
+              "unbounded"
+            ],
+            "type": "string"
+          },
+          "overviewId": {
+            "type": "string"
+          },
+          "policiesConfigured": {
+            "type": "boolean"
+          },
+          "queryScope": {
+            "enum": [
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "softLimitDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "warningDimensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "overviewId",
+          "queryScope",
+          "tenantId",
+          "workspaceId",
+          "generatedAt",
+          "policiesConfigured",
+          "dimensions",
+          "overallPosture",
+          "warningDimensions",
+          "softLimitDimensions",
+          "hardLimitDimensions",
+          "accessAudit"
         ],
         "type": "object"
       }
@@ -2397,6 +2819,116 @@
         "x-resource-type": "tenant_audit_record",
         "x-scope": "tenant",
         "x-tenant-binding": "required",
+        "x-workspace-binding": "none"
+      }
+    },
+    "/v1/metrics/tenants/{tenantId}/overview": {
+      "get": {
+        "operationId": "getTenantQuotaUsageOverview",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantQuotaUsageOverview"
+                }
+              }
+            },
+            "description": "Tenant quota usage overview returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upstream observability query did not complete before the gateway timeout profile expired."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one tenant-scoped quota usage overview with provisioning-state detail through the unified observability surface",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer",
+          "platform_team"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "control_api",
+        "x-resource-type": "tenant_quota_usage_view",
+        "x-scope": "tenant",
+        "x-tenant-binding": "required",
+        "x-visibility": "public",
         "x-workspace-binding": "none"
       }
     },
@@ -3595,6 +4127,116 @@
         "x-resource-type": "kafka_topic_metrics",
         "x-scope": "workspace",
         "x-visibility": "public"
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/overview": {
+      "get": {
+        "operationId": "getWorkspaceQuotaUsageOverview",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceQuotaUsageOverview"
+                }
+              }
+            },
+            "description": "Workspace quota usage overview returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upstream observability query did not complete before the gateway timeout profile expired."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one workspace-scoped quota usage overview through the unified observability surface",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_operator",
+          "workspace_viewer",
+          "platform_team"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "control_api",
+        "x-resource-type": "workspace_quota_usage_view",
+        "x-scope": "workspace",
+        "x-tenant-binding": "required",
+        "x-visibility": "public",
+        "x-workspace-binding": "required"
       }
     },
     "/v1/metrics/workspaces/{workspaceId}/quotas": {

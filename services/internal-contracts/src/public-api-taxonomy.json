@@ -1022,6 +1022,20 @@
       "scope": "workspace",
       "summary": "Workspace-scoped quota posture across metered dimensions.",
       "authorization_resource": "workspace"
+    },
+    {
+      "resource_type": "tenant_quota_usage_view",
+      "family": "metrics",
+      "scope": "tenant",
+      "summary": "Tenant-scoped composite quota, usage, and provisioning overview.",
+      "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "workspace_quota_usage_view",
+      "family": "metrics",
+      "scope": "workspace",
+      "summary": "Workspace-scoped composite quota and usage overview.",
+      "authorization_resource": "workspace"
     }
   ]
 }

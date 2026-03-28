@@ -24,7 +24,7 @@
     "validate:observability-hard-limit-enforcement": "node ./scripts/validate-observability-hard-limit-enforcement.mjs",
     "validate:observability-audit-pipeline": "node ./scripts/validate-observability-audit-pipeline.mjs",
     "validate:observability-audit-event-schema": "node ./scripts/validate-observability-audit-event-schema.mjs",
-    "validate:repo": "npm run validate:structure && npm run validate:adr:postgres && npm run validate:image-policy && npm run validate:testing-strategy && npm run validate:service-map && npm run validate:public-api && npm run validate:gateway-policy && npm run validate:deployment-topology && npm run validate:deployment-chart && npm run validate:authorization-model && npm run validate:observability-metrics-stack && npm run validate:observability-dashboards && npm run validate:observability-health-checks && npm run validate:observability-business-metrics && npm run validate:observability-usage-consumption && npm run validate:observability-quota-policies && npm run validate:observability-threshold-alerts && npm run validate:observability-hard-limit-enforcement && npm run validate:observability-console-alerts && npm run validate:observability-audit-pipeline && npm run validate:observability-audit-event-schema && npm run validate:observability-audit-query-surface && npm run validate:observability-audit-export-surface && npm run validate:observability-audit-correlation-surface && npm run validate:domain-model",
+    "validate:repo": "npm run validate:structure && npm run validate:adr:postgres && npm run validate:image-policy && npm run validate:testing-strategy && npm run validate:service-map && npm run validate:public-api && npm run validate:gateway-policy && npm run validate:deployment-topology && npm run validate:deployment-chart && npm run validate:authorization-model && npm run validate:observability-metrics-stack && npm run validate:observability-dashboards && npm run validate:observability-health-checks && npm run validate:observability-business-metrics && npm run validate:observability-usage-consumption && npm run validate:observability-quota-policies && npm run validate:observability-threshold-alerts && npm run validate:observability-hard-limit-enforcement && npm run validate:observability-quota-usage-view && npm run validate:observability-console-alerts && npm run validate:observability-audit-pipeline && npm run validate:observability-audit-event-schema && npm run validate:observability-audit-query-surface && npm run validate:observability-audit-export-surface && npm run validate:observability-audit-correlation-surface && npm run validate:domain-model",
     "lint:md": "markdownlint-cli2",
     "lint": "npm run validate:repo && npm run lint:md && npm run validate:openapi",
     "test:unit": "node --test tests/unit/*.test.mjs",
@@ -44,7 +44,8 @@
     "validate:observability-audit-query-surface": "node ./scripts/validate-observability-audit-query-surface.mjs",
     "validate:observability-audit-export-surface": "node ./scripts/validate-observability-audit-export-surface.mjs",
     "validate:observability-audit-correlation-surface": "node ./scripts/validate-observability-audit-correlation-surface.mjs",
-    "validate:observability-usage-consumption": "node ./scripts/validate-observability-usage-consumption.mjs"
+    "validate:observability-usage-consumption": "node ./scripts/validate-observability-usage-consumption.mjs",
+    "validate:observability-quota-usage-view": "node ./scripts/validate-observability-quota-usage-view.mjs"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "12.1.0",
