@@ -60,6 +60,236 @@
       }
     },
     "schemas": {
+      "AuditCorrelationConsoleSummary": {
+        "properties": {
+          "auditRecordCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "evidencePointerCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "initiatedFromConsole": {
+            "type": "boolean"
+          },
+          "involvedSubsystemCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "missingLinkCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timelineEntryCount": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "initiatedFromConsole",
+          "timelineEntryCount",
+          "auditRecordCount",
+          "evidencePointerCount",
+          "missingLinkCount",
+          "involvedSubsystemCount"
+        ],
+        "type": "object"
+      },
+      "AuditCorrelationEvidencePointer": {
+        "properties": {
+          "auditRecordId": {
+            "type": "string"
+          },
+          "observedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "pointerId": {
+            "type": "string"
+          },
+          "pointerType": {
+            "type": "string"
+          },
+          "safeRef": {
+            "type": "string"
+          },
+          "sourceContractId": {
+            "type": "string"
+          },
+          "subsystemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pointerId",
+          "sourceContractId",
+          "pointerType",
+          "safeRef",
+          "auditRecordId",
+          "subsystemId",
+          "observedAt"
+        ],
+        "type": "object"
+      },
+      "AuditCorrelationTimelineEntry": {
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "auditRecordId": {
+            "type": "string"
+          },
+          "eventTimestamp": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "maskedFieldRefs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "maskingApplied": {
+            "type": "boolean"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "originSurface": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "console_initiation",
+              "control_plane_execution",
+              "downstream_system_effect",
+              "audit_persistence"
+            ],
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "sensitivityCategories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sourceContractId": {
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "audit_record",
+              "downstream_event"
+            ],
+            "type": "string"
+          },
+          "subsystemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nodeId",
+          "phase",
+          "eventTimestamp",
+          "originSurface",
+          "subsystemId",
+          "resourceType",
+          "actionId",
+          "outcome"
+        ],
+        "type": "object"
+      },
+      "AuditCorrelationTrace": {
+        "properties": {
+          "auditRecords": {
+            "items": {
+              "$ref": "#/components/schemas/AuditExportedRecord"
+            },
+            "type": "array"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "consoleSummary": {
+            "$ref": "#/components/schemas/AuditCorrelationConsoleSummary"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "evidencePointers": {
+            "items": {
+              "$ref": "#/components/schemas/AuditCorrelationEvidencePointer"
+            },
+            "type": "array"
+          },
+          "missingLinks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "queryScope": {
+            "enum": [
+              "tenant",
+              "workspace"
+            ],
+            "type": "string"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "subsystems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/AuditCorrelationTimelineEntry"
+            },
+            "type": "array"
+          },
+          "traceStatus": {
+            "enum": [
+              "complete",
+              "partial",
+              "broken",
+              "not_found"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "correlationId",
+          "queryScope",
+          "traceStatus",
+          "startedAt",
+          "completedAt",
+          "subsystems",
+          "timeline",
+          "auditRecords",
+          "evidencePointers",
+          "missingLinks",
+          "consoleSummary"
+        ],
+        "type": "object"
+      },
       "AuditExportFilterSet": {
         "properties": {
           "actionCategory": {
@@ -1147,6 +1377,162 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}": {
+      "get": {
+        "operationId": "getTenantAuditCorrelation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "description": "Correlation id of the console-initiated administrative action to trace end to end.",
+            "in": "path",
+            "name": "correlationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeRecords",
+            "required": false,
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeEvidence",
+            "required": false,
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxItems",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditCorrelationTrace"
+                }
+              }
+            },
+            "description": "Audit correlation trace returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The correlation request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect this audit correlation trace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No scoped audit correlation trace exists for the requested correlation id."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upstream audit correlation lookup did not complete before the gateway timeout profile expired."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Retrieve one tenant-scoped end-to-end audit correlation trace",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "control_api",
+        "x-resource-type": "tenant_audit_correlation",
+        "x-scope": "tenant",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "none"
+      }
+    },
     "/v1/metrics/tenants/{tenantId}/audit-exports": {
       "post": {
         "operationId": "exportTenantAuditRecords",
@@ -1580,6 +1966,164 @@
         "x-scope": "tenant",
         "x-tenant-binding": "required",
         "x-workspace-binding": "none"
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}": {
+      "get": {
+        "operationId": "getWorkspaceAuditCorrelation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "description": "Correlation id of the console-initiated administrative action to trace end to end.",
+            "in": "path",
+            "name": "correlationId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeRecords",
+            "required": false,
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeEvidence",
+            "required": false,
+            "schema": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "maxItems",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditCorrelationTrace"
+                }
+              }
+            },
+            "description": "Audit correlation trace returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The correlation request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect this audit correlation trace."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No scoped audit correlation trace exists for the requested correlation id."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The upstream audit correlation lookup did not complete before the gateway timeout profile expired."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error response."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Retrieve one workspace-scoped end-to-end audit correlation trace",
+        "tags": [
+          "Metrics"
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "workspace_auditor",
+          "platform_team"
+        ],
+        "x-family": "metrics",
+        "x-owning-service": "control_api",
+        "x-resource-type": "workspace_audit_correlation",
+        "x-scope": "workspace",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "required"
       }
     },
     "/v1/metrics/workspaces/{workspaceId}/audit-exports": {

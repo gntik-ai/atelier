@@ -37,6 +37,8 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/reference/architecture/observability-audit-query-surface.md` is the human-readable architecture companion for the observability audit-query-surface baseline introduced by `US-OBS-02-T03`.
 - `services/internal-contracts/src/observability-audit-export-surface.json` is the machine-readable source of truth for the audit export + masking surface introduced by `US-OBS-02-T04`, including export scopes, format catalog, masking profiles, protected-field coverage, manifest metadata, and console export settings.
 - `docs/reference/architecture/observability-audit-export-surface.md` is the human-readable architecture companion for the observability audit-export baseline introduced by `US-OBS-02-T04`.
+- `services/internal-contracts/src/observability-audit-correlation-surface.json` is the machine-readable source of truth for the audit correlation surface introduced by `US-OBS-02-T05`, including trace scopes, trace statuses, timeline phases, downstream source contracts, safe evidence-pointer rules, and console trace settings.
+- `docs/reference/architecture/observability-audit-correlation-surface.md` is the human-readable architecture companion for the observability audit-correlation baseline introduced by `US-OBS-02-T05`.
 
 ## Usage rules
 

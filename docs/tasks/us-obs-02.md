@@ -293,3 +293,84 @@ Downstream work remains:
 
 - `US-OBS-02-T05` — cross-system correlation and traceability
 - `US-OBS-02-T06` — end-to-end verification and data-protection testing
+
+## Scope delivered in `US-OBS-02-T05`
+
+This increment establishes the **bounded audit correlation and traceability baseline** for the platform.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-audit-correlation-surface.json` as the machine-readable source of truth for tenant/workspace audit correlation scopes, trace statuses, timeline phases, downstream source contracts, masking compatibility, response metadata, and console trace settings
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for the audit correlation-surface contract
+- `scripts/lib/observability-audit-correlation-surface.mjs` and `scripts/validate-observability-audit-correlation-surface.mjs` for deterministic validation of the correlation surface and its alignment with the schema, query, export, authorization, internal-service-map, and public API baselines
+- `apps/control-plane/openapi/control-plane.openapi.json` additive tenant/workspace audit-correlation routes under the metrics family plus generated route-catalog and family-doc refreshes
+- `apps/control-plane/src/observability-audit-correlation.mjs` and `apps/web-console/src/observability-audit-correlation.mjs` helpers that normalize scope-safe audit correlation requests, derive bounded trace statuses, reuse T04 masking for correlated records, and expose console trace metadata from the shared contract
+- `docs/reference/architecture/observability-audit-correlation-surface.md` as the human-readable architecture guide for the audit correlation baseline
+- `docs/reference/architecture/README.md` index updates so the new correlation guidance is discoverable
+
+## Main decisions in `US-OBS-02-T05`
+
+### Console-originated actions now have one explicit traceability surface
+
+The platform now defines one bounded correlation surface for:
+
+- `/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}`
+- `/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}`
+
+This turns isolated audit records into one operationally useful end-to-end trace model.
+
+### Traceability uses bounded statuses and phases instead of implicit investigator logic
+
+The correlation contract now fixes the initial trace statuses to:
+
+- `complete`
+- `partial`
+- `broken`
+- `not_found`
+
+It also fixes the initial phase vocabulary to:
+
+- `console_initiation`
+- `control_plane_execution`
+- `downstream_system_effect`
+- `audit_persistence`
+
+This keeps API and console behavior aligned before T06 verification lands.
+
+### Correlation is permissioned separately from plain audit consultation
+
+The authorization model now introduces:
+
+- `tenant.audit.correlate`
+- `workspace.audit.correlate`
+
+This keeps deeper end-to-end traceability narrower than plain audit read access.
+
+### T04 masking semantics are reused instead of reinvented
+
+The correlation surface reuses the existing export masking baseline for correlated audit-record projections and safe evidence pointers so protected values remain protected during investigations.
+
+### End-to-end verification remains explicitly deferred
+
+This increment only defines correlation and traceability behavior.
+It does **not** implement:
+
+- end-to-end traceability verification and data-protection proof (`US-OBS-02-T06`)
+- incident case-management workflows
+- replay or remediation automation
+
+## Validation for `US-OBS-02-T05`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-audit-correlation-surface
+```
+
+## Downstream dependency note for `US-OBS-02-T05`
+
+This increment defines the bounded correlation layer that later verification work can test.
+
+Downstream work remains:
+
+- `US-OBS-02-T06` — end-to-end verification and data-protection testing

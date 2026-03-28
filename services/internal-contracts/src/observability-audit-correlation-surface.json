@@ -1,0 +1,287 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-02-T05",
+  "system": "in-atelier-observability-plane",
+  "source_audit_event_schema_contract": "2026-03-28",
+  "source_audit_query_surface_contract": "2026-03-28",
+  "source_audit_export_surface_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_internal_service_map_contract": "2026-03-25",
+  "source_public_api_contract": "2026-03-26",
+  "supported_trace_scopes": [
+    {
+      "id": "tenant",
+      "label": "Tenant audit correlation",
+      "route_operation_id": "getTenantAuditCorrelation",
+      "required_permission": "tenant.audit.correlate",
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "correlation_id",
+        "query_scope"
+      ],
+      "scope_binding": {
+        "tenant_id": "required",
+        "workspace_id": "not_allowed_for_scope_binding"
+      },
+      "default_max_items": 25
+    },
+    {
+      "id": "workspace",
+      "label": "Workspace audit correlation",
+      "route_operation_id": "getWorkspaceAuditCorrelation",
+      "required_permission": "workspace.audit.correlate",
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "query_scope"
+      ],
+      "scope_binding": {
+        "tenant_id": "inherited_from_workspace",
+        "workspace_id": "required"
+      },
+      "default_max_items": 25
+    }
+  ],
+  "request_contract": {
+    "required_fields": [
+      "correlationId"
+    ],
+    "optional_fields": [
+      "includeRecords",
+      "includeEvidence",
+      "maxItems"
+    ],
+    "default_include_records": true,
+    "default_include_evidence": true,
+    "default_max_items": 25,
+    "max_items": 200
+  },
+  "trace_statuses": [
+    {
+      "id": "complete",
+      "label": "Complete trace",
+      "meaning": "Console initiation, downstream system effect, and linked audit evidence are all present."
+    },
+    {
+      "id": "partial",
+      "label": "Partial trace",
+      "meaning": "The correlation chain exists but one or more expected links are missing."
+    },
+    {
+      "id": "broken",
+      "label": "Broken trace",
+      "meaning": "The requested correlation shows disconnected or insufficient evidence for end-to-end attribution."
+    },
+    {
+      "id": "not_found",
+      "label": "Trace not found",
+      "meaning": "No scoped evidence exists for the requested correlation id."
+    }
+  ],
+  "timeline_phases": [
+    {
+      "id": "console_initiation",
+      "label": "Console initiation",
+      "allowed_origin_surfaces": [
+        "console_backend"
+      ],
+      "phase_goal": "Capture the operator-initiated administrative action as it enters the control surface."
+    },
+    {
+      "id": "control_plane_execution",
+      "label": "Control-plane execution",
+      "allowed_origin_surfaces": [
+        "control_api",
+        "internal_reconciler"
+      ],
+      "phase_goal": "Capture validation, authorization, orchestration, or acceptance work inside the control plane."
+    },
+    {
+      "id": "downstream_system_effect",
+      "label": "Downstream system effect",
+      "allowed_origin_surfaces": [
+        "provider_adapter",
+        "bootstrap_job",
+        "scheduled_operation"
+      ],
+      "phase_goal": "Capture the real underlying system mutation or emitted provider-side evidence."
+    },
+    {
+      "id": "audit_persistence",
+      "label": "Audit persistence",
+      "allowed_origin_surfaces": [
+        "control_api",
+        "provider_adapter",
+        "internal_reconciler"
+      ],
+      "phase_goal": "Capture the append-only audit evidence that closes the correlation loop."
+    }
+  ],
+  "downstream_trace_sources": [
+    {
+      "id": "iam_admin_result",
+      "contract_id": "iam_admin_result",
+      "subsystem_id": "iam",
+      "required_link_fields": [
+        "correlation_id",
+        "audit_record_id"
+      ]
+    },
+    {
+      "id": "mongo_admin_result",
+      "contract_id": "mongo_admin_result",
+      "subsystem_id": "mongodb",
+      "required_link_fields": [
+        "correlation_id",
+        "audit_record_id",
+        "correlation_context"
+      ]
+    },
+    {
+      "id": "kafka_admin_result",
+      "contract_id": "kafka_admin_result",
+      "subsystem_id": "kafka",
+      "required_link_fields": [
+        "correlation_id",
+        "audit_record_id",
+        "correlation_context"
+      ]
+    },
+    {
+      "id": "postgres_data_change_event",
+      "contract_id": "postgres_data_change_event",
+      "subsystem_id": "postgresql",
+      "required_link_fields": [
+        "correlation_context",
+        "audit_record_id"
+      ]
+    },
+    {
+      "id": "storage_object_event",
+      "contract_id": "storage_object_event",
+      "subsystem_id": "storage",
+      "required_link_fields": [
+        "correlation_context",
+        "audit_record_id"
+      ]
+    },
+    {
+      "id": "openwhisk_activation_event",
+      "contract_id": "openwhisk_activation_event",
+      "subsystem_id": "openwhisk",
+      "required_link_fields": [
+        "correlation_context",
+        "audit_record_id"
+      ]
+    }
+  ],
+  "masking_compatibility": {
+    "source_profile_id": "default_masked",
+    "required_record_fields": [
+      "maskingApplied",
+      "maskedFieldRefs",
+      "sensitivityCategories"
+    ],
+    "safe_evidence_pointer_policy": "evidence pointers may expose stable safe refs only; raw secrets and forbidden provider locators remain masked or omitted"
+  },
+  "response_contract": {
+    "required_fields": [
+      "correlationId",
+      "queryScope",
+      "traceStatus",
+      "startedAt",
+      "completedAt",
+      "subsystems",
+      "timeline",
+      "auditRecords",
+      "evidencePointers",
+      "missingLinks",
+      "consoleSummary"
+    ],
+    "timeline_projection": {
+      "required_fields": [
+        "nodeId",
+        "phase",
+        "eventTimestamp",
+        "originSurface",
+        "subsystemId",
+        "resourceType",
+        "actionId",
+        "outcome"
+      ]
+    },
+    "linked_audit_record_projection": {
+      "required_fields": [
+        "eventId",
+        "eventTimestamp",
+        "actor",
+        "scope",
+        "resource",
+        "action",
+        "result",
+        "correlationId",
+        "origin",
+        "detail",
+        "maskingApplied",
+        "maskedFieldRefs",
+        "sensitivityCategories"
+      ]
+    },
+    "evidence_pointer_projection": {
+      "required_fields": [
+        "pointerId",
+        "sourceContractId",
+        "pointerType",
+        "safeRef",
+        "auditRecordId",
+        "subsystemId",
+        "observedAt"
+      ]
+    }
+  },
+  "console_surface": {
+    "entry_scopes": [
+      "tenant",
+      "workspace"
+    ],
+    "default_timeline_grouping": "phase",
+    "show_evidence_pointers_by_default": true,
+    "status_badges": [
+      {
+        "id": "complete",
+        "label": "End-to-end verified"
+      },
+      {
+        "id": "partial",
+        "label": "Partial chain"
+      },
+      {
+        "id": "broken",
+        "label": "Broken chain"
+      },
+      {
+        "id": "not_found",
+        "label": "No trace found"
+      }
+    ],
+    "states": {
+      "empty": "no_correlation_trace_found",
+      "loading": "loading_audit_correlation_trace",
+      "error": "audit_correlation_trace_failed"
+    }
+  },
+  "governance": {
+    "future_work_boundaries": [
+      "end_to_end_traceability_verification_is_defined_in_us_obs_02_t06",
+      "durable_case_management_is_out_of_scope_for_us_obs_02_t05"
+    ],
+    "compatibility_rules": [
+      "correlation route semantics remain additive relative to T03 and T04",
+      "trace statuses and timeline phases remain bounded and stable once published",
+      "correlation and export masking semantics remain aligned so protected values never appear in one surface but not the other"
+    ]
+  }
+}

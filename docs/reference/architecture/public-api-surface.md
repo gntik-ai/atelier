@@ -481,8 +481,10 @@ Workspace-scoped usage, quota, gateway-stream, and observability series exposed 
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}` | tenant | tenant_audit_correlation | Retrieve one tenant-scoped end-to-end audit correlation trace |
 | POST | `/v1/metrics/tenants/{tenantId}/audit-exports` | tenant | tenant_audit_export | Preview a bounded tenant-scoped audit export with masking metadata |
 | GET | `/v1/metrics/tenants/{tenantId}/audit-records` | tenant | tenant_audit_record | Query tenant-scoped audit records through the unified observability surface |
+| GET | `/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}` | workspace | workspace_audit_correlation | Retrieve one workspace-scoped end-to-end audit correlation trace |
 | POST | `/v1/metrics/workspaces/{workspaceId}/audit-exports` | workspace | workspace_audit_export | Preview a bounded workspace-scoped audit export with masking metadata |
 | GET | `/v1/metrics/workspaces/{workspaceId}/audit-records` | workspace | workspace_audit_record | Query workspace-scoped audit records through the unified observability surface |
 | GET | `/v1/metrics/workspaces/{workspaceId}/event-dashboards` | workspace | event_dashboard | Fetch workspace-scoped Kafka bridge and trigger dashboard widgets |

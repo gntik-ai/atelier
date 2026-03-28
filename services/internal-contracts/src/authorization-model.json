@@ -434,6 +434,7 @@
       "tenant.members.manage",
       "tenant.workspaces.create",
       "tenant.audit.read",
+      "tenant.audit.correlate",
       "tenant.usage.read",
       "tenant.suspend",
       "tenant.invitations.manage",
@@ -454,6 +455,7 @@
       "workspace.policy.manage",
       "workspace.effective_permissions.read",
       "workspace.audit.read",
+      "workspace.audit.correlate",
       "workspace.effective_permissions.recalculate",
       "workspace.audit.export"
     ],
@@ -545,6 +547,7 @@
         "workspace.policy.manage",
         "workspace.effective_permissions.read",
         "workspace.audit.read",
+        "workspace.audit.correlate",
         "workspace.effective_permissions.recalculate",
         "workspace.audit.export"
       ],
@@ -711,10 +714,12 @@
           "tenant.members.manage",
           "tenant.workspaces.create",
           "tenant.audit.read",
+          "tenant.audit.correlate",
           "tenant.usage.read",
           "tenant.suspend",
           "workspace.read",
           "workspace.audit.read",
+          "workspace.audit.correlate",
           "workspace.update",
           "workspace.members.manage",
           "workspace.delete",
@@ -749,9 +754,11 @@
         "role": "platform_auditor",
         "allowed_actions": [
           "tenant.audit.read",
+          "tenant.audit.correlate",
           "tenant.read",
           "workspace.read",
           "workspace.audit.read",
+          "workspace.audit.correlate",
           "app.read",
           "service_account.read",
           "function.audit.read",
@@ -775,6 +782,7 @@
           "tenant.members.manage",
           "tenant.workspaces.create",
           "tenant.audit.read",
+          "tenant.audit.correlate",
           "tenant.usage.read",
           "tenant.invitations.manage",
           "tenant.role_mappings.manage",
@@ -819,6 +827,7 @@
           "tenant.members.manage",
           "tenant.workspaces.create",
           "tenant.audit.read",
+          "tenant.audit.correlate",
           "tenant.usage.read",
           "tenant.invitations.manage",
           "tenant.role_mappings.manage",
@@ -958,6 +967,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.audit.correlate",
           "workspace.update",
           "workspace.members.manage",
           "workspace.invitations.manage",
@@ -997,6 +1007,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.audit.correlate",
           "workspace.update",
           "workspace.members.manage",
           "workspace.invitations.manage",
@@ -1078,6 +1089,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.audit.correlate",
           "database.read",
           "bucket.read",
           "topic.read",
@@ -1108,6 +1120,7 @@
         "allowed_actions": [
           "workspace.read",
           "workspace.audit.read",
+          "workspace.audit.correlate",
           "database.read",
           "bucket.read",
           "topic.read",
@@ -1386,6 +1399,26 @@
         "raw_tokens"
       ],
       "reason": "Audit export previews must preserve scope, correlation, format, and masking metadata without exposing raw credentials."
+    },
+    {
+      "target": "audit_correlation_context",
+      "required_fields": [
+        "actor",
+        "correlation_id",
+        "query_scope",
+        "requested_correlation_id"
+      ],
+      "optional_fields": [
+        "tenant_id",
+        "workspace_id",
+        "include_records",
+        "include_evidence",
+        "max_items"
+      ],
+      "redacted_fields": [
+        "raw_tokens"
+      ],
+      "reason": "Audit correlation lookups must preserve caller scope, target correlation id, and bounded inclusion flags without exposing credential internals."
     }
   ],
   "negative_scenarios": [

@@ -8304,6 +8304,77 @@
       "gatewayRetryProfile": "safe_reads",
       "gatewayRouteClass": "observability",
       "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "getTenantAuditCorrelation",
+      "path": "/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "default",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "tenant_audit_correlation",
+      "scope": "tenant",
+      "summary": "Retrieve one tenant-scoped end-to-end audit correlation trace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "none"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
       "idempotencyReplayHeader": "X-Idempotency-Replayed",
       "idempotencyTtlSeconds": 86400,
       "internalRequestMode": "validated_attestation",
@@ -8404,6 +8475,79 @@
       "tenantBinding": "required",
       "visibility": "public",
       "workspaceBinding": "none"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_operator",
+        "workspace_auditor",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "metrics",
+      "familyTitle": "Metrics",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "observability",
+      "gatewayRequestValidationProfile": "observability",
+      "gatewayRetryProfile": "safe_reads",
+      "gatewayRouteClass": "observability",
+      "gatewayTimeoutProfile": "observability",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 65536,
+      "method": "GET",
+      "operationId": "getWorkspaceAuditCorrelation",
+      "path": "/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}",
+      "planCapabilityAnyOf": [
+        "observability.metrics.basic"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "default",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "workspace_audit_correlation",
+      "scope": "workspace",
+      "summary": "Retrieve one workspace-scoped end-to-end audit correlation trace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Metrics"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
     },
     {
       "adminChannel": null,

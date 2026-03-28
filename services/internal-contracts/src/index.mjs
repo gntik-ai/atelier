@@ -11,6 +11,7 @@ export const OBSERVABILITY_AUDIT_PIPELINE_URL = new URL('./observability-audit-p
 export const OBSERVABILITY_AUDIT_EVENT_SCHEMA_URL = new URL('./observability-audit-event-schema.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_QUERY_SURFACE_URL = new URL('./observability-audit-query-surface.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_URL = new URL('./observability-audit-export-surface.json', import.meta.url);
+export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_URL = new URL('./observability-audit-correlation-surface.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
@@ -27,6 +28,7 @@ let cachedObservabilityAuditPipeline;
 let cachedObservabilityAuditEventSchema;
 let cachedObservabilityAuditQuerySurface;
 let cachedObservabilityAuditExportSurface;
+let cachedObservabilityAuditCorrelationSurface;
 let cachedObservabilityBusinessMetrics;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
@@ -120,6 +122,14 @@ export function readObservabilityAuditExportSurface() {
   return cachedObservabilityAuditExportSurface;
 }
 
+export function readObservabilityAuditCorrelationSurface() {
+  if (!cachedObservabilityAuditCorrelationSurface) {
+    cachedObservabilityAuditCorrelationSurface = JSON.parse(readFileSync(OBSERVABILITY_AUDIT_CORRELATION_SURFACE_URL, 'utf8'));
+  }
+
+  return cachedObservabilityAuditCorrelationSurface;
+}
+
 export function readObservabilityBusinessMetrics() {
   if (!cachedObservabilityBusinessMetrics) {
     cachedObservabilityBusinessMetrics = JSON.parse(readFileSync(OBSERVABILITY_BUSINESS_METRICS_URL, 'utf8'));
@@ -163,6 +173,7 @@ export const OBSERVABILITY_AUDIT_PIPELINE_VERSION = readObservabilityAuditPipeli
 export const OBSERVABILITY_AUDIT_EVENT_SCHEMA_VERSION = readObservabilityAuditEventSchema().version;
 export const OBSERVABILITY_AUDIT_QUERY_SURFACE_VERSION = readObservabilityAuditQuerySurface().version;
 export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_VERSION = readObservabilityAuditExportSurface().version;
+export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_VERSION = readObservabilityAuditCorrelationSurface().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
@@ -501,6 +512,50 @@ export function getAuditExportResponseContract() {
 
 export function getAuditExportConsoleSurface() {
   return readObservabilityAuditExportSurface().console_surface ?? {};
+}
+
+export function listAuditCorrelationScopes() {
+  return readObservabilityAuditCorrelationSurface().supported_trace_scopes ?? [];
+}
+
+export function getAuditCorrelationScope(scopeId) {
+  return listAuditCorrelationScopes().find((scope) => scope.id === scopeId);
+}
+
+export function getAuditCorrelationRequestContract() {
+  return readObservabilityAuditCorrelationSurface().request_contract ?? {};
+}
+
+export function listAuditCorrelationStatuses() {
+  return readObservabilityAuditCorrelationSurface().trace_statuses ?? [];
+}
+
+export function getAuditCorrelationStatus(statusId) {
+  return listAuditCorrelationStatuses().find((status) => status.id === statusId);
+}
+
+export function listAuditCorrelationTimelinePhases() {
+  return readObservabilityAuditCorrelationSurface().timeline_phases ?? [];
+}
+
+export function getAuditCorrelationTimelinePhase(phaseId) {
+  return listAuditCorrelationTimelinePhases().find((phase) => phase.id === phaseId);
+}
+
+export function listAuditCorrelationSourceContracts() {
+  return readObservabilityAuditCorrelationSurface().downstream_trace_sources ?? [];
+}
+
+export function getAuditCorrelationResponseContract() {
+  return readObservabilityAuditCorrelationSurface().response_contract ?? {};
+}
+
+export function getAuditCorrelationConsoleSurface() {
+  return readObservabilityAuditCorrelationSurface().console_surface ?? {};
+}
+
+export function getAuditCorrelationMaskingCompatibility() {
+  return readObservabilityAuditCorrelationSurface().masking_compatibility ?? {};
 }
 
 export function listObservabilityBusinessDomains() {
