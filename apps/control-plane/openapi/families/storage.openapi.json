@@ -149,6 +149,211 @@
       }
     },
     "schemas": {
+      "AdminActionAuditEntry": {
+        "allOf": [
+          {
+            "properties": {
+              "actionType": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "adminAction": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "adminAction"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "AuditCoverageReport": {
+        "properties": {
+          "activeScopes": {
+            "type": "integer"
+          },
+          "coverageByActionType": {
+            "items": {
+              "properties": {
+                "actionType": {
+                  "type": "string"
+                },
+                "coveredScopes": {
+                  "type": "integer"
+                },
+                "missingScopes": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "actionType",
+                "coveredScopes",
+                "missingScopes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "expectedActionTypes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "expectedActionTypes",
+          "activeScopes",
+          "coverageByActionType"
+        ],
+        "type": "object"
+      },
+      "AuditPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/DeploymentAuditEntry"
+                },
+                {
+                  "$ref": "#/components/schemas/AdminActionAuditEntry"
+                },
+                {
+                  "$ref": "#/components/schemas/RollbackEvidenceRecord"
+                },
+                {
+                  "$ref": "#/components/schemas/QuotaEnforcementRecord"
+                }
+              ]
+            },
+            "type": "array"
+          },
+          "page": {
+            "properties": {
+              "nextCursor": {
+                "type": "string"
+              },
+              "size": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "size"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "items",
+          "page"
+        ],
+        "type": "object"
+      },
+      "DeploymentAuditEntry": {
+        "allOf": [
+          {
+            "properties": {
+              "actionType": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "deploymentNature": {
+                "enum": [
+                  "create",
+                  "update",
+                  "redeploy"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "deploymentNature"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "ErrorDetail": {
         "additionalProperties": true,
         "properties": {
@@ -476,6 +681,144 @@
         ],
         "type": "string"
       },
+      "QuotaEnforcementRecord": {
+        "allOf": [
+          {
+            "properties": {
+              "actionType": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "decision": {
+                "enum": [
+                  "allowed",
+                  "denied"
+                ],
+                "type": "string"
+              },
+              "denialReason": {
+                "type": "string"
+              },
+              "quotaDimension": {
+                "type": "string"
+              },
+              "remainingCapacity": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "decision",
+              "quotaDimension"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RollbackEvidenceRecord": {
+        "allOf": [
+          {
+            "properties": {
+              "actionType": {
+                "type": "string"
+              },
+              "actor": {
+                "type": "string"
+              },
+              "correlationId": {
+                "type": "string"
+              },
+              "createdAt": {
+                "format": "date-time",
+                "type": "string"
+              },
+              "functionId": {
+                "type": "string"
+              },
+              "initiatingSurface": {
+                "type": "string"
+              },
+              "recordId": {
+                "type": "string"
+              },
+              "tenantId": {
+                "type": "string"
+              },
+              "workspaceId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "recordId",
+              "actionType",
+              "tenantId",
+              "workspaceId",
+              "actor",
+              "createdAt"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "success",
+                  "failure"
+                ],
+                "type": "string"
+              },
+              "sourceVersionId": {
+                "type": "string"
+              },
+              "targetVersionId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "sourceVersionId",
+              "targetVersionId",
+              "outcome"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "StorageBucket": {
         "additionalProperties": false,
         "properties": {
@@ -689,6 +1032,232 @@
           "sortDimension",
           "topN",
           "generatedAt"
+        ],
+        "type": "object"
+      },
+      "StorageExportManifest": {
+        "additionalProperties": false,
+        "properties": {
+          "actingPrincipal": {
+            "type": "object"
+          },
+          "entityType": {
+            "enum": [
+              "storage_export_manifest"
+            ],
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/StorageExportManifestEntry"
+            },
+            "type": "array"
+          },
+          "exportedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filterCriteria": {
+            "type": "object"
+          },
+          "formatVersion": {
+            "type": "integer"
+          },
+          "manifestId": {
+            "type": "string"
+          },
+          "sourceBucketId": {
+            "type": "string"
+          },
+          "sourceTenantId": {
+            "type": "string"
+          },
+          "sourceWorkspaceId": {
+            "type": "string"
+          },
+          "totalBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "totalObjects": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entityType",
+          "manifestId",
+          "formatVersion",
+          "sourceBucketId",
+          "sourceWorkspaceId",
+          "sourceTenantId",
+          "actingPrincipal",
+          "exportedAt",
+          "filterCriteria",
+          "totalObjects",
+          "totalBytes",
+          "entries"
+        ],
+        "type": "object"
+      },
+      "StorageExportManifestEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "bodyReference": {
+            "type": "object"
+          },
+          "contentEncoding": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "customMetadata": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "entityType": {
+            "enum": [
+              "storage_export_manifest_entry"
+            ],
+            "type": "string"
+          },
+          "lastModifiedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storageClass": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entityType",
+          "objectKey",
+          "sizeBytes",
+          "contentType",
+          "customMetadata",
+          "lastModifiedAt",
+          "bodyReference"
+        ],
+        "type": "object"
+      },
+      "StorageImportEntryOutcome": {
+        "additionalProperties": false,
+        "properties": {
+          "entityType": {
+            "enum": [
+              "storage_import_entry_outcome"
+            ],
+            "type": "string"
+          },
+          "objectKey": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sizeBytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "objectKey",
+          "status",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "StorageImportResultSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "actingPrincipal": {
+            "type": "object"
+          },
+          "conflictPolicy": {
+            "type": "string"
+          },
+          "entityType": {
+            "enum": [
+              "storage_import_result_summary"
+            ],
+            "type": "string"
+          },
+          "failedCount": {
+            "type": "integer"
+          },
+          "importId": {
+            "type": "string"
+          },
+          "importedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "importedCount": {
+            "type": "integer"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/StorageImportEntryOutcome"
+            },
+            "type": "array"
+          },
+          "skippedCount": {
+            "type": "integer"
+          },
+          "targetBucketId": {
+            "type": "string"
+          },
+          "targetTenantId": {
+            "type": "string"
+          },
+          "targetWorkspaceId": {
+            "type": "string"
+          },
+          "totalBytesImported": {
+            "type": "integer"
+          },
+          "totalEntries": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entityType",
+          "importId",
+          "targetBucketId",
+          "targetWorkspaceId",
+          "targetTenantId",
+          "actingPrincipal",
+          "importedAt",
+          "conflictPolicy",
+          "totalEntries",
+          "importedCount",
+          "skippedCount",
+          "failedCount",
+          "totalBytesImported",
+          "outcomes"
         ],
         "type": "object"
       },
@@ -1656,274 +2225,6 @@
           "buckets"
         ],
         "type": "object"
-      },
-      "StorageExportManifestEntry": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "entityType",
-          "objectKey",
-          "sizeBytes",
-          "contentType",
-          "customMetadata",
-          "lastModifiedAt",
-          "bodyReference"
-        ],
-        "properties": {
-          "entityType": {
-            "type": "string",
-            "enum": [
-              "storage_export_manifest_entry"
-            ]
-          },
-          "objectKey": {
-            "type": "string"
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "contentType": {
-            "type": "string"
-          },
-          "contentEncoding": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "storageClass": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "customMetadata": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "lastModifiedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "bodyReference": {
-            "type": "object"
-          }
-        }
-      },
-      "StorageExportManifest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "entityType",
-          "manifestId",
-          "formatVersion",
-          "sourceBucketId",
-          "sourceWorkspaceId",
-          "sourceTenantId",
-          "actingPrincipal",
-          "exportedAt",
-          "filterCriteria",
-          "totalObjects",
-          "totalBytes",
-          "entries"
-        ],
-        "properties": {
-          "entityType": {
-            "type": "string",
-            "enum": [
-              "storage_export_manifest"
-            ]
-          },
-          "manifestId": {
-            "type": "string"
-          },
-          "formatVersion": {
-            "type": "integer"
-          },
-          "sourceBucketId": {
-            "type": "string"
-          },
-          "sourceWorkspaceId": {
-            "type": "string"
-          },
-          "sourceTenantId": {
-            "type": "string"
-          },
-          "actingPrincipal": {
-            "type": "object"
-          },
-          "exportedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "filterCriteria": {
-            "type": "object"
-          },
-          "totalObjects": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "totalBytes": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "entries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StorageExportManifestEntry"
-            }
-          }
-        }
-      },
-      "StorageImportEntryOutcome": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "entityType",
-          "objectKey",
-          "status",
-          "reason"
-        ],
-        "properties": {
-          "entityType": {
-            "type": "string",
-            "enum": [
-              "storage_import_entry_outcome"
-            ]
-          },
-          "objectKey": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "reason": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "sizeBytes": {
-            "type": "integer",
-            "minimum": 0
-          }
-        }
-      },
-      "StorageImportResultSummary": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "entityType",
-          "importId",
-          "targetBucketId",
-          "targetWorkspaceId",
-          "targetTenantId",
-          "actingPrincipal",
-          "importedAt",
-          "conflictPolicy",
-          "totalEntries",
-          "importedCount",
-          "skippedCount",
-          "failedCount",
-          "totalBytesImported",
-          "outcomes"
-        ],
-        "properties": {
-          "entityType": {
-            "type": "string",
-            "enum": [
-              "storage_import_result_summary"
-            ]
-          },
-          "importId": {
-            "type": "string"
-          },
-          "targetBucketId": {
-            "type": "string"
-          },
-          "targetWorkspaceId": {
-            "type": "string"
-          },
-          "targetTenantId": {
-            "type": "string"
-          },
-          "actingPrincipal": {
-            "type": "object"
-          },
-          "importedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "conflictPolicy": {
-            "type": "string"
-          },
-          "totalEntries": {
-            "type": "integer"
-          },
-          "importedCount": {
-            "type": "integer"
-          },
-          "skippedCount": {
-            "type": "integer"
-          },
-          "failedCount": {
-            "type": "integer"
-          },
-          "totalBytesImported": {
-            "type": "integer"
-          },
-          "outcomes": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/StorageImportEntryOutcome"
-            }
-          }
-        }
-      },
-      "StorageImportExportAuditEvent": {
-        "type": "object",
-        "additionalProperties": true,
-        "required": [
-          "entityType",
-          "operationType",
-          "actingPrincipal",
-          "manifestId",
-          "outcome",
-          "timestamp"
-        ],
-        "properties": {
-          "entityType": {
-            "type": "string",
-            "enum": [
-              "storage_import_export_audit_event"
-            ]
-          },
-          "operationType": {
-            "type": "string"
-          },
-          "actingPrincipal": {
-            "type": "object"
-          },
-          "credentialId": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "manifestId": {
-            "type": "string"
-          },
-          "outcome": {
-            "type": "string"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
       }
     }
   },
@@ -1936,6 +2237,106 @@
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "openapi": "3.1.0",
   "paths": {
+    "/v1/storage/audit/coverage": {
+      "get": {
+        "operationId": "getStorageAuditCoverage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditCoverageReport"
+                }
+              }
+            },
+            "description": "Storage audit coverage report returned."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rate limit exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected oversized headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout while awaiting the upstream service."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get storage audit coverage report",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "platform_team",
+          "superadmin"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "storage_audit_coverage_report",
+        "x-scope": "platform",
+        "x-tenant-binding": "none",
+        "x-visibility": "public",
+        "x-workspace-binding": "none"
+      }
+    },
     "/v1/storage/buckets": {
       "get": {
         "operationId": "listStorage",
@@ -3366,6 +3767,617 @@
         "x-visibility": "public"
       }
     },
+    "/v1/storage/workspaces/{workspaceId}/audit": {
+      "get": {
+        "operationId": "listStorageAuditTrail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "Storage audit trail page returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this storage scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rate limit exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected oversized headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout while awaiting the upstream service."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List workspace-scoped storage audit records",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "workspace_admin",
+          "workspace_developer",
+          "workspace_service_account",
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_audit_event",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports": {
+      "post": {
+        "operationId": "exportStorageBucketObjects",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "path",
+            "name": "bucketId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageExportManifest"
+                }
+              }
+            },
+            "description": "Storage export manifest preview returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The export request is malformed or manifest input is invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to export storage bucket objects."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace or bucket was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The export request violates a bounded storage guardrail."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The export request is valid JSON but violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Preview a bounded storage bucket export manifest",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "storage_export_manifest",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports/{manifestId}": {
+      "get": {
+        "operationId": "getStorageBucketExportManifest",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "path",
+            "name": "bucketId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "manifestId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageExportManifest"
+                }
+              }
+            },
+            "description": "Storage export manifest returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to inspect this export manifest."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested manifest, workspace, or bucket was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one bounded storage export manifest",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_export_manifest",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/imports": {
+      "post": {
+        "operationId": "importStorageBucketObjects",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "path",
+            "name": "bucketId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageImportResultSummary"
+                }
+              }
+            },
+            "description": "Storage import result preview returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The import request is malformed or manifest input is invalid."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks permission to import storage bucket objects."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace or bucket was not found."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The import request violates a bounded storage guardrail."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized request body."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The import request is valid JSON but violates governance policy."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected gateway error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Preview a bounded storage bucket import result",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "storage_import_result",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/usage": {
       "get": {
         "operationId": "getBucketStorageUsage",
@@ -4331,504 +5343,6 @@
         "x-resource-type": "storage_usage_snapshot",
         "x-scope": "workspace",
         "x-visibility": "public"
-      }
-    },
-    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports": {
-      "post": {
-        "operationId": "exportStorageBucketObjects",
-        "summary": "Preview a bounded storage bucket export manifest",
-        "tags": [
-          "Storage"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/XOriginSurface"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "name": "bucketId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Storage export manifest preview returned.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StorageExportManifest"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The export request is malformed or manifest input is invalid.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller lacks permission to export storage bucket objects.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The requested workspace or bucket was not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The export request violates a bounded storage guardrail.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized request body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "The export request is valid JSON but violates governance policy.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS policy rejected the request rate for this route family.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected one or more invalid or oversized request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected gateway error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-family": "storage",
-        "x-scope": "workspace",
-        "x-resource-type": "storage_export_manifest",
-        "x-audiences": [
-          "developer_external",
-          "workspace_admin",
-          "tenant_owner",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "storage"
-        ]
-      }
-    },
-    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/imports": {
-      "post": {
-        "operationId": "importStorageBucketObjects",
-        "summary": "Preview a bounded storage bucket import result",
-        "tags": [
-          "Storage"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/XOriginSurface"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "name": "bucketId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Storage import result preview returned.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StorageImportResultSummary"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The import request is malformed or manifest input is invalid.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller lacks permission to import storage bucket objects.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The requested workspace or bucket was not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The import request violates a bounded storage guardrail.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized request body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "The import request is valid JSON but violates governance policy.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS policy rejected the request rate for this route family.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected one or more invalid or oversized request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected gateway error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-family": "storage",
-        "x-scope": "workspace",
-        "x-resource-type": "storage_import_result",
-        "x-audiences": [
-          "developer_external",
-          "workspace_admin",
-          "tenant_owner",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "storage"
-        ]
-      }
-    },
-    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports/{manifestId}": {
-      "get": {
-        "operationId": "getStorageBucketExportManifest",
-        "summary": "Fetch one bounded storage export manifest",
-        "tags": [
-          "Storage"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "name": "bucketId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          },
-          {
-            "name": "manifestId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 128
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Storage export manifest returned.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StorageExportManifest"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The request is malformed or contextually inconsistent.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller lacks permission to inspect this export manifest.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The requested manifest, workspace, or bucket was not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS policy rejected the request rate for this route family.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected one or more invalid or oversized request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected gateway error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-family": "storage",
-        "x-scope": "workspace",
-        "x-resource-type": "storage_export_manifest",
-        "x-audiences": [
-          "developer_external",
-          "workspace_admin",
-          "tenant_owner",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-read",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "storage"
-        ]
       }
     }
   },

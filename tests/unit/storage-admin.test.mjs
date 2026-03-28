@@ -25,13 +25,20 @@ import {
   STORAGE_PROVIDER_CAPABILITY_IDS_CATALOG,
   STORAGE_PROVIDER_CAPABILITY_MANIFEST_SCHEMA_VERSION,
   STORAGE_ERROR_RETRYABILITY_CATALOG,
+  STORAGE_AUDIT_OPERATION_TYPES,
+  STORAGE_AUDIT_COVERAGE_CATEGORIES,
   TENANT_STORAGE_ERROR_CODES,
+  buildStorageAccessDeniedAuditEvent,
+  buildStorageAdminAuditEvent,
+  buildStorageAuditCoverageReport,
+  buildStorageCredentialLifecycleAuditEvent,
   buildStorageErrorEvent,
   buildStorageOperationEvent,
   buildTenantStorageEvent,
   deleteStorageBucketPreview,
   deleteStorageObjectPreviewResult,
   downloadStorageObjectPreviewResult,
+  emitStorageAuditEvent,
   getStorageAdminRoute,
   getStorageCompatibilitySummary,
   listStorageAdminRoutes,
@@ -39,6 +46,7 @@ import {
   listStorageObjectsPreview,
   previewReservedStoragePrefix,
   previewStorageBucket,
+  queryStorageAuditTrail,
   previewStorageErrorEnvelope,
   previewStorageInternalErrorRecord,
   previewStorageExportManifest,
@@ -59,6 +67,7 @@ import {
   rankWorkspaceBucketsByUsage,
   revokeStorageProgrammaticCredentialPreview,
   rotateStorageProgrammaticCredentialPreview,
+  listStorageAuditRoutes,
   rotateTenantStorageCredentialPreview,
   summarizeStorageBucket,
   summarizeStorageCapabilityBaseline,
@@ -105,6 +114,8 @@ test('storage admin helper exposes bucket/object routes and provider introspecti
   assert.ok(routes.some((route) => route.operationId === 'getStorageProgrammaticCredential'));
   assert.ok(routes.some((route) => route.operationId === 'rotateStorageProgrammaticCredential'));
   assert.ok(routes.some((route) => route.operationId === 'revokeStorageProgrammaticCredential'));
+  assert.ok(routes.some((route) => route.operationId === 'listStorageAuditTrail'));
+  assert.ok(routes.some((route) => route.operationId === 'getStorageAuditCoverage'));
   assert.equal(createRoute.resourceType, 'bucket');
   assert.equal(listRoute.resourceType, 'bucket');
   assert.equal(getRoute.resourceType, 'bucket');
