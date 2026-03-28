@@ -125,6 +125,21 @@ import {
   previewStorageObjectQuotaAdmission as previewStorageObjectQuotaAdmissionImpl,
   validateStorageQuotaGuardrails as validateStorageQuotaGuardrailsImpl
 } from './storage-capacity-quotas.mjs';
+import {
+  STORAGE_EVENT_NOTIFICATION_AUDIT_ACTIONS,
+  STORAGE_EVENT_NOTIFICATION_CAPABILITY_ID,
+  STORAGE_EVENT_NOTIFICATION_DESTINATION_TYPES,
+  STORAGE_EVENT_NOTIFICATION_ERROR_CODES,
+  STORAGE_EVENT_NOTIFICATION_EVENT_TYPES,
+  buildStorageEventGovernanceProfile as buildStorageEventGovernanceProfileImpl,
+  buildStorageEventNotificationAuditEvent as buildStorageEventNotificationAuditEventImpl,
+  buildStorageEventNotificationDeliveryPreview as buildStorageEventNotificationDeliveryPreviewImpl,
+  buildStorageEventNotificationRule as buildStorageEventNotificationRuleImpl,
+  checkStorageEventNotificationCapability as checkStorageEventNotificationCapabilityImpl,
+  evaluateStorageEventNotifications as evaluateStorageEventNotificationsImpl,
+  matchStorageEventNotificationRule as matchStorageEventNotificationRuleImpl,
+  validateStorageEventNotificationRule as validateStorageEventNotificationRuleImpl
+} from './storage-event-notifications.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -156,6 +171,11 @@ export const storageQuotaScopeTypes = STORAGE_QUOTA_SCOPE_TYPES;
 export const storageQuotaSources = STORAGE_QUOTA_SOURCES;
 export const storageQuotaOperationTypes = STORAGE_QUOTA_OPERATION_TYPES;
 export const storageQuotaGuardrailErrorCodes = STORAGE_QUOTA_GUARDRAIL_ERROR_CODES;
+export const storageEventNotificationCapabilityId = STORAGE_EVENT_NOTIFICATION_CAPABILITY_ID;
+export const storageEventNotificationDestinationTypes = STORAGE_EVENT_NOTIFICATION_DESTINATION_TYPES;
+export const storageEventNotificationEventTypes = STORAGE_EVENT_NOTIFICATION_EVENT_TYPES;
+export const storageEventNotificationAuditActions = STORAGE_EVENT_NOTIFICATION_AUDIT_ACTIONS;
+export const storageEventNotificationErrorCodes = STORAGE_EVENT_NOTIFICATION_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -403,6 +423,38 @@ export function previewStorageBucketQuotaAdmission(input = {}) {
 
 export function previewStorageObjectQuotaAdmission(input = {}) {
   return previewStorageObjectQuotaAdmissionImpl(input);
+}
+
+export function buildStorageEventGovernanceProfile(input = {}) {
+  return buildStorageEventGovernanceProfileImpl(input);
+}
+
+export function buildStorageEventNotificationRule(input = {}) {
+  return buildStorageEventNotificationRuleImpl(input);
+}
+
+export function buildStorageEventNotificationDeliveryPreview(input = {}) {
+  return buildStorageEventNotificationDeliveryPreviewImpl(input);
+}
+
+export function buildStorageEventNotificationAuditEvent(input = {}) {
+  return buildStorageEventNotificationAuditEventImpl(input);
+}
+
+export function checkStorageEventNotificationCapability(input = {}) {
+  return checkStorageEventNotificationCapabilityImpl(input);
+}
+
+export function validateStorageEventNotificationRule(input = {}) {
+  return validateStorageEventNotificationRuleImpl(input);
+}
+
+export function matchStorageEventNotificationRule(input = {}) {
+  return matchStorageEventNotificationRuleImpl(input);
+}
+
+export function evaluateStorageEventNotifications(input = {}) {
+  return evaluateStorageEventNotificationsImpl(input);
 }
 
 export function buildStoragePolicyStatement(input = {}) {

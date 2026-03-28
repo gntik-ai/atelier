@@ -5,6 +5,8 @@ import {
   adapterCallContract,
   adapterResultContract,
   buildStorageErrorEvent,
+  buildStorageEventGovernanceProfile,
+  buildStorageEventNotificationRule,
   buildStorageOperationEvent,
   buildTenantStorageEvent,
   deleteStorageBucketPreview,
@@ -29,6 +31,7 @@ import {
   isReservedStoragePrefix,
   listAuditAdapters,
   listProvisioningAdapters,
+  evaluateStorageEventNotifications,
   listStorageBuckets,
   listStorageObjects,
   listStorageProviderProfiles,
@@ -36,6 +39,9 @@ import {
   rotateTenantStorageCredential,
   storageBucketObjectErrorCodes,
   storageErrorRetryabilityModes,
+  storageEventNotificationDestinationTypes,
+  storageEventNotificationErrorCodes,
+  storageEventNotificationEventTypes,
   storageLogicalOrganizationErrorCodes,
   storageNormalizedErrorCodes,
   storageProviderCapabilityBaselineVersion,
@@ -340,4 +346,49 @@ test('provider catalog exposes bucket and object helpers with bounded scope-safe
   assert.equal(blockedBucketDelete.reasonCode, storageBucketObjectErrorCodes.BUCKET_NOT_EMPTY);
   assert.equal(event.entityType, 'bucket_object');
   assert.equal(event.objectKey, 'images/banner.png');
+});
+
+
+test('provider catalog exposes additive storage event notification helpers', () => {
+  const rule = buildStorageEventNotificationRule({
+    ruleId: 'sen_catalog_01',
+    tenantId: 'ten_01catalog',
+    workspaceId: 'wrk_01catalog',
+    bucketId: 'bucket_01catalog',
+    destinationType: storageEventNotificationDestinationTypes.KAFKA_TOPIC,
+    destinationRef: 'topic.storage.events',
+    eventTypes: [storageEventNotificationEventTypes.OBJECT_CREATED]
+  });
+  const governance = buildStorageEventGovernanceProfile({
+    tenantId: 'ten_01catalog',
+    workspaceId: 'wrk_01catalog',
+    allowedDestinationTypes: [storageEventNotificationDestinationTypes.KAFKA_TOPIC],
+    maxTenantRules: 3,
+    currentTenantRuleCount: 1,
+    maxWorkspaceRules: 2,
+    currentWorkspaceRuleCount: 1
+  });
+  const evaluation = evaluateStorageEventNotifications({
+    rules: [rule],
+    event: {
+      tenantId: 'ten_01catalog',
+      workspaceId: 'wrk_01catalog',
+      bucketId: 'bucket_01catalog',
+      eventType: storageEventNotificationEventTypes.OBJECT_CREATED,
+      objectKey: 'uploads/logo.png'
+    },
+    providerProfile: {
+      capabilityDetails: [{
+        capabilityId: 'bucket.event_notifications',
+        required: false,
+        state: 'satisfied',
+        summary: 'supported',
+        constraints: []
+      }]
+    }
+  });
+
+  assert.equal(governance.allowedDestinationTypes[0], storageEventNotificationDestinationTypes.KAFKA_TOPIC);
+  assert.equal(evaluation.matches.length, 1);
+  assert.equal(storageEventNotificationErrorCodes.CAPABILITY_NOT_AVAILABLE.httpStatus, 501);
 });

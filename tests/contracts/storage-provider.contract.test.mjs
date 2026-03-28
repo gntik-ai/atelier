@@ -22,6 +22,8 @@ import {
 } from '../../apps/control-plane/src/storage-admin.mjs';
 import {
   buildStorageBucketPolicy,
+  buildStorageEventGovernanceProfile,
+  buildStorageEventNotificationRule,
   buildStorageMultipartSession,
   buildStoragePolicyAttachmentSummary,
   buildStoragePresignedUrlRecord,
@@ -30,9 +32,11 @@ import {
   buildWorkspaceStoragePermissionSet,
   checkStorageMultipartCapability,
   evaluateStorageAccessDecision,
+  evaluateStorageEventNotifications,
   getStorageBucketRecord,
   previewStorageBucketQuotaAdmission,
   previewStorageObjectQuotaAdmission,
+  storageEventNotificationErrorCodes,
   storageMultipartNormalizedErrorCodes,
   storageNormalizedErrorCodes,
   storagePolicyNormalizedErrorCodes,
@@ -566,4 +570,55 @@ test('storage verification report schema is additive and structurally valid', ()
   assert.throws(() => {
     report.overallVerdict = 'pass';
   }, TypeError);
+});
+
+
+test('storage event notification contracts remain additive and audit-safe', () => {
+  const governance = buildStorageEventGovernanceProfile({
+    tenantId: 'ten_01events',
+    workspaceId: 'wrk_01events',
+    allowedDestinationTypes: ['kafka_topic', 'openwhisk_action'],
+    maxTenantRules: 3,
+    currentTenantRuleCount: 1,
+    maxWorkspaceRules: 2,
+    currentWorkspaceRuleCount: 1
+  });
+  const rule = buildStorageEventNotificationRule({
+    ruleId: 'sen_contract_01',
+    tenantId: 'ten_01events',
+    workspaceId: 'wrk_01events',
+    bucketId: 'bucket_01events',
+    destinationType: 'kafka_topic',
+    destinationRef: 'topic.storage.events',
+    eventTypes: ['object.created'],
+    filters: { prefix: 'uploads/' }
+  });
+  const evaluation = evaluateStorageEventNotifications({
+    rules: [rule],
+    event: {
+      tenantId: 'ten_01events',
+      workspaceId: 'wrk_01events',
+      bucketId: 'bucket_01events',
+      eventType: 'object.created',
+      objectKey: 'uploads/file.jpg',
+      occurredAt: '2026-03-28T00:20:00Z'
+    },
+    providerProfile: {
+      capabilityDetails: [{
+        capabilityId: 'bucket.event_notifications',
+        required: false,
+        state: 'satisfied',
+        summary: 'supported',
+        constraints: []
+      }]
+    },
+    evaluatedAt: '2026-03-28T00:20:01Z'
+  });
+
+  assert.equal(governance.allowedDestinationTypes.includes('kafka_topic'), true);
+  assert.equal(rule.filters.prefix, 'uploads/');
+  assert.equal(evaluation.matches.length, 1);
+  assert.equal(evaluation.matches[0].ruleId, 'sen_contract_01');
+  assert.equal(Object.isFrozen(storageEventNotificationErrorCodes), true);
+  assert.equal(storageEventNotificationErrorCodes.RULE_LIMIT_EXCEEDED.normalizedCode, storageNormalizedErrorCodes.STORAGE_QUOTA_EXCEEDED);
 });
