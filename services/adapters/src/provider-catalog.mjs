@@ -44,6 +44,7 @@ import {
 } from './storage-logical-organization.mjs';
 import {
   STORAGE_ERROR_RETRYABILITY,
+  STORAGE_IMPORT_EXPORT_ERROR_CODES,
   STORAGE_NORMALIZED_ERROR_CODES,
   STORAGE_USAGE_ERROR_CODES,
   buildNormalizedStorageError,
@@ -167,6 +168,21 @@ import {
   detectStorageUsageThresholdBreaches as detectStorageUsageThresholdBreachesImpl,
   rankBucketsByUsage as rankBucketsByUsageImpl
 } from './storage-usage-reporting.mjs';
+import {
+  STORAGE_IMPORT_CONFLICT_POLICIES,
+  STORAGE_IMPORT_ENTRY_STATUSES,
+  STORAGE_IMPORT_EXPORT_MANIFEST_VERSION,
+  STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS,
+  buildStorageExportManifest as buildStorageExportManifestImpl,
+  buildStorageExportManifestEntry as buildStorageExportManifestEntryImpl,
+  buildStorageImportEntryOutcome as buildStorageImportEntryOutcomeImpl,
+  buildStorageImportExportAuditEvent as buildStorageImportExportAuditEventImpl,
+  buildStorageImportResultSummary as buildStorageImportResultSummaryImpl,
+  checkImportExportOperationLimit as checkImportExportOperationLimitImpl,
+  previewImportQuotaAdmission as previewImportQuotaAdmissionImpl,
+  validateImportManifest as validateImportManifestImpl,
+  validateImportManifestEntry as validateImportManifestEntryImpl
+} from './storage-import-export.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -212,6 +228,11 @@ export const storageUsageCollectionStatuses = STORAGE_USAGE_COLLECTION_STATUSES;
 export const storageUsageThresholdSeverities = STORAGE_USAGE_THRESHOLD_SEVERITIES;
 export const storageUsageThresholdDefaults = STORAGE_USAGE_THRESHOLD_DEFAULTS;
 export const storageUsageErrorCodes = STORAGE_USAGE_ERROR_CODES;
+export const storageImportExportErrorCodes = STORAGE_IMPORT_EXPORT_ERROR_CODES;
+export const storageImportConflictPolicies = STORAGE_IMPORT_CONFLICT_POLICIES;
+export const storageImportEntryStatuses = STORAGE_IMPORT_ENTRY_STATUSES;
+export const storageImportExportManifestVersion = STORAGE_IMPORT_EXPORT_MANIFEST_VERSION;
+export const storageImportExportOperationDefaults = STORAGE_IMPORT_EXPORT_OPERATION_DEFAULTS;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -315,6 +336,42 @@ export function rankBucketsByUsage(input = {}) {
 
 export function buildStorageUsageAuditEvent(input = {}) {
   return buildStorageUsageAuditEventImpl(input);
+}
+
+export function buildStorageExportManifestEntryRecord(input = {}) {
+  return buildStorageExportManifestEntryImpl(input);
+}
+
+export function buildStorageExportManifest(input = {}) {
+  return buildStorageExportManifestImpl(input);
+}
+
+export function buildStorageImportEntryOutcomeRecord(input = {}) {
+  return buildStorageImportEntryOutcomeImpl(input);
+}
+
+export function buildStorageImportResultSummary(input = {}) {
+  return buildStorageImportResultSummaryImpl(input);
+}
+
+export function validateStorageImportManifest(input = {}) {
+  return validateImportManifestImpl(input);
+}
+
+export function validateStorageImportManifestEntry(input = {}) {
+  return validateImportManifestEntryImpl(input);
+}
+
+export function previewStorageImportQuotaAdmission(input = {}) {
+  return previewImportQuotaAdmissionImpl(input);
+}
+
+export function checkStorageImportExportOperationLimit(input = {}) {
+  return checkImportExportOperationLimitImpl(input);
+}
+
+export function buildStorageImportExportAuditRecord(input = {}) {
+  return buildStorageImportExportAuditEventImpl(input);
 }
 
 export function getStorageLogicalOrganization(input = {}) {

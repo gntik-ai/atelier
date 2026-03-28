@@ -84,6 +84,9 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/credentials'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/imports'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports/{manifestId}'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/clone'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/api-surface'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces'));
@@ -103,4 +106,6 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.every((route) => typeof route.gatewayRequestValidationProfile === 'string'));
   assert.ok(routeCatalog.routes.every((route) => route.errorEnvelope === 'ErrorResponse'));
   assert.deepEqual(violations, []);
+  assert.ok(taxonomy.resource_taxonomy.some((entry) => entry.resource_type === 'storage_export_manifest'));
+  assert.ok(taxonomy.resource_taxonomy.some((entry) => entry.resource_type === 'storage_import_result'));
 });

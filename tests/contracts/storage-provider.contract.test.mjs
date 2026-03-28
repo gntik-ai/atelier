@@ -398,6 +398,9 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.equal(getCredentialRoute.resourceType, 'storage_credential');
   assert.equal(rotateCredentialRoute.supportsIdempotencyKey, true);
   assert.equal(revokeCredentialRoute.supportsIdempotencyKey, true);
+  assert.equal(getPublicRoute('exportStorageBucketObjects').path, '/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports');
+  assert.equal(getPublicRoute('importStorageBucketObjects').path, '/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/imports');
+  assert.equal(getPublicRoute('getStorageBucketExportManifest').path, '/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports/{manifestId}');
 
   assert.ok(storageAdapter.capabilities.includes('ensure_bucket'));
   assert.ok(storageAdapter.capabilities.includes('resolve_provider_profile'));
