@@ -14,6 +14,7 @@ export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_URL = new URL('./observability-a
 export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_URL = new URL('./observability-audit-correlation-surface.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const OBSERVABILITY_USAGE_CONSUMPTION_URL = new URL('./observability-usage-consumption.json', import.meta.url);
+const OBSERVABILITY_QUOTA_POLICIES_URL = new URL('./observability-quota-policies.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
@@ -32,6 +33,7 @@ let cachedObservabilityAuditExportSurface;
 let cachedObservabilityAuditCorrelationSurface;
 let cachedObservabilityBusinessMetrics;
 let cachedObservabilityUsageConsumption;
+let cachedObservabilityQuotaPolicies;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
@@ -148,6 +150,14 @@ export function readObservabilityUsageConsumption() {
   return cachedObservabilityUsageConsumption;
 }
 
+export function readObservabilityQuotaPolicies() {
+  if (!cachedObservabilityQuotaPolicies) {
+    cachedObservabilityQuotaPolicies = JSON.parse(readFileSync(OBSERVABILITY_QUOTA_POLICIES_URL, 'utf8'));
+  }
+
+  return cachedObservabilityQuotaPolicies;
+}
+
 export function readObservabilityConsoleAlerts() {
   if (!cachedObservabilityConsoleAlerts) {
     cachedObservabilityConsoleAlerts = JSON.parse(readFileSync(OBSERVABILITY_CONSOLE_ALERTS_URL, 'utf8'));
@@ -186,6 +196,7 @@ export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_VERSION = readObservabilityAudit
 export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_VERSION = readObservabilityAuditCorrelationSurface().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const OBSERVABILITY_USAGE_CONSUMPTION_VERSION = readObservabilityUsageConsumption().version;
+export const OBSERVABILITY_QUOTA_POLICIES_VERSION = readObservabilityQuotaPolicies().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
@@ -635,6 +646,38 @@ export function getUsageRefreshPolicy() {
 
 export function getUsageCalculationAuditContract() {
   return readObservabilityUsageConsumption().calculation_audit ?? {};
+}
+
+export function listQuotaPolicyScopes() {
+  return readObservabilityQuotaPolicies().supported_posture_scopes ?? [];
+}
+
+export function getQuotaPolicyScope(scopeId) {
+  return listQuotaPolicyScopes().find((scope) => scope.id === scopeId);
+}
+
+export function listQuotaThresholdTypes() {
+  return readObservabilityQuotaPolicies().threshold_types ?? [];
+}
+
+export function getQuotaThresholdType(typeId) {
+  return listQuotaThresholdTypes().find((type) => type.id === typeId);
+}
+
+export function listQuotaPostureStates() {
+  return readObservabilityQuotaPolicies().posture_states ?? [];
+}
+
+export function getQuotaPostureState(stateId) {
+  return listQuotaPostureStates().find((state) => state.id === stateId);
+}
+
+export function getQuotaEvaluationDefaults() {
+  return readObservabilityQuotaPolicies().evaluation_defaults ?? {};
+}
+
+export function getQuotaEvaluationAuditContract() {
+  return readObservabilityQuotaPolicies().evaluation_audit ?? {};
 }
 
 export function listHealthSummaryScopes() {

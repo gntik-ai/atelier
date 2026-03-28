@@ -1,0 +1,227 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-03-T02",
+  "system": "in-atelier-quota-policies",
+  "source_usage_contract": "2026-03-28",
+  "source_health_contract": "2026-03-28",
+  "source_audit_event_schema_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_public_api_contract": "2026-03-26",
+  "principles": [
+    "Quota posture must be derived from measured usage snapshots rather than static configuration alone.",
+    "Warning, soft-limit, and hard-limit semantics must be defined once and reused consistently by downstream alerting, blocking, and console work.",
+    "Quota posture must preserve tenant and workspace isolation and must never widen scope beyond the caller's authorization boundary.",
+    "Evidence freshness inherited from usage consumption must remain visible so degraded or unavailable telemetry never appears as confidently healthy quota posture."
+  ],
+  "supported_posture_scopes": [
+    {
+      "id": "tenant",
+      "display_name": "Tenant quota posture",
+      "required_permission": "tenant.quota.read",
+      "required_context_fields": [
+        "tenantId"
+      ],
+      "route_operation_id": "getTenantQuotaPosture",
+      "resource_type": "tenant_quota_posture"
+    },
+    {
+      "id": "workspace",
+      "display_name": "Workspace quota posture",
+      "required_permission": "workspace.quota.read",
+      "required_context_fields": [
+        "tenantId",
+        "workspaceId"
+      ],
+      "route_operation_id": "getWorkspaceQuotaPosture",
+      "resource_type": "workspace_quota_posture"
+    }
+  ],
+  "threshold_types": [
+    {
+      "id": "warning_threshold",
+      "display_name": "Warning threshold",
+      "comparison_rule": "greater_than_or_equal",
+      "description": "Crossing this threshold indicates elevated attention is required but does not imply block semantics."
+    },
+    {
+      "id": "soft_limit",
+      "display_name": "Soft limit",
+      "comparison_rule": "greater_than_or_equal",
+      "description": "Crossing this threshold indicates quota overage posture that downstream consumers may surface or govern, without forcing hard blocking in this task."
+    },
+    {
+      "id": "hard_limit",
+      "display_name": "Hard limit",
+      "comparison_rule": "greater_than_or_equal",
+      "description": "Crossing this threshold indicates the strongest posture for the dimension and is the signal later enforcement work will consume."
+    }
+  ],
+  "policy_modes": [
+    {
+      "id": "enforced",
+      "description": "The dimension has an explicit threshold policy and should be evaluated against it."
+    },
+    {
+      "id": "unbounded",
+      "description": "The dimension remains visible in posture output but has no enforced threshold posture in this increment."
+    }
+  ],
+  "posture_states": [
+    {
+      "id": "within_limit",
+      "severity_rank": 10,
+      "blocks_new_resource_creation": false,
+      "description": "Measured usage remains below the configured warning threshold or below the first configured threshold."
+    },
+    {
+      "id": "warning_threshold_reached",
+      "severity_rank": 20,
+      "blocks_new_resource_creation": false,
+      "description": "Measured usage is at or above the warning threshold while still below the soft and hard thresholds."
+    },
+    {
+      "id": "soft_limit_exceeded",
+      "severity_rank": 30,
+      "blocks_new_resource_creation": false,
+      "description": "Measured usage is at or above the soft limit while still below the hard limit."
+    },
+    {
+      "id": "hard_limit_reached",
+      "severity_rank": 40,
+      "blocks_new_resource_creation": true,
+      "description": "Measured usage is at or above the hard limit and can be consumed by later enforcement work."
+    },
+    {
+      "id": "evidence_degraded",
+      "severity_rank": 15,
+      "blocks_new_resource_creation": false,
+      "description": "Usage evidence exists but is degraded; the posture remains visible and should be surfaced with caution."
+    },
+    {
+      "id": "evidence_unavailable",
+      "severity_rank": 25,
+      "blocks_new_resource_creation": false,
+      "description": "Usage evidence is unavailable, so the dimension posture cannot be treated as trustworthy for confident enforcement."
+    },
+    {
+      "id": "unbounded",
+      "severity_rank": 5,
+      "blocks_new_resource_creation": false,
+      "description": "The dimension is visible but intentionally has no enforced threshold policy in this increment."
+    }
+  ],
+  "ordering_rules": {
+    "threshold_order": [
+      "warning_threshold",
+      "soft_limit",
+      "hard_limit"
+    ],
+    "rules": [
+      "Threshold values must be numeric and greater than or equal to zero.",
+      "When present together, warning_threshold must be less than or equal to soft_limit.",
+      "When present together, soft_limit must be less than or equal to hard_limit.",
+      "When warning_threshold and hard_limit are present without soft_limit, warning_threshold must be less than or equal to hard_limit.",
+      "Equality at a threshold is inclusive and transitions the dimension into the corresponding posture state.",
+      "A dimension in policy_mode unbounded must not require threshold values."
+    ]
+  },
+  "supported_dimensions": [
+    "api_requests",
+    "function_invocations",
+    "storage_volume_bytes",
+    "data_service_operations",
+    "realtime_connections",
+    "logical_databases",
+    "topics",
+    "collections_tables",
+    "error_count"
+  ],
+  "evaluation_defaults": {
+    "default_policy_mode": "enforced",
+    "inclusive_threshold_comparison": true,
+    "evidence_degraded_status": "evidence_degraded",
+    "evidence_unavailable_status": "evidence_unavailable",
+    "unbounded_status": "unbounded",
+    "normal_status": "within_limit",
+    "warning_status": "warning_threshold_reached",
+    "soft_limit_status": "soft_limit_exceeded",
+    "hard_limit_status": "hard_limit_reached",
+    "overall_status_precedence": [
+      "hard_limit_reached",
+      "soft_limit_exceeded",
+      "warning_threshold_reached",
+      "evidence_unavailable",
+      "evidence_degraded",
+      "within_limit",
+      "unbounded"
+    ]
+  },
+  "posture_contract": {
+    "required_fields": [
+      "postureId",
+      "queryScope",
+      "tenantId",
+      "workspaceId",
+      "evaluatedAt",
+      "usageSnapshotTimestamp",
+      "observationWindow",
+      "dimensions",
+      "overallStatus",
+      "degradedDimensions",
+      "hardLimitBreaches",
+      "softLimitBreaches",
+      "warningDimensions",
+      "evaluationAudit"
+    ],
+    "dimension_projection": {
+      "required_fields": [
+        "dimensionId",
+        "displayName",
+        "scope",
+        "measuredValue",
+        "unit",
+        "freshnessStatus",
+        "policyMode",
+        "status",
+        "warningThreshold",
+        "softLimit",
+        "hardLimit",
+        "remainingToWarning",
+        "remainingToSoftLimit",
+        "remainingToHardLimit",
+        "usageSnapshotTimestamp"
+      ],
+      "rules": [
+        "Every posture result must include every supported dimension for the requested scope.",
+        "Dimensions with degraded or unavailable evidence remain visible in the response catalog instead of being dropped.",
+        "Headroom fields may be null when a threshold is intentionally absent or the dimension is unbounded."
+      ]
+    }
+  },
+  "evaluation_audit": {
+    "subsystem_id": "quota_metering",
+    "action_category": "configuration_change",
+    "origin_surface": "scheduled_operation",
+    "result_outcome_default": "succeeded",
+    "required_detail_fields": [
+      "evaluationId",
+      "queryScope",
+      "overallStatus",
+      "hardLimitBreaches",
+      "softLimitBreaches",
+      "warningDimensions",
+      "evaluatedAt"
+    ],
+    "rules": [
+      "The quota posture audit summary must stay compatible with the canonical audit event schema and reuse the quota_metering subsystem id.",
+      "Workspace-scoped responses may reference only their own workspace while tenant-scoped responses may summarize posture for only the requested tenant.",
+      "The audit summary must never embed raw request identifiers, secret material, or cross-tenant payload detail."
+    ]
+  },
+  "boundaries": [
+    "alert_emission_is_defined_in_us_obs_03_t03",
+    "hard_limit_blocking_is_defined_in_us_obs_03_t04",
+    "console_usage_projection_is_defined_in_us_obs_03_t05",
+    "cross_module_consumption_and_enforcement_tests_are_defined_in_us_obs_03_t06"
+  ]
+}
