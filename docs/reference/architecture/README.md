@@ -27,6 +27,8 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/reference/architecture/observability-health-checks.md` is the human-readable architecture companion for the observability health-check baseline introduced by `US-OBS-01-T03`.
 - `services/internal-contracts/src/observability-business-metrics.json` is the machine-readable source of truth for the business and product metrics baseline introduced by `US-OBS-01-T04`.
 - `docs/reference/architecture/observability-business-metrics.md` is the human-readable architecture companion for the observability business-metrics baseline introduced by `US-OBS-01-T04`.
+- `services/internal-contracts/src/observability-console-alerts.json` is the machine-readable source of truth for the console health summary and internal alert contract introduced by `US-OBS-01-T05`.
+- `docs/reference/architecture/observability-console-alerts.md` is the human-readable architecture companion for the observability console-summary and internal-alert baseline introduced by `US-OBS-01-T05`.
 
 ## Usage rules
 

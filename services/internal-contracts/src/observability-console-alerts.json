@@ -1,0 +1,475 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-01-T05",
+  "system": "in-atelier-observability-plane",
+  "source_metrics_contract": "2026-03-28",
+  "source_dashboard_contract": "2026-03-28",
+  "source_health_contract": "2026-03-28",
+  "source_business_metrics_contract": "2026-03-28",
+  "principles": [
+    "Console health summaries and internal degradation alerts must consume the same observability contracts already defined for metrics, dashboards, health checks, and business metrics rather than inventing parallel status semantics.",
+    "Tenant- and workspace-scoped summaries must preserve strict multi-tenant isolation by exposing attributable degradation only and masking platform-internal implementation detail when that detail cannot be safely attributed.",
+    "Internal alerts are operational and auditable signals; they may drive console summaries and operator response, but they do not create a public notification or external delivery API commitment in this increment.",
+    "Freshness loss is itself a reportable health and alerting condition; stale evidence must remain explicit instead of being presented as current healthy state."
+  ],
+  "scope_aliases": {
+    "platform": {
+      "summary_scope": "platform",
+      "dashboard_scope": "global",
+      "metric_scope": "platform"
+    },
+    "tenant": {
+      "summary_scope": "tenant",
+      "dashboard_scope": "tenant",
+      "metric_scope": "tenant"
+    },
+    "workspace": {
+      "summary_scope": "workspace",
+      "dashboard_scope": "workspace",
+      "metric_scope": "workspace"
+    }
+  },
+  "health_summary": {
+    "required_fields": [
+      "summary_scope",
+      "status",
+      "observed_at",
+      "summary",
+      "correlation_id",
+      "evidence_freshness_seconds"
+    ],
+    "freshness_threshold_seconds": 120,
+    "supported_scopes": [
+      {
+        "id": "platform",
+        "display_name": "Platform summary",
+        "dashboard_scope": "global",
+        "metric_scope": "platform",
+        "required_context": [],
+        "summary_visibility": "named_components",
+        "safe_attribution_labels": [
+          "platform_condition"
+        ],
+        "authorized_roles": [
+          "platform_admin",
+          "platform_operator",
+          "platform_auditor"
+        ]
+      },
+      {
+        "id": "tenant",
+        "display_name": "Tenant summary",
+        "dashboard_scope": "tenant",
+        "metric_scope": "tenant",
+        "required_context": [
+          "tenant_id"
+        ],
+        "summary_visibility": "attributed_only",
+        "safe_attribution_labels": [
+          "platform_condition",
+          "tenant_local"
+        ],
+        "authorized_roles": [
+          "tenant_owner",
+          "tenant_admin",
+          "tenant_viewer"
+        ]
+      },
+      {
+        "id": "workspace",
+        "display_name": "Workspace summary",
+        "dashboard_scope": "workspace",
+        "metric_scope": "workspace",
+        "required_context": [
+          "tenant_id",
+          "workspace_id"
+        ],
+        "summary_visibility": "attributed_only",
+        "safe_attribution_labels": [
+          "platform_condition",
+          "tenant_local",
+          "workspace_local"
+        ],
+        "authorized_roles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_operator",
+          "workspace_viewer",
+          "workspace_auditor"
+        ]
+      }
+    ],
+    "status_vocabulary": [
+      {
+        "id": "healthy",
+        "display_name": "Healthy",
+        "operational_meaning": "All required evidence is fresh and no required component or downstream business-impact signal indicates degradation.",
+        "aggregation_priority": 50
+      },
+      {
+        "id": "degraded",
+        "display_name": "Degraded",
+        "operational_meaning": "The platform or requested scope remains partially serving but at least one required signal indicates degraded behavior or elevated operational risk.",
+        "aggregation_priority": 40
+      },
+      {
+        "id": "unavailable",
+        "display_name": "Unavailable",
+        "operational_meaning": "A required component or scope-critical dependency is unavailable and the requested summary scope should be treated as materially impaired.",
+        "aggregation_priority": 10
+      },
+      {
+        "id": "stale",
+        "display_name": "Stale",
+        "operational_meaning": "The evidence backing the summary is older than the allowed freshness threshold and must not be treated as a current health statement.",
+        "aggregation_priority": 20
+      },
+      {
+        "id": "unknown",
+        "display_name": "Unknown",
+        "operational_meaning": "The system cannot determine a safe current summary because evidence is incomplete, masked, or missing.",
+        "aggregation_priority": 30
+      }
+    ],
+    "aggregation_rules": {
+      "platform": {
+        "summary_status_order": [
+          "unavailable",
+          "degraded",
+          "stale",
+          "unknown",
+          "healthy"
+        ],
+        "rule": "Platform summary is unavailable when any required health component is unavailable, degraded when none are unavailable but at least one required component is degraded or a severity high business-impact alert is active, stale when freshness is beyond threshold, unknown when evidence is incomplete, otherwise healthy."
+      },
+      "tenant": {
+        "summary_status_order": [
+          "unavailable",
+          "degraded",
+          "stale",
+          "unknown",
+          "healthy"
+        ],
+        "rule": "Tenant summary inherits platform_condition when a platform-scoped degradation affects tenant-visible capability, reports tenant_local when tenant-attributable evidence is degraded, becomes stale when tenant-scoped evidence exceeds freshness threshold, unknown when isolation-safe evidence is incomplete, otherwise healthy."
+      },
+      "workspace": {
+        "summary_status_order": [
+          "unavailable",
+          "degraded",
+          "stale",
+          "unknown",
+          "healthy"
+        ],
+        "rule": "Workspace summary inherits platform_condition or tenant_local before reporting workspace_local, becomes stale when workspace evidence exceeds freshness threshold, unknown when workspace-safe evidence is incomplete, otherwise healthy."
+      }
+    },
+    "scope_isolation_rules": {
+      "platform": {
+        "detail_policy": "named_components",
+        "rule": "Platform summaries may name required components and platform-wide business-impact domains because the viewer already has platform-wide authority."
+      },
+      "tenant": {
+        "detail_policy": "attributed_only",
+        "rule": "Tenant summaries must not expose cross-tenant identifiers, raw infrastructure coordinates, or platform-internal dependency topology that cannot be safely attributed."
+      },
+      "workspace": {
+        "detail_policy": "attributed_only",
+        "rule": "Workspace summaries must preserve tenant_id and workspace_id context and may not widen to unrelated tenant/workspace evidence."
+      }
+    }
+  },
+  "alert_contract": {
+    "required_fields": [
+      "alert_id",
+      "category_id",
+      "summary_scope",
+      "severity",
+      "lifecycle_state",
+      "triggered_at",
+      "summary",
+      "correlation_id"
+    ],
+    "severity_levels": [
+      {
+        "id": "info",
+        "display_name": "Info",
+        "rank": 10,
+        "description": "Informational condition useful for awareness but not an active incident by default."
+      },
+      {
+        "id": "warning",
+        "display_name": "Warning",
+        "rank": 20,
+        "description": "Actionable condition that should be investigated before tenant-visible impact grows."
+      },
+      {
+        "id": "high",
+        "display_name": "High",
+        "rank": 30,
+        "description": "Material degradation with probable tenant-visible impact or elevated operational risk."
+      },
+      {
+        "id": "critical",
+        "display_name": "Critical",
+        "rank": 40,
+        "description": "Severe degradation or outage requiring immediate operational response."
+      }
+    ],
+    "lifecycle_states": [
+      {
+        "id": "active",
+        "display_name": "Active",
+        "terminal": false,
+        "allowed_transitions": [
+          "acknowledged",
+          "resolved",
+          "suppressed"
+        ]
+      },
+      {
+        "id": "acknowledged",
+        "display_name": "Acknowledged",
+        "terminal": false,
+        "allowed_transitions": [
+          "resolved",
+          "suppressed"
+        ]
+      },
+      {
+        "id": "resolved",
+        "display_name": "Resolved",
+        "terminal": true,
+        "allowed_transitions": []
+      },
+      {
+        "id": "suppressed",
+        "display_name": "Suppressed",
+        "terminal": true,
+        "allowed_transitions": []
+      }
+    ],
+    "categories": [
+      {
+        "id": "component_availability_transition",
+        "display_name": "Component availability transition",
+        "default_severity": "critical",
+        "scope_rules": [
+          "platform",
+          "tenant",
+          "workspace"
+        ],
+        "required_fields": [
+          "component_id",
+          "current_status",
+          "previous_status"
+        ],
+        "default_suppression_window_seconds": 300,
+        "evidence_sources": [
+          "observability-health-checks",
+          "observability-metrics-stack"
+        ],
+        "resolution_event_required": true,
+        "description": "Raised when a required health component changes between healthy, degraded, unavailable, stale, or unknown in a way that should update console summaries and operator awareness."
+      },
+      {
+        "id": "sustained_error_rate_breach",
+        "display_name": "Sustained error rate breach",
+        "default_severity": "high",
+        "scope_rules": [
+          "platform",
+          "tenant",
+          "workspace"
+        ],
+        "required_fields": [
+          "metric_family_id",
+          "threshold_window",
+          "breach_ratio"
+        ],
+        "default_suppression_window_seconds": 600,
+        "evidence_sources": [
+          "observability-metrics-stack",
+          "observability-dashboards"
+        ],
+        "resolution_event_required": true,
+        "description": "Raised when normalized workload or API error ratios remain above an operator-defined threshold long enough to represent meaningful degradation rather than a transient spike."
+      },
+      {
+        "id": "freshness_staleness",
+        "display_name": "Freshness staleness",
+        "default_severity": "warning",
+        "scope_rules": [
+          "platform",
+          "tenant",
+          "workspace"
+        ],
+        "required_fields": [
+          "stale_signal_type",
+          "last_observed_at",
+          "evidence_freshness_seconds"
+        ],
+        "default_suppression_window_seconds": 900,
+        "evidence_sources": [
+          "observability-health-checks",
+          "observability-business-metrics"
+        ],
+        "resolution_event_required": true,
+        "description": "Raised when required probe or summary evidence exceeds the freshness threshold and the console must show stale instead of current health."
+      },
+      {
+        "id": "business_metric_deviation",
+        "display_name": "Business metric deviation",
+        "default_severity": "warning",
+        "scope_rules": [
+          "platform",
+          "tenant",
+          "workspace"
+        ],
+        "required_fields": [
+          "metric_family_id",
+          "expected_range",
+          "observed_value"
+        ],
+        "default_suppression_window_seconds": 1800,
+        "evidence_sources": [
+          "observability-business-metrics"
+        ],
+        "resolution_event_required": true,
+        "description": "Raised when a bounded business metric deviates materially from expected posture and should inform console impact summaries or operational triage."
+      }
+    ],
+    "audience_routing": {
+      "platform": [
+        {
+          "role_id": "platform_operator",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "platform_admin",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "platform_auditor",
+          "delivery_mode": "audit_summary"
+        }
+      ],
+      "tenant": [
+        {
+          "role_id": "tenant_owner",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "tenant_admin",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "tenant_viewer",
+          "delivery_mode": "summary_only"
+        }
+      ],
+      "workspace": [
+        {
+          "role_id": "workspace_owner",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "workspace_admin",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "workspace_operator",
+          "delivery_mode": "internal_alert_inbox"
+        },
+        {
+          "role_id": "workspace_auditor",
+          "delivery_mode": "audit_summary"
+        },
+        {
+          "role_id": "workspace_viewer",
+          "delivery_mode": "summary_only"
+        }
+      ]
+    },
+    "suppression_defaults": {
+      "dedupe_key_fields": [
+        "summary_scope",
+        "category_id",
+        "tenant_id",
+        "workspace_id",
+        "component_id",
+        "metric_family_id"
+      ],
+      "boundary_rule": "Duplicate alerts for the same scope/category/evidence identity inside the suppression window collapse into a suppressed follow-up record.",
+      "repeat_summary_behavior": "Repeat alerts increment counters and preserve the latest observed evidence without creating an unbounded stream of console-facing duplicates.",
+      "suppressed_alerts_remain_queryable": true
+    },
+    "oscillation_detection": {
+      "threshold_transitions": 4,
+      "within_seconds": 600,
+      "artifact_type": "state_oscillation"
+    },
+    "masking_policy": {
+      "forbidden_content_categories": [
+        "password",
+        "secret",
+        "token",
+        "connection_string",
+        "raw_hostname",
+        "raw_endpoint",
+        "user_id",
+        "email",
+        "object_key",
+        "raw_topic_name"
+      ],
+      "rules": [
+        "Tenant and workspace alerts must use bounded degradation attribution labels instead of exposing raw platform-internal coordinates or cross-tenant detail.",
+        "Alert payloads may include stable component ids only when that component is explicitly safe and relevant for the requested summary scope.",
+        "Suppressed alerts remain queryable for audit and debugging but must preserve the same masking posture as active alerts."
+      ]
+    }
+  },
+  "audit_context": {
+    "required_fields": [
+      "actor_id",
+      "summary_scope",
+      "alert_category",
+      "tenant_id",
+      "workspace_id",
+      "correlation_id"
+    ],
+    "summary_access_event": {
+      "event_name": "observability.summary.viewed",
+      "required_fields": [
+        "actor_id",
+        "summary_scope",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id"
+      ]
+    },
+    "alert_delivery_event": {
+      "event_name": "observability.alert.delivered",
+      "required_fields": [
+        "actor_id",
+        "alert_category",
+        "summary_scope",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id"
+      ]
+    }
+  },
+  "downstream_consumers": [
+    {
+      "id": "console_summary_views",
+      "uses": "Consumes scope-safe summary cards and degradation attribution for platform, tenant, and workspace console views."
+    },
+    {
+      "id": "internal_alert_inbox",
+      "uses": "Consumes alert categories, severity levels, lifecycle semantics, and audience routing for internal operator alerting surfaces."
+    },
+    {
+      "id": "observability_smoke_verification",
+      "uses": "Consumes summary statuses, freshness semantics, and alert categories for T06 smoke verification coverage."
+    }
+  ]
+}

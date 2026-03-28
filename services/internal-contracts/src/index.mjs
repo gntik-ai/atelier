@@ -8,6 +8,7 @@ const OBSERVABILITY_METRICS_STACK_URL = new URL('./observability-metrics-stack.j
 const OBSERVABILITY_DASHBOARDS_URL = new URL('./observability-dashboards.json', import.meta.url);
 const OBSERVABILITY_HEALTH_CHECKS_URL = new URL('./observability-health-checks.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
+const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 
@@ -19,6 +20,7 @@ let cachedObservabilityMetricsStack;
 let cachedObservabilityDashboards;
 let cachedObservabilityHealthChecks;
 let cachedObservabilityBusinessMetrics;
+let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
 
@@ -86,6 +88,14 @@ export function readObservabilityBusinessMetrics() {
   return cachedObservabilityBusinessMetrics;
 }
 
+export function readObservabilityConsoleAlerts() {
+  if (!cachedObservabilityConsoleAlerts) {
+    cachedObservabilityConsoleAlerts = JSON.parse(readFileSync(OBSERVABILITY_CONSOLE_ALERTS_URL, 'utf8'));
+  }
+
+  return cachedObservabilityConsoleAlerts;
+}
+
 export function readPublicApiTaxonomy() {
   if (!cachedPublicApiTaxonomy) {
     cachedPublicApiTaxonomy = JSON.parse(readFileSync(PUBLIC_API_TAXONOMY_URL, 'utf8'));
@@ -110,6 +120,7 @@ export const OBSERVABILITY_METRICS_STACK_VERSION = readObservabilityMetricsStack
 export const OBSERVABILITY_DASHBOARDS_VERSION = readObservabilityDashboards().version;
 export const OBSERVABILITY_HEALTH_CHECKS_VERSION = readObservabilityHealthChecks().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
+export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
@@ -370,6 +381,82 @@ export function getObservabilityBusinessMetricControls() {
     auditContext: businessMetrics.audit_context ?? {},
     freshnessAndCollection: businessMetrics.freshness_and_collection ?? {}
   };
+}
+
+export function listHealthSummaryScopes() {
+  return readObservabilityConsoleAlerts().health_summary?.supported_scopes ?? [];
+}
+
+export function getHealthSummaryScope(scopeId) {
+  return listHealthSummaryScopes().find((scope) => scope.id === scopeId);
+}
+
+export function listHealthSummaryStatuses() {
+  return readObservabilityConsoleAlerts().health_summary?.status_vocabulary ?? [];
+}
+
+export function getHealthSummaryStatus(statusId) {
+  return listHealthSummaryStatuses().find((status) => status.id === statusId);
+}
+
+export function getHealthSummaryAggregationRules() {
+  return readObservabilityConsoleAlerts().health_summary?.aggregation_rules ?? {};
+}
+
+export function getHealthSummaryAggregationRule(scopeId) {
+  return getHealthSummaryAggregationRules()[scopeId];
+}
+
+export function getHealthSummaryFreshnessThreshold() {
+  return readObservabilityConsoleAlerts().health_summary?.freshness_threshold_seconds ?? null;
+}
+
+export function getHealthSummaryScopeIsolationRules() {
+  return readObservabilityConsoleAlerts().health_summary?.scope_isolation_rules ?? {};
+}
+
+export function getHealthSummaryScopeIsolationRule(scopeId) {
+  return getHealthSummaryScopeIsolationRules()[scopeId];
+}
+
+export function listAlertCategories() {
+  return readObservabilityConsoleAlerts().alert_contract?.categories ?? [];
+}
+
+export function getAlertCategory(categoryId) {
+  return listAlertCategories().find((category) => category.id === categoryId);
+}
+
+export function listAlertSeverityLevels() {
+  return readObservabilityConsoleAlerts().alert_contract?.severity_levels ?? [];
+}
+
+export function getAlertSeverityLevel(severityId) {
+  return listAlertSeverityLevels().find((severity) => severity.id === severityId);
+}
+
+export function listAlertLifecycleStates() {
+  return readObservabilityConsoleAlerts().alert_contract?.lifecycle_states ?? [];
+}
+
+export function getAlertLifecycleState(stateId) {
+  return listAlertLifecycleStates().find((state) => state.id === stateId);
+}
+
+export function getAlertAudienceRouting(scopeId) {
+  return readObservabilityConsoleAlerts().alert_contract?.audience_routing?.[scopeId] ?? null;
+}
+
+export function getAlertSuppressionDefaults() {
+  return readObservabilityConsoleAlerts().alert_contract?.suppression_defaults ?? {};
+}
+
+export function getAlertOscillationDetection() {
+  return readObservabilityConsoleAlerts().alert_contract?.oscillation_detection ?? {};
+}
+
+export function getAlertMaskingPolicy() {
+  return readObservabilityConsoleAlerts().alert_contract?.masking_policy ?? {};
 }
 
 export function getPublicRoute(operationId) {

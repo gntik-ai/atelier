@@ -242,3 +242,59 @@ npm run validate:observability-business-metrics
 ## Residual implementation note for `US-OBS-01-T04`
 
 `US-OBS-01-T01` through `US-OBS-01-T04` now define the canonical metrics-plane, dashboard-plane, health-probe, and business-metrics semantics for observability. Remaining work still includes console-facing summaries, internal alerting behavior, smoke verification, and any live runtime implementation details that consume these contracts.
+
+## Scope delivered in `US-OBS-01-T05`
+
+This increment establishes the **canonical console health-summary and internal alert baseline** for the platform.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-console-alerts.json` as the machine-readable source of truth for platform/tenant/workspace console summaries, alert categories, severity, lifecycle, suppression defaults, masking rules, audience routing, and audit expectations
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for summary scopes, status vocabulary, aggregation rules, alert categories, lifecycle states, routing, suppression defaults, and masking policy
+- `apps/control-plane/src/observability-admin.mjs` summary helpers for health-summary context, alert context, lifecycle-state inspection, suppression defaults, and top-level contract summarization
+- `scripts/lib/observability-console-alerts.mjs` and `scripts/validate-observability-console-alerts.mjs` for deterministic validation of the console-summary and alert baseline
+- `docs/reference/architecture/observability-console-alerts.md` as the human-readable architecture guide for console summaries and internal alerts
+- `docs/reference/architecture/README.md` index updates so the new baseline is discoverable
+
+## Main decisions in `US-OBS-01-T05`
+
+### Console summaries reuse observability contracts instead of inventing new health semantics
+
+The console summary layer now derives its vocabulary from `US-OBS-01-T01` through `US-OBS-01-T04`.
+
+That means platform, tenant, and workspace summaries reuse the existing scope model, health states, freshness caution, and business-metric inputs rather than defining a separate status model.
+
+### Aggregation precedence is explicit and scope-safe
+
+The summary precedence is:
+
+- `unavailable`
+- `degraded`
+- `stale`
+- `unknown`
+- `healthy`
+
+Tenant and workspace summaries can still surface degradation, but they must attribute it as tenant-local, tenant-inherited, or platform-condition without exposing platform topology or cross-tenant detail.
+
+### Alerting is internal, role-routed, and lifecycle-aware
+
+The new alert baseline defines four categories: component availability transitions, sustained error-rate breaches, freshness staleness, and business-metric deviation.
+
+Alerts now have canonical severity, lifecycle states (`active`, `acknowledged`, `resolved`, `suppressed`), suppression defaults, and role-based audience routing aligned with the authorization model.
+
+### Suppression reduces noise without hiding sustained degradation
+
+Duplicate alerts inside the suppression window are marked as suppressed and remain queryable.
+Oscillation is modeled explicitly rather than handled as a stream of independent transitions.
+
+## Validation for `US-OBS-01-T05`
+
+Primary validation entry point for the console-summary and internal-alert baseline:
+
+```bash
+npm run validate:observability-console-alerts
+```
+
+## Residual implementation note for `US-OBS-01-T05`
+
+`US-OBS-01-T01` through `US-OBS-01-T05` now define the canonical metrics-plane, dashboard-plane, health-probe, business-metrics, console-summary, and internal-alert semantics for observability. Remaining work still includes `US-OBS-01-T06`, which should smoke-test and verify runtime behavior against these contracts rather than introducing alternate summary or alert semantics.
