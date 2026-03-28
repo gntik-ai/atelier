@@ -1,5 +1,15 @@
 import {
+  getAlertAudienceRouting,
+  getAlertCategory,
+  getAlertMaskingPolicy as getObservabilityAlertMaskingPolicy,
+  getAlertOscillationDetection,
+  getAlertSeverityLevel,
+  getAlertSuppressionDefaults as getObservabilityAlertSuppressionDefaults,
   getApiFamily,
+  getHealthSummaryAggregationRule,
+  getHealthSummaryFreshnessThreshold,
+  getHealthSummaryScope,
+  getHealthSummaryScopeIsolationRule,
   getObservabilityBusinessDomain,
   getObservabilityBusinessMetricControls,
   getObservabilityBusinessMetricFamily,
@@ -11,6 +21,11 @@ import {
   getObservabilityHealthProjection,
   getObservabilityProbeType,
   getObservedSubsystem,
+  listAlertCategories,
+  listAlertLifecycleStates,
+  listAlertSeverityLevels,
+  listHealthSummaryScopes,
+  listHealthSummaryStatuses,
   listObservabilityBusinessDomains,
   listObservabilityBusinessMetricFamilies,
   listObservabilityBusinessMetricTypes,
@@ -22,6 +37,7 @@ import {
   listObservabilityProbeTypes,
   listObservedSubsystems,
   readObservabilityBusinessMetrics,
+  readObservabilityConsoleAlerts,
   readObservabilityDashboards,
   readObservabilityHealthChecks,
   readObservabilityMetricsStack
@@ -45,6 +61,12 @@ export const observabilityBusinessDomains = listObservabilityBusinessDomains();
 export const observabilityBusinessMetricTypes = listObservabilityBusinessMetricTypes();
 export const observabilityBusinessMetricFamilies = listObservabilityBusinessMetricFamilies();
 export const observabilityBusinessMetricControls = getObservabilityBusinessMetricControls();
+export const observabilityConsoleAlerts = readObservabilityConsoleAlerts();
+export const observabilityHealthSummaryScopes = listHealthSummaryScopes();
+export const observabilityHealthSummaryStatuses = listHealthSummaryStatuses();
+export const observabilityAlertCategories = listAlertCategories();
+export const observabilityAlertSeverityLevels = listAlertSeverityLevels();
+export const observabilityAlertLifecycleStates = listAlertLifecycleStates();
 
 export function listObservabilitySubsystems() {
   return listObservedSubsystems();
@@ -440,5 +462,217 @@ export function buildObservabilityBusinessMetricQuery(input = {}) {
     auditFields: observabilityBusinessMetricControls.auditContext?.required_fields ?? [],
     forbiddenLabels: observabilityBusinessMetricControls.cardinalityControls?.forbidden_labels ?? [],
     freshnessMetric: observabilityBusinessMetricControls.freshnessAndCollection?.collection_health_metric ?? observabilityCollectionHealth.metric_name
+  };
+}
+
+function resolveObservabilityConsoleScope(scope) {
+  return scope === 'global' ? 'platform' : scope;
+}
+
+function buildConsoleSummaryScopeContext(scopeDescriptor, options = {}) {
+  if (!scopeDescriptor) {
+    throw new Error('Health summary scope descriptor is required.');
+  }
+
+  const dashboardScope = buildObservabilityDashboardScope({
+    dashboardScope: scopeDescriptor.dashboard_scope,
+    subsystem: options.subsystem,
+    tenantId: options.tenantId,
+    workspaceId: options.workspaceId
+  });
+
+  return {
+    scope: scopeDescriptor.id,
+    displayName: scopeDescriptor.display_name,
+    dashboardScope: dashboardScope.dashboardScope,
+    requiredContext: dashboardScope.requiredContext,
+    requiredScopeContext: dashboardScope.requiredScopeContext,
+    queryScope: dashboardScope.queryScope,
+    authorization: dashboardScope.authorization,
+    traceability: dashboardScope.traceability
+  };
+}
+
+export function buildHealthSummaryContext(scope, options = {}) {
+  const normalizedScope = resolveObservabilityConsoleScope(scope);
+  const scopeDescriptor = getHealthSummaryScope(normalizedScope);
+
+  if (!scopeDescriptor) {
+    throw new Error(`Unknown observability health summary scope ${scope}.`);
+  }
+
+  const scopeContext = buildConsoleSummaryScopeContext(scopeDescriptor, options);
+  const aggregationRule = getHealthSummaryAggregationRule(normalizedScope) ?? {};
+  const scopeIsolation = getHealthSummaryScopeIsolationRule(normalizedScope) ?? null;
+
+  return {
+    scope: normalizedScope,
+    displayName: scopeDescriptor.display_name,
+    dashboardScope: scopeContext.dashboardScope,
+    requiredContext: scopeContext.requiredContext,
+    requiredScopeContext: scopeContext.requiredScopeContext,
+    queryScope: scopeContext.queryScope,
+    scopeVisibility: scopeDescriptor.summary_visibility,
+    attributionModes: scopeDescriptor.safe_attribution_labels ?? [],
+    supportedStatuses: observabilityHealthSummaryStatuses.map((status) => ({
+      id: status.id,
+      displayName: status.display_name,
+      operationalMeaning: status.operational_meaning,
+      aggregationPriority: status.aggregation_priority
+    })),
+    summaryRequiredFields: observabilityConsoleAlerts.health_summary?.required_fields ?? [],
+    freshnessThresholdSeconds: getHealthSummaryFreshnessThreshold(),
+    aggregationRule,
+    scopeIsolation,
+    supportingContracts: {
+      metricsStack: observabilityConsoleAlerts.source_metrics_contract,
+      dashboards: observabilityConsoleAlerts.source_dashboard_contract,
+      healthChecks: observabilityConsoleAlerts.source_health_contract,
+      businessMetrics: observabilityConsoleAlerts.source_business_metrics_contract
+    },
+    authorization: scopeContext.authorization,
+    traceability: {
+      dashboard: scopeContext.traceability,
+      summaryAccess: observabilityConsoleAlerts.audit_context?.summary_access_event ?? {},
+      requiredFields: observabilityConsoleAlerts.audit_context?.required_fields ?? []
+    }
+  };
+}
+
+export function buildAlertContext(categoryId, scope, options = {}) {
+  const normalizedScope = resolveObservabilityConsoleScope(scope);
+  const category = getAlertCategory(categoryId);
+
+  if (!category) {
+    throw new Error(`Unknown observability alert category ${categoryId}.`);
+  }
+
+  if (!(category.scope_rules ?? []).includes(normalizedScope)) {
+    throw new Error(`Observability alert category ${categoryId} does not support scope ${normalizedScope}.`);
+  }
+
+  const scopeDescriptor = getHealthSummaryScope(normalizedScope);
+  const scopeContext = buildConsoleSummaryScopeContext(scopeDescriptor, options);
+  const defaultSeverity = getAlertSeverityLevel(category.default_severity) ?? { id: category.default_severity };
+  const suppressionDefaults = getObservabilityAlertSuppressionDefaults();
+
+  return {
+    category: {
+      id: category.id,
+      description: category.description,
+      defaultSeverity,
+      requiredFields: [
+        ...(observabilityConsoleAlerts.alert_contract?.required_fields ?? []),
+        ...(category.required_fields ?? [])
+      ],
+      evidenceSources: category.evidence_sources ?? [],
+      resolutionEventRequired: category.resolution_event_required === true
+    },
+    scope: normalizedScope,
+    displayName: scopeDescriptor?.display_name ?? normalizedScope,
+    dashboardScope: scopeContext.dashboardScope,
+    requiredContext: scopeContext.requiredContext,
+    requiredScopeContext: scopeContext.requiredScopeContext,
+    authorization: scopeContext.authorization,
+    routing: getAlertAudienceRouting(normalizedScope),
+    suppression: {
+      defaultWindowSeconds: category.default_suppression_window_seconds,
+      dedupeKeyFields: suppressionDefaults.dedupe_key_fields ?? [],
+      boundaryRule: suppressionDefaults.boundary_rule,
+      repeatSummaryBehavior: suppressionDefaults.repeat_summary_behavior,
+      suppressedAlertsRemainQueryable: suppressionDefaults.suppressed_alerts_remain_queryable === true,
+      oscillationDetection: getAlertOscillationDetection()
+    },
+    lifecycle: {
+      initialState: 'active',
+      states: observabilityAlertLifecycleStates.map((state) => ({
+        id: state.id,
+        displayName: state.display_name,
+        terminal: state.terminal,
+        allowedTransitions: state.allowed_transitions ?? []
+      }))
+    },
+    maskingPolicy: getObservabilityAlertMaskingPolicy(),
+    auditContext: observabilityConsoleAlerts.audit_context?.alert_delivery_event ?? {}
+  };
+}
+
+export function getAlertLifecycleStateMachine() {
+  return {
+    version: observabilityConsoleAlerts.version,
+    states: observabilityAlertLifecycleStates.map((state) => ({
+      id: state.id,
+      displayName: state.display_name,
+      terminal: state.terminal,
+      allowedTransitions: state.allowed_transitions ?? []
+    })),
+    adjacency: Object.fromEntries(
+      observabilityAlertLifecycleStates.map((state) => [state.id, state.allowed_transitions ?? []])
+    )
+  };
+}
+
+export function getAlertSuppressionDefaults() {
+  return {
+    ...getObservabilityAlertSuppressionDefaults(),
+    categories: observabilityAlertCategories.map((category) => ({
+      id: category.id,
+      defaultSeverity: category.default_severity,
+      defaultSuppressionWindowSeconds: category.default_suppression_window_seconds
+    })),
+    oscillationDetection: getAlertOscillationDetection()
+  };
+}
+
+export function summarizeConsoleAlertsContract() {
+  return {
+    version: observabilityConsoleAlerts.version,
+    sourceContracts: {
+      metricsStack: observabilityConsoleAlerts.source_metrics_contract,
+      dashboards: observabilityConsoleAlerts.source_dashboard_contract,
+      healthChecks: observabilityConsoleAlerts.source_health_contract,
+      businessMetrics: observabilityConsoleAlerts.source_business_metrics_contract
+    },
+    healthSummary: {
+      scopes: observabilityHealthSummaryScopes.map((scope) => ({
+        id: scope.id,
+        displayName: scope.display_name,
+        dashboardScope: scope.dashboard_scope,
+        requiredContext: scope.required_context ?? [],
+        summaryVisibility: scope.summary_visibility,
+        attributionModes: scope.safe_attribution_labels ?? []
+      })),
+      statuses: observabilityHealthSummaryStatuses.map((status) => ({
+        id: status.id,
+        aggregationPriority: status.aggregation_priority
+      })),
+      freshnessThresholdSeconds: getHealthSummaryFreshnessThreshold(),
+      aggregationOrderByScope: Object.fromEntries(
+        observabilityHealthSummaryScopes.map((scope) => [
+          scope.id,
+          getHealthSummaryAggregationRule(scope.id)?.summary_status_order ?? []
+        ])
+      )
+    },
+    alerts: {
+      categories: observabilityAlertCategories.map((category) => ({
+        id: category.id,
+        defaultSeverity: category.default_severity,
+        defaultSuppressionWindowSeconds: category.default_suppression_window_seconds,
+        scopeRules: category.scope_rules ?? []
+      })),
+      severityLevels: observabilityAlertSeverityLevels.map((severity) => ({
+        id: severity.id,
+        rank: severity.rank
+      })),
+      lifecycleStates: getAlertLifecycleStateMachine().states,
+      audienceRouting: Object.fromEntries(
+        observabilityHealthSummaryScopes.map((scope) => [scope.id, getAlertAudienceRouting(scope.id)])
+      ),
+      suppressionDefaults: getAlertSuppressionDefaults(),
+      maskingPolicy: getObservabilityAlertMaskingPolicy()
+    },
+    auditContext: observabilityConsoleAlerts.audit_context ?? {},
+    downstreamConsumers: observabilityConsoleAlerts.downstream_consumers ?? []
   };
 }
