@@ -4,6 +4,7 @@ const INTERNAL_SERVICE_MAP_URL = new URL('./internal-service-map.json', import.m
 const DEPLOYMENT_TOPOLOGY_URL = new URL('./deployment-topology.json', import.meta.url);
 const AUTHORIZATION_MODEL_URL = new URL('./authorization-model.json', import.meta.url);
 const DOMAIN_MODEL_URL = new URL('./domain-model.json', import.meta.url);
+const OBSERVABILITY_METRICS_STACK_URL = new URL('./observability-metrics-stack.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 
@@ -11,6 +12,7 @@ let cachedInternalServiceMap;
 let cachedDeploymentTopology;
 let cachedAuthorizationModel;
 let cachedDomainModel;
+let cachedObservabilityMetricsStack;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
 
@@ -46,6 +48,14 @@ export function readDomainModel() {
   return cachedDomainModel;
 }
 
+export function readObservabilityMetricsStack() {
+  if (!cachedObservabilityMetricsStack) {
+    cachedObservabilityMetricsStack = JSON.parse(readFileSync(OBSERVABILITY_METRICS_STACK_URL, 'utf8'));
+  }
+
+  return cachedObservabilityMetricsStack;
+}
+
 export function readPublicApiTaxonomy() {
   if (!cachedPublicApiTaxonomy) {
     cachedPublicApiTaxonomy = JSON.parse(readFileSync(PUBLIC_API_TAXONOMY_URL, 'utf8'));
@@ -66,6 +76,7 @@ export const INTERNAL_CONTRACT_VERSION = readInternalServiceMap().version;
 export const DEPLOYMENT_TOPOLOGY_VERSION = readDeploymentTopology().version;
 export const AUTHORIZATION_MODEL_VERSION = readAuthorizationModel().version;
 export const DOMAIN_MODEL_VERSION = readDomainModel().version;
+export const OBSERVABILITY_METRICS_STACK_VERSION = readObservabilityMetricsStack().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
@@ -214,6 +225,34 @@ export function getApiFamily(familyId) {
 
 export function listPublicRoutes() {
   return readPublicRouteCatalog().routes ?? [];
+}
+
+export function listObservabilityContracts() {
+  return Object.entries(readObservabilityMetricsStack().contracts ?? {}).map(([id, contract]) => ({ id, ...contract }));
+}
+
+export function getObservabilityContract(contractId) {
+  return readObservabilityMetricsStack().contracts?.[contractId];
+}
+
+export function listObservabilityMetricFamilies() {
+  return readObservabilityMetricsStack().naming?.normalized_metric_families ?? [];
+}
+
+export function getObservabilityMetricFamily(metricFamilyId) {
+  return listObservabilityMetricFamilies().find((family) => family.id === metricFamilyId);
+}
+
+export function listObservedSubsystems() {
+  return readObservabilityMetricsStack().subsystems ?? [];
+}
+
+export function getObservedSubsystem(subsystemId) {
+  return listObservedSubsystems().find((subsystem) => subsystem.id === subsystemId);
+}
+
+export function getObservabilityCollectionHealth() {
+  return readObservabilityMetricsStack().collection_health ?? {};
 }
 
 export function getPublicRoute(operationId) {

@@ -1,0 +1,529 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-01-T01",
+  "system": "in-atelier-observability-plane",
+  "principles": [
+    "Every BaaS subsystem publishes metrics into one common observability plane before any downstream dashboard, health, or business-metric work is layered on top.",
+    "Tenant-attributable metric series preserve tenant and optional workspace selectors while platform-global series remain explicitly marked as platform scope.",
+    "The common plane normalizes naming, labeling, freshness, and collection-health semantics without changing the external API or runtime behavior of the subsystems themselves.",
+    "High-cardinality labels remain bounded through stable route, resource, and operation identifiers rather than raw paths, request ids, or object keys."
+  ],
+  "contracts": {
+    "metric_family_descriptor": {
+      "version": "2026-03-28",
+      "required_fields": [
+        "id",
+        "name",
+        "type",
+        "required_labels",
+        "description"
+      ],
+      "versioning": "Normalized metric family names stay additive inside the same version; breaking renames require a new contract version and compatibility window.",
+      "error_classes": [
+        "unknown_metric_family",
+        "missing_required_labels",
+        "forbidden_high_cardinality_label"
+      ]
+    },
+    "subsystem_collection_descriptor": {
+      "version": "2026-03-28",
+      "required_fields": [
+        "id",
+        "collection_mode",
+        "target",
+        "metric_categories",
+        "supported_scopes"
+      ],
+      "versioning": "Subsystem descriptors evolve additively; interval, staleness, and required-category changes remain backwards compatible when they tighten defaults without removing prior fields.",
+      "error_classes": [
+        "missing_collection_target",
+        "missing_metric_category",
+        "unsupported_scope_descriptor"
+      ]
+    },
+    "collection_health_descriptor": {
+      "version": "2026-03-28",
+      "required_fields": [
+        "metric_name",
+        "failure_counter",
+        "lag_metric",
+        "required_labels",
+        "success_value",
+        "failure_value"
+      ],
+      "versioning": "Collection-health metrics remain additive; the success/failure semantics stay stable within the current contract version.",
+      "error_classes": [
+        "stale_collection_target",
+        "collection_failure_hidden",
+        "missing_collection_lag_signal"
+      ]
+    }
+  },
+  "naming": {
+    "prefix": "in_atelier",
+    "metric_scope_label": "metric_scope",
+    "required_labels": [
+      "environment",
+      "subsystem",
+      "metric_scope",
+      "collection_mode"
+    ],
+    "tenant_isolation": {
+      "tenant_label": "tenant_id",
+      "workspace_label": "workspace_id",
+      "platform_scope_value": "platform",
+      "tenant_scope_value": "tenant",
+      "workspace_scope_value": "workspace",
+      "global_metric_handling": "Infrastructure-global series stay marked as metric_scope=platform and do not appear in tenant-scoped query results unless the caller holds platform-wide access.",
+      "label_access_rules": [
+        "tenant_id is mandatory on every tenant-attributable series.",
+        "workspace_id is required when the subsystem can safely distinguish workspace ownership.",
+        "platform-scoped metrics omit tenant_id and workspace_id rather than populating synthetic wildcard values.",
+        "Query surfaces must reject selectors that attempt to mix tenant-scoped filters with platform-scoped only metrics unless explicitly aggregated by a platform operator."
+      ]
+    },
+    "cardinality_controls": {
+      "forbidden_labels": [
+        "user_id",
+        "session_id",
+        "request_id",
+        "raw_path",
+        "raw_query",
+        "raw_topic_name",
+        "object_key",
+        "authorization_header"
+      ],
+      "bounded_labels": {
+        "route_template": "Use stable route families or normalized operation ids instead of raw URLs.",
+        "topic_ref": "Use logical topic resource ids, never physical broker topic names.",
+        "bucket_ref": "Use logical bucket ids and prefixes, never full object keys.",
+        "function_ref": "Use stable action resource ids, never activation payload fragments.",
+        "database_ref": "Use tenant-approved logical database identifiers, never ad-hoc connection strings."
+      }
+    },
+    "latency_histogram_buckets_seconds": [
+      0.005,
+      0.01,
+      0.025,
+      0.05,
+      0.1,
+      0.25,
+      0.5,
+      1,
+      2.5,
+      5,
+      10
+    ],
+    "normalized_metric_families": [
+      {
+        "id": "component_up",
+        "name": "in_atelier_component_up",
+        "type": "gauge",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode"
+        ],
+        "description": "Normalized availability signal for one subsystem target."
+      },
+      {
+        "id": "component_operations_total",
+        "name": "in_atelier_component_operations_total",
+        "type": "counter",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "operation"
+        ],
+        "description": "Normalized throughput counter for successful and attempted operations."
+      },
+      {
+        "id": "component_operation_errors_total",
+        "name": "in_atelier_component_operation_errors_total",
+        "type": "counter",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "operation",
+          "error_class"
+        ],
+        "description": "Normalized error counter for subsystem operations."
+      },
+      {
+        "id": "component_operation_duration_seconds",
+        "name": "in_atelier_component_operation_duration_seconds",
+        "type": "histogram",
+        "required_labels": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "operation"
+        ],
+        "description": "Normalized latency histogram for subsystem operations."
+      }
+    ]
+  },
+  "operating_targets": {
+    "collection_model": "hybrid",
+    "default_scrape_interval_seconds": 30,
+    "default_max_staleness_seconds": 120,
+    "control_plane_interval_seconds": 15,
+    "retention": {
+      "hot_days": 15,
+      "downsample_after_days": 90,
+      "cold_days": 395
+    },
+    "resolution": {
+      "default": "30s",
+      "downsampled": [
+        "5m",
+        "1h"
+      ]
+    },
+    "internal_only": true,
+    "note": "These are internal operating targets for collection and query ergonomics, not external SLA commitments."
+  },
+  "collection_health": {
+    "metric_name": "in_atelier_observability_collection_health",
+    "failure_counter": "in_atelier_observability_collection_failures_total",
+    "lag_metric": "in_atelier_observability_collection_lag_seconds",
+    "required_labels": [
+      "environment",
+      "subsystem",
+      "collection_mode",
+      "target_ref"
+    ],
+    "success_value": 1,
+    "failure_value": 0
+  },
+  "subsystems": [
+    {
+      "id": "apisix",
+      "display_name": "APISIX",
+      "collection_mode": "scrape",
+      "source_kind": "native_prometheus",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "apisix",
+        "port_name": "http",
+        "metrics_path": "/apisix/prometheus/metrics",
+        "interval_seconds": 30,
+        "max_staleness_seconds": 120
+      },
+      "native_metric_hints": [
+        "apisix_http_status",
+        "apisix_nginx_http_current_connections"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "route_template",
+        "http_method",
+        "status_class"
+      ],
+      "notes": [
+        "Route and upstream labels must use bounded route-family identifiers instead of raw request paths.",
+        "Tenant/workspace attribution is derived from gateway-managed context labels when the request is mapped to a known tenant/workspace scope."
+      ]
+    },
+    {
+      "id": "kafka",
+      "display_name": "Kafka",
+      "collection_mode": "scrape",
+      "source_kind": "exporter_or_bridge",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "kafka",
+        "port_name": "metrics",
+        "metrics_path": "/metrics",
+        "interval_seconds": 30,
+        "max_staleness_seconds": 120
+      },
+      "native_metric_hints": [
+        "kafka_server_brokertopicmetrics_messagesin_total",
+        "kafka_consumergroup_lag"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "resource_kind",
+        "operation",
+        "status_class"
+      ],
+      "notes": [
+        "Broker-global health stays platform scoped.",
+        "Topic, bridge, trigger, and lag projections may be tenant or workspace scoped only after logical topic ownership is resolved by the platform."
+      ]
+    },
+    {
+      "id": "postgresql",
+      "display_name": "PostgreSQL",
+      "collection_mode": "scrape",
+      "source_kind": "exporter_plus_control_plane_projection",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "postgresql",
+        "port_name": "metrics",
+        "metrics_path": "/metrics",
+        "interval_seconds": 30,
+        "max_staleness_seconds": 120
+      },
+      "native_metric_hints": [
+        "pg_up",
+        "pg_stat_database_xact_commit"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "resource_kind",
+        "operation",
+        "status_class"
+      ],
+      "notes": [
+        "Cluster-level engine health remains platform scoped.",
+        "Tenant/workspace labels apply only to platform-managed database, schema, role, and data-api projections that can be safely attributed."
+      ]
+    },
+    {
+      "id": "mongodb",
+      "display_name": "MongoDB",
+      "collection_mode": "scrape",
+      "source_kind": "exporter_plus_control_plane_projection",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "mongodb",
+        "port_name": "metrics",
+        "metrics_path": "/metrics",
+        "interval_seconds": 30,
+        "max_staleness_seconds": 120
+      },
+      "native_metric_hints": [
+        "mongodb_up",
+        "mongodb_ss_opcounters_query"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "resource_kind",
+        "operation",
+        "status_class"
+      ],
+      "notes": [
+        "Engine and replica-set health remain platform scoped.",
+        "Collection and document workload metrics must use bounded collection references and never expose raw document identifiers."
+      ]
+    },
+    {
+      "id": "openwhisk",
+      "display_name": "OpenWhisk",
+      "collection_mode": "scrape",
+      "source_kind": "native_or_exporter",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "openwhisk",
+        "port_name": "metrics",
+        "metrics_path": "/metrics",
+        "interval_seconds": 30,
+        "max_staleness_seconds": 120
+      },
+      "native_metric_hints": [
+        "openwhisk_controller_activation_count",
+        "openwhisk_controller_activation_duration_seconds"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "resource_kind",
+        "operation",
+        "status_class"
+      ],
+      "notes": [
+        "Activation metrics may be tenant/workspace scoped through the platform-managed namespace and action reference mapping.",
+        "Payload-level labels remain forbidden; only normalized action, package, and trigger references may be exported."
+      ]
+    },
+    {
+      "id": "storage",
+      "display_name": "S3-compatible storage",
+      "collection_mode": "hybrid",
+      "source_kind": "exporter_plus_platform_projection",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "storage",
+        "port_name": "metrics",
+        "metrics_path": "/metrics",
+        "interval_seconds": 60,
+        "max_staleness_seconds": 180
+      },
+      "native_metric_hints": [
+        "s3_requests_total",
+        "s3_request_duration_seconds"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "resource_kind",
+        "operation",
+        "status_class"
+      ],
+      "notes": [
+        "Provider-global health stays platform scoped.",
+        "Tenant/workspace usage and object-operation projections must use logical bucket ids and bounded prefixes rather than full object keys."
+      ]
+    },
+    {
+      "id": "control_plane",
+      "display_name": "Control plane",
+      "collection_mode": "scrape",
+      "source_kind": "native_application_metrics",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "tenant_attributable": true,
+      "target": {
+        "component": "controlPlane",
+        "port_name": "http",
+        "metrics_path": "/metrics",
+        "interval_seconds": 15,
+        "max_staleness_seconds": 60
+      },
+      "native_metric_hints": [
+        "http_server_requests_seconds",
+        "control_plane_requests_total"
+      ],
+      "metric_categories": {
+        "availability": [
+          "in_atelier_component_up"
+        ],
+        "throughput": [
+          "in_atelier_component_operations_total"
+        ],
+        "errors": [
+          "in_atelier_component_operation_errors_total"
+        ],
+        "latency": [
+          "in_atelier_component_operation_duration_seconds"
+        ]
+      },
+      "operation_dimensions": [
+        "route_family",
+        "operation",
+        "status_class"
+      ],
+      "notes": [
+        "The control plane observing itself requires collection health to stay visible even during partial degradation.",
+        "Collection failures must not block the serving path for platform APIs."
+      ]
+    }
+  ]
+}
