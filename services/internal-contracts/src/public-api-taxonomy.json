@@ -966,6 +966,20 @@
       "scope": "workspace",
       "summary": "Workspace-scoped transversal audit record collection.",
       "authorization_resource": "workspace"
+    },
+    {
+      "resource_type": "tenant_audit_export",
+      "family": "metrics",
+      "scope": "tenant",
+      "summary": "Tenant-scoped transversal audit export manifest.",
+      "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "workspace_audit_export",
+      "family": "metrics",
+      "scope": "workspace",
+      "summary": "Workspace-scoped transversal audit export manifest.",
+      "authorization_resource": "workspace"
     }
   ]
 }

@@ -10,6 +10,7 @@ const OBSERVABILITY_HEALTH_CHECKS_URL = new URL('./observability-health-checks.j
 export const OBSERVABILITY_AUDIT_PIPELINE_URL = new URL('./observability-audit-pipeline.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_EVENT_SCHEMA_URL = new URL('./observability-audit-event-schema.json', import.meta.url);
 export const OBSERVABILITY_AUDIT_QUERY_SURFACE_URL = new URL('./observability-audit-query-surface.json', import.meta.url);
+export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_URL = new URL('./observability-audit-export-surface.json', import.meta.url);
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
@@ -25,6 +26,7 @@ let cachedObservabilityHealthChecks;
 let cachedObservabilityAuditPipeline;
 let cachedObservabilityAuditEventSchema;
 let cachedObservabilityAuditQuerySurface;
+let cachedObservabilityAuditExportSurface;
 let cachedObservabilityBusinessMetrics;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
@@ -110,6 +112,14 @@ export function readObservabilityAuditQuerySurface() {
   return cachedObservabilityAuditQuerySurface;
 }
 
+export function readObservabilityAuditExportSurface() {
+  if (!cachedObservabilityAuditExportSurface) {
+    cachedObservabilityAuditExportSurface = JSON.parse(readFileSync(OBSERVABILITY_AUDIT_EXPORT_SURFACE_URL, 'utf8'));
+  }
+
+  return cachedObservabilityAuditExportSurface;
+}
+
 export function readObservabilityBusinessMetrics() {
   if (!cachedObservabilityBusinessMetrics) {
     cachedObservabilityBusinessMetrics = JSON.parse(readFileSync(OBSERVABILITY_BUSINESS_METRICS_URL, 'utf8'));
@@ -152,6 +162,7 @@ export const OBSERVABILITY_HEALTH_CHECKS_VERSION = readObservabilityHealthChecks
 export const OBSERVABILITY_AUDIT_PIPELINE_VERSION = readObservabilityAuditPipeline().version;
 export const OBSERVABILITY_AUDIT_EVENT_SCHEMA_VERSION = readObservabilityAuditEventSchema().version;
 export const OBSERVABILITY_AUDIT_QUERY_SURFACE_VERSION = readObservabilityAuditQuerySurface().version;
+export const OBSERVABILITY_AUDIT_EXPORT_SURFACE_VERSION = readObservabilityAuditExportSurface().version;
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
@@ -450,6 +461,46 @@ export function getAuditQueryResponseContract() {
 
 export function getAuditConsoleSurface() {
   return readObservabilityAuditQuerySurface().console_surface ?? {};
+}
+
+export function listAuditExportScopes() {
+  return readObservabilityAuditExportSurface().supported_export_scopes ?? [];
+}
+
+export function getAuditExportScope(scopeId) {
+  return listAuditExportScopes().find((scope) => scope.id === scopeId);
+}
+
+export function getAuditExportRequestContract() {
+  return readObservabilityAuditExportSurface().request_contract ?? {};
+}
+
+export function listAuditExportFormats() {
+  return readObservabilityAuditExportSurface().supported_formats ?? [];
+}
+
+export function getAuditExportFormat(formatId) {
+  return listAuditExportFormats().find((format) => format.id === formatId);
+}
+
+export function listAuditExportMaskingProfiles() {
+  return readObservabilityAuditExportSurface().masking_profiles ?? [];
+}
+
+export function getAuditExportMaskingProfile(profileId) {
+  return listAuditExportMaskingProfiles().find((profile) => profile.id === profileId);
+}
+
+export function getAuditExportSensitiveFieldRules() {
+  return readObservabilityAuditExportSurface().sensitive_field_rules ?? [];
+}
+
+export function getAuditExportResponseContract() {
+  return readObservabilityAuditExportSurface().response_contract ?? {};
+}
+
+export function getAuditExportConsoleSurface() {
+  return readObservabilityAuditExportSurface().console_surface ?? {};
 }
 
 export function listObservabilityBusinessDomains() {

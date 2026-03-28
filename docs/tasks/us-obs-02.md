@@ -221,3 +221,75 @@ Downstream work remains:
 - `US-OBS-02-T04` — export, masking, and sensitive-event handling
 - `US-OBS-02-T05` — cross-system correlation and traceability
 - `US-OBS-02-T06` — end-to-end verification and data-protection testing
+
+## Scope delivered in `US-OBS-02-T04`
+
+This increment establishes the **bounded audit export and sensitive-data masking baseline** for the platform.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-audit-export-surface.json` as the machine-readable source of truth for tenant/workspace audit export scopes, supported formats, masking profiles, sensitive-field rules, response metadata, and console export settings
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for the audit export-surface contract
+- `scripts/lib/observability-audit-export-surface.mjs` and `scripts/validate-observability-audit-export-surface.mjs` for deterministic validation of the export/masking surface and its alignment with the pipeline, schema, query surface, authorization, and public API baselines
+- `apps/control-plane/openapi/control-plane.openapi.json` additive tenant/workspace audit-export routes under the metrics family plus generated route-catalog and family-doc refreshes
+- `apps/control-plane/src/observability-audit-export.mjs` and `apps/web-console/src/observability-audit-export.mjs` helpers that normalize scope-safe audit export requests and apply deterministic masking metadata from the shared contract
+- `docs/reference/architecture/observability-audit-export-surface.md` as the human-readable architecture guide for the audit export/masking baseline
+- `docs/reference/architecture/README.md` index updates so the new export guidance is discoverable
+
+## Main decisions in `US-OBS-02-T04`
+
+### Audit export reuses the T03 filter vocabulary
+
+The export surface does not invent a second filter language.
+It reuses the same bounded filter set already defined for query/consultation so export and on-screen review stay aligned.
+
+### Export is permissioned separately from plain audit read access
+
+The authorization model now introduces:
+
+- `tenant.audit.export`
+- `workspace.audit.export`
+
+This keeps evidence packaging narrower than plain read visibility.
+
+### Protected audit detail fields are always masked in exported evidence
+
+The export surface derives protected-field coverage from the audit pipeline masking baseline and currently masks:
+
+- `password`
+- `secret`
+- `token`
+- `authorization_header`
+- `connection_string`
+- `raw_hostname`
+- `raw_endpoint`
+- `object_key`
+- `raw_topic_name`
+
+Exported records now declare whether masking was applied and which field refs were masked.
+
+### Correlation and end-to-end verification remain explicitly deferred
+
+This increment only defines export/masking behavior.
+It does **not** implement:
+
+- cross-system causal correlation (`US-OBS-02-T05`)
+- durable export distribution or replay workflows
+- end-to-end traceability and data-protection verification (`US-OBS-02-T06`)
+
+## Validation for `US-OBS-02-T04`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-audit-export-surface
+```
+
+## Downstream dependency note for `US-OBS-02-T04`
+
+This increment defines the bounded evidence-export layer that later traceability work can extend.
+
+Downstream work remains:
+
+- `US-OBS-02-T05` — cross-system correlation and traceability
+- `US-OBS-02-T06` — end-to-end verification and data-protection testing

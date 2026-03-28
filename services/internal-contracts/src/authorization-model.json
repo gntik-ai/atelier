@@ -441,7 +441,8 @@
       "tenant.ownership.transfer",
       "tenant.ownership_transfers.read",
       "tenant.effective_permissions.read",
-      "tenant.effective_permissions.recalculate"
+      "tenant.effective_permissions.recalculate",
+      "tenant.audit.export"
     ],
     "workspace": [
       "workspace.read",
@@ -453,7 +454,8 @@
       "workspace.policy.manage",
       "workspace.effective_permissions.read",
       "workspace.audit.read",
-      "workspace.effective_permissions.recalculate"
+      "workspace.effective_permissions.recalculate",
+      "workspace.audit.export"
     ],
     "database": [
       "database.read",
@@ -543,7 +545,8 @@
         "workspace.policy.manage",
         "workspace.effective_permissions.read",
         "workspace.audit.read",
-        "workspace.effective_permissions.recalculate"
+        "workspace.effective_permissions.recalculate",
+        "workspace.audit.export"
       ],
       "forbidden_actions": [
         "workspace.delete_without_tenant_admin",
@@ -720,7 +723,9 @@
           "service_account.admin",
           "service_account.rotate",
           "function.audit.read",
-          "function.audit.coverage.read"
+          "function.audit.coverage.read",
+          "tenant.audit.export",
+          "workspace.audit.export"
         ],
         "denied_actions": []
       },
@@ -750,7 +755,9 @@
           "app.read",
           "service_account.read",
           "function.audit.read",
-          "function.audit.coverage.read"
+          "function.audit.coverage.read",
+          "tenant.audit.export",
+          "workspace.audit.export"
         ],
         "denied_actions": [
           "tenant.update",
@@ -782,7 +789,8 @@
           "workspace.role_mappings.manage",
           "workspace.policy.manage",
           "workspace.effective_permissions.read",
-          "workspace.effective_permissions.recalculate"
+          "workspace.effective_permissions.recalculate",
+          "tenant.audit.export"
         ],
         "denied_actions": [
           "database.admin",
@@ -824,7 +832,8 @@
           "workspace.role_mappings.manage",
           "workspace.policy.manage",
           "workspace.effective_permissions.read",
-          "workspace.effective_permissions.recalculate"
+          "workspace.effective_permissions.recalculate",
+          "tenant.audit.export"
         ],
         "denied_actions": [
           "tenant.suspend",
@@ -975,7 +984,8 @@
           "app.templates.read",
           "database.rpc.execute",
           "database.admin_sql.execute",
-          "function.audit.read"
+          "function.audit.read",
+          "workspace.audit.export"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -1013,7 +1023,8 @@
           "app.templates.read",
           "database.rpc.execute",
           "database.admin_sql.execute",
-          "function.audit.read"
+          "function.audit.read",
+          "workspace.audit.export"
         ],
         "denied_actions": [
           "tenant.members.manage",
@@ -1102,7 +1113,8 @@
           "topic.read",
           "function.read",
           "app.read",
-          "service_account.read"
+          "service_account.read",
+          "workspace.audit.export"
         ],
         "denied_actions": [
           "workspace.update",
@@ -1354,6 +1366,26 @@
         "raw_tokens"
       ],
       "reason": "Audit queries must stay bound to the caller scope while allowing tenant-only or workspace-specific query envelopes without leaking credential internals."
+    },
+    {
+      "target": "audit_export_context",
+      "required_fields": [
+        "actor",
+        "correlation_id",
+        "query_scope",
+        "format",
+        "masking_profile_id"
+      ],
+      "optional_fields": [
+        "tenant_id",
+        "workspace_id",
+        "filter_set_hash",
+        "page_size"
+      ],
+      "redacted_fields": [
+        "raw_tokens"
+      ],
+      "reason": "Audit export previews must preserve scope, correlation, format, and masking metadata without exposing raw credentials."
     }
   ],
   "negative_scenarios": [

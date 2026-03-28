@@ -1,0 +1,217 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-02-T04",
+  "system": "in-atelier-observability-plane",
+  "source_audit_pipeline_contract": "2026-03-28",
+  "source_audit_event_schema_contract": "2026-03-28",
+  "source_audit_query_surface_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_public_api_contract": "2026-03-26",
+  "supported_export_scopes": [
+    {
+      "id": "tenant",
+      "label": "Tenant audit export",
+      "route_operation_id": "exportTenantAuditRecords",
+      "required_permission": "tenant.audit.export",
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "correlation_id",
+        "query_scope",
+        "format",
+        "masking_profile_id"
+      ],
+      "scope_binding": {
+        "tenant_id": "required",
+        "workspace_id": "optional_narrowing_only"
+      },
+      "default_format": "jsonl",
+      "max_page_size": 10000
+    },
+    {
+      "id": "workspace",
+      "label": "Workspace audit export",
+      "route_operation_id": "exportWorkspaceAuditRecords",
+      "required_permission": "workspace.audit.export",
+      "required_context_fields": [
+        "actor",
+        "tenant_id",
+        "workspace_id",
+        "correlation_id",
+        "query_scope",
+        "format",
+        "masking_profile_id"
+      ],
+      "scope_binding": {
+        "tenant_id": "inherited_from_workspace",
+        "workspace_id": "required"
+      },
+      "default_format": "jsonl",
+      "max_page_size": 10000
+    }
+  ],
+  "request_contract": {
+    "required_fields": [
+      "format"
+    ],
+    "optional_fields": [
+      "sort",
+      "pageSize",
+      "workspaceId",
+      "maskingProfileId",
+      "filters"
+    ],
+    "default_format": "jsonl",
+    "default_page_size": 500,
+    "max_page_size": 10000,
+    "max_window_days": 31,
+    "supported_sort_keys": [
+      "-eventTimestamp",
+      "eventTimestamp"
+    ],
+    "filter_reuse_ids": [
+      "occurred_after",
+      "occurred_before",
+      "subsystem",
+      "action_category",
+      "action_id",
+      "outcome",
+      "actor_type",
+      "actor_id",
+      "resource_type",
+      "resource_id",
+      "origin_surface",
+      "correlation_id"
+    ]
+  },
+  "supported_formats": [
+    {
+      "id": "jsonl",
+      "label": "JSON Lines",
+      "media_type": "application/x-ndjson",
+      "file_extension": ".jsonl"
+    },
+    {
+      "id": "csv",
+      "label": "CSV",
+      "media_type": "text/csv",
+      "file_extension": ".csv"
+    }
+  ],
+  "masking_profiles": [
+    {
+      "id": "default_masked",
+      "label": "Default masked export",
+      "is_default": true,
+      "replacement": "[MASKED]",
+      "record_indicator_fields": [
+        "maskingApplied",
+        "maskedFieldRefs",
+        "sensitivityCategories"
+      ],
+      "protected_field_categories": [
+        "credential_material",
+        "provider_locator"
+      ]
+    }
+  ],
+  "sensitive_field_rules": [
+    {
+      "id": "credential_material",
+      "field_refs": [
+        "password",
+        "secret",
+        "token",
+        "authorization_header",
+        "connection_string"
+      ],
+      "replacement": "[MASKED]",
+      "reason": "Credential-bearing fields must never leave the governed audit export surface."
+    },
+    {
+      "id": "provider_locator",
+      "field_refs": [
+        "raw_hostname",
+        "raw_endpoint",
+        "object_key",
+        "raw_topic_name"
+      ],
+      "replacement": "[MASKED]",
+      "reason": "Provider locator fields must be masked before audit evidence is exported outside the live control surface."
+    }
+  ],
+  "response_contract": {
+    "required_fields": [
+      "exportId",
+      "queryScope",
+      "format",
+      "maskingProfileId",
+      "correlationId",
+      "generatedAt",
+      "appliedFilters",
+      "itemCount",
+      "maskedItemCount",
+      "items"
+    ],
+    "item_projection": {
+      "required_fields": [
+        "eventId",
+        "eventTimestamp",
+        "actor",
+        "scope",
+        "resource",
+        "action",
+        "result",
+        "correlationId",
+        "origin",
+        "detail",
+        "maskingApplied",
+        "maskedFieldRefs",
+        "sensitivityCategories"
+      ]
+    }
+  },
+  "console_surface": {
+    "entry_scopes": [
+      "tenant",
+      "workspace"
+    ],
+    "supported_format_ids": [
+      "jsonl",
+      "csv"
+    ],
+    "default_profile_id": "default_masked",
+    "masking_badges": [
+      {
+        "id": "masked",
+        "label": "Masked sensitive fields"
+      },
+      {
+        "id": "unmasked",
+        "label": "No sensitive fields masked"
+      }
+    ],
+    "export_safe_presets": [
+      "recent_failures",
+      "access_changes",
+      "current_correlation_id"
+    ],
+    "states": {
+      "empty": "no_matching_audit_records",
+      "loading": "building_audit_export_preview",
+      "error": "audit_export_preview_failed"
+    }
+  },
+  "governance": {
+    "future_work_boundaries": [
+      "correlation_execution_is_defined_in_us_obs_02_t05",
+      "end_to_end_traceability_verification_is_defined_in_us_obs_02_t06",
+      "durable_export_distribution_is_out_of_scope_for_us_obs_02_t04"
+    ],
+    "compatibility_rules": [
+      "query filter vocabulary must stay aligned with the T03 audit query surface",
+      "protected field classes from the audit pipeline must remain masked once published",
+      "export manifest metadata must remain additive so later correlation work can extend it without breaking callers"
+    ]
+  }
+}

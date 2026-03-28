@@ -52603,6 +52603,313 @@
           "platform_team"
         ]
       }
+    },
+    "/v1/metrics/tenants/{tenantId}/audit-exports": {
+      "post": {
+        "operationId": "exportTenantAuditRecords",
+        "summary": "Preview a bounded tenant-scoped audit export with masking metadata",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audit export preview returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditExportManifest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The export request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to export tenant audit records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The export request conflicts with current audit export guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The export request is valid JSON but violates governance or masking policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream audit export preview did not complete before the gateway timeout profile expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "tenant",
+        "x-resource-type": "tenant_audit_export",
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "none"
+      }
+    },
+    "/v1/metrics/workspaces/{workspaceId}/audit-exports": {
+      "post": {
+        "operationId": "exportWorkspaceAuditRecords",
+        "summary": "Preview a bounded workspace-scoped audit export with masking metadata",
+        "tags": [
+          "Metrics"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuditExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Audit export preview returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditExportManifest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The export request is malformed or contextually inconsistent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to export workspace audit records.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The export request conflicts with current audit export guardrails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The export request is valid JSON but violates governance or masking policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The upstream audit export preview did not complete before the gateway timeout profile expired.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected error response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "metrics",
+        "x-scope": "workspace",
+        "x-resource-type": "workspace_audit_export",
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_auditor",
+          "platform_team"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api",
+        "x-tenant-binding": "required",
+        "x-workspace-binding": "required"
+      }
     }
   },
   "components": {
@@ -82438,6 +82745,290 @@
           },
           "consoleHints": {
             "$ref": "#/components/schemas/AuditQueryConsoleHints"
+          }
+        }
+      },
+      "AuditExportFilterSet": {
+        "type": "object",
+        "properties": {
+          "occurredAfter": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "occurredBefore": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subsystem": {
+            "type": "string",
+            "enum": [
+              "iam",
+              "postgresql",
+              "mongodb",
+              "kafka",
+              "openwhisk",
+              "storage",
+              "quota_metering",
+              "tenant_control_plane"
+            ]
+          },
+          "actionCategory": {
+            "type": "string",
+            "enum": [
+              "resource_creation",
+              "resource_deletion",
+              "configuration_change",
+              "access_control_modification",
+              "quota_adjustment",
+              "privilege_escalation",
+              "secret_rotation",
+              "policy_override",
+              "backup_restore",
+              "provider_reconciliation"
+            ]
+          },
+          "actionId": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "denied",
+              "partial",
+              "accepted"
+            ]
+          },
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "platform_user",
+              "tenant_user",
+              "workspace_user",
+              "service_account",
+              "system",
+              "provider_adapter"
+            ]
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "originSurface": {
+            "type": "string",
+            "enum": [
+              "control_api",
+              "console_backend",
+              "internal_reconciler",
+              "provider_adapter",
+              "bootstrap_job",
+              "scheduled_operation"
+            ]
+          },
+          "correlationId": {
+            "type": "string"
+          }
+        }
+      },
+      "AuditRecordMaskingSummary": {
+        "type": "object",
+        "required": [
+          "maskingApplied",
+          "maskedFieldRefs",
+          "sensitivityCategories"
+        ],
+        "properties": {
+          "maskingApplied": {
+            "type": "boolean"
+          },
+          "maskedFieldRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sensitivityCategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AuditExportRequest": {
+        "type": "object",
+        "required": [
+          "format"
+        ],
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "jsonl",
+              "csv"
+            ]
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "-eventTimestamp",
+              "eventTimestamp"
+            ]
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "maskingProfileId": {
+            "type": "string",
+            "enum": [
+              "default_masked"
+            ]
+          },
+          "filters": {
+            "$ref": "#/components/schemas/AuditExportFilterSet"
+          }
+        }
+      },
+      "AuditExportedRecord": {
+        "type": "object",
+        "required": [
+          "eventId",
+          "eventTimestamp",
+          "actor",
+          "scope",
+          "resource",
+          "action",
+          "result",
+          "correlationId",
+          "origin",
+          "detail",
+          "maskingApplied",
+          "maskedFieldRefs",
+          "sensitivityCategories"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "eventTimestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/AuditRecordActor"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AuditRecordScope"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/AuditRecordResource"
+          },
+          "action": {
+            "$ref": "#/components/schemas/AuditRecordAction"
+          },
+          "result": {
+            "$ref": "#/components/schemas/AuditRecordResult"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/AuditRecordOrigin"
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "maskingApplied": {
+            "type": "boolean"
+          },
+          "maskedFieldRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sensitivityCategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AuditExportManifest": {
+        "type": "object",
+        "required": [
+          "exportId",
+          "queryScope",
+          "format",
+          "maskingProfileId",
+          "correlationId",
+          "generatedAt",
+          "appliedFilters",
+          "itemCount",
+          "maskedItemCount",
+          "items"
+        ],
+        "properties": {
+          "exportId": {
+            "type": "string"
+          },
+          "queryScope": {
+            "type": "string",
+            "enum": [
+              "tenant",
+              "workspace"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "jsonl",
+              "csv"
+            ]
+          },
+          "maskingProfileId": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "appliedFilters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "itemCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "maskedItemCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditExportedRecord"
+            }
           }
         }
       }

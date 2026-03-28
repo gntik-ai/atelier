@@ -35,6 +35,8 @@ This directory documents architecture baselines that future tasks should extend 
 - `docs/reference/architecture/observability-audit-event-schema.md` is the human-readable architecture companion for the observability audit-event-schema baseline introduced by `US-OBS-02-T02`.
 - `services/internal-contracts/src/observability-audit-query-surface.json` is the machine-readable source of truth for the audit query/filter surface introduced by `US-OBS-02-T03`, including tenant/workspace scopes, supported filters, pagination, response metadata, and console explorer settings.
 - `docs/reference/architecture/observability-audit-query-surface.md` is the human-readable architecture companion for the observability audit-query-surface baseline introduced by `US-OBS-02-T03`.
+- `services/internal-contracts/src/observability-audit-export-surface.json` is the machine-readable source of truth for the audit export + masking surface introduced by `US-OBS-02-T04`, including export scopes, format catalog, masking profiles, protected-field coverage, manifest metadata, and console export settings.
+- `docs/reference/architecture/observability-audit-export-surface.md` is the human-readable architecture companion for the observability audit-export baseline introduced by `US-OBS-02-T04`.
 
 ## Usage rules
 
