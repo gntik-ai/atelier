@@ -181,3 +181,79 @@ This increment does **not** emit quota alerts, execute hard-limit blocking, rend
 experience, or deliver the broad cross-module enforcement matrix.
 It only establishes the bounded quota-policy contract, helper surfaces, route publication,
 documentation, and tests required for those later tasks.
+
+## Scope delivered in `US-OBS-03-T03`
+
+This increment establishes the **threshold-alert baseline** for tenant and workspace quota posture.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-threshold-alerts.json` as the machine-readable
+  source of truth for threshold alert event types, suppression causes, event-envelope requirements,
+  Kafka topic posture, deterministic correlation rules, and last-known posture store semantics
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for the threshold-alert
+  contract
+- `scripts/lib/observability-threshold-alerts.mjs` and
+  `scripts/validate-observability-threshold-alerts.mjs` for deterministic contract validation and
+  dependency alignment checks
+- additive helper surfaces in `apps/control-plane/src/observability-admin.mjs` for transition
+  detection, event construction, evaluation-cycle orchestration, posture-store reads/writes, and
+  alert metrics
+- `charts/in-atelier/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql`
+  for the PostgreSQL last-known posture store used for deduplication and restart safety
+- `docs/reference/architecture/observability-threshold-alerts.md` as the human-readable
+  architecture guide for the threshold-alert baseline
+- targeted unit and contract tests for the new contract, helper surfaces, docs linkage, and task
+  summary coverage
+
+## Main decisions in `US-OBS-03-T03`
+
+### Threshold-alert ordering is deterministic
+
+Escalations emit all intermediate crossings in ascending severity during one cycle.
+Recoveries emit in descending severity.
+This keeps downstream consumers from inferring missing intermediate postures.
+
+### Freshness suppresses alerts instead of pretending confidence
+
+When evidence is `degraded` or `unavailable`, transition alerts are suppressed and the evaluator
+emits only the bounded suppression posture for that cycle.
+The last-known posture is not advanced from degraded evidence.
+
+### Kafka topic posture is fixed before notification-channel work
+
+The baseline locks the topic name `quota.threshold.alerts`, partition key `tenantId`, and backward
+compatible schema subject prefix so future consumers do not re-litigate transport details.
+
+### Restart safety comes from the last-known posture store
+
+A dedicated PostgreSQL store preserves the last trustworthy posture seen per
+`tenant/workspace/dimension` tuple so the evaluator can avoid duplicate transition alerts after
+restarts.
+
+## Validation for `US-OBS-03-T03`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-threshold-alerts
+```
+
+## Downstream dependency note for `US-OBS-03-T03`
+
+This increment defines the threshold-alert baseline required before the rest of the story can extend
+behavior.
+
+Residual downstream work remains separate:
+
+- `US-OBS-03-T04` — hard-limit blocking of create / provision flows
+- `US-OBS-03-T05` — console usage vs quota and provisioning state
+- `US-OBS-03-T06` — end-to-end cross-module verification
+
+## Residual implementation note for `US-OBS-03-T03`
+
+This increment does **not** implement blocking semantics, notification delivery channels, console
+visualization, or the final cross-module enforcement matrix.
+It establishes the threshold-alert contract, Kafka topic posture, posture-store migration,
+helper/evaluation surface, documentation, and tests required before those later tasks expand the
+feature.

@@ -6,6 +6,10 @@ import {
   getAlertSeverityLevel,
   getAlertSuppressionDefaults as getObservabilityAlertSuppressionDefaults,
   getApiFamily,
+  getAlertCorrelationStrategy,
+  getAlertEventEnvelopeSchema,
+  getAlertKafkaTopicConfig,
+  getAlertSuppressionCause,
   getHealthSummaryAggregationRule,
   getHealthSummaryFreshnessThreshold,
   getHealthSummaryScope,
@@ -33,8 +37,10 @@ import {
   getUsageRefreshPolicy,
   getObservedSubsystem,
   listAlertCategories,
+  listAlertEventTypes,
   listAlertLifecycleStates,
   listAlertSeverityLevels,
+  listAlertSuppressionCauses,
   listHealthSummaryScopes,
   listHealthSummaryStatuses,
   listObservabilityBusinessDomains,
@@ -55,6 +61,7 @@ import {
   listUsageMeteredDimensions,
   readObservabilityBusinessMetrics,
   readObservabilityConsoleAlerts,
+  readObservabilityThresholdAlerts,
   readObservabilityDashboards,
   readObservabilityHealthChecks,
   readObservabilityMetricsStack,
@@ -98,6 +105,12 @@ export const quotaThresholdTypes = listQuotaThresholdTypes();
 export const quotaPostureStates = listQuotaPostureStates();
 export const quotaEvaluationDefaults = getQuotaEvaluationDefaults();
 export const quotaEvaluationAuditContract = getQuotaEvaluationAuditContract();
+export const observabilityThresholdAlerts = readObservabilityThresholdAlerts();
+export const thresholdAlertEventTypes = listAlertEventTypes();
+export const thresholdAlertSuppressionCauses = listAlertSuppressionCauses();
+export const thresholdAlertKafkaConfig = getAlertKafkaTopicConfig();
+export const thresholdAlertEnvelopeSchema = getAlertEventEnvelopeSchema();
+export const thresholdAlertCorrelationStrategy = getAlertCorrelationStrategy();
 
 export function listObservabilitySubsystems() {
   return listObservedSubsystems();
@@ -1412,4 +1425,441 @@ export function listQuotaPolicyRoutes() {
   return quotaPolicyScopes
     .map((scope) => getPublicRoute(scope.route_operation_id))
     .filter(Boolean);
+}
+
+function normalizeThresholdAlertContext(context = {}, input = {}) {
+  return {
+    tenantId: input.tenantId ?? context.tenantId,
+    workspaceId: input.workspaceId ?? context.workspaceId ?? null,
+    dimensionId: input.dimensionId,
+    scopeId: input.workspaceId ?? context.workspaceId ? 'workspace' : 'tenant'
+  };
+}
+
+function determinePostureSeverity(posture = 'within_limit') {
+  const severityByPosture = new Map([
+    ['unbounded', 0],
+    ['within_limit', 10],
+    ['warning_threshold_reached', 20],
+    ['soft_limit_exceeded', 30],
+    ['hard_limit_reached', 40],
+    ['evidence_degraded', 15],
+    ['evidence_unavailable', 25]
+  ]);
+
+  return severityByPosture.get(posture) ?? 0;
+}
+
+function postureStateForThreshold(level) {
+  if (level === 'warning') return quotaEvaluationDefaults.warning_status ?? 'warning_threshold_reached';
+  if (level === 'soft_limit') return quotaEvaluationDefaults.soft_limit_status ?? 'soft_limit_exceeded';
+  if (level === 'hard_limit') return quotaEvaluationDefaults.hard_limit_status ?? 'hard_limit_reached';
+  return quotaEvaluationDefaults.normal_status ?? 'within_limit';
+}
+
+function thresholdLevelFromPosture(posture) {
+  if (posture === (quotaEvaluationDefaults.warning_status ?? 'warning_threshold_reached')) return 'warning';
+  if (posture === (quotaEvaluationDefaults.soft_limit_status ?? 'soft_limit_exceeded')) return 'soft_limit';
+  if (posture === (quotaEvaluationDefaults.hard_limit_status ?? 'hard_limit_reached')) return 'hard_limit';
+  return 'within_limit';
+}
+
+function getTransitionEventType(direction, level) {
+  if (direction === 'suppression') return 'quota.threshold.alert_suppressed';
+  if (direction === 'escalation' && level === 'warning') return 'quota.threshold.warning_reached';
+  if (direction === 'escalation' && level === 'soft_limit') return 'quota.threshold.soft_limit_exceeded';
+  if (direction === 'escalation' && level === 'hard_limit') return 'quota.threshold.hard_limit_reached';
+  if (direction === 'recovery' && level === 'warning') return 'quota.threshold.warning_recovered';
+  if (direction === 'recovery' && level === 'soft_limit') return 'quota.threshold.soft_limit_recovered';
+  if (direction === 'recovery' && level === 'hard_limit') return 'quota.threshold.hard_limit_recovered';
+  return null;
+}
+
+function getThresholdValueForLevel(posture, level) {
+  if (level === 'warning') return posture.warningThreshold ?? null;
+  if (level === 'soft_limit') return posture.softLimit ?? null;
+  if (level === 'hard_limit') return posture.hardLimit ?? null;
+  return null;
+}
+
+export function summarizeObservabilityThresholdAlerts() {
+  return {
+    version: observabilityThresholdAlerts.version,
+    sourceContracts: {
+      usageConsumption: observabilityThresholdAlerts.source_usage_contract,
+      quotaPolicies: observabilityThresholdAlerts.source_quota_policy_contract,
+      auditEventSchema: observabilityThresholdAlerts.source_audit_event_schema_contract
+    },
+    kafka: thresholdAlertKafkaConfig,
+    eventTypes: thresholdAlertEventTypes.map((eventType) => ({
+      id: eventType.id,
+      transitionDirection: eventType.transition_direction,
+      thresholdType: eventType.threshold_type
+    })),
+    suppressionCauses: thresholdAlertSuppressionCauses.map((cause) => ({
+      id: cause.id,
+      freshnessState: cause.freshness_state
+    })),
+    boundaries: observabilityThresholdAlerts.boundaries ?? []
+  };
+}
+
+export function getAlertKafkaTopicName() {
+  return thresholdAlertKafkaConfig.topicName ?? 'quota.threshold.alerts';
+}
+
+export function getAlertEventEnvelopeDefaults() {
+  return {
+    actor: {
+      actor_id: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.actor_id ?? 'quota-alert-evaluator',
+      actor_type: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.actor_type ?? 'system'
+    },
+    resource: {
+      subsystem_id: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.resource_subsystem_id ?? 'quota_metering',
+      resource_type: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.resource_type ?? 'quota_dimension'
+    }
+  };
+}
+
+export function readLastKnownPosture(context = {}, input = {}) {
+  const { tenantId, workspaceId = null, dimensionId } = normalizeThresholdAlertContext(context, input);
+  if (!tenantId || !dimensionId) {
+    return null;
+  }
+
+  if (typeof context.loadLastKnownPosture === 'function') {
+    return context.loadLastKnownPosture({ tenantId, workspaceId, dimensionId }) ?? null;
+  }
+
+  const store = context.lastKnownPostureStore;
+  if (store instanceof Map) {
+    return store.get(`${tenantId}::${workspaceId ?? ''}::${dimensionId}`) ?? null;
+  }
+
+  return null;
+}
+
+export function writeLastKnownPosture(context = {}, input = {}) {
+  const { tenantId, workspaceId = null, dimensionId } = normalizeThresholdAlertContext(context, input);
+  const record = {
+    tenantId,
+    workspaceId,
+    dimensionId,
+    posture: input.posture,
+    evaluatedAt: input.evaluatedAt,
+    snapshotTimestamp: input.snapshotTimestamp,
+    correlationId: input.correlationId
+  };
+
+  if (typeof context.persistLastKnownPosture === 'function') {
+    context.persistLastKnownPosture(record);
+    return record;
+  }
+
+  if (!(context.lastKnownPostureStore instanceof Map)) {
+    context.lastKnownPostureStore = new Map();
+  }
+
+  context.lastKnownPostureStore.set(`${tenantId}::${workspaceId ?? ''}::${dimensionId}`, record);
+  return record;
+}
+
+export function detectPostureTransitions(currentPosture = {}, lastKnownPosture = null, policyContext = {}) {
+  const currentStatus = currentPosture.status ?? currentPosture.posture ?? quotaEvaluationDefaults.normal_status ?? 'within_limit';
+  const previousStatus = lastKnownPosture?.posture ?? lastKnownPosture?.status ?? quotaEvaluationDefaults.normal_status ?? 'within_limit';
+
+  if (currentPosture.policyMode === 'unbounded' || currentStatus === 'unbounded') {
+    return [];
+  }
+
+  const ladder = ['warning', 'soft_limit', 'hard_limit'];
+  const currentSeverity = determinePostureSeverity(currentStatus);
+  const previousSeverity = determinePostureSeverity(previousStatus);
+
+  if (currentSeverity === previousSeverity && currentStatus === previousStatus) {
+    return [];
+  }
+
+  if (currentSeverity > previousSeverity) {
+    const transitions = [];
+    for (const level of ladder) {
+      const levelSeverity = determinePostureSeverity(postureStateForThreshold(level));
+      if (levelSeverity > previousSeverity && levelSeverity <= currentSeverity) {
+        transitions.push({
+          direction: 'escalation',
+          thresholdLevel: level,
+          eventType: getTransitionEventType('escalation', level),
+          previousPosture: previousStatus,
+          newPosture: postureStateForThreshold(level),
+          thresholdValue: getThresholdValueForLevel(currentPosture, level),
+          dimensionId: currentPosture.dimensionId,
+          policyContext
+        });
+      }
+    }
+    return transitions;
+  }
+
+  const recoveries = [];
+  for (const level of ['hard_limit', 'soft_limit', 'warning']) {
+    const levelSeverity = determinePostureSeverity(postureStateForThreshold(level));
+    if (levelSeverity <= previousSeverity && levelSeverity > currentSeverity) {
+      recoveries.push({
+        direction: 'recovery',
+        thresholdLevel: level,
+        eventType: getTransitionEventType('recovery', level),
+        previousPosture: previousStatus,
+        newPosture: currentStatus,
+        thresholdValue: getThresholdValueForLevel(currentPosture, level),
+        dimensionId: currentPosture.dimensionId,
+        policyContext
+      });
+    }
+  }
+  return recoveries;
+}
+
+function buildDeterministicAlertCorrelationId({ tenantId, workspaceId, dimensionId, snapshotTimestamp, token }) {
+  return `quota-alert:${tenantId}:${workspaceId ?? 'tenant'}:${dimensionId}:${snapshotTimestamp}:${token}`;
+}
+
+export function buildThresholdAlertEvent(transition = {}, context = {}) {
+  const defaults = getAlertEventEnvelopeDefaults();
+  const posture = context.currentPosture ?? {};
+  const tenantId = context.tenantId ?? posture.tenantId;
+  const workspaceId = context.workspaceId ?? posture.workspaceId ?? null;
+  const dimensionId = transition.dimensionId ?? posture.dimensionId;
+  const snapshotTimestamp = context.snapshotTimestamp ?? posture.usageSnapshotTimestamp;
+  const evaluationTimestamp = context.evaluatedAt ?? context.evaluationTimestamp ?? posture.usageSnapshotTimestamp;
+  const correlationId = context.correlationId ?? buildDeterministicAlertCorrelationId({
+    tenantId,
+    workspaceId,
+    dimensionId,
+    snapshotTimestamp,
+    token: transition.eventType ?? transition.thresholdLevel ?? 'transition'
+  });
+
+  return {
+    eventType: transition.eventType,
+    tenantId,
+    workspaceId,
+    dimension: {
+      dimensionId,
+      displayName: posture.displayName,
+      scope: posture.scope
+    },
+    measuredValue: posture.measuredValue,
+    thresholdValue: transition.thresholdValue ?? null,
+    thresholdType: transition.thresholdLevel,
+    previousPosture: transition.previousPosture,
+    newPosture: transition.newPosture,
+    headroom: posture.remainingToHardLimit ?? posture.remainingToSoftLimit ?? posture.remainingToWarning ?? null,
+    evidenceFreshness: posture.freshnessStatus,
+    evaluationTimestamp,
+    snapshotTimestamp,
+    correlationId,
+    actor: defaults.actor,
+    action: {
+      action_id: 'quota_threshold_alert_evaluated',
+      category: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.action_category ?? 'configuration_change'
+    },
+    resource: {
+      ...defaults.resource,
+      resource_id: `${tenantId}:${workspaceId ?? 'tenant'}:${dimensionId}`,
+      resource_display_name: posture.displayName
+    },
+    origin: {
+      origin_surface: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.origin_surface ?? 'scheduled_operation',
+      emitting_service: 'control_plane'
+    }
+  };
+}
+
+export function buildAlertSuppressionEvent(context = {}, input = {}) {
+  const cause = getAlertSuppressionCause(input.cause);
+  const currentPosture = context.currentPosture ?? {};
+  const tenantId = input.tenantId ?? context.tenantId ?? currentPosture.tenantId;
+  const workspaceId = input.workspaceId ?? context.workspaceId ?? currentPosture.workspaceId ?? null;
+  const dimensionId = input.dimensionId ?? context.dimensionId ?? currentPosture.dimensionId;
+  const snapshotTimestamp = input.snapshotTimestamp ?? context.snapshotTimestamp ?? currentPosture.usageSnapshotTimestamp;
+  const evaluationTimestamp = input.evaluatedAt ?? context.evaluatedAt ?? snapshotTimestamp;
+  const correlationId = input.correlationId ?? buildDeterministicAlertCorrelationId({
+    tenantId,
+    workspaceId,
+    dimensionId,
+    snapshotTimestamp,
+    token: cause?.id ?? 'suppressed'
+  });
+  const defaults = getAlertEventEnvelopeDefaults();
+
+  return {
+    eventType: 'quota.threshold.alert_suppressed',
+    tenantId,
+    workspaceId,
+    dimension: {
+      dimensionId,
+      displayName: currentPosture.displayName,
+      scope: currentPosture.scope ?? (workspaceId ? 'workspace' : 'tenant')
+    },
+    suppressionCause: cause?.id ?? input.cause,
+    suppressedEventType: input.suppressedEventType ?? getTransitionEventType('escalation', thresholdLevelFromPosture(currentPosture.status)),
+    evidenceFreshness: currentPosture.freshnessStatus ?? cause?.freshness_state,
+    evaluationTimestamp,
+    snapshotTimestamp,
+    correlationId,
+    actor: defaults.actor,
+    action: {
+      action_id: 'quota_threshold_alert_suppressed',
+      category: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.action_category ?? 'configuration_change'
+    },
+    resource: {
+      ...defaults.resource,
+      resource_id: `${tenantId}:${workspaceId ?? 'tenant'}:${dimensionId}`,
+      resource_display_name: currentPosture.displayName
+    },
+    origin: {
+      origin_surface: thresholdAlertEnvelopeSchema.audit_vocabulary_alignment?.origin_surface ?? 'scheduled_operation',
+      emitting_service: 'control_plane'
+    }
+  };
+}
+
+function emitAlertEvents(context = {}, events = []) {
+  if (typeof context.emitThresholdAlerts === 'function') {
+    context.emitThresholdAlerts(events, thresholdAlertKafkaConfig);
+    return;
+  }
+
+  if (!Array.isArray(context.emittedThresholdAlerts)) {
+    context.emittedThresholdAlerts = [];
+  }
+
+  context.emittedThresholdAlerts.push(...events);
+}
+
+export function recordAlertEvaluationMetrics(summary = {}) {
+  const metrics = summary.metrics ?? summary.context?.metrics ?? {};
+  const record = metrics.record ?? ((name, value, labels = {}) => {
+    if (!Array.isArray(metrics.records)) {
+      metrics.records = [];
+    }
+    metrics.records.push({ name, value, labels });
+  });
+
+  for (const event of summary.emittedEvents ?? []) {
+    record('quota_threshold_alerts_emitted_total', 1, { event_type: event.eventType, tenant_id: event.tenantId });
+  }
+
+  for (const event of summary.suppressedEvents ?? []) {
+    record('quota_threshold_alerts_suppressed_total', 1, { cause: event.suppressionCause, tenant_id: event.tenantId });
+  }
+
+  record('quota_threshold_alert_evaluation_duration_seconds', summary.durationSeconds ?? 0, {});
+  record('quota_threshold_alerts_producer_lag_seconds', summary.producerLagSeconds ?? 0, {});
+
+  return metrics.records ?? [];
+}
+
+export function runAlertEvaluationCycle(context = {}, input = {}) {
+  const posture = input.posture ?? input.currentPosture;
+  if (!posture) {
+    throw new Error('runAlertEvaluationCycle requires input.posture.');
+  }
+
+  const lastKnownPosture = input.lastKnownPosture ?? readLastKnownPosture(context, {
+    tenantId: input.tenantId ?? posture.tenantId,
+    workspaceId: input.workspaceId ?? posture.workspaceId,
+    dimensionId: posture.dimensionId
+  });
+
+  const freshness = posture.freshnessStatus;
+  const emittedEvents = [];
+  const suppressedEvents = [];
+  const startedAt = Date.now();
+
+  if (freshness === 'degraded' || freshness === 'unavailable') {
+    const suppressedEvent = buildAlertSuppressionEvent({ ...context, currentPosture: posture }, {
+      tenantId: input.tenantId ?? posture.tenantId,
+      workspaceId: input.workspaceId ?? posture.workspaceId,
+      dimensionId: posture.dimensionId,
+      cause: freshness === 'degraded' ? 'evidence_degraded' : 'evidence_unavailable',
+      snapshotTimestamp: input.snapshotTimestamp ?? posture.usageSnapshotTimestamp,
+      evaluatedAt: input.evaluatedAt ?? posture.usageSnapshotTimestamp
+    });
+    suppressedEvents.push(suppressedEvent);
+    emitAlertEvents(context, suppressedEvents);
+    const summary = {
+      tenantId: suppressedEvent.tenantId,
+      workspaceId: suppressedEvent.workspaceId,
+      dimensionId: posture.dimensionId,
+      emittedEvents,
+      suppressedEvents,
+      transitions: [],
+      lastKnownPostureUpdated: false,
+      durationSeconds: Number(((Date.now() - startedAt) / 1000).toFixed(6)),
+      producerLagSeconds: input.producerLagSeconds ?? 0,
+      context
+    };
+    recordAlertEvaluationMetrics(summary);
+    return summary;
+  }
+
+  const transitions = detectPostureTransitions(posture, lastKnownPosture, input.policyContext ?? {});
+  for (const transition of transitions) {
+    emittedEvents.push(buildThresholdAlertEvent(transition, {
+      ...context,
+      currentPosture: posture,
+      tenantId: input.tenantId ?? posture.tenantId,
+      workspaceId: input.workspaceId ?? posture.workspaceId,
+      snapshotTimestamp: input.snapshotTimestamp ?? posture.usageSnapshotTimestamp,
+      evaluatedAt: input.evaluatedAt ?? posture.usageSnapshotTimestamp
+    }));
+  }
+
+  emitAlertEvents(context, emittedEvents);
+  let lastKnownPostureRecord = null;
+  if (transitions.length > 0 || !lastKnownPosture || lastKnownPosture.posture !== posture.status) {
+    lastKnownPostureRecord = writeLastKnownPosture(context, {
+      tenantId: input.tenantId ?? posture.tenantId,
+      workspaceId: input.workspaceId ?? posture.workspaceId,
+      dimensionId: posture.dimensionId,
+      posture: posture.status,
+      evaluatedAt: input.evaluatedAt ?? posture.usageSnapshotTimestamp,
+      snapshotTimestamp: input.snapshotTimestamp ?? posture.usageSnapshotTimestamp,
+      correlationId: emittedEvents[emittedEvents.length - 1]?.correlationId ?? buildDeterministicAlertCorrelationId({
+        tenantId: input.tenantId ?? posture.tenantId,
+        workspaceId: input.workspaceId ?? posture.workspaceId,
+        dimensionId: posture.dimensionId,
+        snapshotTimestamp: input.snapshotTimestamp ?? posture.usageSnapshotTimestamp,
+        token: posture.status
+      })
+    });
+  }
+
+  const summary = {
+    tenantId: input.tenantId ?? posture.tenantId,
+    workspaceId: input.workspaceId ?? posture.workspaceId,
+    dimensionId: posture.dimensionId,
+    transitions,
+    emittedEvents,
+    suppressedEvents,
+    lastKnownPosture: lastKnownPostureRecord,
+    lastKnownPostureUpdated: Boolean(lastKnownPostureRecord),
+    durationSeconds: Number(((Date.now() - startedAt) / 1000).toFixed(6)),
+    producerLagSeconds: input.producerLagSeconds ?? 0,
+    context
+  };
+  recordAlertEvaluationMetrics(summary);
+  return summary;
+}
+
+export function evaluateTenantAlerts(context = {}, input = {}) {
+  return runAlertEvaluationCycle({ ...context, tenantId: input.tenantId ?? context.tenantId }, { ...input, tenantId: input.tenantId ?? context.tenantId });
+}
+
+export function evaluateWorkspaceAlerts(context = {}, input = {}) {
+  return runAlertEvaluationCycle(
+    { ...context, tenantId: input.tenantId ?? context.tenantId, workspaceId: input.workspaceId ?? context.workspaceId },
+    { ...input, tenantId: input.tenantId ?? context.tenantId, workspaceId: input.workspaceId ?? context.workspaceId }
+  );
 }
