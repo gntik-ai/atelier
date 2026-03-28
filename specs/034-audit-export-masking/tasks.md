@@ -41,7 +41,7 @@
 ## Phase 5 — Delivery
 
 - [x] T021 Inspect the final diff to confirm the increment stayed within export/masking contracts, permissions, routes, helpers, docs, and tests — and did not add correlation or restore workflows.
-- [ ] T022 Commit the branch with a focused `US-OBS-02-T04` message.
+- [x] T022 Commit the branch with a focused `US-OBS-02-T04` message.
 - [ ] T023 Push `034-audit-export-masking` to `origin`.
 - [ ] T024 Open a PR to `main`.
 - [ ] T025 Monitor CI, fix deterministic failures, and update the branch until checks are green.
