@@ -934,6 +934,12 @@
       "family": "tenants",
       "scope": "tenant",
       "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "storage_usage_snapshot",
+      "family": "storage",
+      "scope": "workspace",
+      "authorization_resource": "bucket"
     }
   ]
 }

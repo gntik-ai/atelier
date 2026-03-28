@@ -460,11 +460,15 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 | GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Download one object from a workspace-scoped storage bucket |
 | PUT | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Upload or replace one object inside a workspace-scoped storage bucket |
 | GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}/metadata` | workspace | bucket_object | Fetch metadata for one object in a workspace-scoped storage bucket |
+| GET | `/v1/storage/tenants/{tenantId}/usage` | tenant | storage_usage_snapshot | Fetch one tenant-scoped storage usage snapshot aggregated across workspaces |
+| GET | `/v1/storage/usage/tenants` | platform | storage_usage_snapshot | List the top tenant storage usage snapshots across the platform |
+| GET | `/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/usage` | workspace | storage_usage_snapshot | Fetch one bucket-scoped storage usage snapshot |
 | GET | `/v1/storage/workspaces/{workspaceId}/credentials` | workspace | storage_credential | List scoped storage programmatic credentials for one workspace |
 | POST | `/v1/storage/workspaces/{workspaceId}/credentials` | workspace | storage_credential | Create one scoped storage programmatic credential limited to declared workspace, bucket, and object-prefix scope |
 | DELETE | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}` | workspace | storage_credential | Revoke one scoped storage programmatic credential |
 | GET | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}` | workspace | storage_credential | Fetch one scoped storage programmatic credential definition without reissuing the secret value |
 | POST | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations` | workspace | storage_credential | Rotate one scoped storage programmatic credential and return the replacement access key pair once |
+| GET | `/v1/storage/workspaces/{workspaceId}/usage` | workspace | storage_usage_snapshot | Fetch one workspace-scoped storage usage snapshot with bucket breakdown |
 
 ## Metrics
 

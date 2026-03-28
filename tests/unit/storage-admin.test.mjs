@@ -9,6 +9,11 @@ import {
   STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG,
   STORAGE_PROGRAMMATIC_CREDENTIAL_STATE_CATALOG,
   STORAGE_PROGRAMMATIC_CREDENTIAL_TYPE_CATALOG,
+  STORAGE_USAGE_COLLECTION_METHODS,
+  STORAGE_USAGE_COLLECTION_STATUSES,
+  STORAGE_USAGE_ERROR_CODES,
+  STORAGE_USAGE_THRESHOLD_DEFAULTS,
+  STORAGE_USAGE_THRESHOLD_SEVERITIES,
   STORAGE_PROVIDER_CAPABILITIES,
   STORAGE_PROVIDER_CAPABILITY_BASELINE_SCHEMA_VERSION,
   STORAGE_PROVIDER_CAPABILITY_ENTRY_STATE_CATALOG,
@@ -35,9 +40,14 @@ import {
   previewStorageObject,
   previewStorageNormalizedError,
   previewStorageObjectOrganization,
+  previewBucketStorageUsage,
+  previewCrossTenantStorageUsage,
   previewStorageProgrammaticCredential,
   previewTenantStorageContext,
+  previewTenantStorageUsage,
   previewWorkspaceStorageBootstrapContext,
+  previewWorkspaceStorageUsage,
+  rankWorkspaceBucketsByUsage,
   revokeStorageProgrammaticCredentialPreview,
   rotateStorageProgrammaticCredentialPreview,
   rotateTenantStorageCredentialPreview,
@@ -552,6 +562,63 @@ test('storage error previews normalize provider failures without leaking provide
   assert.equal(internal.diagnostics.providerMessage.includes('[redacted]'), true);
   assert.equal(event.eventType, 'storage.error.normalized');
   assert.equal(event.errorCode, STORAGE_NORMALIZED_ERROR_CATALOG.STORAGE_QUOTA_EXCEEDED);
+});
+
+test('storage usage previews expose usage routes constants and threshold helpers', () => {
+  const workspacePreview = previewWorkspaceStorageUsage({
+    tenantId: 'ten_01usage',
+    workspaceId: 'wrk_01usage',
+    buckets: [
+      { bucketId: 'b1', totalBytes: 90, objectCount: 9, largestObjectSizeBytes: 20 },
+      { bucketId: 'b2', totalBytes: 5, objectCount: 1, largestObjectSizeBytes: 5 }
+    ],
+    totalBytesLimit: 100,
+    bucketCountLimit: 5,
+    objectCountLimit: 20,
+    largestObjectSizeBytesLimit: 50,
+    snapshotAt: '2026-03-28T00:00:00Z'
+  });
+  const tenantPreview = previewTenantStorageUsage({
+    tenantId: 'ten_01usage',
+    workspaces: [{
+      workspaceId: 'wrk_01usage',
+      tenantId: 'ten_01usage',
+      totalBytes: 95,
+      objectCount: 10,
+      bucketCount: 2,
+      buckets: [
+        { bucketId: 'b1', workspaceId: 'wrk_01usage', tenantId: 'ten_01usage', totalBytes: 90, objectCount: 9, largestObjectSizeBytes: 20 },
+        { bucketId: 'b2', workspaceId: 'wrk_01usage', tenantId: 'ten_01usage', totalBytes: 5, objectCount: 1, largestObjectSizeBytes: 5 }
+      ]
+    }],
+    totalBytesLimit: 200,
+    bucketCountLimit: 10,
+    objectCountLimit: 40,
+    largestObjectSizeBytesLimit: 100,
+    snapshotAt: '2026-03-28T00:00:00Z'
+  });
+  const bucketPreview = previewBucketStorageUsage({ tenantId: 'ten_01usage', bucketId: 'b1', totalBytes: 90, objectCount: 9, largestObjectSizeBytes: 20, snapshotAt: '2026-03-28T00:00:00Z' });
+  const crossTenantPreview = previewCrossTenantStorageUsage({ tenantSnapshots: [tenantPreview.snapshot] });
+  const ranked = rankWorkspaceBucketsByUsage({ workspaceSnapshot: workspacePreview.snapshot, sortDimension: 'total_bytes', topN: 1 });
+  const routes = listStorageAdminRoutes();
+
+  assert.equal(workspacePreview.snapshot.scopeType, 'workspace');
+  assert.equal(Array.isArray(workspacePreview.thresholdBreaches), true);
+  assert.equal(workspacePreview.auditEvent.eventType, 'storage.usage.queried');
+  assert.equal(tenantPreview.snapshot.scopeType, 'tenant');
+  assert.equal(tenantPreview.snapshot.breakdown[0].entityType, 'storage_workspace_usage_entry');
+  assert.equal(bucketPreview.snapshot.scopeType, 'bucket');
+  assert.equal('thresholdBreaches' in bucketPreview, false);
+  assert.equal(crossTenantPreview.summary.entityType, 'storage_cross_tenant_usage_summary');
+  assert.deepEqual(ranked.map((entry) => entry.bucketId), ['b1']);
+  assert.ok(routes.some((route) => route.operationId === 'getTenantStorageUsage'));
+  assert.ok(routes.some((route) => route.operationId === 'getWorkspaceStorageUsage'));
+  assert.ok(routes.some((route) => route.operationId === 'getBucketStorageUsage'));
+  assert.ok(routes.some((route) => route.operationId === 'listCrossTenantStorageUsage'));
+  for (const catalog of [STORAGE_USAGE_COLLECTION_METHODS, STORAGE_USAGE_COLLECTION_STATUSES, STORAGE_USAGE_THRESHOLD_SEVERITIES, STORAGE_USAGE_THRESHOLD_DEFAULTS, STORAGE_USAGE_ERROR_CODES]) {
+    assert.equal(Object.keys(catalog).length > 0, true);
+    assert.equal(Object.isFrozen(catalog), true);
+  }
 });
 
 test('tenant storage context lifecycle gating and bucket deletion rules block unsafe operations', () => {

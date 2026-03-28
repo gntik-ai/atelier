@@ -45,6 +45,7 @@ import {
 import {
   STORAGE_ERROR_RETRYABILITY,
   STORAGE_NORMALIZED_ERROR_CODES,
+  STORAGE_USAGE_ERROR_CODES,
   buildNormalizedStorageError,
   buildStorageErrorAuditEvent,
   buildStorageErrorEnvelope,
@@ -151,6 +152,21 @@ import {
   revokeStorageProgrammaticCredential,
   rotateStorageProgrammaticCredential
 } from './storage-programmatic-credentials.mjs';
+import {
+  STORAGE_USAGE_COLLECTION_METHODS,
+  STORAGE_USAGE_COLLECTION_STATUSES,
+  STORAGE_USAGE_THRESHOLD_DEFAULTS,
+  STORAGE_USAGE_THRESHOLD_SEVERITIES,
+  buildStorageBucketUsageEntry as buildStorageBucketUsageEntryImpl,
+  buildStorageCrossTenantUsageSummary as buildStorageCrossTenantUsageSummaryImpl,
+  buildStorageUsageAuditEvent as buildStorageUsageAuditEventImpl,
+  buildStorageUsageDimensionStatus as buildStorageUsageDimensionStatusImpl,
+  buildStorageUsageSnapshot as buildStorageUsageSnapshotImpl,
+  buildStorageUsageThresholdBreach as buildStorageUsageThresholdBreachImpl,
+  buildStorageWorkspaceUsageEntry as buildStorageWorkspaceUsageEntryImpl,
+  detectStorageUsageThresholdBreaches as detectStorageUsageThresholdBreachesImpl,
+  rankBucketsByUsage as rankBucketsByUsageImpl
+} from './storage-usage-reporting.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -191,6 +207,11 @@ export const storageProgrammaticCredentialTypes = STORAGE_PROGRAMMATIC_CREDENTIA
 export const storageProgrammaticCredentialStates = STORAGE_PROGRAMMATIC_CREDENTIAL_STATES;
 export const storageProgrammaticCredentialAllowedActions = STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS;
 export const storageProgrammaticCredentialErrorCodes = STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES;
+export const storageUsageCollectionMethods = STORAGE_USAGE_COLLECTION_METHODS;
+export const storageUsageCollectionStatuses = STORAGE_USAGE_COLLECTION_STATUSES;
+export const storageUsageThresholdSeverities = STORAGE_USAGE_THRESHOLD_SEVERITIES;
+export const storageUsageThresholdDefaults = STORAGE_USAGE_THRESHOLD_DEFAULTS;
+export const storageUsageErrorCodes = STORAGE_USAGE_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -258,6 +279,42 @@ export function rotateWorkspaceStorageProgrammaticCredential(input = {}) {
 
 export function revokeWorkspaceStorageProgrammaticCredential(input = {}) {
   return revokeStorageProgrammaticCredential(input);
+}
+
+export function buildStorageUsageDimensionStatus(input = {}) {
+  return buildStorageUsageDimensionStatusImpl(input);
+}
+
+export function buildStorageBucketUsageEntry(input = {}) {
+  return buildStorageBucketUsageEntryImpl(input);
+}
+
+export function buildStorageWorkspaceUsageEntry(input = {}) {
+  return buildStorageWorkspaceUsageEntryImpl(input);
+}
+
+export function buildStorageUsageSnapshot(input = {}) {
+  return buildStorageUsageSnapshotImpl(input);
+}
+
+export function buildStorageCrossTenantUsageSummary(input = {}) {
+  return buildStorageCrossTenantUsageSummaryImpl(input);
+}
+
+export function buildStorageUsageThresholdBreach(input = {}) {
+  return buildStorageUsageThresholdBreachImpl(input);
+}
+
+export function detectStorageUsageThresholdBreaches(input = {}) {
+  return detectStorageUsageThresholdBreachesImpl(input);
+}
+
+export function rankBucketsByUsage(input = {}) {
+  return rankBucketsByUsageImpl(input);
+}
+
+export function buildStorageUsageAuditEvent(input = {}) {
+  return buildStorageUsageAuditEventImpl(input);
 }
 
 export function getStorageLogicalOrganization(input = {}) {

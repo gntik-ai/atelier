@@ -681,7 +681,11 @@
         "get_capability_details",
         "validate_capability_baseline",
         "normalize_storage_error",
-        "emit_normalized_storage_error_event"
+        "emit_normalized_storage_error_event",
+        "get_workspace_usage_snapshot",
+        "get_tenant_usage_snapshot",
+        "get_bucket_usage_snapshot",
+        "list_cross_tenant_usage_snapshots"
       ],
       "request_contract": "adapter_call",
       "result_contract": "adapter_result",

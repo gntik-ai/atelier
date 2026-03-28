@@ -91,6 +91,17 @@
           "type": "string"
         }
       },
+      "TenantId": {
+        "description": "Stable tenant identifier.",
+        "in": "path",
+        "name": "tenantId",
+        "required": true,
+        "schema": {
+          "minLength": 3,
+          "pattern": "^ten_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
       "WorkspaceId": {
         "description": "Stable workspace identifier.",
         "in": "path",
@@ -563,6 +574,45 @@
         ],
         "type": "object"
       },
+      "StorageBucketUsageEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketId": {
+            "type": "string"
+          },
+          "entityType": {
+            "enum": [
+              "storage_bucket_usage_entry"
+            ],
+            "type": "string"
+          },
+          "largestObjectSizeBytes": {
+            "type": "number"
+          },
+          "objectCount": {
+            "type": "number"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "totalBytes": {
+            "type": "number"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "bucketId",
+          "workspaceId",
+          "tenantId",
+          "totalBytes",
+          "objectCount",
+          "largestObjectSizeBytes"
+        ],
+        "type": "object"
+      },
       "StorageBucketWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -601,6 +651,44 @@
           "workspaceId",
           "bucketName",
           "region"
+        ],
+        "type": "object"
+      },
+      "StorageCrossTenantUsageSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "entityType": {
+            "enum": [
+              "storage_cross_tenant_usage_summary"
+            ],
+            "type": "string"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "sortDimension": {
+            "type": "string"
+          },
+          "tenants": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "topN": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entityType",
+          "tenants",
+          "sortDimension",
+          "topN",
+          "generatedAt"
         ],
         "type": "object"
       },
@@ -1369,6 +1457,203 @@
           "key",
           "prefix",
           "purpose"
+        ],
+        "type": "object"
+      },
+      "StorageUsageDimensionStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "enum": [
+              "total_bytes",
+              "bucket_count",
+              "object_count",
+              "object_size_bytes"
+            ],
+            "type": "string"
+          },
+          "limit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "remaining": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "used": {
+            "type": "number"
+          },
+          "utilizationPercent": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "dimension",
+          "used",
+          "limit",
+          "remaining",
+          "utilizationPercent"
+        ],
+        "type": "object"
+      },
+      "StorageUsageSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "breakdown": {
+            "items": {},
+            "type": "array"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StorageBucketUsageEntry"
+            },
+            "type": "array"
+          },
+          "cacheSnapshotAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "collectionMethod": {
+            "enum": [
+              "provider_admin_api",
+              "cached_snapshot",
+              "platform_estimate"
+            ],
+            "type": "string"
+          },
+          "collectionStatus": {
+            "enum": [
+              "ok",
+              "provider_unavailable",
+              "partial"
+            ],
+            "type": "string"
+          },
+          "dimensions": {
+            "additionalProperties": false,
+            "properties": {
+              "bucketCount": {
+                "$ref": "#/components/schemas/StorageUsageDimensionStatus"
+              },
+              "objectCount": {
+                "$ref": "#/components/schemas/StorageUsageDimensionStatus"
+              },
+              "objectSizeBytes": {
+                "$ref": "#/components/schemas/StorageUsageDimensionStatus"
+              },
+              "totalBytes": {
+                "$ref": "#/components/schemas/StorageUsageDimensionStatus"
+              }
+            },
+            "required": [
+              "totalBytes",
+              "bucketCount",
+              "objectCount",
+              "objectSizeBytes"
+            ],
+            "type": "object"
+          },
+          "entityType": {
+            "enum": [
+              "storage_usage_snapshot"
+            ],
+            "type": "string"
+          },
+          "scopeId": {
+            "type": "string"
+          },
+          "scopeType": {
+            "enum": [
+              "tenant",
+              "workspace",
+              "bucket"
+            ],
+            "type": "string"
+          },
+          "snapshotAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "snapshotId": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/StorageWorkspaceUsageEntry"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "entityType",
+          "snapshotId",
+          "scopeType",
+          "scopeId",
+          "tenantId",
+          "dimensions",
+          "breakdown",
+          "collectionMethod",
+          "collectionStatus",
+          "snapshotAt",
+          "cacheSnapshotAt"
+        ],
+        "type": "object"
+      },
+      "StorageWorkspaceUsageEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "bucketCount": {
+            "type": "number"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/StorageBucketUsageEntry"
+            },
+            "type": "array"
+          },
+          "entityType": {
+            "enum": [
+              "storage_workspace_usage_entry"
+            ],
+            "type": "string"
+          },
+          "objectCount": {
+            "type": "number"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "totalBytes": {
+            "type": "number"
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entityType",
+          "workspaceId",
+          "tenantId",
+          "totalBytes",
+          "objectCount",
+          "bucketCount",
+          "buckets"
         ],
         "type": "object"
       }
@@ -2586,6 +2871,365 @@
         "x-visibility": "public"
       }
     },
+    "/v1/storage/tenants/{tenantId}/usage": {
+      "get": {
+        "operationId": "getTenantStorageUsage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageUsageSnapshot"
+                }
+              }
+            },
+            "description": "Tenant storage usage snapshot returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this storage scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested tenant usage scope was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rate limit exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected oversized headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout while awaiting the upstream service."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one tenant-scoped storage usage snapshot aggregated across workspaces",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "storage_usage_snapshot",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/usage/tenants": {
+      "get": {
+        "operationId": "listCrossTenantStorageUsage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageCrossTenantUsageSummary"
+                }
+              }
+            },
+            "description": "Cross-tenant storage usage summary returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this platform storage scope."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rate limit exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected oversized headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout while awaiting the upstream service."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List the top tenant storage usage snapshots across the platform",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "superadmin",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "storage_usage_snapshot",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/usage": {
+      "get": {
+        "operationId": "getBucketStorageUsage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "in": "path",
+            "name": "bucketId",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageUsageSnapshot"
+                }
+              }
+            },
+            "description": "Bucket storage usage snapshot returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this storage scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested bucket usage scope was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rate limit exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected oversized headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout while awaiting the upstream service."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one bucket-scoped storage usage snapshot",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "workspace_admin",
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_usage_snapshot",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/storage/workspaces/{workspaceId}/credentials": {
       "get": {
         "operationId": "listStorageProgrammaticCredentials",
@@ -3296,6 +3940,127 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "data-write",
         "x-resource-type": "storage_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/usage": {
+      "get": {
+        "operationId": "getWorkspaceStorageUsage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageUsageSnapshot"
+                }
+              }
+            },
+            "description": "Workspace storage usage snapshot returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this storage scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace usage scope was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rate limit exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected oversized headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timeout while awaiting the upstream service."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Fetch one workspace-scoped storage usage snapshot with bucket breakdown",
+        "tags": [
+          "Storage"
+        ],
+        "x-audiences": [
+          "workspace_admin",
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_usage_snapshot",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

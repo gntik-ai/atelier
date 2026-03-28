@@ -47,6 +47,7 @@ import {
 import {
   STORAGE_ERROR_RETRYABILITY,
   STORAGE_NORMALIZED_ERROR_CODES,
+  STORAGE_USAGE_ERROR_CODES as STORAGE_USAGE_ERROR_CODES_CATALOG,
   buildNormalizedStorageError,
   buildStorageErrorAuditEvent,
   buildStorageErrorEnvelope,
@@ -64,6 +65,20 @@ import {
   revokeStorageProgrammaticCredential,
   rotateStorageProgrammaticCredential
 } from '../../../services/adapters/src/storage-programmatic-credentials.mjs';
+import {
+  STORAGE_USAGE_COLLECTION_METHODS as STORAGE_USAGE_COLLECTION_METHODS_CATALOG,
+  STORAGE_USAGE_COLLECTION_STATUSES as STORAGE_USAGE_COLLECTION_STATUSES_CATALOG,
+  STORAGE_USAGE_THRESHOLD_DEFAULTS as STORAGE_USAGE_THRESHOLD_DEFAULTS_CATALOG,
+  STORAGE_USAGE_THRESHOLD_SEVERITIES as STORAGE_USAGE_THRESHOLD_SEVERITIES_CATALOG,
+  buildStorageBucketUsageEntry,
+  buildStorageCrossTenantUsageSummary,
+  buildStorageUsageAuditEvent,
+  buildStorageUsageDimensionStatus,
+  buildStorageUsageSnapshot,
+  buildStorageWorkspaceUsageEntry,
+  detectStorageUsageThresholdBreaches,
+  rankBucketsByUsage
+} from '../../../services/adapters/src/storage-usage-reporting.mjs';
 
 export const storageApiFamily = getApiFamily('storage');
 export const STORAGE_ADMIN_ERROR_CODES = STORAGE_PROVIDER_ERROR_CODES;
@@ -81,6 +96,16 @@ export const STORAGE_PROGRAMMATIC_CREDENTIAL_TYPE_CATALOG = STORAGE_PROGRAMMATIC
 export const STORAGE_PROGRAMMATIC_CREDENTIAL_STATE_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_STATES;
 export const STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS;
 export const STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES;
+export const STORAGE_USAGE_COLLECTION_METHODS = STORAGE_USAGE_COLLECTION_METHODS_CATALOG;
+export const STORAGE_USAGE_COLLECTION_STATUSES = STORAGE_USAGE_COLLECTION_STATUSES_CATALOG;
+export const STORAGE_USAGE_THRESHOLD_SEVERITIES = STORAGE_USAGE_THRESHOLD_SEVERITIES_CATALOG;
+export const STORAGE_USAGE_THRESHOLD_DEFAULTS = STORAGE_USAGE_THRESHOLD_DEFAULTS_CATALOG;
+export const STORAGE_USAGE_ERROR_CODES = STORAGE_USAGE_ERROR_CODES_CATALOG;
+export const STORAGE_USAGE_COLLECTION_METHOD_CATALOG = STORAGE_USAGE_COLLECTION_METHODS_CATALOG;
+export const STORAGE_USAGE_COLLECTION_STATUS_CATALOG = STORAGE_USAGE_COLLECTION_STATUSES_CATALOG;
+export const STORAGE_USAGE_THRESHOLD_SEVERITY_CATALOG = STORAGE_USAGE_THRESHOLD_SEVERITIES_CATALOG;
+export const STORAGE_USAGE_THRESHOLD_DEFAULT_CATALOG = STORAGE_USAGE_THRESHOLD_DEFAULTS_CATALOG;
+export const STORAGE_USAGE_ERROR_CATALOG = STORAGE_USAGE_ERROR_CODES_CATALOG;
 
 function matchesRouteFilters(route, filters = {}) {
   return Object.entries(filters).every(([key, value]) => route?.[key] === value);
@@ -98,12 +123,19 @@ export function listStorageAdminRoutes(filters = {}) {
     getPublicRoute('rotateStorageProgrammaticCredential'),
     getPublicRoute('revokeStorageProgrammaticCredential')
   ];
+  const storageUsageRoutes = [
+    getPublicRoute('getTenantStorageUsage'),
+    getPublicRoute('getWorkspaceStorageUsage'),
+    getPublicRoute('getBucketStorageUsage'),
+    getPublicRoute('listCrossTenantStorageUsage')
+  ];
   const combinedRoutes = [
     ...storageRoutes,
     providerRoute,
     tenantContextRoute,
     tenantRotationRoute,
-    ...storageCredentialRoutes
+    ...storageCredentialRoutes,
+    ...storageUsageRoutes
   ].filter(Boolean);
 
   return combinedRoutes.filter((route) => matchesRouteFilters(route, filters));
@@ -113,7 +145,7 @@ export const storageAdminRoutes = listStorageAdminRoutes();
 
 export function getStorageAdminRoute(operationId) {
   const route = getPublicRoute(operationId);
-  return route && (route.family === 'storage' || ['storage_provider', 'tenant_storage_context', 'bucket_object', 'storage_credential'].includes(route.resourceType))
+  return route && (route.family === 'storage' || ['storage_provider', 'tenant_storage_context', 'bucket_object', 'storage_credential', 'storage_usage_snapshot'].includes(route.resourceType))
     ? route
     : undefined;
 }
@@ -368,4 +400,152 @@ export function deleteStorageObjectPreviewResult(input = {}) {
 
 export function buildStorageOperationEvent(input = {}) {
   return buildStorageMutationEvent(input);
+}
+
+function normalizeUsageDimensions(input = {}) {
+  return Object.values({
+    total_bytes: 'totalBytes',
+    bucket_count: 'bucketCount',
+    object_count: 'objectCount',
+    object_size_bytes: 'largestObjectSizeBytes'
+  }).map(() => null) && [
+    buildStorageUsageDimensionStatus({ dimension: 'total_bytes', used: input.totalBytes ?? 0, limit: input.totalBytesLimit ?? input.totalBytes?.limit ?? null }),
+    buildStorageUsageDimensionStatus({ dimension: 'bucket_count', used: input.bucketCount ?? 0, limit: input.bucketCountLimit ?? input.bucketCount?.limit ?? null }),
+    buildStorageUsageDimensionStatus({ dimension: 'object_count', used: input.objectCount ?? 0, limit: input.objectCountLimit ?? input.objectCount?.limit ?? null }),
+    buildStorageUsageDimensionStatus({ dimension: 'object_size_bytes', used: input.largestObjectSizeBytes ?? 0, limit: input.largestObjectSizeBytesLimit ?? input.objectSizeBytesLimit ?? null })
+  ];
+}
+
+export function previewWorkspaceStorageUsage(input = {}) {
+  const buckets = (input.buckets ?? []).map((bucket) => buildStorageBucketUsageEntry({
+    ...bucket,
+    workspaceId: bucket.workspaceId ?? input.workspaceId,
+    tenantId: bucket.tenantId ?? input.tenantId
+  }));
+  const snapshot = buildStorageUsageSnapshot({
+    scopeType: 'workspace',
+    scopeId: input.workspaceId,
+    tenantId: input.tenantId ?? null,
+    dimensions: input.dimensions ?? normalizeUsageDimensions({
+      totalBytes: input.totalBytes ?? buckets.reduce((sum, bucket) => sum + bucket.totalBytes, 0),
+      bucketCount: input.bucketCount ?? buckets.length,
+      objectCount: input.objectCount ?? buckets.reduce((sum, bucket) => sum + bucket.objectCount, 0),
+      largestObjectSizeBytes: input.largestObjectSizeBytes ?? Math.max(0, ...buckets.map((bucket) => bucket.largestObjectSizeBytes)),
+      totalBytesLimit: input.totalBytesLimit,
+      bucketCountLimit: input.bucketCountLimit,
+      objectCountLimit: input.objectCountLimit,
+      largestObjectSizeBytesLimit: input.largestObjectSizeBytesLimit
+    }),
+    breakdown: buckets,
+    collectionMethod: input.collectionMethod ?? STORAGE_USAGE_COLLECTION_METHODS_CATALOG.PLATFORM_ESTIMATE,
+    collectionStatus: input.collectionStatus ?? STORAGE_USAGE_COLLECTION_STATUSES_CATALOG.OK,
+    snapshotAt: input.snapshotAt,
+    cacheSnapshotAt: input.cacheSnapshotAt
+  });
+  return {
+    snapshot,
+    thresholdBreaches: detectStorageUsageThresholdBreaches({ snapshot, thresholds: input.thresholds }),
+    auditEvent: buildStorageUsageAuditEvent({
+      actorPrincipal: input.actorPrincipal ?? null,
+      scopeType: 'workspace',
+      scopeId: input.workspaceId,
+      tenantId: input.tenantId ?? null,
+      timestamp: input.auditTimestamp ?? input.snapshotAt
+    })
+  };
+}
+
+export function previewTenantStorageUsage(input = {}) {
+  const workspaces = (input.workspaces ?? []).map((workspace) => buildStorageWorkspaceUsageEntry(workspace));
+  const snapshot = buildStorageUsageSnapshot({
+    scopeType: 'tenant',
+    scopeId: input.tenantId,
+    tenantId: input.tenantId,
+    dimensions: input.dimensions ?? normalizeUsageDimensions({
+      totalBytes: input.totalBytes ?? workspaces.reduce((sum, workspace) => sum + workspace.totalBytes, 0),
+      bucketCount: input.bucketCount ?? workspaces.reduce((sum, workspace) => sum + workspace.bucketCount, 0),
+      objectCount: input.objectCount ?? workspaces.reduce((sum, workspace) => sum + workspace.objectCount, 0),
+      largestObjectSizeBytes: input.largestObjectSizeBytes ?? Math.max(0, ...workspaces.flatMap((workspace) => workspace.buckets.map((bucket) => bucket.largestObjectSizeBytes))),
+      totalBytesLimit: input.totalBytesLimit,
+      bucketCountLimit: input.bucketCountLimit,
+      objectCountLimit: input.objectCountLimit,
+      largestObjectSizeBytesLimit: input.largestObjectSizeBytesLimit
+    }),
+    breakdown: workspaces,
+    collectionMethod: input.collectionMethod ?? STORAGE_USAGE_COLLECTION_METHODS_CATALOG.PLATFORM_ESTIMATE,
+    collectionStatus: input.collectionStatus ?? STORAGE_USAGE_COLLECTION_STATUSES_CATALOG.OK,
+    snapshotAt: input.snapshotAt,
+    cacheSnapshotAt: input.cacheSnapshotAt,
+    status: input.status ?? null
+  });
+  return {
+    snapshot,
+    thresholdBreaches: detectStorageUsageThresholdBreaches({ snapshot, thresholds: input.thresholds }),
+    auditEvent: buildStorageUsageAuditEvent({
+      actorPrincipal: input.actorPrincipal ?? null,
+      scopeType: 'tenant',
+      scopeId: input.tenantId,
+      tenantId: input.tenantId,
+      timestamp: input.auditTimestamp ?? input.snapshotAt
+    })
+  };
+}
+
+export function previewBucketStorageUsage(input = {}) {
+  const snapshot = buildStorageUsageSnapshot({
+    scopeType: 'bucket',
+    scopeId: input.bucketId,
+    tenantId: input.tenantId ?? null,
+    dimensions: input.dimensions ?? normalizeUsageDimensions({
+      totalBytes: input.totalBytes ?? 0,
+      bucketCount: 1,
+      objectCount: input.objectCount ?? 0,
+      largestObjectSizeBytes: input.largestObjectSizeBytes ?? 0,
+      totalBytesLimit: input.totalBytesLimit,
+      bucketCountLimit: input.bucketCountLimit,
+      objectCountLimit: input.objectCountLimit,
+      largestObjectSizeBytesLimit: input.largestObjectSizeBytesLimit
+    }),
+    breakdown: [],
+    collectionMethod: input.collectionMethod ?? STORAGE_USAGE_COLLECTION_METHODS_CATALOG.PLATFORM_ESTIMATE,
+    collectionStatus: input.collectionStatus ?? STORAGE_USAGE_COLLECTION_STATUSES_CATALOG.OK,
+    snapshotAt: input.snapshotAt,
+    cacheSnapshotAt: input.cacheSnapshotAt
+  });
+  return {
+    snapshot,
+    auditEvent: buildStorageUsageAuditEvent({
+      actorPrincipal: input.actorPrincipal ?? null,
+      scopeType: 'bucket',
+      scopeId: input.bucketId,
+      tenantId: input.tenantId ?? null,
+      timestamp: input.auditTimestamp ?? input.snapshotAt
+    })
+  };
+}
+
+export function previewCrossTenantStorageUsage(input = {}) {
+  const summary = buildStorageCrossTenantUsageSummary(input);
+  return {
+    summary,
+    auditEvent: buildStorageUsageAuditEvent({
+      actorPrincipal: input.actorPrincipal ?? null,
+      scopeType: 'tenant',
+      scopeId: 'cross-tenant',
+      tenantId: null,
+      timestamp: input.auditTimestamp ?? input.generatedAt
+    })
+  };
+}
+
+export function detectWorkspaceUsageThresholds(input = {}) {
+  return detectStorageUsageThresholdBreaches({ snapshot: input.workspaceSnapshot ?? input.snapshot, thresholds: input.thresholds });
+}
+
+export function rankWorkspaceBucketsByUsage(input = {}) {
+  return rankBucketsByUsage({
+    buckets: input.buckets ?? input.workspaceSnapshot?.buckets ?? input.snapshot?.buckets ?? [],
+    sortDimension: input.sortDimension,
+    topN: input.topN
+  });
 }
