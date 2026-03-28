@@ -7,6 +7,7 @@ const DOMAIN_MODEL_URL = new URL('./domain-model.json', import.meta.url);
 const OBSERVABILITY_METRICS_STACK_URL = new URL('./observability-metrics-stack.json', import.meta.url);
 const OBSERVABILITY_DASHBOARDS_URL = new URL('./observability-dashboards.json', import.meta.url);
 const OBSERVABILITY_HEALTH_CHECKS_URL = new URL('./observability-health-checks.json', import.meta.url);
+const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 
@@ -17,6 +18,7 @@ let cachedDomainModel;
 let cachedObservabilityMetricsStack;
 let cachedObservabilityDashboards;
 let cachedObservabilityHealthChecks;
+let cachedObservabilityBusinessMetrics;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
 
@@ -76,6 +78,14 @@ export function readObservabilityHealthChecks() {
   return cachedObservabilityHealthChecks;
 }
 
+export function readObservabilityBusinessMetrics() {
+  if (!cachedObservabilityBusinessMetrics) {
+    cachedObservabilityBusinessMetrics = JSON.parse(readFileSync(OBSERVABILITY_BUSINESS_METRICS_URL, 'utf8'));
+  }
+
+  return cachedObservabilityBusinessMetrics;
+}
+
 export function readPublicApiTaxonomy() {
   if (!cachedPublicApiTaxonomy) {
     cachedPublicApiTaxonomy = JSON.parse(readFileSync(PUBLIC_API_TAXONOMY_URL, 'utf8'));
@@ -99,6 +109,7 @@ export const DOMAIN_MODEL_VERSION = readDomainModel().version;
 export const OBSERVABILITY_METRICS_STACK_VERSION = readObservabilityMetricsStack().version;
 export const OBSERVABILITY_DASHBOARDS_VERSION = readObservabilityDashboards().version;
 export const OBSERVABILITY_HEALTH_CHECKS_VERSION = readObservabilityHealthChecks().version;
+export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
 export const PROVISIONING_ORCHESTRATOR_SERVICE_ID = 'provisioning_orchestrator';
@@ -323,6 +334,42 @@ export function getObservabilityHealthExposureTemplates() {
 
 export function getObservabilityHealthProjection() {
   return readObservabilityHealthChecks().observability_projection ?? {};
+}
+
+export function listObservabilityBusinessDomains() {
+  return readObservabilityBusinessMetrics().business_domains ?? [];
+}
+
+export function getObservabilityBusinessDomain(domainId) {
+  return listObservabilityBusinessDomains().find((domain) => domain.id === domainId);
+}
+
+export function listObservabilityBusinessMetricTypes() {
+  return readObservabilityBusinessMetrics().metric_types ?? [];
+}
+
+export function getObservabilityBusinessMetricType(metricTypeId) {
+  return listObservabilityBusinessMetricTypes().find((metricType) => metricType.id === metricTypeId);
+}
+
+export function listObservabilityBusinessMetricFamilies() {
+  return readObservabilityBusinessMetrics().metric_families ?? [];
+}
+
+export function getObservabilityBusinessMetricFamily(metricFamilyId) {
+  return listObservabilityBusinessMetricFamilies().find((metricFamily) => metricFamily.id === metricFamilyId);
+}
+
+export function getObservabilityBusinessMetricControls() {
+  const businessMetrics = readObservabilityBusinessMetrics();
+
+  return {
+    requiredLabels: businessMetrics.required_labels ?? [],
+    boundedDimensionCatalog: businessMetrics.bounded_dimension_catalog ?? [],
+    cardinalityControls: businessMetrics.cardinality_controls ?? {},
+    auditContext: businessMetrics.audit_context ?? {},
+    freshnessAndCollection: businessMetrics.freshness_and_collection ?? {}
+  };
 }
 
 export function getPublicRoute(operationId) {

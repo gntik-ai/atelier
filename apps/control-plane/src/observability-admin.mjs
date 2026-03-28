@@ -1,5 +1,9 @@
 import {
   getApiFamily,
+  getObservabilityBusinessDomain,
+  getObservabilityBusinessMetricControls,
+  getObservabilityBusinessMetricFamily,
+  getObservabilityBusinessMetricType,
   getObservabilityCollectionHealth,
   getObservabilityDashboardScope,
   getObservabilityHealthComponent,
@@ -7,6 +11,9 @@ import {
   getObservabilityHealthProjection,
   getObservabilityProbeType,
   getObservedSubsystem,
+  listObservabilityBusinessDomains,
+  listObservabilityBusinessMetricFamilies,
+  listObservabilityBusinessMetricTypes,
   listObservabilityDashboardDimensions,
   listObservabilityDashboardScopes,
   listObservabilityDashboardWidgets,
@@ -14,6 +21,7 @@ import {
   listObservabilityMetricFamilies,
   listObservabilityProbeTypes,
   listObservedSubsystems,
+  readObservabilityBusinessMetrics,
   readObservabilityDashboards,
   readObservabilityHealthChecks,
   readObservabilityMetricsStack
@@ -32,6 +40,11 @@ export const observabilityProbeTypes = listObservabilityProbeTypes();
 export const observabilityHealthComponents = listObservabilityHealthComponents();
 export const observabilityHealthExposureTemplates = getObservabilityHealthExposureTemplates();
 export const observabilityHealthProjection = getObservabilityHealthProjection();
+export const observabilityBusinessMetrics = readObservabilityBusinessMetrics();
+export const observabilityBusinessDomains = listObservabilityBusinessDomains();
+export const observabilityBusinessMetricTypes = listObservabilityBusinessMetricTypes();
+export const observabilityBusinessMetricFamilies = listObservabilityBusinessMetricFamilies();
+export const observabilityBusinessMetricControls = getObservabilityBusinessMetricControls();
 
 export function listObservabilitySubsystems() {
   return listObservedSubsystems();
@@ -298,5 +311,134 @@ export function buildComponentHealthProbeSummary(input = {}) {
     projection: component.metric_projection ?? observabilityHealthProjection,
     dashboardCompatibility: observabilityHealthChecks.dashboard_alignment ?? {},
     auditFields: observabilityHealthChecks.audit_context?.required_fields ?? []
+  };
+}
+
+export function listBusinessMetricDomains() {
+  return observabilityBusinessDomains;
+}
+
+export function getBusinessMetricDomain(domainId) {
+  return getObservabilityBusinessDomain(domainId);
+}
+
+export function listBusinessMetricTypes() {
+  return observabilityBusinessMetricTypes;
+}
+
+export function getBusinessMetricType(metricTypeId) {
+  return getObservabilityBusinessMetricType(metricTypeId);
+}
+
+export function listBusinessMetricFamilies() {
+  return observabilityBusinessMetricFamilies;
+}
+
+export function getBusinessMetricFamily(metricFamilyId) {
+  return getObservabilityBusinessMetricFamily(metricFamilyId);
+}
+
+export function summarizeObservabilityBusinessMetrics() {
+  return {
+    version: observabilityBusinessMetrics.version,
+    sourceMetricsContract: observabilityBusinessMetrics.source_metrics_contract,
+    sourceDashboardContract: observabilityBusinessMetrics.source_dashboard_contract,
+    sourceHealthContract: observabilityBusinessMetrics.source_health_contract,
+    principles: observabilityBusinessMetrics.principles ?? [],
+    scopeAliases: observabilityBusinessMetrics.scope_aliases ?? {},
+    metricTypes: observabilityBusinessMetricTypes.map((metricType) => ({
+      id: metricType.id,
+      description: metricType.description
+    })),
+    businessDomains: observabilityBusinessDomains.map((domain) => ({
+      id: domain.id,
+      displayName: domain.display_name,
+      primaryConsumers: domain.primary_consumers ?? []
+    })),
+    requiredLabels: observabilityBusinessMetricControls.requiredLabels ?? [],
+    boundedDimensionCatalog: observabilityBusinessMetricControls.boundedDimensionCatalog ?? [],
+    cardinalityControls: observabilityBusinessMetricControls.cardinalityControls ?? {},
+    auditContext: observabilityBusinessMetricControls.auditContext ?? {},
+    freshnessAndCollection: observabilityBusinessMetricControls.freshnessAndCollection ?? {},
+    metricFamilies: observabilityBusinessMetricFamilies.map((metricFamily) => ({
+      id: metricFamily.id,
+      name: metricFamily.name,
+      domain: metricFamily.domain,
+      metricType: metricFamily.metric_type,
+      kind: metricFamily.kind,
+      producer: metricFamily.producer,
+      supportedScopes: metricFamily.supported_scopes ?? [],
+      downstreamUses: metricFamily.downstream_uses ?? []
+    }))
+  };
+}
+
+export function buildObservabilityBusinessMetricQuery(input = {}) {
+  const metricFamily = getBusinessMetricFamily(input.metricFamilyId);
+  const domain = input.domainId ? getBusinessMetricDomain(input.domainId) : null;
+  const metricType = input.metricTypeId ? getBusinessMetricType(input.metricTypeId) : null;
+  const requestedScope = input.scope ?? (input.workspaceId ? 'workspace' : input.tenantId ? 'tenant' : 'platform');
+
+  if (!['platform', 'tenant', 'workspace'].includes(requestedScope)) {
+    throw new Error(`Unknown business metric scope ${requestedScope}.`);
+  }
+
+  if (requestedScope === 'tenant' && !input.tenantId) {
+    throw new Error('tenantId is required for tenant-scoped business metric queries.');
+  }
+
+  if (requestedScope === 'workspace' && (!input.tenantId || !input.workspaceId)) {
+    throw new Error('tenantId and workspaceId are required for workspace-scoped business metric queries.');
+  }
+
+  if (metricFamily && !(metricFamily.supported_scopes ?? []).includes(requestedScope)) {
+    throw new Error(`Business metric family ${metricFamily.id} does not support scope ${requestedScope}.`);
+  }
+
+  const queryScope = buildObservabilityQueryScope({
+    subsystem: input.subsystem,
+    tenantId: input.tenantId,
+    workspaceId: input.workspaceId,
+    includePlatform: requestedScope === 'platform'
+  });
+  const labels = {
+    ...queryScope.labels,
+    domain: domain?.id ?? metricFamily?.domain ?? input.domainId ?? undefined,
+    metric_type: metricType?.id ?? metricFamily?.metric_type ?? input.metricTypeId ?? undefined
+  };
+  const filters = [...queryScope.filters];
+
+  if (labels.domain) {
+    filters.push(`domain=${labels.domain}`);
+  }
+
+  if (labels.metric_type) {
+    filters.push(`metric_type=${labels.metric_type}`);
+  }
+
+  return {
+    requestedScope,
+    dashboardScope: observabilityBusinessMetrics.scope_aliases?.[requestedScope]?.dashboard_scope ?? (requestedScope === 'platform' ? 'global' : requestedScope),
+    requiredContext: {
+      tenantId: input.tenantId ?? null,
+      workspaceId: input.workspaceId ?? null
+    },
+    metricFamily: metricFamily
+      ? {
+          id: metricFamily.id,
+          name: metricFamily.name,
+          supportedScopes: metricFamily.supported_scopes ?? [],
+          safeAttributionPolicy: metricFamily.safe_attribution_policy,
+          downstreamUses: metricFamily.downstream_uses ?? []
+        }
+      : null,
+    queryScope: {
+      ...queryScope,
+      labels,
+      filters
+    },
+    auditFields: observabilityBusinessMetricControls.auditContext?.required_fields ?? [],
+    forbiddenLabels: observabilityBusinessMetricControls.cardinalityControls?.forbidden_labels ?? [],
+    freshnessMetric: observabilityBusinessMetricControls.freshnessAndCollection?.collection_health_metric ?? observabilityCollectionHealth.metric_name
   };
 }

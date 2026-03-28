@@ -1,0 +1,570 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-01-T04",
+  "system": "in-atelier-observability-plane",
+  "source_metrics_contract": "2026-03-28",
+  "source_dashboard_contract": "2026-03-28",
+  "source_health_contract": "2026-03-28",
+  "principles": [
+    "Business and product metrics extend the same observability plane used for infrastructure and health signals; they do not create a parallel telemetry system.",
+    "Business metrics must preserve the same multi-tenant isolation, auditability, and bounded-cardinality posture as the technical observability baseline.",
+    "Business metrics describe product adoption, lifecycle, and consumption semantics and must remain distinct from infrastructure-only and probe-health signals.",
+    "Business metrics should be reusable by quota, metering, console-summary, alerting, and smoke-verification work without coupling this contract to those downstream implementations."
+  ],
+  "scope_aliases": {
+    "platform": {
+      "metric_scope": "platform",
+      "dashboard_scope": "global"
+    },
+    "tenant": {
+      "metric_scope": "tenant",
+      "dashboard_scope": "tenant"
+    },
+    "workspace": {
+      "metric_scope": "workspace",
+      "dashboard_scope": "workspace"
+    }
+  },
+  "metric_types": [
+    {
+      "id": "adoption",
+      "description": "Signals that describe platform, tenant, or workspace activation and active-state posture."
+    },
+    {
+      "id": "usage",
+      "description": "Signals that quantify workload, activity, or consumption volume for a product capability."
+    },
+    {
+      "id": "saturation",
+      "description": "Signals that describe quota proximity, reserved capacity posture, or usage-to-limit ratios."
+    }
+  ],
+  "business_domains": [
+    {
+      "id": "tenant_lifecycle",
+      "display_name": "Tenant lifecycle",
+      "description": "Tenant activation, active-state, and lifecycle distribution signals.",
+      "primary_consumers": [
+        "superadmin",
+        "product_analytics",
+        "metering"
+      ]
+    },
+    {
+      "id": "workspace_lifecycle",
+      "display_name": "Workspace lifecycle",
+      "description": "Workspace counts, active-state posture, and environment-distributed activity signals.",
+      "primary_consumers": [
+        "superadmin",
+        "tenant_owner",
+        "product_analytics"
+      ]
+    },
+    {
+      "id": "api_usage",
+      "display_name": "API usage",
+      "description": "REST, realtime gateway, and public/control API activity metrics.",
+      "primary_consumers": [
+        "tenant_owner",
+        "sre",
+        "metering"
+      ]
+    },
+    {
+      "id": "identity_activity",
+      "display_name": "Identity activity",
+      "description": "Authentication, authorization, invitation, and onboarding activity signals in safe aggregated form.",
+      "primary_consumers": [
+        "security",
+        "tenant_owner",
+        "product_analytics"
+      ]
+    },
+    {
+      "id": "function_usage",
+      "display_name": "Function usage",
+      "description": "Serverless invocation and execution-consumption signals for OpenWhisk-backed workloads.",
+      "primary_consumers": [
+        "tenant_owner",
+        "sre",
+        "metering"
+      ]
+    },
+    {
+      "id": "data_service_usage",
+      "display_name": "Data service usage",
+      "description": "Bounded consumption signals for PostgreSQL and MongoDB product usage surfaces.",
+      "primary_consumers": [
+        "tenant_owner",
+        "sre",
+        "metering"
+      ]
+    },
+    {
+      "id": "storage_usage",
+      "display_name": "Storage usage",
+      "description": "Logical storage volume and transfer activity signals.",
+      "primary_consumers": [
+        "tenant_owner",
+        "sre",
+        "metering"
+      ]
+    },
+    {
+      "id": "realtime_event_activity",
+      "display_name": "Realtime and event activity",
+      "description": "Realtime connection and event throughput signals for product workloads.",
+      "primary_consumers": [
+        "tenant_owner",
+        "sre",
+        "metering"
+      ]
+    },
+    {
+      "id": "quota_posture",
+      "display_name": "Quota posture",
+      "description": "Usage-to-limit and saturation posture for quota-governed capabilities.",
+      "primary_consumers": [
+        "tenant_owner",
+        "superadmin",
+        "metering"
+      ]
+    }
+  ],
+  "required_labels": [
+    "environment",
+    "subsystem",
+    "metric_scope",
+    "collection_mode"
+  ],
+  "bounded_dimension_catalog": [
+    {
+      "label": "domain",
+      "allowed_values": [
+        "tenant_lifecycle",
+        "workspace_lifecycle",
+        "api_usage",
+        "identity_activity",
+        "function_usage",
+        "data_service_usage",
+        "storage_usage",
+        "realtime_event_activity",
+        "quota_posture"
+      ]
+    },
+    {
+      "label": "metric_type",
+      "allowed_values": [
+        "adoption",
+        "usage",
+        "saturation"
+      ]
+    },
+    {
+      "label": "operation_family",
+      "allowed_values": [
+        "create",
+        "activate",
+        "request",
+        "read",
+        "write",
+        "execute",
+        "stream",
+        "connect",
+        "limit_evaluation"
+      ]
+    },
+    {
+      "label": "feature_area",
+      "allowed_values": [
+        "tenants",
+        "workspaces",
+        "api_gateway",
+        "identity",
+        "functions",
+        "postgres",
+        "mongo",
+        "storage",
+        "realtime",
+        "events",
+        "quotas"
+      ]
+    },
+    {
+      "label": "workspace_environment",
+      "allowed_values": [
+        "dev",
+        "staging",
+        "prod"
+      ]
+    },
+    {
+      "label": "quota_metric_key",
+      "allowed_values": [
+        "api_requests",
+        "function_invocations",
+        "storage_gib",
+        "postgres_compute_hours",
+        "mongo_read_units",
+        "realtime_connections",
+        "event_delivery_count"
+      ]
+    }
+  ],
+  "cardinality_controls": {
+    "forbidden_labels": [
+      "user_id",
+      "request_id",
+      "session_id",
+      "raw_path",
+      "raw_route",
+      "object_key",
+      "bucket_name",
+      "raw_topic_name",
+      "email",
+      "api_key_id",
+      "workspace_slug",
+      "tenant_slug"
+    ],
+    "rules": [
+      "Business metrics must use normalized domain and feature labels instead of raw user, object, route, or credential-bearing identifiers.",
+      "Workspace scope is allowed only when workspace ownership is explicit and safe for the metric family.",
+      "Identity and invitation metrics must remain aggregated; raw principal identifiers are never exposed as labels."
+    ]
+  },
+  "audit_context": {
+    "required_fields": [
+      "actor_id",
+      "dashboard_scope",
+      "tenant_id",
+      "workspace_id",
+      "metric_family_id",
+      "correlation_id"
+    ],
+    "rules": [
+      "Platform-scope business queries may omit tenant_id and workspace_id when no narrower scope is requested.",
+      "Tenant and workspace queries must preserve actor and requested scope context for auditability.",
+      "Cross-tenant widening must be rejected for tenant- or workspace-bounded actors."
+    ]
+  },
+  "freshness_and_collection": {
+    "collection_health_metric": "in_atelier_observability_collection_health",
+    "lag_metric": "in_atelier_observability_collection_lag_seconds",
+    "rules": [
+      "Business metrics inherit the same stale-data caution as the technical observability plane.",
+      "Missing or stale business evidence must not be presented as current nominal activity.",
+      "Derived business metrics may originate from control-plane events, subsystem telemetry, or normalized workload counters, but they remain subject to the common collection-health semantics."
+    ]
+  },
+  "downstream_consumers": {
+    "quota_and_metering": [
+      "api_requests_total",
+      "function_invocations_total",
+      "storage_logical_volume_bytes",
+      "data_service_operations_total",
+      "realtime_connections_active",
+      "quota_utilization_ratio"
+    ],
+    "console_and_alerting": [
+      "tenant_active_total",
+      "workspace_active_total",
+      "quota_utilization_ratio",
+      "identity_events_total"
+    ],
+    "rules": [
+      "This contract provides reusable signal semantics only; it does not define billing calculations, alert thresholds, or UI composition.",
+      "Downstream consumers must preserve this contract's scope and masking rules rather than re-deriving unsafe dimensions from raw subsystem metrics."
+    ]
+  },
+  "metric_families": [
+    {
+      "id": "tenant_active_total",
+      "name": "in_atelier_tenant_active_total",
+      "domain": "tenant_lifecycle",
+      "metric_type": "adoption",
+      "description": "Count of active tenants visible at platform scope.",
+      "kind": "gauge",
+      "producer": "control_plane",
+      "supported_scopes": [
+        "platform"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type"
+      ],
+      "allowed_optional_labels": [],
+      "safe_attribution_policy": "platform_only",
+      "downstream_uses": [
+        "platform_adoption_summary"
+      ]
+    },
+    {
+      "id": "workspace_active_total",
+      "name": "in_atelier_workspace_active_total",
+      "domain": "workspace_lifecycle",
+      "metric_type": "adoption",
+      "description": "Count of active workspaces at platform, tenant, or workspace-safe slices.",
+      "kind": "gauge",
+      "producer": "control_plane",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id",
+        "workspace_environment"
+      ],
+      "safe_attribution_policy": "workspace_safe_when_workspace_is_platform_owned_context",
+      "downstream_uses": [
+        "tenant_adoption_summary",
+        "workspace_summary"
+      ]
+    },
+    {
+      "id": "api_requests_total",
+      "name": "in_atelier_api_requests_total",
+      "domain": "api_usage",
+      "metric_type": "usage",
+      "description": "Normalized API request volume for product-facing request families.",
+      "kind": "counter",
+      "producer": "apisix",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "feature_area",
+        "operation_family"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "workspace_safe_when_route_context_is_attributable",
+      "downstream_uses": [
+        "quota",
+        "metering",
+        "console_summary"
+      ]
+    },
+    {
+      "id": "identity_events_total",
+      "name": "in_atelier_identity_events_total",
+      "domain": "identity_activity",
+      "metric_type": "usage",
+      "description": "Aggregated identity and invitation lifecycle activity counters with safe feature-area categorization.",
+      "kind": "counter",
+      "producer": "control_plane",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "feature_area",
+        "operation_family"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "aggregated_identity_only_no_principal_identifiers",
+      "downstream_uses": [
+        "product_analytics",
+        "security_posture_summary"
+      ]
+    },
+    {
+      "id": "function_invocations_total",
+      "name": "in_atelier_function_invocations_total",
+      "domain": "function_usage",
+      "metric_type": "usage",
+      "description": "Normalized serverless invocation volume for tenant and workspace workloads.",
+      "kind": "counter",
+      "producer": "openwhisk",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "feature_area",
+        "operation_family"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "workspace_safe_when_namespace_resolution_is_platform_managed",
+      "downstream_uses": [
+        "quota",
+        "metering",
+        "tenant_usage_summary"
+      ]
+    },
+    {
+      "id": "data_service_operations_total",
+      "name": "in_atelier_data_service_operations_total",
+      "domain": "data_service_usage",
+      "metric_type": "usage",
+      "description": "Bounded operation volume for PostgreSQL and MongoDB product usage surfaces.",
+      "kind": "counter",
+      "producer": "postgresql_or_mongodb_projection",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "feature_area",
+        "operation_family"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "workspace_safe_for_platform-managed logical data surfaces only",
+      "downstream_uses": [
+        "quota",
+        "metering",
+        "capacity_summary"
+      ]
+    },
+    {
+      "id": "storage_logical_volume_bytes",
+      "name": "in_atelier_storage_logical_volume_bytes",
+      "domain": "storage_usage",
+      "metric_type": "usage",
+      "description": "Logical storage volume attributable to platform, tenant, or workspace contexts.",
+      "kind": "gauge",
+      "producer": "storage",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "feature_area"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "workspace_safe_when_logical_bucket_or_prefix_ownership_is_platform_resolved",
+      "downstream_uses": [
+        "quota",
+        "metering",
+        "tenant_usage_summary"
+      ]
+    },
+    {
+      "id": "realtime_connections_active",
+      "name": "in_atelier_realtime_connections_active",
+      "domain": "realtime_event_activity",
+      "metric_type": "usage",
+      "description": "Active realtime connection posture for product workloads.",
+      "kind": "gauge",
+      "producer": "event_gateway",
+      "supported_scopes": [
+        "platform",
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "feature_area"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "workspace_safe_when_connection_context_is_attributable",
+      "downstream_uses": [
+        "metering",
+        "console_summary"
+      ]
+    },
+    {
+      "id": "quota_utilization_ratio",
+      "name": "in_atelier_quota_utilization_ratio",
+      "domain": "quota_posture",
+      "metric_type": "saturation",
+      "description": "Usage-to-limit ratio for quota-governed capability families.",
+      "kind": "gauge",
+      "producer": "control_plane",
+      "supported_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "required_labels": [
+        "environment",
+        "subsystem",
+        "metric_scope",
+        "collection_mode",
+        "domain",
+        "metric_type",
+        "quota_metric_key"
+      ],
+      "allowed_optional_labels": [
+        "tenant_id",
+        "workspace_id"
+      ],
+      "safe_attribution_policy": "never_platform-aggregated_as_comparative_score_without_authorized_rollup",
+      "downstream_uses": [
+        "quota",
+        "tenant_warning_summary",
+        "alerting_input"
+      ]
+    }
+  ]
+}

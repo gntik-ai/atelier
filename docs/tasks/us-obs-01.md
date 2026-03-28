@@ -189,3 +189,56 @@ npm run validate:observability-health-checks
 ## Residual implementation note for `US-OBS-01-T03`
 
 `US-OBS-01-T01` through `US-OBS-01-T03` now define the canonical metrics-plane, dashboard-plane, and health-probe semantics for observability. Remaining work still includes business metrics, console-facing health summaries, internal alerting behavior, smoke verification, and any live runtime implementation details that consume these contracts.
+
+## Scope delivered in `US-OBS-01-T04`
+
+This increment establishes the **canonical business and product metrics baseline** for the platform.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-business-metrics.json` as the machine-readable source of truth for business domains, metric families, supported scopes, bounded dimensions, forbidden labels, audit context, freshness expectations, and downstream reuse guidance
+- `services/internal-contracts/src/index.mjs` shared readers for business metric domains, metric types, metric families, and business-metric control metadata
+- `apps/control-plane/src/observability-admin.mjs` summary helpers for business-metrics domains/families and safe business-metric query construction
+- `scripts/lib/observability-business-metrics.mjs` and `scripts/validate-observability-business-metrics.mjs` for deterministic validation of the business-metrics baseline and its alignment with the existing observability contracts
+- `docs/reference/architecture/observability-business-metrics.md` as the human-readable architecture guide for the business-metrics baseline
+- `docs/reference/architecture/README.md` index updates so the new guidance is discoverable
+
+## Main decisions in `US-OBS-01-T04`
+
+### Business metrics extend the observability plane but remain distinct from technical health
+
+The platform now defines business/product signals for tenant lifecycle, workspace lifecycle, API usage, identity activity, function usage, data-service usage, storage usage, realtime/event activity, and quota posture.
+
+These metrics live in the same plane as the technical observability baseline, but they remain explicitly separate from infrastructure availability, latency/error metrics, and liveness/readiness/health probe semantics.
+
+### Scope and isolation rules stay identical to the technical baseline
+
+Business metrics reuse the same canonical scope model:
+
+- `platform`
+- `tenant`
+- `workspace`
+
+Tenant- and workspace-attributable business metrics must preserve `tenant_id` / `workspace_id` scoping and must never widen beyond the metric family's supported scopes.
+
+### High-cardinality and sensitive labels remain forbidden
+
+The business-metrics contract explicitly forbids raw or sensitive labels such as `user_id`, `request_id`, `raw_path`, `object_key`, `email`, and `api_key_id`.
+
+Identity-related metrics remain aggregated and audit-aware rather than principal-specific.
+
+### Business metrics are reusable inputs for quota, metering, console, alerting, and smoke work
+
+This increment defines the signal vocabulary that later work should consume rather than deriving business semantics directly from raw subsystem metrics.
+
+## Validation for `US-OBS-01-T04`
+
+Primary validation entry points for the business-metrics baseline:
+
+```bash
+npm run validate:observability-business-metrics
+```
+
+## Residual implementation note for `US-OBS-01-T04`
+
+`US-OBS-01-T01` through `US-OBS-01-T04` now define the canonical metrics-plane, dashboard-plane, health-probe, and business-metrics semantics for observability. Remaining work still includes console-facing summaries, internal alerting behavior, smoke verification, and any live runtime implementation details that consume these contracts.
