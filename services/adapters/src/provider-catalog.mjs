@@ -85,6 +85,31 @@ import {
   validatePartList,
   validatePresignedTtl
 } from './storage-multipart-presigned.mjs';
+import {
+  STORAGE_POLICY_ACTIONS,
+  STORAGE_POLICY_CONDITION_TYPES,
+  STORAGE_POLICY_EFFECTS,
+  STORAGE_POLICY_NORMALIZED_ERROR_CODES,
+  STORAGE_POLICY_PRINCIPAL_TYPES,
+  STORAGE_POLICY_SOURCES,
+  applyTenantStorageTemplateToWorkspace as applyTenantStorageTemplateToWorkspaceImpl,
+  buildBuiltInWorkspaceStorageDefaults as buildBuiltInWorkspaceStorageDefaultsImpl,
+  buildStorageBucketPolicy as buildStorageBucketPolicyImpl,
+  buildStoragePolicyAttachmentSummary as buildStoragePolicyAttachmentSummaryImpl,
+  buildStoragePolicyDecisionAuditEvent as buildStoragePolicyDecisionAuditEventImpl,
+  buildStoragePolicyMutationAuditEvent as buildStoragePolicyMutationAuditEventImpl,
+  buildStoragePolicyStatement as buildStoragePolicyStatementImpl,
+  buildSuperadminBucketPolicyOverride as buildSuperadminBucketPolicyOverrideImpl,
+  buildTenantStoragePermissionTemplate as buildTenantStoragePermissionTemplateImpl,
+  buildWorkspaceStoragePermissionSet as buildWorkspaceStoragePermissionSetImpl,
+  evaluateStorageAccessDecision as evaluateStorageAccessDecisionImpl,
+  evaluateStoragePolicy as evaluateStoragePolicyImpl,
+  matchStoragePolicyCondition as matchStoragePolicyConditionImpl,
+  matchStoragePolicyPrincipal as matchStoragePolicyPrincipalImpl,
+  matchStoragePolicyStatement as matchStoragePolicyStatementImpl,
+  validateStoragePolicyDocument as validateStoragePolicyDocumentImpl,
+  validateStoragePolicyStatement as validateStoragePolicyStatementImpl
+} from './storage-access-policy.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -105,6 +130,12 @@ export const storageMultipartSessionStates = MULTIPART_SESSION_STATES;
 export const storageMultipartLifecycleTransitions = MULTIPART_LIFECYCLE_TRANSITIONS;
 export const storagePresignedUrlOperations = PRESIGNED_URL_OPERATIONS;
 export const storageMultipartNormalizedErrorCodes = MULTIPART_NORMALIZED_ERROR_CODES;
+export const storagePolicyEffects = STORAGE_POLICY_EFFECTS;
+export const storagePolicyPrincipalTypes = STORAGE_POLICY_PRINCIPAL_TYPES;
+export const storagePolicyActions = STORAGE_POLICY_ACTIONS;
+export const storagePolicySources = STORAGE_POLICY_SOURCES;
+export const storagePolicyConditionTypes = STORAGE_POLICY_CONDITION_TYPES;
+export const storagePolicyNormalizedErrorCodes = STORAGE_POLICY_NORMALIZED_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -320,4 +351,72 @@ export function checkStoragePresignedUrlCapability(input = {}) {
 
 export function buildStorageCapabilityNotAvailableError(input = {}) {
   return buildCapabilityNotAvailableError(input);
+}
+
+export function buildStoragePolicyStatement(input = {}) {
+  return buildStoragePolicyStatementImpl(input);
+}
+
+export function buildStorageBucketPolicy(input = {}) {
+  return buildStorageBucketPolicyImpl(input);
+}
+
+export function buildWorkspaceStoragePermissionSet(input = {}) {
+  return buildWorkspaceStoragePermissionSetImpl(input);
+}
+
+export function buildTenantStoragePermissionTemplate(input = {}) {
+  return buildTenantStoragePermissionTemplateImpl(input);
+}
+
+export function buildSuperadminBucketPolicyOverride(input = {}) {
+  return buildSuperadminBucketPolicyOverrideImpl(input);
+}
+
+export function buildStoragePolicyAttachmentSummary(input = {}) {
+  return buildStoragePolicyAttachmentSummaryImpl(input);
+}
+
+export function buildBuiltInWorkspaceStorageDefaults(input = {}) {
+  return buildBuiltInWorkspaceStorageDefaultsImpl(input);
+}
+
+export function applyTenantStorageTemplateToWorkspace(input = {}) {
+  return applyTenantStorageTemplateToWorkspaceImpl(input);
+}
+
+export function validateStoragePolicyStatement(input = {}) {
+  return validateStoragePolicyStatementImpl(input);
+}
+
+export function validateStoragePolicyDocument(input = {}) {
+  return validateStoragePolicyDocumentImpl(input);
+}
+
+export function matchStoragePolicyPrincipal(input = {}) {
+  return matchStoragePolicyPrincipalImpl(input);
+}
+
+export function matchStoragePolicyCondition(input = {}) {
+  return matchStoragePolicyConditionImpl(input);
+}
+
+export function matchStoragePolicyStatement(input = {}) {
+  return matchStoragePolicyStatementImpl(input);
+}
+
+export function evaluateStoragePolicy(input = {}) {
+  return evaluateStoragePolicyImpl(input);
+}
+
+export function evaluateStorageAccessDecision(input = {}) {
+  return evaluateStorageAccessDecisionImpl(input);
+}
+
+export function buildStoragePolicyDecisionAuditEvent(input = {}) {
+  return buildStoragePolicyDecisionAuditEventImpl(input);
+}
+
+export function buildStoragePolicyMutationAuditEvent(input = {}) {
+  return buildStoragePolicyMutationAuditEventImpl(input);
 }

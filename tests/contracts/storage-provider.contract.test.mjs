@@ -21,11 +21,18 @@ import {
   summarizeTenantStorageContext
 } from '../../apps/control-plane/src/storage-admin.mjs';
 import {
+  buildStorageBucketPolicy,
   buildStorageMultipartSession,
+  buildStoragePolicyAttachmentSummary,
   buildStoragePresignedUrlRecord,
+  buildTenantStoragePermissionTemplate,
+  buildWorkspaceStoragePermissionSet,
   checkStorageMultipartCapability,
+  evaluateStorageAccessDecision,
+  getStorageBucketRecord,
   storageMultipartNormalizedErrorCodes,
-  storageNormalizedErrorCodes
+  storageNormalizedErrorCodes,
+  storagePolicyNormalizedErrorCodes
 } from '../../services/adapters/src/provider-catalog.mjs';
 import {
   VERIFICATION_VERDICT,
@@ -390,6 +397,65 @@ test('storage multipart and presigned URL schemas are additive and structurally 
   assert.equal(new Set(multipartCodes).size, 6);
   assert.equal(multipartCodes.some((code) => existingCodes.includes(code)), false);
   assert.equal(Object.isFrozen(storageMultipartNormalizedErrorCodes), true);
+});
+
+test('storage policy contracts are additive and structurally valid', () => {
+  const bucketPolicy = buildStorageBucketPolicy({
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    bucketId: 'bucket-01',
+    statements: [{ effect: 'allow', principals: [{ type: 'role', value: 'viewer' }], actions: ['object.get'] }]
+  });
+  const workspaceDefault = buildWorkspaceStoragePermissionSet({
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    statements: [{ effect: 'allow', principals: [{ type: 'role', value: 'member' }], actions: ['object.list'] }]
+  });
+  const tenantTemplate = buildTenantStoragePermissionTemplate({
+    tenantId: 'ten_01contract',
+    statements: [{ effect: 'allow', principals: [{ type: 'service_account', value: 'svc_contract' }], actions: ['object.put'] }]
+  });
+  const decision = evaluateStorageAccessDecision({
+    isolationAllowed: true,
+    bucketPolicy,
+    actor: { type: 'user', id: 'usr_01contract', roles: ['viewer'] },
+    action: 'object.get',
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    bucketId: 'bucket-01'
+  });
+  const policyAttachment = buildStoragePolicyAttachmentSummary({
+    policyId: bucketPolicy.policyId,
+    source: 'bucket_policy',
+    statementCount: bucketPolicy.statementCount,
+    updatedAt: bucketPolicy.timestamps.updatedAt,
+    overrideActive: false
+  });
+  const bucket = getStorageBucketRecord({
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    bucketName: 'policy-contract-bucket',
+    tenantStorageContext: {
+      entityType: 'tenant_storage_context',
+      tenantId: 'ten_01contract',
+      providerType: 'garage',
+      providerDisplayName: 'Garage',
+      namespace: 'tenants/ten_01contract',
+      state: 'active',
+      bucketProvisioningAllowed: true,
+      quotaAssignment: { capabilityAvailable: true }
+    },
+    policyAttachment
+  });
+
+  assert.equal(bucketPolicy.entityType, 'storage_bucket_policy');
+  assert.equal(workspaceDefault.entityType, 'workspace_storage_permissions');
+  assert.equal(tenantTemplate.entityType, 'tenant_storage_permission_template');
+  assert.equal(decision.allowed, true);
+  assert.equal(bucket.policyAttachment.policyId, bucketPolicy.policyId);
+  assert.equal(new Set(Object.values(storageMultipartNormalizedErrorCodes).map((entry) => entry.code)).size, 6);
+  assert.equal(Object.values(storageMultipartNormalizedErrorCodes).some((entry) => entry.code in storagePolicyNormalizedErrorCodes), false);
+  assert.equal(Object.values(storageNormalizedErrorCodes).some((code) => code in storagePolicyNormalizedErrorCodes), false);
 });
 
 test('storage verification report schema is additive and structurally valid', () => {

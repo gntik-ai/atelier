@@ -181,7 +181,8 @@ export function buildStorageBucketRecord({
   objectLockMode = 'disabled',
   eventNotifications = null,
   existingBucket = null,
-  organization = null
+  organization = null,
+  policyAttachment = null
 } = {}) {
   if (!workspaceId) {
     throw new Error('workspaceId is required to build a storage bucket record.');
@@ -231,6 +232,7 @@ export function buildStorageBucketRecord({
     eventBridgeSummary: eventNotifications,
     organization: logicalOrganization,
     tenantStorageContext: context,
+    ...(policyAttachment ? { policyAttachment: JSON.parse(JSON.stringify(policyAttachment)) } : {}),
     operationEligibility: {
       canWriteObjects: contextOutcome.ok,
       canDeleteBucket: contextOutcome.ok && objectCount === 0 && !(managed && managedResourceKey === 'default_storage_bucket'),
@@ -261,7 +263,8 @@ export function buildStorageBucketSummary(input = {}) {
     timestamps: { ...bucket.timestamps },
     provisioning: { ...bucket.provisioning },
     ...(bucket.organization ? { organization: JSON.parse(JSON.stringify(bucket.organization)) } : {}),
-    ...(bucket.eventBridgeSummary ? { eventBridgeSummary: { ...bucket.eventBridgeSummary } } : {})
+    ...(bucket.eventBridgeSummary ? { eventBridgeSummary: { ...bucket.eventBridgeSummary } } : {}),
+    ...(bucket.policyAttachment ? { policyAttachment: JSON.parse(JSON.stringify(bucket.policyAttachment)) } : {})
   };
 }
 
