@@ -15,6 +15,7 @@ export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_URL = new URL('./observabil
 const OBSERVABILITY_BUSINESS_METRICS_URL = new URL('./observability-business-metrics.json', import.meta.url);
 const OBSERVABILITY_USAGE_CONSUMPTION_URL = new URL('./observability-usage-consumption.json', import.meta.url);
 const OBSERVABILITY_QUOTA_POLICIES_URL = new URL('./observability-quota-policies.json', import.meta.url);
+const OBSERVABILITY_THRESHOLD_ALERTS_URL = new URL('./observability-threshold-alerts.json', import.meta.url);
 const OBSERVABILITY_CONSOLE_ALERTS_URL = new URL('./observability-console-alerts.json', import.meta.url);
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
@@ -34,6 +35,7 @@ let cachedObservabilityAuditCorrelationSurface;
 let cachedObservabilityBusinessMetrics;
 let cachedObservabilityUsageConsumption;
 let cachedObservabilityQuotaPolicies;
+let cachedObservabilityThresholdAlerts;
 let cachedObservabilityConsoleAlerts;
 let cachedPublicApiTaxonomy;
 let cachedPublicRouteCatalog;
@@ -158,6 +160,14 @@ export function readObservabilityQuotaPolicies() {
   return cachedObservabilityQuotaPolicies;
 }
 
+export function readObservabilityThresholdAlerts() {
+  if (!cachedObservabilityThresholdAlerts) {
+    cachedObservabilityThresholdAlerts = JSON.parse(readFileSync(OBSERVABILITY_THRESHOLD_ALERTS_URL, 'utf8'));
+  }
+
+  return cachedObservabilityThresholdAlerts;
+}
+
 export function readObservabilityConsoleAlerts() {
   if (!cachedObservabilityConsoleAlerts) {
     cachedObservabilityConsoleAlerts = JSON.parse(readFileSync(OBSERVABILITY_CONSOLE_ALERTS_URL, 'utf8'));
@@ -197,6 +207,7 @@ export const OBSERVABILITY_AUDIT_CORRELATION_SURFACE_VERSION = readObservability
 export const OBSERVABILITY_BUSINESS_METRICS_VERSION = readObservabilityBusinessMetrics().version;
 export const OBSERVABILITY_USAGE_CONSUMPTION_VERSION = readObservabilityUsageConsumption().version;
 export const OBSERVABILITY_QUOTA_POLICIES_VERSION = readObservabilityQuotaPolicies().version;
+export const OBSERVABILITY_THRESHOLD_ALERTS_VERSION = readObservabilityThresholdAlerts().version;
 export const OBSERVABILITY_CONSOLE_ALERTS_VERSION = readObservabilityConsoleAlerts().version;
 export const PUBLIC_API_VERSION = readPublicApiTaxonomy().version;
 export const CONTROL_API_SERVICE_ID = 'control_api';
@@ -678,6 +689,34 @@ export function getQuotaEvaluationDefaults() {
 
 export function getQuotaEvaluationAuditContract() {
   return readObservabilityQuotaPolicies().evaluation_audit ?? {};
+}
+
+export function listAlertEventTypes() {
+  return readObservabilityThresholdAlerts().event_types ?? [];
+}
+
+export function getAlertEventType(typeId) {
+  return listAlertEventTypes().find((type) => type.id === typeId);
+}
+
+export function listAlertSuppressionCauses() {
+  return readObservabilityThresholdAlerts().suppression_causes ?? [];
+}
+
+export function getAlertSuppressionCause(causeId) {
+  return listAlertSuppressionCauses().find((cause) => cause.id === causeId);
+}
+
+export function getAlertKafkaTopicConfig() {
+  return readObservabilityThresholdAlerts().kafka ?? {};
+}
+
+export function getAlertEventEnvelopeSchema() {
+  return readObservabilityThresholdAlerts().event_envelope ?? {};
+}
+
+export function getAlertCorrelationStrategy() {
+  return readObservabilityThresholdAlerts().correlation_strategy ?? {};
 }
 
 export function listHealthSummaryScopes() {

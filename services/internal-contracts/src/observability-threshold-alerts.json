@@ -1,0 +1,177 @@
+{
+  "version": "2026-03-28",
+  "scope": "US-OBS-03-T03",
+  "system": "in-atelier-threshold-alerts",
+  "source_usage_contract": "2026-03-28",
+  "source_quota_policy_contract": "2026-03-28",
+  "source_audit_event_schema_contract": "2026-03-28",
+  "source_authorization_contract": "2026-03-24",
+  "source_public_api_contract": "2026-03-26",
+  "event_types": [
+    {
+      "id": "quota.threshold.warning_reached",
+      "transition_direction": "escalation",
+      "threshold_type": "warning",
+      "trigger_condition": "Usage crosses warning threshold upward."
+    },
+    {
+      "id": "quota.threshold.soft_limit_exceeded",
+      "transition_direction": "escalation",
+      "threshold_type": "soft_limit",
+      "trigger_condition": "Usage crosses soft limit upward."
+    },
+    {
+      "id": "quota.threshold.hard_limit_reached",
+      "transition_direction": "escalation",
+      "threshold_type": "hard_limit",
+      "trigger_condition": "Usage crosses hard limit upward."
+    },
+    {
+      "id": "quota.threshold.warning_recovered",
+      "transition_direction": "recovery",
+      "threshold_type": "warning",
+      "trigger_condition": "Usage drops below warning threshold after a prior warning posture."
+    },
+    {
+      "id": "quota.threshold.soft_limit_recovered",
+      "transition_direction": "recovery",
+      "threshold_type": "soft_limit",
+      "trigger_condition": "Usage drops below soft limit after a prior soft-limit breach."
+    },
+    {
+      "id": "quota.threshold.hard_limit_recovered",
+      "transition_direction": "recovery",
+      "threshold_type": "hard_limit",
+      "trigger_condition": "Usage drops below hard limit after a prior hard-limit breach."
+    },
+    {
+      "id": "quota.threshold.alert_suppressed",
+      "transition_direction": "suppression",
+      "threshold_type": null,
+      "trigger_condition": "Evidence freshness is degraded or unavailable, so alert emission is suppressed for the evaluation cycle."
+    }
+  ],
+  "suppression_causes": [
+    {
+      "id": "evidence_degraded",
+      "freshness_state": "degraded",
+      "description": "Telemetry exists but is degraded, so transition alerts are suppressed."
+    },
+    {
+      "id": "evidence_unavailable",
+      "freshness_state": "unavailable",
+      "description": "Telemetry is unavailable, so transition alerts are suppressed."
+    }
+  ],
+  "event_envelope": {
+    "required_fields": [
+      "eventType",
+      "tenantId",
+      "workspaceId",
+      "dimension",
+      "measuredValue",
+      "thresholdValue",
+      "thresholdType",
+      "previousPosture",
+      "newPosture",
+      "headroom",
+      "evidenceFreshness",
+      "evaluationTimestamp",
+      "snapshotTimestamp",
+      "correlationId",
+      "actor",
+      "action",
+      "resource"
+    ],
+    "suppression_required_fields": [
+      "eventType",
+      "tenantId",
+      "workspaceId",
+      "dimension",
+      "suppressionCause",
+      "suppressedEventType",
+      "evidenceFreshness",
+      "evaluationTimestamp",
+      "snapshotTimestamp",
+      "correlationId",
+      "actor",
+      "action",
+      "resource"
+    ],
+    "audit_vocabulary_alignment": {
+      "actor_type": "system",
+      "actor_id": "quota-alert-evaluator",
+      "resource_subsystem_id": "quota_metering",
+      "resource_type": "quota_dimension",
+      "action_category": "configuration_change",
+      "origin_surface": "scheduled_operation"
+    }
+  },
+  "ordering_rules": {
+    "escalation_order": [
+      "warning",
+      "soft_limit",
+      "hard_limit"
+    ],
+    "recovery_order": [
+      "hard_limit",
+      "soft_limit",
+      "warning"
+    ],
+    "multi_threshold_crossing": "Emit all intermediate transitions in documented order within a single evaluation cycle.",
+    "threshold_comparison": "inherits_greater_than_or_equal_from_us_obs_03_t02"
+  },
+  "last_known_posture_store": {
+    "table_name": "quota_last_known_posture",
+    "key_fields": [
+      "tenant_id",
+      "workspace_id",
+      "dimension_id"
+    ],
+    "workspace_scope_convention": "workspace_id uses NULL for tenant-scoped rows; primary-key semantics use COALESCE(workspace_id, '') in storage.",
+    "value_fields": [
+      "posture_state",
+      "evaluated_at",
+      "snapshot_timestamp",
+      "correlation_id"
+    ]
+  },
+  "kafka": {
+    "topicName": "quota.threshold.alerts",
+    "partitionKey": "tenantId",
+    "schemaSubject": "quota.threshold.alerts-value",
+    "schemaCompatibility": "BACKWARD",
+    "aclPolicy": {
+      "produce": [
+        "threshold_alert_emitter"
+      ],
+      "consume": [
+        "authorized_internal_services"
+      ]
+    },
+    "lagMetric": "quota_threshold_alerts_producer_lag_seconds"
+  },
+  "correlation_strategy": {
+    "id_format": "quota-alert:<tenantId>:<workspaceId|tenant>:<dimensionId>:<snapshotTimestamp>:<transition|suppression>",
+    "references": [
+      "quota_posture_snapshot",
+      "usage_snapshot"
+    ],
+    "deduplication_key": "correlationId"
+  },
+  "delivery_guarantees": {
+    "preferred_mode": "transactional_kafka_and_posture_store_commit",
+    "fallback_mode": "at_least_once_with_idempotent_consumers",
+    "atomicity_posture": "Posture-store update and Kafka emission must be coordinated to prevent duplicate transition alerts on restart."
+  },
+  "boundaries": [
+    "hard_limit_blocking_is_defined_in_us_obs_03_t04",
+    "console_usage_projection_is_defined_in_us_obs_03_t05",
+    "cross_module_consumption_and_enforcement_tests_are_defined_in_us_obs_03_t06"
+  ],
+  "non_goals": [
+    "This contract does not block resource creation.",
+    "This contract does not deliver notification channels.",
+    "This contract does not provide console visualization workflows."
+  ]
+}
