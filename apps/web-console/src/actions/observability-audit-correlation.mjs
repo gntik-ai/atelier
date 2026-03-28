@@ -3,7 +3,7 @@ import {
   listAuditCorrelationRoutes,
   traceTenantAuditCorrelation,
   traceWorkspaceAuditCorrelation
-} from '../../control-plane/src/observability-audit-correlation.mjs';
+} from '../../../control-plane/src/observability-audit-correlation.mjs';
 
 export function getTenantAuditCorrelationView(options = {}) {
   return buildAuditCorrelationConsoleView({ scopeId: 'tenant', ...options });

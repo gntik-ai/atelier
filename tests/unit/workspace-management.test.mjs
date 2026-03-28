@@ -15,7 +15,7 @@ import {
   buildWorkspaceCloneFormDefaults,
   buildWorkspaceEndpointCards,
   buildWorkspaceResourceSummary
-} from '../../apps/web-console/src/workspace-management.mjs';
+} from '../../apps/web-console/src/actions/workspace-management.mjs';
 import { readDomainSeedFixtures } from '../../scripts/lib/domain-model.mjs';
 
 test('workspace helper modules expose lifecycle, clone, inheritance, and API-surface primitives', () => {

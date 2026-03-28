@@ -2,7 +2,7 @@ import {
   buildAuditExportConsoleView,
   exportTenantAuditRecordsPreview,
   exportWorkspaceAuditRecordsPreview
-} from '../../control-plane/src/observability-audit-export.mjs';
+} from '../../../control-plane/src/observability-audit-export.mjs';
 
 export function getAuditExportConsoleView(options = {}) {
   return buildAuditExportConsoleView(options);

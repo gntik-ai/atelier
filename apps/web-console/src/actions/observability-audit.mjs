@@ -3,7 +3,7 @@ import {
   listAuditQueryRoutes,
   queryTenantAuditRecords,
   queryWorkspaceAuditRecords
-} from '../../control-plane/src/observability-audit-query.mjs';
+} from '../../../control-plane/src/observability-audit-query.mjs';
 
 export function listConsoleAuditRoutes() {
   return listAuditQueryRoutes();

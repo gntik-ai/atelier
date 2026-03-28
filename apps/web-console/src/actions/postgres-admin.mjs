@@ -1,4 +1,4 @@
-import { filterPublicRoutes, getApiFamily, getPublicRoute } from '../../../services/internal-contracts/src/index.mjs';
+import { filterPublicRoutes, getApiFamily, getPublicRoute } from '../../../../services/internal-contracts/src/index.mjs';
 
 export const postgresConsoleFamily = getApiFamily('postgres');
 export const postgresConsoleRoutes = filterPublicRoutes({ family: 'postgres' });

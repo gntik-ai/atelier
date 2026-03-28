@@ -28,7 +28,7 @@ import {
   getConsolePostgresRoute,
   listConsolePostgresRoutes,
   postgresConsoleFamily
-} from '../../apps/web-console/src/postgres-admin.mjs';
+} from '../../apps/web-console/src/actions/postgres-admin.mjs';
 
 test('postgres admin control-plane helpers expose the expanded postgres family surface', () => {
   const routes = listPostgresAdminRoutes();

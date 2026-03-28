@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildPostgresAdminQueryConsole } from '../../../apps/web-console/src/postgres-admin.mjs';
+import { buildPostgresAdminQueryConsole } from '../../../apps/web-console/src/actions/postgres-admin.mjs';
 import { buildPostgresAdminSqlAdapterCall } from '../../../services/adapters/src/postgresql-admin.mjs';
 
 test('admin SQL console flow preserves preview history and confirmation fingerprint between preview and execute', () => {

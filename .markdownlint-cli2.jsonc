@@ -7,6 +7,9 @@
     "MD036": false,
     "MD060": false
   },
+  "ignores": [
+    "**/node_modules/**/*.md"
+  ],
   "globs": [
     "README.md",
     "docs/**/*.md",

@@ -9,7 +9,7 @@ import {
 import {
   buildConsoleRouteSections,
   filterConsoleApiRoutes
-} from '../../apps/web-console/src/public-api-catalog.mjs';
+} from '../../apps/web-console/src/actions/public-api-catalog.mjs';
 
 test('control-plane and console route-catalog helpers expose the same generated family inventory', () => {
   const controlPlanePostgresRoutes = listControlPlaneRoutes({ family: 'postgres' });

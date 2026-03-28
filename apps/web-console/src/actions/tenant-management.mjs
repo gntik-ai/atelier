@@ -4,7 +4,7 @@ import {
   previewTenantInventory,
   previewTenantLifecycleMutation,
   summarizeTenantManagementSurface
-} from '../../control-plane/src/tenant-management.mjs';
+} from '../../../control-plane/src/tenant-management.mjs';
 
 export function buildTenantGovernanceCards({
   tenant,

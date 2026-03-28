@@ -15,7 +15,7 @@ import {
   buildTenantProvisioningBanner,
   buildTenantQuotaUsageCards,
   buildWorkspaceQuotaUsageRows
-} from '../../apps/web-console/src/observability-quota-usage.mjs';
+} from '../../apps/web-console/src/actions/observability-quota-usage.mjs';
 import {
   collectObservabilityQuotaUsageViewViolations,
   readObservabilityQuotaUsageView

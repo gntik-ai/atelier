@@ -22,7 +22,7 @@ import {
   buildTenantGovernanceCards,
   buildTenantInventoryRows,
   buildTenantPurgeModalDefaults
-} from '../../apps/web-console/src/tenant-management.mjs';
+} from '../../apps/web-console/src/actions/tenant-management.mjs';
 import { readDomainSeedFixtures } from '../../scripts/lib/domain-model.mjs';
 
 test('tenant helper modules expose governance dashboard, inventory, export, and purge semantics', () => {
