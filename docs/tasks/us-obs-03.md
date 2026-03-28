@@ -90,9 +90,94 @@ Downstream work remains separate:
 - `US-OBS-03-T05` — console usage vs quota and provisioning state
 - `US-OBS-03-T06` — end-to-end cross-module verification
 
-## Residual implementation note
+## Residual implementation note for `US-OBS-03-T01`
 
 This increment does **not** implement threshold evaluation, alert delivery, hard-limit blocking,
 console rendering, or the final end-to-end quota test matrix.
 It only establishes the bounded usage-consumption contract, helper surfaces, route publication,
-validation, documentation, and tests required for those later tasks.
+documentation, and tests required for those later tasks.
+
+## Scope delivered in `US-OBS-03-T02`
+
+This increment establishes the **quota-policy and threshold-posture baseline** for tenant and
+workspace scope.
+
+Delivered artifacts:
+
+- `services/internal-contracts/src/observability-quota-policies.json` as the machine-readable
+  source of truth for quota threshold types, posture states, ordering rules, supported dimensions,
+  evaluation defaults, audit compatibility, and route / permission alignment
+- `services/internal-contracts/src/index.mjs` shared readers and accessors for the quota-policy
+  contract
+- `scripts/lib/observability-quota-policies.mjs` and
+  `scripts/validate-observability-quota-policies.mjs` for deterministic validation of the new
+  baseline and its alignment with usage consumption, health, audit, authorization, and public API
+  contracts
+- `apps/control-plane/src/observability-admin.mjs` additive helper surfaces for building tenant and
+  workspace quota posture snapshots plus audit-compatible evaluation summaries
+- additive metrics-family routes for tenant and workspace quota posture under the unified public API
+  surface
+- `docs/reference/architecture/observability-quota-policies.md` as the human-readable architecture
+  guide for the quota-policy baseline
+- targeted unit and contract tests for the new contract, helper surfaces, authorization alignment,
+  and published routes
+
+## Main decisions in `US-OBS-03-T02`
+
+### Threshold semantics are centralized instead of duplicated downstream
+
+The baseline now fixes one normalized interpretation for:
+
+- `warning_threshold`
+- `soft_limit`
+- `hard_limit`
+
+This prevents later alerting, blocking, and console work from drifting in how quota posture is
+calculated.
+
+### Quota posture stays separate from runtime reactions
+
+The baseline publishes the posture state that later tasks can consume, but it does not itself emit
+alerts or block resource creation.
+
+That keeps the policy layer independently testable and bounded.
+
+### Freshness from usage remains visible in quota posture
+
+Quota posture cannot be more trustworthy than the usage evidence beneath it.
+
+The baseline therefore preserves degraded and unavailable evidence semantics instead of flattening
+all states into a single healthy/breached outcome.
+
+### Unbounded dimensions remain visible
+
+A dimension without enforced thresholds does not disappear from the contract.
+
+It is surfaced explicitly as `unbounded`, which preserves catalog consistency across all consumers.
+
+## Validation for `US-OBS-03-T02`
+
+Primary validation entry point:
+
+```bash
+npm run validate:observability-quota-policies
+```
+
+## Downstream dependency note for `US-OBS-03-T02`
+
+This increment defines the trusted quota posture baseline required before the rest of the story can
+extend behavior.
+
+Downstream work remains separate:
+
+- `US-OBS-03-T03` — alert emission on threshold breach
+- `US-OBS-03-T04` — hard-limit blocking of create / provision flows
+- `US-OBS-03-T05` — console usage vs quota and provisioning state
+- `US-OBS-03-T06` — end-to-end cross-module verification
+
+## Residual implementation note for `US-OBS-03-T02`
+
+This increment does **not** emit quota alerts, execute hard-limit blocking, render the final console
+experience, or deliver the broad cross-module enforcement matrix.
+It only establishes the bounded quota-policy contract, helper surfaces, route publication,
+documentation, and tests required for those later tasks.

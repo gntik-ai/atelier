@@ -1008,6 +1008,20 @@
       "scope": "workspace",
       "summary": "Workspace-scoped usage consumption snapshot across metered dimensions.",
       "authorization_resource": "workspace"
+    },
+    {
+      "resource_type": "tenant_quota_posture",
+      "family": "metrics",
+      "scope": "tenant",
+      "summary": "Tenant-scoped quota posture across metered dimensions.",
+      "authorization_resource": "tenant"
+    },
+    {
+      "resource_type": "workspace_quota_posture",
+      "family": "metrics",
+      "scope": "workspace",
+      "summary": "Workspace-scoped quota posture across metered dimensions.",
+      "authorization_resource": "workspace"
     }
   ]
 }
