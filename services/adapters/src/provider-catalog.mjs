@@ -62,6 +62,29 @@ import {
   buildVerificationScenario,
   summarizeVerificationReport
 } from './storage-provider-verification.mjs';
+import {
+  MULTIPART_LIFECYCLE_TRANSITIONS,
+  MULTIPART_NORMALIZED_ERROR_CODES,
+  MULTIPART_SESSION_STATES,
+  PRESIGNED_URL_OPERATIONS,
+  buildCapabilityNotAvailableError,
+  buildMultipartAbortPreview,
+  buildMultipartCompletionPreview,
+  buildMultipartLifecycleAuditEvent,
+  buildMultipartPartReceipt,
+  buildMultipartSessionSummary,
+  buildMultipartUploadList,
+  buildMultipartUploadSession,
+  buildPresignedUrlAuditEvent,
+  buildPresignedUrlRecord,
+  buildStaleSessionCleanupRecord,
+  checkMultipartCapability,
+  checkPresignedUrlCapability,
+  evaluateMultipartSessionStaleness,
+  validateMultipartObjectKey,
+  validatePartList,
+  validatePresignedTtl
+} from './storage-multipart-presigned.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -78,6 +101,10 @@ export const storageErrorRetryabilityModes = STORAGE_ERROR_RETRYABILITY;
 export const storageVerificationScenarioCategories = VERIFICATION_SCENARIO_CATEGORIES;
 export const storageVerificationFailureTypes = VERIFICATION_FAILURE_TYPES;
 export const storageVerificationVerdicts = VERIFICATION_VERDICT;
+export const storageMultipartSessionStates = MULTIPART_SESSION_STATES;
+export const storageMultipartLifecycleTransitions = MULTIPART_LIFECYCLE_TRANSITIONS;
+export const storagePresignedUrlOperations = PRESIGNED_URL_OPERATIONS;
+export const storageMultipartNormalizedErrorCodes = MULTIPART_NORMALIZED_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -225,4 +252,72 @@ export function summarizeStorageVerificationReport(input = {}) {
 
 export function buildStorageVerificationEvent(input = {}) {
   return buildStorageVerificationAuditEvent(input);
+}
+
+export function buildStorageMultipartSession(input = {}) {
+  return buildMultipartUploadSession(input);
+}
+
+export function buildStorageMultipartPartReceipt(input = {}) {
+  return buildMultipartPartReceipt(input);
+}
+
+export function buildStorageMultipartCompletionPreview(input = {}) {
+  return buildMultipartCompletionPreview(input);
+}
+
+export function buildStorageMultipartAbortPreview(input = {}) {
+  return buildMultipartAbortPreview(input);
+}
+
+export function buildStorageMultipartUploadList(input = {}) {
+  return buildMultipartUploadList(input);
+}
+
+export function buildStorageMultipartSessionSummary(input = {}) {
+  return buildMultipartSessionSummary(input);
+}
+
+export function buildStorageMultipartLifecycleEvent(input = {}) {
+  return buildMultipartLifecycleAuditEvent(input);
+}
+
+export function evaluateStorageMultipartStaleness(input = {}) {
+  return evaluateMultipartSessionStaleness(input);
+}
+
+export function buildStorageStaleSessionCleanupRecord(input = {}) {
+  return buildStaleSessionCleanupRecord(input);
+}
+
+export function validateStoragePartList(input = {}) {
+  return validatePartList(input);
+}
+
+export function validateStorageMultipartObjectKey(input = {}) {
+  return validateMultipartObjectKey(input);
+}
+
+export function buildStoragePresignedUrlRecord(input = {}) {
+  return buildPresignedUrlRecord(input);
+}
+
+export function buildStoragePresignedUrlAuditEvent(input = {}) {
+  return buildPresignedUrlAuditEvent(input);
+}
+
+export function validateStoragePresignedTtl(input = {}) {
+  return validatePresignedTtl(input);
+}
+
+export function checkStorageMultipartCapability(input = {}) {
+  return checkMultipartCapability(input);
+}
+
+export function checkStoragePresignedUrlCapability(input = {}) {
+  return checkPresignedUrlCapability(input);
+}
+
+export function buildStorageCapabilityNotAvailableError(input = {}) {
+  return buildCapabilityNotAvailableError(input);
 }

@@ -21,6 +21,13 @@ import {
   summarizeTenantStorageContext
 } from '../../apps/control-plane/src/storage-admin.mjs';
 import {
+  buildStorageMultipartSession,
+  buildStoragePresignedUrlRecord,
+  checkStorageMultipartCapability,
+  storageMultipartNormalizedErrorCodes,
+  storageNormalizedErrorCodes
+} from '../../services/adapters/src/provider-catalog.mjs';
+import {
   VERIFICATION_VERDICT,
   buildVerificationReport,
   buildVerificationRun
@@ -334,6 +341,55 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.equal(bucketObjectTaxonomy.family, 'storage');
   assert.equal(bucketObjectTaxonomy.scope, 'workspace');
   assert.equal(bucketObjectTaxonomy.authorization_resource, 'bucket');
+});
+
+test('storage multipart and presigned URL schemas are additive and structurally valid', () => {
+  const session = buildStorageMultipartSession({
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    bucketId: 'bucket-01',
+    objectKey: 'uploads/file.bin',
+    ttlSeconds: 3600,
+    now: '2026-03-28T00:00:00Z'
+  });
+  const presigned = buildStoragePresignedUrlRecord({
+    operation: 'download',
+    bucketId: 'bucket-01',
+    objectKey: 'uploads/file.bin',
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    grantedTtlSeconds: 3600,
+    ttlClamped: false,
+    generatedAt: '2026-03-28T00:00:00Z'
+  });
+  const capability = checkStorageMultipartCapability({
+    providerProfile: {
+      capabilityDetails: [{
+        capabilityId: 'object.multipart_upload',
+        state: 'satisfied',
+        constraints: []
+      }]
+    }
+  });
+
+  for (const field of ['sessionId', 'tenantId', 'workspaceId', 'bucketId', 'objectKey', 'initiatedAt', 'ttlDeadline', 'state', 'partCount', 'accumulatedSizeBytes']) {
+    assert.equal(field in session, true);
+  }
+
+  for (const field of ['operation', 'bucketId', 'objectKey', 'tenantId', 'workspaceId', 'grantedTtlSeconds', 'ttlClamped', 'expiresAt', 'generatedAt']) {
+    assert.equal(field in presigned, true);
+  }
+
+  for (const field of ['allowed', 'capabilityId', 'satisfactionState', 'constraints']) {
+    assert.equal(field in capability, true);
+  }
+
+  const multipartCodes = Object.values(storageMultipartNormalizedErrorCodes).map((entry) => entry.code);
+  const existingCodes = Object.values(storageNormalizedErrorCodes);
+
+  assert.equal(new Set(multipartCodes).size, 6);
+  assert.equal(multipartCodes.some((code) => existingCodes.includes(code)), false);
+  assert.equal(Object.isFrozen(storageMultipartNormalizedErrorCodes), true);
 });
 
 test('storage verification report schema is additive and structurally valid', () => {
