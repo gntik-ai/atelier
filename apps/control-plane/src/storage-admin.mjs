@@ -53,6 +53,17 @@ import {
   buildStorageInternalErrorRecord,
   listStorageNormalizedErrorDefinitions
 } from '../../../services/adapters/src/storage-error-taxonomy.mjs';
+import {
+  STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_STATES,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_TYPES,
+  buildStorageProgrammaticCredentialCollection,
+  buildStorageProgrammaticCredentialRecord,
+  buildStorageProgrammaticCredentialSecretEnvelope,
+  revokeStorageProgrammaticCredential,
+  rotateStorageProgrammaticCredential
+} from '../../../services/adapters/src/storage-programmatic-credentials.mjs';
 
 export const storageApiFamily = getApiFamily('storage');
 export const STORAGE_ADMIN_ERROR_CODES = STORAGE_PROVIDER_ERROR_CODES;
@@ -66,6 +77,10 @@ export const STORAGE_PROVIDER_CAPABILITY_MANIFEST_SCHEMA_VERSION = STORAGE_PROVI
 export const STORAGE_PROVIDER_CAPABILITY_BASELINE_SCHEMA_VERSION = STORAGE_PROVIDER_CAPABILITY_BASELINE_VERSION;
 export const STORAGE_NORMALIZED_ERROR_CATALOG = STORAGE_NORMALIZED_ERROR_CODES;
 export const STORAGE_ERROR_RETRYABILITY_CATALOG = STORAGE_ERROR_RETRYABILITY;
+export const STORAGE_PROGRAMMATIC_CREDENTIAL_TYPE_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_TYPES;
+export const STORAGE_PROGRAMMATIC_CREDENTIAL_STATE_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_STATES;
+export const STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS;
+export const STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CATALOG = STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES;
 
 function matchesRouteFilters(route, filters = {}) {
   return Object.entries(filters).every(([key, value]) => route?.[key] === value);
@@ -76,11 +91,19 @@ export function listStorageAdminRoutes(filters = {}) {
   const providerRoute = getPublicRoute('getStorageProviderIntrospection');
   const tenantContextRoute = getPublicRoute('getTenantStorageContext');
   const tenantRotationRoute = getPublicRoute('rotateTenantStorageContextCredential');
+  const storageCredentialRoutes = [
+    getPublicRoute('listStorageProgrammaticCredentials'),
+    getPublicRoute('createStorageProgrammaticCredential'),
+    getPublicRoute('getStorageProgrammaticCredential'),
+    getPublicRoute('rotateStorageProgrammaticCredential'),
+    getPublicRoute('revokeStorageProgrammaticCredential')
+  ];
   const combinedRoutes = [
     ...storageRoutes,
     providerRoute,
     tenantContextRoute,
-    tenantRotationRoute
+    tenantRotationRoute,
+    ...storageCredentialRoutes
   ].filter(Boolean);
 
   return combinedRoutes.filter((route) => matchesRouteFilters(route, filters));
@@ -90,7 +113,7 @@ export const storageAdminRoutes = listStorageAdminRoutes();
 
 export function getStorageAdminRoute(operationId) {
   const route = getPublicRoute(operationId);
-  return route && (route.family === 'storage' || ['storage_provider', 'tenant_storage_context', 'bucket_object'].includes(route.resourceType))
+  return route && (route.family === 'storage' || ['storage_provider', 'tenant_storage_context', 'bucket_object', 'storage_credential'].includes(route.resourceType))
     ? route
     : undefined;
 }
@@ -123,6 +146,9 @@ export function getStorageCompatibilitySummary(input = {}) {
       .map((route) => route.operationId),
     publicObjectRoutes: storageAdminRoutes
       .filter((route) => route.resourceType === 'bucket_object')
+      .map((route) => route.operationId),
+    publicCredentialRoutes: storageAdminRoutes
+      .filter((route) => route.resourceType === 'storage_credential')
       .map((route) => route.operationId)
   };
 }
@@ -176,6 +202,56 @@ export function rotateTenantStorageCredentialPreview(input = {}) {
   return {
     route,
     context: buildTenantStorageContextIntrospection(rotatedContext)
+  };
+}
+
+export function previewStorageProgrammaticCredential(input = {}) {
+  return buildStorageProgrammaticCredentialRecord(input);
+}
+
+export function issueStorageProgrammaticCredentialPreview(input = {}) {
+  const route = getStorageAdminRoute('createStorageProgrammaticCredential');
+
+  return {
+    route,
+    envelope: buildStorageProgrammaticCredentialSecretEnvelope(input)
+  };
+}
+
+export function listStorageProgrammaticCredentialsPreview(input = {}) {
+  const route = getStorageAdminRoute('listStorageProgrammaticCredentials');
+
+  return {
+    route,
+    collection: buildStorageProgrammaticCredentialCollection(input)
+  };
+}
+
+export function summarizeStorageProgrammaticCredential(input = {}) {
+  const route = getStorageAdminRoute('getStorageProgrammaticCredential');
+  const credential = input.credentialId ? input : buildStorageProgrammaticCredentialRecord(input);
+
+  return {
+    route,
+    credential
+  };
+}
+
+export function rotateStorageProgrammaticCredentialPreview(input = {}) {
+  const route = getStorageAdminRoute('rotateStorageProgrammaticCredential');
+
+  return {
+    route,
+    envelope: rotateStorageProgrammaticCredential(input)
+  };
+}
+
+export function revokeStorageProgrammaticCredentialPreview(input = {}) {
+  const route = getStorageAdminRoute('revokeStorageProgrammaticCredential');
+
+  return {
+    route,
+    credential: revokeStorageProgrammaticCredential(input)
   };
 }
 

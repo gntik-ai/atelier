@@ -11,12 +11,17 @@ import { OPENAPI_PATH } from '../../scripts/lib/quality-gates.mjs';
 import {
   buildStorageErrorEvent,
   downloadStorageObjectPreviewResult,
+  issueStorageProgrammaticCredentialPreview,
   listStorageObjectsPreview,
+  listStorageProgrammaticCredentialsPreview,
   previewStorageBucket,
   previewStorageErrorEnvelope,
   previewStorageObject,
   previewStorageNormalizedError,
   previewTenantStorageContext,
+  revokeStorageProgrammaticCredentialPreview,
+  rotateStorageProgrammaticCredentialPreview,
+  summarizeStorageProgrammaticCredential,
   summarizeStorageProviderIntrospection,
   summarizeTenantStorageContext
 } from '../../apps/control-plane/src/storage-admin.mjs';
@@ -34,13 +39,21 @@ import {
   evaluateStorageAccessDecision,
   evaluateStorageEventNotifications,
   getStorageBucketRecord,
+  getStorageProgrammaticCredentialRecord,
   getStorageProviderProfile,
+  issueStorageProgrammaticCredential,
+  listStorageProgrammaticCredentials,
   previewStorageBucketQuotaAdmission,
   previewStorageObjectQuotaAdmission,
+  revokeWorkspaceStorageProgrammaticCredential,
+  rotateWorkspaceStorageProgrammaticCredential,
   storageEventNotificationErrorCodes,
   storageMultipartNormalizedErrorCodes,
   storageNormalizedErrorCodes,
   storagePolicyNormalizedErrorCodes,
+  storageProgrammaticCredentialAllowedActions,
+  storageProgrammaticCredentialStates,
+  storageProgrammaticCredentialTypes,
   storageProviderCapabilityIds,
   storageQuotaGuardrailErrorCodes,
   supportedStorageProviderTypes
@@ -65,6 +78,11 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   const downloadObjectRoute = document.paths['/v1/storage/buckets/{resourceId}/objects/{objectKey}']?.get;
   const deleteObjectRoute = document.paths['/v1/storage/buckets/{resourceId}/objects/{objectKey}']?.delete;
   const metadataRoute = document.paths['/v1/storage/buckets/{resourceId}/objects/{objectKey}/metadata']?.get;
+  const listCredentialsRoute = document.paths['/v1/storage/workspaces/{workspaceId}/credentials']?.get;
+  const createCredentialRoute = document.paths['/v1/storage/workspaces/{workspaceId}/credentials']?.post;
+  const getCredentialRoute = document.paths['/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}']?.get;
+  const rotateCredentialRoute = document.paths['/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations']?.post;
+  const revokeCredentialRoute = document.paths['/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}']?.delete;
   const manifestSchema = document.components.schemas.StorageCapabilityManifest;
   const capabilityConstraintSchema = document.components.schemas.StorageCapabilityConstraint;
   const capabilityEntrySchema = document.components.schemas.StorageCapabilityEntry;
@@ -88,6 +106,13 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   const objectDownloadSchema = document.components.schemas.StorageObjectDownload;
   const objectCollectionSchema = document.components.schemas.StorageObjectCollection;
   const objectKeyParam = document.components.parameters.ObjectKey;
+  const storageCredentialScopeSchema = document.components.schemas.StorageProgrammaticCredentialScope;
+  const storageCredentialPrincipalSchema = document.components.schemas.StorageProgrammaticCredentialPrincipal;
+  const storageCredentialCreateRequestSchema = document.components.schemas.StorageProgrammaticCredentialCreateRequest;
+  const storageCredentialRotationRequestSchema = document.components.schemas.StorageProgrammaticCredentialRotationRequest;
+  const storageCredentialRecordSchema = document.components.schemas.StorageProgrammaticCredentialRecord;
+  const storageCredentialCollectionSchema = document.components.schemas.StorageProgrammaticCredentialCollection;
+  const storageCredentialSecretEnvelopeSchema = document.components.schemas.StorageProgrammaticCredentialSecretEnvelope;
 
   assert.ok(providerRoute);
   assert.ok(tenantContextRoute);
@@ -101,6 +126,11 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   assert.ok(downloadObjectRoute);
   assert.ok(deleteObjectRoute);
   assert.ok(metadataRoute);
+  assert.ok(listCredentialsRoute);
+  assert.ok(createCredentialRoute);
+  assert.ok(getCredentialRoute);
+  assert.ok(rotateCredentialRoute);
+  assert.ok(revokeCredentialRoute);
 
   assert.equal(providerRoute['x-family'], 'platform');
   assert.equal(providerRoute['x-resource-type'], 'storage_provider');
@@ -115,6 +145,11 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   assert.equal(downloadObjectRoute['x-resource-type'], 'bucket_object');
   assert.equal(deleteObjectRoute['x-resource-type'], 'bucket_object');
   assert.equal(metadataRoute['x-resource-type'], 'bucket_object');
+  assert.equal(listCredentialsRoute['x-resource-type'], 'storage_credential');
+  assert.equal(createCredentialRoute['x-resource-type'], 'storage_credential');
+  assert.equal(getCredentialRoute['x-resource-type'], 'storage_credential');
+  assert.equal(rotateCredentialRoute['x-resource-type'], 'storage_credential');
+  assert.equal(revokeCredentialRoute['x-resource-type'], 'storage_credential');
 
   assert.ok(manifestSchema);
   assert.ok(capabilityConstraintSchema);
@@ -139,6 +174,13 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   assert.ok(objectDownloadSchema);
   assert.ok(objectCollectionSchema);
   assert.ok(objectKeyParam);
+  assert.ok(storageCredentialScopeSchema);
+  assert.ok(storageCredentialPrincipalSchema);
+  assert.ok(storageCredentialCreateRequestSchema);
+  assert.ok(storageCredentialRotationRequestSchema);
+  assert.ok(storageCredentialRecordSchema);
+  assert.ok(storageCredentialCollectionSchema);
+  assert.ok(storageCredentialSecretEnvelopeSchema);
 
   assert.deepEqual(providerSchema.required.includes('capabilityManifest'), true);
   assert.deepEqual(providerSchema.required.includes('capabilityManifestVersion'), true);
@@ -173,11 +215,21 @@ test('storage OpenAPI contract exposes additive provider, bucket, and object rou
   ]);
   assert.deepEqual(objectCollectionSchema.required, ['items', 'page']);
   assert.deepEqual(objectDownloadSchema.required, ['metadata', 'payload']);
+  assert.deepEqual(storageCredentialScopeSchema.required, ['workspaceId', 'allowedActions']);
+  assert.deepEqual(storageCredentialPrincipalSchema.required, ['principalType', 'principalId']);
+  assert.deepEqual(storageCredentialCreateRequestSchema.required, ['displayName', 'principal', 'scopes']);
+  assert.deepEqual(storageCredentialRotationRequestSchema.required, ['reason']);
+  assert.deepEqual(storageCredentialCollectionSchema.required, ['items']);
+  assert.deepEqual(storageCredentialSecretEnvelopeSchema.required, ['credential', 'accessKeyId', 'secretAccessKey', 'secretDelivery']);
   assert.equal(bucketCollectionSchema.properties.items.type, 'array');
   assert.ok(bucketCollectionSchema.properties.items.items.properties.bucketName);
   assert.ok(document.components.schemas.StorageBucket.properties.organization.properties.workspaceSharedPrefix);
   assert.ok(objectMetadataSchema.properties.organization.properties.canonicalObjectPath);
   assert.equal(objectWriteSchema.properties.applicationId.pattern, '^app_[0-9a-z]+$');
+  assert.equal(storageCredentialPrincipalSchema.properties.principalType.enum.includes('service_account'), true);
+  assert.equal(storageCredentialRecordSchema.properties.accessKeyIdMasked.type, 'string');
+  assert.equal(storageCredentialRecordSchema.properties.scopes.type, 'array');
+  assert.equal(storageCredentialRecordSchema.properties.scopes.items.properties.workspaceId.type, 'string');
   assert.deepEqual(Object.keys(manifestSchema.properties), [
     'bucketOperations',
     'objectCrud',
@@ -227,6 +279,11 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   const downloadObjectRoute = getPublicRoute('downloadStorageObject');
   const metadataObjectRoute = getPublicRoute('getStorageObjectMetadata');
   const deleteObjectRoute = getPublicRoute('deleteStorageObject');
+  const listCredentialRoute = getPublicRoute('listStorageProgrammaticCredentials');
+  const createCredentialRoute = getPublicRoute('createStorageProgrammaticCredential');
+  const getCredentialRoute = getPublicRoute('getStorageProgrammaticCredential');
+  const rotateCredentialRoute = getPublicRoute('rotateStorageProgrammaticCredential');
+  const revokeCredentialRoute = getPublicRoute('revokeStorageProgrammaticCredential');
   const storageAdapter = getAdapterPort('storage');
   const introspection = summarizeStorageProviderIntrospection({ providerType: 'garage' });
   const tenantContext = summarizeTenantStorageContext({
@@ -280,8 +337,40 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   });
   const objectList = listStorageObjectsPreview({ items: [object] });
   const download = downloadStorageObjectPreviewResult({ bucket, object, requestedAt: '2026-03-27T21:00:06Z' });
+  const issuedCredential = issueStorageProgrammaticCredentialPreview({
+    tenantId: 'ten_01contract',
+    workspaceId: 'wrk_01contract',
+    displayName: 'Contract uploader',
+    principal: {
+      principalType: 'service_account',
+      principalId: 'svc_01contract'
+    },
+    scopes: [{
+      workspaceId: 'wrk_01contract',
+      bucketId: bucket.resourceId,
+      bucketName: bucket.bucketName,
+      objectPrefix: 'files/',
+      allowedActions: ['object.list', 'object.get', 'object.put', 'object.head']
+    }],
+    actorId: 'usr_01contract',
+    actorType: 'user',
+    now: '2026-03-27T21:00:06Z'
+  });
+  const credentialSummary = summarizeStorageProgrammaticCredential(issuedCredential.envelope.credential);
+  const rotatedCredential = rotateStorageProgrammaticCredentialPreview({
+    credential: issuedCredential.envelope.credential,
+    requestedAt: '2026-03-27T21:00:07Z'
+  });
+  const revokedCredential = revokeStorageProgrammaticCredentialPreview({
+    credential: rotatedCredential.envelope.credential,
+    requestedAt: '2026-03-27T21:00:08Z'
+  });
+  const listedCredentials = listStorageProgrammaticCredentialsPreview({
+    items: [issuedCredential.envelope.credential]
+  });
   const taxonomy = JSON.parse(fs.readFileSync(new URL('../../services/internal-contracts/src/public-api-taxonomy.json', import.meta.url), 'utf8'));
   const bucketObjectTaxonomy = taxonomy.resource_taxonomy.find((entry) => entry.resource_type === 'bucket_object');
+  const storageCredentialTaxonomy = taxonomy.resource_taxonomy.find((entry) => entry.resource_type === 'storage_credential');
 
   assert.equal(providerRoute.family, 'platform');
   assert.equal(providerRoute.path, '/v1/platform/storage/provider');
@@ -304,6 +393,11 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.equal(downloadObjectRoute.resourceType, 'bucket_object');
   assert.equal(metadataObjectRoute.resourceType, 'bucket_object');
   assert.equal(deleteObjectRoute.supportsIdempotencyKey, true);
+  assert.equal(listCredentialRoute.resourceType, 'storage_credential');
+  assert.equal(createCredentialRoute.supportsIdempotencyKey, true);
+  assert.equal(getCredentialRoute.resourceType, 'storage_credential');
+  assert.equal(rotateCredentialRoute.supportsIdempotencyKey, true);
+  assert.equal(revokeCredentialRoute.supportsIdempotencyKey, true);
 
   assert.ok(storageAdapter.capabilities.includes('ensure_bucket'));
   assert.ok(storageAdapter.capabilities.includes('resolve_provider_profile'));
@@ -319,6 +413,10 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.ok(storageAdapter.capabilities.includes('get_capability_manifest'));
   assert.ok(storageAdapter.capabilities.includes('normalize_storage_error'));
   assert.ok(storageAdapter.capabilities.includes('validate_capability_baseline'));
+  assert.ok(storageAdapter.capabilities.includes('issue_programmatic_credentials'));
+  assert.ok(storageAdapter.capabilities.includes('list_programmatic_credentials'));
+  assert.ok(storageAdapter.capabilities.includes('rotate_programmatic_credentials'));
+  assert.ok(storageAdapter.capabilities.includes('revoke_programmatic_credentials'));
 
   assert.equal(introspection.profile.providerType, 'garage');
   assert.equal(introspection.profile.status, 'ready');
@@ -345,6 +443,14 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.equal(download.metadata.objectKey, 'files/report.txt');
   assert.equal(download.metadata.organization.canonicalObjectPath, 'tenants/ten_01contract/workspaces/wrk_01contract/apps/app_01contract/data/files/report.txt');
   assert.equal(typeof download.payload.contentBase64, 'string');
+  assert.equal(issuedCredential.route.operationId, 'createStorageProgrammaticCredential');
+  assert.equal(credentialSummary.route.operationId, 'getStorageProgrammaticCredential');
+  assert.equal(listedCredentials.route.operationId, 'listStorageProgrammaticCredentials');
+  assert.equal(listedCredentials.collection.items.length, 1);
+  assert.equal(rotatedCredential.route.operationId, 'rotateStorageProgrammaticCredential');
+  assert.equal(rotatedCredential.envelope.credential.secretVersion, 2);
+  assert.equal(revokedCredential.route.operationId, 'revokeStorageProgrammaticCredential');
+  assert.equal(revokedCredential.credential.state, 'revoked');
 
   const normalizedError = previewStorageNormalizedError({
     providerCode: 'NoSuchKey',
@@ -387,6 +493,10 @@ test('storage contracts preserve route discoverability, taxonomy, service-map co
   assert.equal(bucketObjectTaxonomy.family, 'storage');
   assert.equal(bucketObjectTaxonomy.scope, 'workspace');
   assert.equal(bucketObjectTaxonomy.authorization_resource, 'bucket');
+  assert.ok(storageCredentialTaxonomy);
+  assert.equal(storageCredentialTaxonomy.family, 'storage');
+  assert.equal(storageCredentialTaxonomy.scope, 'workspace');
+  assert.equal(storageCredentialTaxonomy.authorization_resource, 'bucket');
 });
 
 test('storage multipart and presigned URL schemas are additive and structurally valid', () => {

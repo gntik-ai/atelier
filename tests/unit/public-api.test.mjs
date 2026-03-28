@@ -82,6 +82,8 @@ test('public API taxonomy, gateway routing, and generated route catalog remain a
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/tenants/{tenantId}/permission-recalculations/{permissionRecalculationId}'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/permission-recalculations/{permissionRecalculationId}'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/credentials'));
+  assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/clone'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces/{workspaceId}/api-surface'));
   assert.ok(routeCatalog.routes.some((route) => route.path === '/v1/workspaces'));

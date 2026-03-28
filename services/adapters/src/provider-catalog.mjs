@@ -140,6 +140,17 @@ import {
   matchStorageEventNotificationRule as matchStorageEventNotificationRuleImpl,
   validateStorageEventNotificationRule as validateStorageEventNotificationRuleImpl
 } from './storage-event-notifications.mjs';
+import {
+  STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_STATES,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_TYPES,
+  buildStorageProgrammaticCredentialCollection,
+  buildStorageProgrammaticCredentialRecord,
+  buildStorageProgrammaticCredentialSecretEnvelope,
+  revokeStorageProgrammaticCredential,
+  rotateStorageProgrammaticCredential
+} from './storage-programmatic-credentials.mjs';
 
 export const providerAdapterCatalog = listAdapterPorts();
 export const adapterCallContract = getContract('adapter_call');
@@ -176,6 +187,10 @@ export const storageEventNotificationDestinationTypes = STORAGE_EVENT_NOTIFICATI
 export const storageEventNotificationEventTypes = STORAGE_EVENT_NOTIFICATION_EVENT_TYPES;
 export const storageEventNotificationAuditActions = STORAGE_EVENT_NOTIFICATION_AUDIT_ACTIONS;
 export const storageEventNotificationErrorCodes = STORAGE_EVENT_NOTIFICATION_ERROR_CODES;
+export const storageProgrammaticCredentialTypes = STORAGE_PROGRAMMATIC_CREDENTIAL_TYPES;
+export const storageProgrammaticCredentialStates = STORAGE_PROGRAMMATIC_CREDENTIAL_STATES;
+export const storageProgrammaticCredentialAllowedActions = STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS;
+export const storageProgrammaticCredentialErrorCodes = STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES;
 
 export function listProvisioningAdapters() {
   return listAdapterPortsForConsumer('provisioning_orchestrator');
@@ -223,6 +238,26 @@ export function getWorkspaceStorageBootstrapPreview(input = {}) {
 
 export function rotateTenantStorageCredential(input = {}) {
   return rotateTenantStorageContextCredential(input);
+}
+
+export function getStorageProgrammaticCredentialRecord(input = {}) {
+  return buildStorageProgrammaticCredentialRecord(input);
+}
+
+export function issueStorageProgrammaticCredential(input = {}) {
+  return buildStorageProgrammaticCredentialSecretEnvelope(input);
+}
+
+export function listStorageProgrammaticCredentials(input = {}) {
+  return buildStorageProgrammaticCredentialCollection(input);
+}
+
+export function rotateWorkspaceStorageProgrammaticCredential(input = {}) {
+  return rotateStorageProgrammaticCredential(input);
+}
+
+export function revokeWorkspaceStorageProgrammaticCredential(input = {}) {
+  return revokeStorageProgrammaticCredential(input);
 }
 
 export function getStorageLogicalOrganization(input = {}) {

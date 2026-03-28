@@ -6,6 +6,9 @@ import {
   STORAGE_BUCKET_OBJECT_ERRORS,
   STORAGE_LOGICAL_ORGANIZATION_ERRORS,
   STORAGE_NORMALIZED_ERROR_CATALOG,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_STATE_CATALOG,
+  STORAGE_PROGRAMMATIC_CREDENTIAL_TYPE_CATALOG,
   STORAGE_PROVIDER_CAPABILITIES,
   STORAGE_PROVIDER_CAPABILITY_BASELINE_SCHEMA_VERSION,
   STORAGE_PROVIDER_CAPABILITY_ENTRY_STATE_CATALOG,
@@ -32,16 +35,22 @@ import {
   previewStorageObject,
   previewStorageNormalizedError,
   previewStorageObjectOrganization,
+  previewStorageProgrammaticCredential,
   previewTenantStorageContext,
   previewWorkspaceStorageBootstrapContext,
+  revokeStorageProgrammaticCredentialPreview,
+  rotateStorageProgrammaticCredentialPreview,
   rotateTenantStorageCredentialPreview,
   summarizeStorageBucket,
   summarizeStorageCapabilityBaseline,
   summarizeStorageCapabilityDetails,
   summarizeStorageObjectMetadata,
+  summarizeStorageProgrammaticCredential,
   summarizeStorageProviderIntrospection,
   summarizeStorageProviderSupport,
   summarizeTenantStorageContext,
+  issueStorageProgrammaticCredentialPreview,
+  listStorageProgrammaticCredentialsPreview,
   uploadStorageObjectPreviewResult
 } from '../../apps/control-plane/src/storage-admin.mjs';
 
@@ -57,6 +66,11 @@ test('storage admin helper exposes bucket/object routes and provider introspecti
   const metadataRoute = getStorageAdminRoute('getStorageObjectMetadata');
   const deleteObjectRoute = getStorageAdminRoute('deleteStorageObject');
   const providerRoute = getStorageAdminRoute('getStorageProviderIntrospection');
+  const listCredentialsRoute = getStorageAdminRoute('listStorageProgrammaticCredentials');
+  const createCredentialRoute = getStorageAdminRoute('createStorageProgrammaticCredential');
+  const getCredentialRoute = getStorageAdminRoute('getStorageProgrammaticCredential');
+  const rotateCredentialRoute = getStorageAdminRoute('rotateStorageProgrammaticCredential');
+  const revokeCredentialRoute = getStorageAdminRoute('revokeStorageProgrammaticCredential');
 
   assert.ok(routes.some((route) => route.operationId === 'createStorage'));
   assert.ok(routes.some((route) => route.operationId === 'listStorage'));
@@ -67,6 +81,11 @@ test('storage admin helper exposes bucket/object routes and provider introspecti
   assert.ok(routes.some((route) => route.operationId === 'getStorageObjectMetadata'));
   assert.ok(routes.some((route) => route.operationId === 'deleteStorageObject'));
   assert.ok(routes.some((route) => route.operationId === 'getStorageProviderIntrospection'));
+  assert.ok(routes.some((route) => route.operationId === 'listStorageProgrammaticCredentials'));
+  assert.ok(routes.some((route) => route.operationId === 'createStorageProgrammaticCredential'));
+  assert.ok(routes.some((route) => route.operationId === 'getStorageProgrammaticCredential'));
+  assert.ok(routes.some((route) => route.operationId === 'rotateStorageProgrammaticCredential'));
+  assert.ok(routes.some((route) => route.operationId === 'revokeStorageProgrammaticCredential'));
   assert.equal(createRoute.resourceType, 'bucket');
   assert.equal(listRoute.resourceType, 'bucket');
   assert.equal(getRoute.resourceType, 'bucket');
@@ -77,6 +96,11 @@ test('storage admin helper exposes bucket/object routes and provider introspecti
   assert.equal(metadataRoute.resourceType, 'bucket_object');
   assert.equal(deleteObjectRoute.resourceType, 'bucket_object');
   assert.equal(providerRoute.resourceType, 'storage_provider');
+  assert.equal(listCredentialsRoute.resourceType, 'storage_credential');
+  assert.equal(createCredentialRoute.resourceType, 'storage_credential');
+  assert.equal(getCredentialRoute.resourceType, 'storage_credential');
+  assert.equal(rotateCredentialRoute.resourceType, 'storage_credential');
+  assert.equal(revokeCredentialRoute.resourceType, 'storage_credential');
 });
 
 test('storage provider support normalizes explicit provider selection into a ready provider profile', () => {
@@ -258,6 +282,86 @@ test('tenant storage context summary is tenant-isolated, introspectable, and sec
   assert.equal(JSON.stringify(summary).includes('secret://tenants/'), false);
   assert.equal(event.eventType, 'tenant_storage_context.succeeded');
   assert.equal(event.quotaAssignment.maxBuckets >= 8, true);
+});
+
+test('storage programmatic credential previews stay workspace-scoped, secret-safe, rotatable, and revocable', () => {
+  const issuance = issueStorageProgrammaticCredentialPreview({
+    tenantId: 'ten_01atelieractive',
+    workspaceId: 'wrk_01atelieractive',
+    displayName: 'CI uploader',
+    principal: {
+      principalType: 'service_account',
+      principalId: 'svc_01uploader',
+      displayName: 'Uploader service account'
+    },
+    scopes: [{
+      workspaceId: 'wrk_01atelieractive',
+      bucketId: 'bucket_01assets',
+      bucketName: 'atelier-assets',
+      objectPrefix: 'uploads/ci/',
+      allowedActions: [
+        STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG[0],
+        STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG[1],
+        STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG[4]
+      ]
+    }],
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    originSurface: 'admin_console',
+    correlationId: 'cor_storage_cred_01',
+    ttlSeconds: 7200,
+    now: '2026-03-28T01:00:00Z'
+  });
+  const preview = previewStorageProgrammaticCredential({
+    tenantId: 'ten_01atelieractive',
+    workspaceId: 'wrk_01atelieractive',
+    displayName: 'Report reader',
+    principal: {
+      principalType: 'user',
+      principalId: 'usr_01reporter'
+    },
+    scopes: [{
+      workspaceId: 'wrk_01atelieractive',
+      allowedActions: [STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG[3]]
+    }],
+    now: '2026-03-28T01:01:00Z'
+  });
+  const listed = listStorageProgrammaticCredentialsPreview({
+    items: [issuance.envelope.credential, preview]
+  });
+  const summary = summarizeStorageProgrammaticCredential(issuance.envelope.credential);
+  const rotated = rotateStorageProgrammaticCredentialPreview({
+    credential: issuance.envelope.credential,
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    requestedAt: '2026-03-28T01:05:00Z'
+  });
+  const revoked = revokeStorageProgrammaticCredentialPreview({
+    credential: rotated.envelope.credential,
+    actorId: 'usr_01owner',
+    actorType: 'user',
+    requestedAt: '2026-03-28T01:06:00Z'
+  });
+
+  assert.equal(STORAGE_PROGRAMMATIC_CREDENTIAL_TYPE_CATALOG.ACCESS_KEY, 'access_key');
+  assert.equal(STORAGE_PROGRAMMATIC_CREDENTIAL_STATE_CATALOG.ACTIVE, 'active');
+  assert.equal(issuance.route.operationId, 'createStorageProgrammaticCredential');
+  assert.equal(issuance.envelope.credential.credentialType, 'access_key');
+  assert.equal(issuance.envelope.credential.principal.principalType, 'service_account');
+  assert.equal(issuance.envelope.credential.scopes[0].bucketId, 'bucket_01assets');
+  assert.equal(issuance.envelope.credential.scopes[0].objectPrefix, 'uploads/ci/');
+  assert.equal(issuance.envelope.credential.accessKeyIdMasked.includes('…'), true);
+  assert.equal(typeof issuance.envelope.secretAccessKey, 'string');
+  assert.equal(issuance.envelope.secretDelivery, 'one_time');
+  assert.equal(summary.route.operationId, 'getStorageProgrammaticCredential');
+  assert.equal(listed.route.operationId, 'listStorageProgrammaticCredentials');
+  assert.equal(listed.collection.items.length, 2);
+  assert.equal(rotated.route.operationId, 'rotateStorageProgrammaticCredential');
+  assert.equal(rotated.envelope.credential.secretVersion, 2);
+  assert.equal(rotated.envelope.credential.lastRotatedAt, '2026-03-28T01:05:00.000Z');
+  assert.equal(revoked.route.operationId, 'revokeStorageProgrammaticCredential');
+  assert.equal(revoked.credential.state, 'revoked');
+  assert.equal(revoked.credential.revokedAt, '2026-03-28T01:06:00.000Z');
 });
 
 test('storage logical organization previews are deterministic and reserve platform prefixes', () => {

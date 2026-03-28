@@ -50134,6 +50134,720 @@
           "storage"
         ]
       }
+    },
+    "/v1/storage/workspaces/{workspaceId}/credentials": {
+      "get": {
+        "operationId": "listStorageProgrammaticCredentials",
+        "summary": "List scoped storage programmatic credentials for one workspace",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential collection returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageProgrammaticCredentialCollection"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to inspect storage credentials for this workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested workspace was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "createStorageProgrammaticCredential",
+        "summary": "Create one scoped storage programmatic credential limited to declared workspace, bucket, and object-prefix scope",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageProgrammaticCredentialCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Scoped storage credential created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageProgrammaticCredentialSecretEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The credential request is malformed or declares an invalid storage scope.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to create storage credentials for this workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested workspace or bucket scope was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The requested credential scope conflicts with an existing record.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The credential scope is structurally valid but violates governance policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "storage_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}": {
+      "get": {
+        "operationId": "getStorageProgrammaticCredential",
+        "summary": "Fetch one scoped storage programmatic credential definition without reissuing the secret value",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/CredentialId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageProgrammaticCredentialRecord"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to inspect this storage credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested storage credential was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-read",
+        "x-resource-type": "storage_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "delete": {
+        "operationId": "revokeStorageProgrammaticCredential",
+        "summary": "Revoke one scoped storage programmatic credential",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/CredentialId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageProgrammaticCredentialRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The credential selector is malformed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to revoke this storage credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested storage credential was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "storage_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations": {
+      "post": {
+        "operationId": "rotateStorageProgrammaticCredential",
+        "summary": "Rotate one scoped storage programmatic credential and return the replacement access key pair once",
+        "tags": [
+          "Storage"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XOriginSurface"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/CredentialId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageProgrammaticCredentialRotationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credential rotated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageProgrammaticCredentialSecretEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The rotation request is malformed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks permission to rotate this storage credential.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested storage credential was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The credential cannot be rotated in its current lifecycle state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Gateway rejected an oversized request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The rotation request is valid JSON but violates storage governance policy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected gateway error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-audiences": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer",
+          "platform_team"
+        ],
+        "x-downstream-adapters": [
+          "keycloak",
+          "storage"
+        ],
+        "x-family": "storage",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "storage_credential",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
     }
   },
   "components": {
@@ -78706,6 +79420,335 @@
             "$ref": "#/components/schemas/StorageNormalizedError"
           }
         }
+      },
+      "StorageProgrammaticCredentialScope": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "bucketId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "bucketName": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 63
+          },
+          "objectPrefix": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "allowedActions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "object.get",
+                "object.put",
+                "object.delete",
+                "object.list",
+                "object.head",
+                "bucket.get_policy",
+                "multipart.initiate",
+                "multipart.upload_part",
+                "multipart.complete",
+                "multipart.abort",
+                "multipart.list",
+                "presigned.generate_download",
+                "presigned.generate_upload"
+              ]
+            }
+          }
+        },
+        "required": [
+          "workspaceId",
+          "allowedActions"
+        ]
+      },
+      "StorageProgrammaticCredentialPrincipal": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "principalType": {
+            "type": "string",
+            "enum": [
+              "user",
+              "service_account"
+            ]
+          },
+          "principalId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "principalType",
+          "principalId"
+        ]
+      },
+      "StorageProgrammaticCredentialCreateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "credentialType": {
+            "type": "string",
+            "enum": [
+              "access_key"
+            ]
+          },
+          "ttlSeconds": {
+            "type": "integer",
+            "minimum": 60
+          },
+          "principal": {
+            "$ref": "#/components/schemas/StorageProgrammaticCredentialPrincipal"
+          },
+          "scopes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/StorageProgrammaticCredentialScope"
+            }
+          }
+        },
+        "required": [
+          "displayName",
+          "principal",
+          "scopes"
+        ]
+      },
+      "StorageProgrammaticCredentialRotationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "StorageProgrammaticCredentialRecord": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "credentialId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "workspaceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "tenantId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "credentialType": {
+            "type": "string",
+            "enum": [
+              "access_key"
+            ]
+          },
+          "principal": {
+            "$ref": "#/components/schemas/StorageProgrammaticCredentialPrincipal"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked",
+              "expired"
+            ]
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageProgrammaticCredentialScope"
+            }
+          },
+          "accessKeyIdMasked": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 32
+          },
+          "secretVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ttlSeconds": {
+            "type": "integer",
+            "minimum": 60
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastRotatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "issuer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "actorId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "actorType": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "originSurface": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "correlationId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "actorId",
+              "actorType",
+              "originSurface",
+              "correlationId"
+            ]
+          }
+        },
+        "required": [
+          "credentialId",
+          "workspaceId",
+          "tenantId",
+          "displayName",
+          "credentialType",
+          "principal",
+          "state",
+          "scopes",
+          "accessKeyIdMasked",
+          "secretVersion",
+          "ttlSeconds",
+          "createdAt",
+          "updatedAt",
+          "lastRotatedAt",
+          "expiresAt",
+          "revokedAt",
+          "issuer"
+        ]
+      },
+      "StorageProgrammaticCredentialCollection": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageProgrammaticCredentialRecord"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "StorageProgrammaticCredentialSecretEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "$ref": "#/components/schemas/StorageProgrammaticCredentialRecord"
+          },
+          "accessKeyId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 32
+          },
+          "secretAccessKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 512
+          },
+          "secretDelivery": {
+            "type": "string",
+            "enum": [
+              "one_time"
+            ]
+          }
+        },
+        "required": [
+          "credential",
+          "accessKeyId",
+          "secretAccessKey",
+          "secretDelivery"
+        ]
       }
     }
   }

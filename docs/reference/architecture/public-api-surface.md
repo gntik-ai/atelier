@@ -460,6 +460,11 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 | GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Download one object from a workspace-scoped storage bucket |
 | PUT | `/v1/storage/buckets/{resourceId}/objects/{objectKey}` | workspace | bucket_object | Upload or replace one object inside a workspace-scoped storage bucket |
 | GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}/metadata` | workspace | bucket_object | Fetch metadata for one object in a workspace-scoped storage bucket |
+| GET | `/v1/storage/workspaces/{workspaceId}/credentials` | workspace | storage_credential | List scoped storage programmatic credentials for one workspace |
+| POST | `/v1/storage/workspaces/{workspaceId}/credentials` | workspace | storage_credential | Create one scoped storage programmatic credential limited to declared workspace, bucket, and object-prefix scope |
+| DELETE | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}` | workspace | storage_credential | Revoke one scoped storage programmatic credential |
+| GET | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}` | workspace | storage_credential | Fetch one scoped storage programmatic credential definition without reissuing the secret value |
+| POST | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations` | workspace | storage_credential | Rotate one scoped storage programmatic credential and return the replacement access key pair once |
 
 ## Metrics
 
