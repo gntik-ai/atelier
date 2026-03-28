@@ -16,6 +16,7 @@ import {
   type ConsoleSignupPolicy
 } from '@/lib/console-auth'
 import { consoleAuthConfig } from '@/lib/console-config'
+import { persistConsoleShellSession } from '@/lib/console-session'
 import type { ApiError } from '@/lib/http'
 
 type FeedbackState =
@@ -88,11 +89,12 @@ export function LoginPage() {
         rememberMe: form.rememberMe
       })
 
+      persistConsoleShellSession(createdSession)
       setSession(createdSession)
       setFeedback({
         variant: 'success',
         title: 'Sesión creada correctamente',
-        message: 'La autenticación fue evaluada por la familia pública de auth y la consola ya tiene un contexto inicial de sesión.'
+        message: 'La autenticación fue evaluada por la familia pública de auth y la consola ya puede abrir el shell base persistente.'
       })
     } catch (rawError) {
       const error = rawError as ApiError
@@ -220,6 +222,9 @@ export function LoginPage() {
                   <span className="block">Expira: {new Date(session.expiresAt).toLocaleString('es-ES')}</span>
                   <span className="block">Refresh hasta: {new Date(session.refreshExpiresAt).toLocaleString('es-ES')}</span>
                   {session.nextAction ? <span className="block">Siguiente acción: {session.nextAction}</span> : null}
+                  <Link className="mt-3 inline-flex font-medium text-primary underline underline-offset-4" to="/console/overview">
+                    Abrir shell base de la consola
+                  </Link>
                 </AlertDescription>
               </Alert>
             ) : null}

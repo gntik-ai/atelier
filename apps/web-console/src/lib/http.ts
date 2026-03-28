@@ -1,6 +1,6 @@
 export const API_VERSION = '2026-03-26'
 
-type HttpMethod = 'GET' | 'POST'
+type HttpMethod = 'GET' | 'POST' | 'DELETE'
 
 type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
@@ -19,6 +19,7 @@ export interface ApiError {
 export interface JsonRequestOptions {
   method?: HttpMethod
   body?: JsonValue
+  headers?: HeadersInit
   idempotent?: boolean
   signal?: AbortSignal
 }
@@ -43,6 +44,11 @@ export async function requestJson<T>(url: string, options: JsonRequestOptions = 
   if (method !== 'GET' || options.idempotent) {
     headers.set('Idempotency-Key', createRequestId('idem'))
   }
+
+  const extraHeaders = new Headers(options.headers ?? {})
+  extraHeaders.forEach((value, key) => {
+    headers.set(key, value)
+  })
 
   const response = await fetch(url, {
     method,

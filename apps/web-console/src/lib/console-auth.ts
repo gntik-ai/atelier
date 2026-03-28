@@ -49,6 +49,34 @@ export interface ConsoleAccountStatusView {
   allowedActions: ConsoleActionLink[]
 }
 
+export interface ConsoleSessionPrincipal {
+  displayName: string
+  primaryEmail: string
+  state: ConsoleAuthenticationState
+  userId: string
+  username: string
+  platformRoles: string[]
+  tenantIds?: string[]
+  workspaceIds?: string[]
+}
+
+export interface ConsoleSessionExpirationPolicy {
+  maxLifetime?: string
+  idleTimeout?: string
+  refreshTokenMaxAge?: string
+}
+
+export interface ConsoleTokenSet {
+  accessToken: string
+  expiresAt: string
+  expiresIn: number
+  refreshExpiresAt: string
+  refreshExpiresIn: number
+  refreshToken: string
+  scope: string
+  tokenType: 'Bearer'
+}
+
 export interface ConsoleLoginSession {
   sessionId: string
   authenticationState: ConsoleAuthenticationState
@@ -58,15 +86,10 @@ export interface ConsoleLoginSession {
   expiresAt: string
   idleExpiresAt: string
   refreshExpiresAt: string
+  sessionPolicy: ConsoleSessionExpirationPolicy
+  tokenSet?: ConsoleTokenSet
   nextAction?: string
-  principal?: {
-    displayName: string
-    primaryEmail: string
-    state: ConsoleAuthenticationState
-    userId: string
-    username: string
-    platformRoles: string[]
-  }
+  principal?: ConsoleSessionPrincipal
 }
 
 export interface ConsoleSignupRegistration {
@@ -83,6 +106,12 @@ export interface ConsoleSignupRegistration {
     state?: string
     summary?: string
   }
+}
+
+export interface ConsoleSessionTerminationAccepted {
+  sessionId: string
+  status: 'accepted'
+  acceptedAt: string
 }
 
 export interface ConsoleAuthStatusHint {
@@ -103,6 +132,21 @@ export async function createConsoleLoginSession(
     method: 'POST',
     body: payload as unknown as Record<string, string | boolean>,
     idempotent: true,
+    signal
+  })
+}
+
+export async function terminateConsoleLoginSession(
+  sessionId: string,
+  accessToken: string,
+  signal?: AbortSignal
+): Promise<ConsoleSessionTerminationAccepted> {
+  return requestJson<ConsoleSessionTerminationAccepted>(`/v1/auth/login-sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+    idempotent: true,
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
     signal
   })
 }
