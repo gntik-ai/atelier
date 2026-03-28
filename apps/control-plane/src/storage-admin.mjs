@@ -91,6 +91,20 @@ import {
   checkImportExportOperationLimit,
   validateImportManifest
 } from '../../../services/adapters/src/storage-import-export.mjs';
+import {
+  STORAGE_AUDIT_TOPIC,
+  STORAGE_AUDIT_OPERATION_CATEGORIES,
+  STORAGE_AUDIT_OPERATION_TYPES,
+  STORAGE_AUDIT_ERROR_CODES,
+  STORAGE_AUDIT_COVERAGE_CATEGORIES,
+  buildStorageAdminAuditEvent,
+  buildStorageAccessDeniedAuditEvent,
+  buildStorageCredentialLifecycleAuditEvent,
+  normalizeStorageAuditEvent,
+  queryStorageAuditTrail,
+  buildStorageAuditCoverageReport,
+  emitStorageAuditEvent
+} from '../../../services/adapters/src/storage-audit-ops.mjs';
 
 export const storageApiFamily = getApiFamily('storage');
 export const STORAGE_ADMIN_ERROR_CODES = STORAGE_PROVIDER_ERROR_CODES;
@@ -128,9 +142,35 @@ export const STORAGE_USAGE_COLLECTION_STATUS_CATALOG = STORAGE_USAGE_COLLECTION_
 export const STORAGE_USAGE_THRESHOLD_SEVERITY_CATALOG = STORAGE_USAGE_THRESHOLD_SEVERITIES_CATALOG;
 export const STORAGE_USAGE_THRESHOLD_DEFAULT_CATALOG = STORAGE_USAGE_THRESHOLD_DEFAULTS_CATALOG;
 export const STORAGE_USAGE_ERROR_CATALOG = STORAGE_USAGE_ERROR_CODES_CATALOG;
+export const STORAGE_AUDIT_TOPIC_CATALOG = STORAGE_AUDIT_TOPIC;
+export const STORAGE_AUDIT_OPERATION_CATEGORY_CATALOG = STORAGE_AUDIT_OPERATION_CATEGORIES;
+export const STORAGE_AUDIT_OPERATION_TYPE_CATALOG = STORAGE_AUDIT_OPERATION_TYPES;
+export const STORAGE_AUDIT_ERROR_CATALOG = STORAGE_AUDIT_ERROR_CODES;
+export const STORAGE_AUDIT_COVERAGE_CATEGORY_CATALOG = STORAGE_AUDIT_COVERAGE_CATEGORIES;
+export {
+  STORAGE_AUDIT_TOPIC,
+  STORAGE_AUDIT_OPERATION_CATEGORIES,
+  STORAGE_AUDIT_OPERATION_TYPES,
+  STORAGE_AUDIT_ERROR_CODES,
+  STORAGE_AUDIT_COVERAGE_CATEGORIES,
+  buildStorageAdminAuditEvent,
+  buildStorageAccessDeniedAuditEvent,
+  buildStorageCredentialLifecycleAuditEvent,
+  normalizeStorageAuditEvent,
+  queryStorageAuditTrail,
+  buildStorageAuditCoverageReport,
+  emitStorageAuditEvent
+};
 
 function matchesRouteFilters(route, filters = {}) {
   return Object.entries(filters).every(([key, value]) => route?.[key] === value);
+}
+
+export function listStorageAuditRoutes(filters = {}) {
+  return [
+    getPublicRoute('listStorageAuditTrail'),
+    getPublicRoute('getStorageAuditCoverage')
+  ].filter(Boolean).filter((route) => matchesRouteFilters(route, filters));
 }
 
 export function listStorageAdminRoutes(filters = {}) {
@@ -156,6 +196,7 @@ export function listStorageAdminRoutes(filters = {}) {
     getPublicRoute('importStorageBucketObjects'),
     getPublicRoute('getStorageBucketExportManifest')
   ];
+  const storageAuditRoutes = listStorageAuditRoutes();
   const combinedRoutes = [
     ...storageRoutes,
     providerRoute,
@@ -163,7 +204,8 @@ export function listStorageAdminRoutes(filters = {}) {
     tenantRotationRoute,
     ...storageCredentialRoutes,
     ...storageUsageRoutes,
-    ...storageImportExportRoutes
+    ...storageImportExportRoutes,
+    ...storageAuditRoutes
   ].filter(Boolean);
 
   return combinedRoutes.filter((route) => matchesRouteFilters(route, filters));
@@ -173,7 +215,7 @@ export const storageAdminRoutes = listStorageAdminRoutes();
 
 export function getStorageAdminRoute(operationId) {
   const route = getPublicRoute(operationId);
-  return route && (route.family === 'storage' || ['storage_provider', 'tenant_storage_context', 'bucket_object', 'storage_credential', 'storage_usage_snapshot'].includes(route.resourceType))
+  return route && (route.family === 'storage' || ['storage_provider', 'tenant_storage_context', 'bucket_object', 'storage_credential', 'storage_usage_snapshot', 'storage_audit_event', 'storage_audit_coverage_report'].includes(route.resourceType))
     ? route
     : undefined;
 }

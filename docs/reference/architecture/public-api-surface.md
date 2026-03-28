@@ -451,6 +451,7 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
+| GET | `/v1/storage/audit/coverage` | platform | storage_audit_coverage_report | Get storage audit coverage report |
 | GET | `/v1/storage/buckets` | workspace | bucket | List workspace-scoped storage buckets through the unified storage family |
 | POST | `/v1/storage/buckets` | workspace | bucket | Submit a workspace-scoped storage bucket provisioning request through the unified storage family |
 | DELETE | `/v1/storage/buckets/{resourceId}` | workspace | bucket | Delete one workspace-scoped storage bucket through the unified storage family |
@@ -462,6 +463,10 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 | GET | `/v1/storage/buckets/{resourceId}/objects/{objectKey}/metadata` | workspace | bucket_object | Fetch metadata for one object in a workspace-scoped storage bucket |
 | GET | `/v1/storage/tenants/{tenantId}/usage` | tenant | storage_usage_snapshot | Fetch one tenant-scoped storage usage snapshot aggregated across workspaces |
 | GET | `/v1/storage/usage/tenants` | platform | storage_usage_snapshot | List the top tenant storage usage snapshots across the platform |
+| GET | `/v1/storage/workspaces/{workspaceId}/audit` | workspace | storage_audit_event | List workspace-scoped storage audit records |
+| POST | `/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports` | workspace | storage_export_manifest | Preview a bounded storage bucket export manifest |
+| GET | `/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/exports/{manifestId}` | workspace | storage_export_manifest | Fetch one bounded storage export manifest |
+| POST | `/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/imports` | workspace | storage_import_result | Preview a bounded storage bucket import result |
 | GET | `/v1/storage/workspaces/{workspaceId}/buckets/{bucketId}/usage` | workspace | storage_usage_snapshot | Fetch one bucket-scoped storage usage snapshot |
 | GET | `/v1/storage/workspaces/{workspaceId}/credentials` | workspace | storage_credential | List scoped storage programmatic credentials for one workspace |
 | POST | `/v1/storage/workspaces/{workspaceId}/credentials` | workspace | storage_credential | Create one scoped storage programmatic credential limited to declared workspace, bucket, and object-prefix scope |
