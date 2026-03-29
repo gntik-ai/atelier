@@ -37,6 +37,21 @@ const ConsoleStoragePage = lazy(async () => {
   return { default: module.ConsoleStoragePage }
 })
 
+const ConsoleObservabilityPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleObservabilityPage')
+  return { default: module.ConsoleObservabilityPage }
+})
+
+const ConsoleServiceAccountsPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleServiceAccountsPage')
+  return { default: module.ConsoleServiceAccountsPage }
+})
+
+const ConsoleQuotasPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleQuotasPage')
+  return { default: module.ConsoleQuotasPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -126,13 +141,15 @@ export const appRoutes = [
           },
           {
             path: 'observability',
-            element: (
-              <ConsolePlaceholderPage
-                badge="Observability"
-                title="Observabilidad y auditoría"
-                description="Placeholder navegable para métricas, alertas, consultas de auditoría y señales operativas del producto."
-              />
-            )
+            element: <ConsoleObservabilityPage />
+          },
+          {
+            path: 'service-accounts',
+            element: <ConsoleServiceAccountsPage />
+          },
+          {
+            path: 'quotas',
+            element: <ConsoleQuotasPage />
           },
           {
             path: 'profile',

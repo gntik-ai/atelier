@@ -98,7 +98,19 @@ const consoleNavigationItems = [
     label: 'Observability',
     to: '/console/observability',
     icon: Activity,
-    description: 'Acceso inicial al dominio de métricas, alertas y auditoría.'
+    description: 'Métricas, auditoría y señales operativas del contexto activo.'
+  },
+  {
+    label: 'Service Accounts',
+    to: '/console/service-accounts',
+    icon: Settings,
+    description: 'Credenciales programáticas y service accounts del workspace activo.'
+  },
+  {
+    label: 'Quotas',
+    to: '/console/quotas',
+    icon: Activity,
+    description: 'Postura de cuotas, límites y consumo por tenant y workspace.'
   }
 ] as const
 

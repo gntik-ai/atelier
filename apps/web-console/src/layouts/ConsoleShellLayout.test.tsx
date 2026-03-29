@@ -297,6 +297,16 @@ describe('ConsoleShellLayout', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/cuotas agotadas en el tenant activo/i)
   })
 
+  it('renderiza los links nuevos de service accounts y quotas en el sidebar', async () => {
+    stubShellApi()
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/overview')
+
+    expect(await screen.findByRole('link', { name: /service accounts/i })).toHaveAttribute('href', '/console/service-accounts')
+    expect(screen.getByRole('link', { name: /quotas/i })).toHaveAttribute('href', '/console/quotas')
+  })
+
   it('ejecuta logout, limpia storage y redirige a login', async () => {
     stubShellApi({ logoutStatus: 202 })
     persistConsoleShellSession(baseSession)
@@ -382,6 +392,14 @@ function renderShell(initialPath = '/console/overview') {
           {
             path: 'observability',
             element: <h1>Observability</h1>
+          },
+          {
+            path: 'service-accounts',
+            element: <h1>Service Accounts</h1>
+          },
+          {
+            path: 'quotas',
+            element: <h1>Quotas</h1>
           }
         ]
       }
