@@ -475,14 +475,14 @@ export function ConsoleFunctionsPage() {
     const controller = new AbortController()
     void loadVersions(selectedActionId, controller.signal)
     return () => controller.abort()
-  }, [actionDetailTab, loadVersions, selectedActionId, versions.data, versions.loading])
+  }, [actionDetailTab, loadVersions, selectedActionId, versions.data])
 
   useEffect(() => {
     if (!selectedActionId || actionDetailTab !== 'activations' || activations.data || activations.loading) return undefined
     const controller = new AbortController()
     void loadActivations(selectedActionId, controller.signal)
     return () => controller.abort()
-  }, [actionDetailTab, activations.data, activations.loading, loadActivations, selectedActionId])
+  }, [actionDetailTab, activations.data, loadActivations, selectedActionId])
 
   useEffect(() => {
     if (!selectedActionId || !selectedActivationId) {
