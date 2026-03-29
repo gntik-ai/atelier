@@ -80,3 +80,16 @@ test('console backend allowed path preserves public API denial parity metadata a
   assert.equal(envelope.invocationRequest.body.publicApiCall.headers['Idempotency-Key'].startsWith('idem:'), true);
   assert.equal(envelope.activationAnnotation.initiating_surface, 'console_backend');
 });
+
+test('console workflow status-query routes remain tenant/workspace bound in the route catalog', async () => {
+  const { getPublicRoute } = await import('../../services/internal-contracts/src/index.mjs');
+  const tenantStatusRoute = getPublicRoute('getTenantWorkflowJobStatus');
+  const workspaceStatusRoute = getPublicRoute('getWorkspaceWorkflowJobStatus');
+
+  assert.equal(tenantStatusRoute.scope, 'tenant');
+  assert.equal(typeof tenantStatusRoute.tenantBinding, 'string');
+  assert.equal(tenantStatusRoute.consoleTier, 'spa');
+  assert.equal(workspaceStatusRoute.scope, 'workspace');
+  assert.equal(typeof workspaceStatusRoute.workspaceBinding, 'string');
+  assert.equal(workspaceStatusRoute.consoleTier, 'spa');
+});

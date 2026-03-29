@@ -125,6 +125,56 @@ export function buildConsoleBackendWorkflowInvocation(context = {}, actionRef, p
   };
 }
 
+export const CONSOLE_WORKFLOW_ROUTE_CLASSIFICATIONS = Object.freeze([
+  Object.freeze({
+    workflowId: 'WF-CON-002',
+    tier: 'spa',
+    facadeOperationIds: Object.freeze(['createTenant']),
+    statusOperationIds: Object.freeze(['getTenantWorkflowJobStatus']),
+    representativeOperationId: 'createTenant'
+  }),
+  Object.freeze({
+    workflowId: 'WF-CON-003',
+    tier: 'spa',
+    facadeOperationIds: Object.freeze(['createWorkspace']),
+    statusOperationIds: Object.freeze(['getWorkspaceWorkflowJobStatus']),
+    representativeOperationId: 'createWorkspace'
+  }),
+  Object.freeze({
+    workflowId: 'WF-CON-004',
+    tier: 'spa',
+    facadeOperationIds: Object.freeze([
+      'issueServiceAccountCredential',
+      'rotateServiceAccountCredential',
+      'revokeServiceAccountCredential'
+    ]),
+    statusOperationIds: Object.freeze([]),
+    representativeOperationId: 'issueServiceAccountCredential'
+  }),
+  Object.freeze({
+    workflowId: 'WF-CON-006',
+    tier: 'spa',
+    facadeOperationIds: Object.freeze(['createServiceAccount']),
+    statusOperationIds: Object.freeze([]),
+    representativeOperationId: 'createServiceAccount'
+  })
+]);
+
+export function getConsoleWorkflowRouteClassification(workflowId) {
+  return CONSOLE_WORKFLOW_ROUTE_CLASSIFICATIONS.find((entry) => entry.workflowId === workflowId) ?? null;
+}
+
+export function listConsoleWorkflowRouteClassifications(filters = {}) {
+  return CONSOLE_WORKFLOW_ROUTE_CLASSIFICATIONS.filter((entry) => Object.entries(filters).every(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return true;
+    }
+
+    const entryValue = entry[key];
+    return Array.isArray(entryValue) ? entryValue.includes(value) : entryValue === value;
+  }));
+}
+
 export function summarizeConsoleBackendFunctionsSurface() {
   return {
     initiatingSurface: CONSOLE_BACKEND_INITIATING_SURFACE,
@@ -132,6 +182,7 @@ export function summarizeConsoleBackendFunctionsSurface() {
     workflowRouteId: CONSOLE_BACKEND_WORKFLOW_ROUTE_ID,
     representativeWorkflow: 'console_backend_inventory_sync',
     publicApiOnly: true,
-    traceFields: ['actor', 'tenant_id', 'workspace_id', 'correlation_id', 'initiating_surface']
+    traceFields: ['actor', 'tenant_id', 'workspace_id', 'correlation_id', 'initiating_surface'],
+    workflowRouteClassifications: CONSOLE_WORKFLOW_ROUTE_CLASSIFICATIONS
   };
 }

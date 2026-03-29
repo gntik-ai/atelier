@@ -30,3 +30,25 @@ export function summarizePublicApiFamilies() {
     audiences: family.audiences
   }));
 }
+
+export function listConsoleRoutesByTier(tier) {
+  return filterPublicRoutes({ consoleTier: tier });
+}
+
+export function listConsoleWorkflowRoutes(workflowId) {
+  return filterPublicRoutes({ consoleWorkflowId: workflowId });
+}
+
+export function summarizeConsoleEndpointSeparation() {
+  const tiers = ['spa', 'backend', 'platform'];
+
+  return Object.fromEntries(
+    tiers.map((tier) => {
+      const routes = listConsoleRoutesByTier(tier);
+      return [tier, {
+        routeCount: routes.length,
+        operationIds: routes.map((route) => route.operationId).sort()
+      }];
+    })
+  );
+}

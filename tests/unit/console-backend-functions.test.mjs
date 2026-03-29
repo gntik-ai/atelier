@@ -8,8 +8,11 @@ import {
 import {
   CONSOLE_BACKEND_ACTOR_TYPE,
   CONSOLE_BACKEND_INITIATING_SURFACE,
+  CONSOLE_WORKFLOW_ROUTE_CLASSIFICATIONS,
   buildConsoleBackendWorkflowInvocation,
   getConsoleBackendIdentityRequirements,
+  getConsoleWorkflowRouteClassification,
+  listConsoleWorkflowRouteClassifications,
   summarizeConsoleBackendFunctionsSurface,
   validateConsoleBackendScope
 } from '../../apps/control-plane/src/console-backend-functions.mjs';
@@ -79,8 +82,26 @@ test('console backend surface summary is non-empty and adapter helpers stamp con
 
   assert.equal(summary.publicApiOnly, true);
   assert.equal(summary.traceFields.includes('initiating_surface'), true);
+  assert.deepEqual(summary.workflowRouteClassifications, CONSOLE_WORKFLOW_ROUTE_CLASSIFICATIONS);
   assert.equal(annotation.initiating_surface, 'console_backend');
   assert.equal(annotation.workspace_id, 'wrk_01alphadev');
   assert.equal(invalid.ok, false);
   assert.equal(invalid.violations.includes('tenantId is required for console backend invocation.'), true);
+});
+
+test('console workflow route classification helpers expose the T03 workflow mappings', () => {
+  const tenantProvisioning = getConsoleWorkflowRouteClassification('WF-CON-002');
+  const workspaceStatus = getConsoleWorkflowRouteClassification('WF-CON-003');
+  const credentialRoutes = listConsoleWorkflowRouteClassifications({ workflowId: 'WF-CON-004' });
+  const spaRoutes = listConsoleWorkflowRouteClassifications({ tier: 'spa' });
+
+  assert.deepEqual(tenantProvisioning?.facadeOperationIds, ['createTenant']);
+  assert.deepEqual(tenantProvisioning?.statusOperationIds, ['getTenantWorkflowJobStatus']);
+  assert.deepEqual(workspaceStatus?.statusOperationIds, ['getWorkspaceWorkflowJobStatus']);
+  assert.deepEqual(credentialRoutes[0]?.facadeOperationIds, [
+    'issueServiceAccountCredential',
+    'rotateServiceAccountCredential',
+    'revokeServiceAccountCredential'
+  ]);
+  assert.equal(spaRoutes.length >= 4, true);
 });

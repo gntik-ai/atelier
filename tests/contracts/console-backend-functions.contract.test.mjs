@@ -6,7 +6,11 @@ import {
   buildConsoleBackendActivationAnnotation,
   validateConsoleBackendInvocationRequest
 } from '../../services/adapters/src/openwhisk-admin.mjs';
-import { buildConsoleBackendWorkflowInvocation } from '../../apps/control-plane/src/console-backend-functions.mjs';
+import {
+  buildConsoleBackendWorkflowInvocation,
+  getConsoleWorkflowRouteClassification,
+  listConsoleWorkflowRouteClassifications
+} from '../../apps/control-plane/src/console-backend-functions.mjs';
 
 test('console backend invocation envelope stays aligned with the governed invocation contract shape', () => {
   const envelope = buildConsoleBackendWorkflowInvocation({
@@ -73,4 +77,26 @@ test('console backend representative workflow preserves public API parity metada
   assert.equal(envelope.invocationRequest.body.publicApiCall.path.includes('/v1/functions/workspaces/wrk_01alphadev/inventory'), true);
   assert.equal(envelope.activationAnnotation.initiating_surface, 'console_backend');
   assert.equal(envelope.publicApiSurface.privateBackchannelAllowed, false);
+});
+
+test('console workflow route classifications preserve facade and status-query mappings', () => {
+  const wf002 = getConsoleWorkflowRouteClassification('WF-CON-002');
+  const wf003 = getConsoleWorkflowRouteClassification('WF-CON-003');
+  const wf004 = getConsoleWorkflowRouteClassification('WF-CON-004');
+  const spaClassifications = listConsoleWorkflowRouteClassifications({ tier: 'spa' });
+
+  assert.deepEqual(wf002, {
+    workflowId: 'WF-CON-002',
+    tier: 'spa',
+    facadeOperationIds: ['createTenant'],
+    statusOperationIds: ['getTenantWorkflowJobStatus'],
+    representativeOperationId: 'createTenant'
+  });
+  assert.deepEqual(wf003?.statusOperationIds, ['getWorkspaceWorkflowJobStatus']);
+  assert.deepEqual(wf004?.facadeOperationIds, [
+    'issueServiceAccountCredential',
+    'rotateServiceAccountCredential',
+    'revokeServiceAccountCredential'
+  ]);
+  assert.equal(spaClassifications.length >= 4, true);
 });

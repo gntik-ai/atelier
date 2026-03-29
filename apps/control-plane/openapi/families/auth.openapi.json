@@ -4181,6 +4181,9 @@
           "platform_team",
           "superadmin"
         ],
+        "x-console-delegation-mode": "platform_internal",
+        "x-console-tier": "platform",
+        "x-console-workflow-id": "WF-CON-002",
         "x-family": "auth",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "auth-activation",

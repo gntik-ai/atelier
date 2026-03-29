@@ -263,6 +263,11 @@ export function buildRouteCatalog(
         qosBurst: qosProfile.burst ?? 0,
         internalRequestMode: gatewayRouting?.spec?.internalRequestMode?.mode ?? null,
         errorEnvelope: gatewayRouting?.spec?.errorEnvelope?.schema ?? null,
+        consoleTier: operation['x-console-tier'] ?? null,
+        consoleWorkflowId: operation['x-console-workflow-id'] ?? null,
+        consoleDelegationMode: operation['x-console-delegation-mode'] ?? null,
+        consoleStatusOperationIds: operation['x-console-status-operation-ids'] ?? [],
+        consoleDiscoverySurface: operation['x-console-discovery-surface'] === true,
         tags: operation.tags ?? [],
         deprecated: operation.deprecated === true,
         discoveryRoute: taxonomy.versioning.discovery_route
@@ -383,6 +388,7 @@ function collectOperationViolations(document, taxonomy, violations) {
   const familyIds = new Set(taxonomy.families.map((family) => family.id));
   const familyPrefixes = new Map(taxonomy.families.map((family) => [family.id, family.prefix]));
   const requiredMutationMethods = new Set(taxonomy.shared_http.headers.idempotency_key.required_for_methods);
+  const validConsoleTiers = new Set(['spa', 'backend', 'platform']);
 
   function allowedPrefixesForOperation(familyId, operation) {
     const prefix = familyPrefixes.get(familyId);
@@ -435,6 +441,15 @@ function collectOperationViolations(document, taxonomy, violations) {
 
     if (!operation['x-scope']) {
       violations.push(`${method.toUpperCase()} ${path} must declare x-scope.`);
+    }
+
+    const consoleMetadataKeys = Object.keys(operation).filter((key) => key.startsWith('x-console-'));
+    if (consoleMetadataKeys.length > 0 && !validConsoleTiers.has(operation['x-console-tier'])) {
+      violations.push(`${method.toUpperCase()} ${path} must declare x-console-tier as one of spa, backend, platform when console metadata is present.`);
+    }
+
+    if (operation['x-console-delegation-mode'] === 'backend_workflow' && !/^WF-CON-0[0-9]{2}$/.test(operation['x-console-workflow-id'] ?? '')) {
+      violations.push(`${method.toUpperCase()} ${path} must declare a WF-CON-0NN x-console-workflow-id when x-console-delegation-mode is backend_workflow.`);
     }
 
     for (const status of ['429', '431', '504']) {
@@ -499,6 +514,33 @@ function collectRouteCatalogViolations(document, taxonomy, routeCatalog, gateway
       violations.push(`Route catalog entry ${operation.operationId} must preserve family ${operation['x-family']}.`);
     }
 
+    const expectedConsoleStatusOperationIds = operation['x-console-status-operation-ids'] ?? [];
+    if (route.consoleTier !== (operation['x-console-tier'] ?? null)) {
+      violations.push(`Route catalog entry ${operation.operationId} must preserve consoleTier ${(operation['x-console-tier'] ?? null)}.`);
+    }
+
+    if (route.consoleWorkflowId !== (operation['x-console-workflow-id'] ?? null)) {
+      violations.push(`Route catalog entry ${operation.operationId} must preserve consoleWorkflowId ${(operation['x-console-workflow-id'] ?? null)}.`);
+    }
+
+    if (route.consoleDelegationMode !== (operation['x-console-delegation-mode'] ?? null)) {
+      violations.push(`Route catalog entry ${operation.operationId} must preserve consoleDelegationMode ${(operation['x-console-delegation-mode'] ?? null)}.`);
+    }
+
+    if (JSON.stringify(route.consoleStatusOperationIds ?? []) !== JSON.stringify(expectedConsoleStatusOperationIds)) {
+      violations.push(`Route catalog entry ${operation.operationId} must preserve consoleStatusOperationIds from source OpenAPI.`);
+    }
+
+    if (route.consoleDiscoverySurface !== (operation['x-console-discovery-surface'] === true)) {
+      violations.push(`Route catalog entry ${operation.operationId} must preserve consoleDiscoverySurface from source OpenAPI.`);
+    }
+
+    for (const statusOperationId of expectedConsoleStatusOperationIds) {
+      if (!routesByOperation.has(statusOperationId)) {
+        violations.push(`Route catalog entry ${operation.operationId} references missing console status operation ${statusOperationId}.`);
+      }
+    }
+
     if (route.path !== path || route.method !== method.toUpperCase()) {
       violations.push(`Route catalog entry ${operation.operationId} must preserve method/path ${method.toUpperCase()} ${path}.`);
     }
@@ -540,6 +582,16 @@ function collectRouteCatalogViolations(document, taxonomy, routeCatalog, gateway
   const catalogOperation = document.paths?.[taxonomy.versioning.discovery_route]?.get;
   if (!catalogOperation) {
     violations.push(`Unified OpenAPI must expose discovery route ${taxonomy.versioning.discovery_route}.`);
+  }
+
+  const tenantStatusRoute = routesByOperation.get('getTenantWorkflowJobStatus');
+  if (tenantStatusRoute && (tenantStatusRoute.scope !== 'tenant' || tenantStatusRoute.tenantBinding == null)) {
+    violations.push('getTenantWorkflowJobStatus must stay tenant-scoped in the route catalog.');
+  }
+
+  const workspaceStatusRoute = routesByOperation.get('getWorkspaceWorkflowJobStatus');
+  if (workspaceStatusRoute && (workspaceStatusRoute.scope !== 'workspace' || workspaceStatusRoute.workspaceBinding == null)) {
+    violations.push('getWorkspaceWorkflowJobStatus must stay workspace-scoped in the route catalog.');
   }
 }
 
