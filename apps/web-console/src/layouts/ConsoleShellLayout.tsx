@@ -65,6 +65,12 @@ const consoleNavigationItems = [
     description: 'Superficie Auth/IAM para scopes, clients, providers y aplicaciones externas del contexto activo.'
   },
   {
+    label: 'PostgreSQL',
+    to: '/console/postgres',
+    icon: Database,
+    description: 'Bases de datos, esquemas, tablas, índices, vistas y preview DDL.'
+  },
+  {
     label: 'Functions',
     to: '/console/functions',
     icon: Workflow,
@@ -430,7 +436,7 @@ function ConsoleHeaderContextControls() {
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Tenant</span>
           <select
             aria-label="Seleccionar tenant"
-            data-testid="console-shell-tenant-selector"
+            data-testid="console-context-tenant-select"
             value={activeTenantId ?? ''}
             disabled={tenantsLoading || hasNoTenants}
             onChange={(event) => selectTenant(event.target.value || null)}
@@ -451,7 +457,7 @@ function ConsoleHeaderContextControls() {
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Workspace</span>
           <select
             aria-label="Seleccionar workspace"
-            data-testid="console-shell-workspace-selector"
+            data-testid="console-context-workspace-select"
             value={activeWorkspaceId ?? ''}
             disabled={workspaceDisabled}
             onChange={(event) => selectWorkspace(event.target.value || null)}
@@ -508,7 +514,7 @@ function ConsoleContextStatusPanel() {
         <article
           role="status"
           aria-live="polite"
-          data-testid="console-shell-tenant-status"
+          data-testid="console-context-tenant-status"
           className="rounded-3xl border border-border bg-card/70 p-5 shadow-sm"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -546,7 +552,7 @@ function ConsoleContextStatusPanel() {
         <article
           role="status"
           aria-live="polite"
-          data-testid="console-shell-workspace-status"
+          data-testid="console-context-workspace-status"
           className="rounded-3xl border border-border bg-card/70 p-5 shadow-sm"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">

@@ -178,6 +178,24 @@ describe('ConsoleShellLayout', () => {
     expect(membersLink).toHaveAttribute('href', '/console/members')
   })
 
+  it('renderiza el ítem PostgreSQL en el sidebar', async () => {
+    stubShellApi()
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/overview')
+
+    expect(await screen.findByRole('link', { name: /postgresql/i })).toBeInTheDocument()
+  })
+
+  it('apunta el ítem PostgreSQL a /console/postgres', async () => {
+    stubShellApi()
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/overview')
+
+    expect(await screen.findByRole('link', { name: /postgresql/i })).toHaveAttribute('href', '/console/postgres')
+  })
+
   it('muestra reintento cuando falla la carga de tenants y se recupera al reintentar', async () => {
     fetchMock
       .mockImplementationOnce(async (input) => {
@@ -330,6 +348,10 @@ function renderShell(initialPath = '/console/overview') {
           {
             path: 'members',
             element: <h1>Members</h1>
+          },
+          {
+            path: 'postgres',
+            element: <h1>PostgreSQL</h1>
           },
           {
             path: 'functions',

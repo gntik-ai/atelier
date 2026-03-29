@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -10,6 +11,11 @@ import { ConsoleMembersPage } from '@/pages/ConsoleMembersPage'
 import { ConsolePlaceholderPage } from '@/pages/ConsolePlaceholderPage'
 import { SignupPage } from '@/pages/SignupPage'
 import { WelcomePage } from '@/pages/WelcomePage'
+
+const ConsolePostgresPage = lazy(async () => {
+  const module = await import('@/pages/ConsolePostgresPage')
+  return { default: module.ConsolePostgresPage }
+})
 
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
@@ -77,6 +83,10 @@ export const appRoutes = [
           {
             path: 'auth',
             element: <ConsoleAuthPage />
+          },
+          {
+            path: 'postgres',
+            element: <ConsolePostgresPage />
           },
           {
             path: 'functions',
