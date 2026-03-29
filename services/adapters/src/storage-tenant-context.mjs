@@ -459,3 +459,11 @@ export function previewWorkspaceStorageBootstrap({
     observedAt: now
   };
 }
+
+// ── T02 provisional workflow helpers (guarded stubs) ─────────────────────────
+
+export async function provisionWorkspaceStorageBoundary() {
+  const error = new Error('NOT_YET_IMPLEMENTED: provisionWorkspaceStorageBoundary');
+  error.code = 'NOT_YET_IMPLEMENTED';
+  throw error;
+}

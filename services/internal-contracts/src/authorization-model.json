@@ -1582,7 +1582,7 @@
     },
     {
       "id": "AUTHZ-FN-AUD-001",
-      "description": "Caller queries audit records outside their authorized tenant — denied without revealing foreign records.",
+      "description": "Caller queries audit records outside their authorized tenant \u2014 denied without revealing foreign records.",
       "surface": "control_api",
       "category": "cross_tenant",
       "expected_effect": "deny",
@@ -1590,7 +1590,7 @@
     },
     {
       "id": "AUTHZ-FN-AUD-002",
-      "description": "Caller queries audit records outside their authorized workspace — denied without revealing foreign records.",
+      "description": "Caller queries audit records outside their authorized workspace \u2014 denied without revealing foreign records.",
       "surface": "control_api",
       "category": "cross_workspace",
       "expected_effect": "deny",
@@ -1598,7 +1598,7 @@
     },
     {
       "id": "AUTHZ-FN-AUD-003",
-      "description": "Non-superadmin calls the coverage report endpoint — denied with HTTP 403.",
+      "description": "Non-superadmin calls the coverage report endpoint \u2014 denied with HTTP 403.",
       "surface": "control_api",
       "category": "privilege_escalation",
       "expected_effect": "deny",
@@ -1606,11 +1606,51 @@
     },
     {
       "id": "AUTHZ-FN-AUD-004",
-      "description": "Audit query limit exceeds the bounded maximum — rejected before query execution.",
+      "description": "Audit query limit exceeds the bounded maximum \u2014 rejected before query execution.",
       "surface": "control_api",
       "category": "request_validation",
       "expected_effect": "deny",
       "summary": "Audit query limits above the bounded maximum are rejected before query execution."
     }
-  ]
+  ],
+  "workflow_authorization": {
+    "WF-CON-001": {
+      "required_roles": [
+        "workspace_admin",
+        "tenant_owner"
+      ],
+      "isolation": "tenant-scoped"
+    },
+    "WF-CON-002": {
+      "required_roles": [
+        "superadmin"
+      ],
+      "isolation": "superadmin"
+    },
+    "WF-CON-003": {
+      "required_roles": [
+        "tenant_owner"
+      ],
+      "isolation": "tenant-scoped"
+    },
+    "WF-CON-004": {
+      "required_roles": [
+        "workspace_admin",
+        "tenant_owner"
+      ],
+      "isolation": "tenant-scoped"
+    },
+    "WF-CON-005": {
+      "required_roles": [],
+      "isolation": "tenant-scoped",
+      "provisional": true
+    },
+    "WF-CON-006": {
+      "required_roles": [
+        "workspace_admin",
+        "tenant_owner"
+      ],
+      "isolation": "tenant-scoped"
+    }
+  }
 }

@@ -1,0 +1,277 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "console-workflow-invocation",
+  "title": "Console Workflow Invocation Request and Result",
+  "definitions": {
+    "callerContext": {
+      "type": "object",
+      "required": [
+        "actor",
+        "actorType",
+        "tenantId",
+        "correlationId"
+      ],
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "actorType": {
+          "type": "string",
+          "enum": [
+            "workspace_admin",
+            "tenant_owner",
+            "superadmin",
+            "tenant_member"
+          ]
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "correlationId": {
+          "type": "string"
+        },
+        "requestTenantId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requestWorkspaceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "affectedResource": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "auditFields": {
+      "type": "object",
+      "required": [
+        "workflowId",
+        "actor",
+        "tenantId",
+        "timestamp",
+        "affectedResources",
+        "outcome"
+      ],
+      "properties": {
+        "workflowId": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "workspaceId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "affectedResources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/affectedResource"
+          }
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "succeeded",
+            "failed"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "errorSummary": {
+      "type": "object",
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "failedStep": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "invocationRequest": {
+      "type": "object",
+      "required": [
+        "workflowId",
+        "idempotencyKey",
+        "callerContext",
+        "input"
+      ],
+      "properties": {
+        "workflowId": {
+          "type": "string",
+          "pattern": "^WF-CON-0[0-9]{2}$"
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+        },
+        "callerContext": {
+          "$ref": "#/definitions/callerContext"
+        },
+        "input": {
+          "type": "object"
+        },
+        "asyncHint": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "workflowResult": {
+      "type": "object",
+      "required": [
+        "workflowId",
+        "idempotencyKey",
+        "status"
+      ],
+      "properties": {
+        "workflowId": {
+          "type": "string"
+        },
+        "idempotencyKey": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "succeeded",
+            "failed",
+            "pending",
+            "running"
+          ]
+        },
+        "jobRef": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "output": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "errorSummary": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/errorSummary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auditFields": {
+          "oneOf": [
+            {
+              "$ref": "#/definitions/auditFields"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "workflowInputShapes": {
+    "WF-CON-001": {
+      "required": [
+        "userId",
+        "targetWorkspaceId",
+        "requestedRole"
+      ]
+    },
+    "WF-CON-002": {
+      "required": [
+        "tenantSlug",
+        "tenantDisplayName",
+        "adminEmail"
+      ]
+    },
+    "WF-CON-003": {
+      "required": [
+        "workspaceName",
+        "workspaceSlug"
+      ]
+    },
+    "WF-CON-004": {
+      "required": [
+        "credentialAction",
+        "targetWorkspaceId"
+      ],
+      "credentialAction": {
+        "enum": [
+          "generate",
+          "rotate",
+          "revoke"
+        ]
+      }
+    },
+    "WF-CON-005": {},
+    "WF-CON-006": {
+      "required": [
+        "serviceAccountAction"
+      ],
+      "serviceAccountAction": {
+        "enum": [
+          "create",
+          "scope",
+          "rotate",
+          "deactivate",
+          "delete"
+        ]
+      }
+    }
+  }
+}

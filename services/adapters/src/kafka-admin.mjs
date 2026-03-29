@@ -899,3 +899,11 @@ export const kafkaAdminContracts = Object.freeze({
   inventory: kafkaInventorySnapshotContract,
   event: kafkaAdminEventContract
 });
+
+// ── T02 provisional workflow helpers (guarded stubs) ─────────────────────────
+
+export async function createTopicNamespace() {
+  const error = new Error('NOT_YET_IMPLEMENTED: createTopicNamespace');
+  error.code = 'NOT_YET_IMPLEMENTED';
+  throw error;
+}

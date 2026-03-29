@@ -1772,3 +1772,41 @@ export const openWhiskAdminContracts = Object.freeze({
   result: functionAdminResultContract,
   inventory: functionInventorySnapshotContract
 });
+
+// ── T02 additions: workflow dispatch helpers ──────────────────────────────────
+
+export const OPENWHISK_WORKFLOW_ASYNC_JOB_STATUS_PREFIX = 'wf_job';
+
+export const OPENWHISK_WORKFLOW_ACTION_REFS = Object.freeze({
+  'WF-CON-001': 'console/wf-con-001-user-approval',
+  'WF-CON-002': 'console/wf-con-002-tenant-provisioning',
+  'WF-CON-003': 'console/wf-con-003-workspace-creation',
+  'WF-CON-004': 'console/wf-con-004-credential-generation',
+  'WF-CON-006': 'console/wf-con-006-service-account'
+});
+
+export function buildWorkflowAsyncJobRef(workflowId, idempotencyKey) {
+  return `${OPENWHISK_WORKFLOW_ASYNC_JOB_STATUS_PREFIX}_${workflowId}_${String(idempotencyKey ?? '').replace(/-/g, '')}`;
+}
+
+export async function dispatchWorkflowAction(namespace, actionRef, payload, annotation = {}) {
+  const normalizedAnnotation = {
+    initiating_surface: 'console_backend',
+    workflowId: annotation.workflowId,
+    correlationId: annotation.correlationId,
+    tenantId: annotation.tenantId,
+    workspaceId: annotation.workspaceId ?? null
+  };
+
+  return {
+    activationId: `act_${String(annotation.workflowId ?? actionRef ?? 'workflow').replace(/[^0-9a-z]/gi, '').toLowerCase()}_${String(payload?.idempotencyKey ?? 'invocation').replace(/[^0-9a-z]/gi, '').toLowerCase().slice(-12) || 'pending'}`,
+    namespace,
+    actionRef,
+    annotation: normalizedAnnotation,
+    request: buildOpenWhiskInvocationRequest(payload, {
+      resourceId: actionRef,
+      actionName: actionRef,
+      acceptedAt: new Date().toISOString()
+    })
+  };
+}

@@ -517,3 +517,55 @@ export function buildIamAdminAdapterCall({
     identity_blueprint_ref: identityBlueprintRef
   };
 }
+
+// ── T02 provisional workflow helpers (guarded stubs) ─────────────────────────
+
+function createNotYetImplementedError(capability) {
+  const error = new Error(`NOT_YET_IMPLEMENTED: ${capability}`);
+  error.code = 'NOT_YET_IMPLEMENTED';
+  return error;
+}
+
+export async function createRealm() {
+  throw createNotYetImplementedError('createRealm');
+}
+
+export async function createClient() {
+  throw createNotYetImplementedError('createClient');
+}
+
+export async function assignRole() {
+  throw createNotYetImplementedError('assignRole');
+}
+
+export async function createServiceAccount() {
+  throw createNotYetImplementedError('createServiceAccount');
+}
+
+export async function updateServiceAccountScopeBindings() {
+  throw createNotYetImplementedError('updateServiceAccountScopeBindings');
+}
+
+export async function regenerateServiceAccountCredentials() {
+  throw createNotYetImplementedError('regenerateServiceAccountCredentials');
+}
+
+export async function disableServiceAccount() {
+  throw createNotYetImplementedError('disableServiceAccount');
+}
+
+export async function deleteServiceAccount() {
+  throw createNotYetImplementedError('deleteServiceAccount');
+}
+
+export async function generateClientCredential() {
+  throw createNotYetImplementedError('generateClientCredential');
+}
+
+export async function rotateClientCredential() {
+  throw createNotYetImplementedError('rotateClientCredential');
+}
+
+export async function revokeClientCredential() {
+  throw createNotYetImplementedError('revokeClientCredential');
+}
