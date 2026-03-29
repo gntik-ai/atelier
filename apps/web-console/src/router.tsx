@@ -32,6 +32,11 @@ const ConsoleFunctionsPage = lazy(async () => {
   return { default: module.ConsoleFunctionsPage }
 })
 
+const ConsoleStoragePage = lazy(async () => {
+  const module = await import('@/pages/ConsoleStoragePage')
+  return { default: module.ConsoleStoragePage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -117,13 +122,7 @@ export const appRoutes = [
           },
           {
             path: 'storage',
-            element: (
-              <ConsolePlaceholderPage
-                badge="Storage"
-                title="Storage y objetos"
-                description="Placeholder navegable para buckets, políticas, consumo y capacidades de almacenamiento compatibles con S3."
-              />
-            )
+            element: <ConsoleStoragePage />
           },
           {
             path: 'observability',
