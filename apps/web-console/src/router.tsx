@@ -27,6 +27,11 @@ const ConsoleKafkaPage = lazy(async () => {
   return { default: module.ConsoleKafkaPage }
 })
 
+const ConsoleFunctionsPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleFunctionsPage')
+  return { default: module.ConsoleFunctionsPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -108,13 +113,7 @@ export const appRoutes = [
           },
           {
             path: 'functions',
-            element: (
-              <ConsolePlaceholderPage
-                badge="Functions"
-                title="Functions y runtime serverless"
-                description="Placeholder navegable para el dominio de funciones, despliegues y ejecución basada en Apache OpenWhisk."
-              />
-            )
+            element: <ConsoleFunctionsPage />
           },
           {
             path: 'storage',
