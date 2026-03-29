@@ -38,8 +38,8 @@ export const sagaDefinitions = new Map([
     provisional: false,
     recoveryPolicy: 'compensate',
     steps: [
-      { ordinal: 1, key: 'assign-keycloak-role', forward: assignKeycloakRole, compensate: revokeKeycloakRole },
-      { ordinal: 2, key: 'update-membership-record', forward: updateMembershipRecord, compensate: revertMembershipRecord }
+      { ordinal: 1, key: 'assign-keycloak-role', auditMilestone: true, forward: assignKeycloakRole, compensate: revokeKeycloakRole },
+      { ordinal: 2, key: 'update-membership-record', auditMilestone: true, forward: updateMembershipRecord, compensate: revertMembershipRecord }
     ]
   }],
   ['WF-CON-002', {
@@ -47,10 +47,10 @@ export const sagaDefinitions = new Map([
     provisional: false,
     recoveryPolicy: 'compensate',
     steps: [
-      { ordinal: 1, key: 'create-keycloak-realm', forward: createKeycloakRealm, compensate: deleteKeycloakRealm },
-      { ordinal: 2, key: 'create-postgresql-boundary', forward: createPostgresqlBoundary, compensate: deletePostgresqlBoundary },
-      { ordinal: 3, key: 'create-kafka-namespace', forward: createKafkaNamespace, compensate: deleteKafkaNamespace },
-      { ordinal: 4, key: 'configure-apisix-routes', forward: configureApisixRoutes, compensate: removeApisixRoutes }
+      { ordinal: 1, key: 'create-keycloak-realm', auditMilestone: true, forward: createKeycloakRealm, compensate: deleteKeycloakRealm }, // TODO: verify step key matches catalog entry
+      { ordinal: 2, key: 'create-postgresql-boundary', auditMilestone: true, forward: createPostgresqlBoundary, compensate: deletePostgresqlBoundary }, // TODO: verify step key matches catalog entry
+      { ordinal: 3, key: 'create-kafka-namespace', auditMilestone: true, forward: createKafkaNamespace, compensate: deleteKafkaNamespace }, // TODO: verify step key matches catalog entry
+      { ordinal: 4, key: 'configure-apisix-routes', auditMilestone: true, forward: configureApisixRoutes, compensate: removeApisixRoutes } // TODO: verify step key matches catalog entry
     ]
   }],
   ['WF-CON-003', {
@@ -58,9 +58,9 @@ export const sagaDefinitions = new Map([
     provisional: false,
     recoveryPolicy: 'compensate',
     steps: [
-      { ordinal: 1, key: 'create-keycloak-client', forward: createKeycloakClient, compensate: deleteKeycloakClient },
-      { ordinal: 2, key: 'create-postgresql-workspace', forward: createPostgresqlWorkspace, compensate: deletePostgresqlWorkspace },
-      { ordinal: 3, key: 'reserve-s3-storage', forward: reserveS3Storage, compensate: releaseS3Storage }
+      { ordinal: 1, key: 'create-keycloak-client', auditMilestone: true, forward: createKeycloakClient, compensate: deleteKeycloakClient }, // TODO: verify step key matches catalog entry
+      { ordinal: 2, key: 'create-postgresql-workspace', auditMilestone: true, forward: createPostgresqlWorkspace, compensate: deletePostgresqlWorkspace }, // TODO: verify step key matches catalog entry
+      { ordinal: 3, key: 'reserve-s3-storage', auditMilestone: true, forward: reserveS3Storage, compensate: releaseS3Storage } // TODO: verify step key matches catalog entry
     ]
   }],
   ['WF-CON-004', {
@@ -68,9 +68,9 @@ export const sagaDefinitions = new Map([
     provisional: false,
     recoveryPolicy: 'compensate',
     steps: [
-      { ordinal: 1, key: 'create-keycloak-credential', forward: createKeycloakCredential, compensate: revertKeycloakCredential },
-      { ordinal: 2, key: 'sync-apisix-consumer', forward: syncApisixConsumer, compensate: removeApisixConsumer },
-      { ordinal: 3, key: 'record-credential-metadata', forward: recordCredentialMetadata, compensate: deleteCredentialMetadata }
+      { ordinal: 1, key: 'create-keycloak-credential', auditMilestone: true, forward: createKeycloakCredential, compensate: revertKeycloakCredential }, // TODO: verify step key matches catalog entry
+      { ordinal: 2, key: 'sync-apisix-consumer', auditMilestone: true, forward: syncApisixConsumer, compensate: removeApisixConsumer }, // TODO: verify step key matches catalog entry
+      { ordinal: 3, key: 'record-credential-metadata', auditMilestone: true, forward: recordCredentialMetadata, compensate: deleteCredentialMetadata } // TODO: verify step key matches catalog entry
     ]
   }],
   ['WF-CON-005', {
@@ -84,7 +84,7 @@ export const sagaDefinitions = new Map([
     provisional: false,
     recoveryPolicy: 'compensate',
     steps: [
-      { ordinal: 1, key: 'create-service-account', forward: createServiceAccount, compensate: deleteServiceAccount }
+      { ordinal: 1, key: 'create-service-account', auditMilestone: true, forward: createServiceAccount, compensate: deleteServiceAccount } // TODO: verify step key matches catalog entry
     ] // WF-CON-006 steps to be completed when catalog entry is finalized per specs/067
   }]
 ]);

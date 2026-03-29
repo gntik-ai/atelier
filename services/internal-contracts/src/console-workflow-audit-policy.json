@@ -1,0 +1,25 @@
+{
+  "version": "2026-03-29",
+  "scope": "US-UIB-01-T05",
+  "subsystem_id": "openwhisk",
+  "resource_type": "console_workflow",
+  "origin_surface": "console_backend",
+  "timeline_phase": "console_initiation",
+  "guaranteed_records_per_execution": ["workflow.started", "workflow.terminal"],
+  "conditional_records_per_execution": ["step.milestone (when auditMilestone=true)"],
+  "masking_profile": "default_masked",
+  "correlation_id_policy": {
+    "passthrough": "preserve caller-provided correlationId",
+    "generated": "saga:{workflowId}:{tenantId}:{timestamp_base36}:{random8}",
+    "retry_behavior": "correlation_id is immutable for the full execution including retries and compensation"
+  },
+  "scope_modes": ["tenant", "tenant_workspace"],
+  "sensitive_field_handling": "detail block excludes input params; output snapshots excluded by default; known sensitive identifiers replaced with [REDACTED]",
+  "audit_milestone_steps": {
+    "WF-CON-001": ["assign-keycloak-role", "update-membership-record"],
+    "WF-CON-002": ["create-tenant-namespace", "create-tenant-db", "create-tenant-kafka-topics", "create-tenant-storage"],
+    "WF-CON-003": ["create-workspace-namespace", "create-workspace-db", "create-workspace-kafka-topics"],
+    "WF-CON-004": ["create-credential-record", "bind-credential-to-iam", "store-credential-pointer"],
+    "WF-CON-006": ["register-service-account", "bind-service-account-scopes", "record-service-account-audit-ref"]
+  }
+}

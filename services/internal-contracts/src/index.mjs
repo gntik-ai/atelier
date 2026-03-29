@@ -22,6 +22,7 @@ const OBSERVABILITY_QUOTA_USAGE_VIEW_URL = new URL('./observability-quota-usage-
 const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.meta.url);
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 export { default as sagaContract } from './saga-contract.json' with { type: 'json' };
+export { default as consoleWorkflowAuditPolicy } from './console-workflow-audit-policy.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;
@@ -500,6 +501,29 @@ export function getAuditResultSchema() {
 
 export function getAuditOriginSchema() {
   return readObservabilityAuditEventSchema().origin ?? {};
+}
+
+export function getAuditEventSchemaForSubsystem(subsystemId) {
+  const schema = readObservabilityAuditEventSchema();
+  if (!subsystemId) {
+    return schema;
+  }
+
+  const fromSubsystems = schema?.subsystems?.[subsystemId];
+  if (fromSubsystems) {
+    return fromSubsystems;
+  }
+
+  const roster = schema?.subsystem_roster;
+  if (Array.isArray(roster)) {
+    return roster.find((entry) => entry?.subsystem_id === subsystemId || entry?.id === subsystemId) ?? schema;
+  }
+
+  if (roster && typeof roster === 'object') {
+    return roster[subsystemId] ?? schema;
+  }
+
+  return schema;
 }
 
 export function listAuditQueryScopes() {
