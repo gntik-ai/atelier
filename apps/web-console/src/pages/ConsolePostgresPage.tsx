@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ProvisionDatabaseWizard } from '@/components/console/wizards/ProvisionDatabaseWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
@@ -331,6 +332,7 @@ export function ConsolePostgresPage() {
   const [matViews, setMatViews] = useState<SectionState<PgMatView[]>>(EMPTY_COLLECTION_STATE([]))
 
   const [ddlPreviewOpen, setDdlPreviewOpen] = useState(false)
+  const [databaseWizardOpen, setDatabaseWizardOpen] = useState(false)
   const [ddlPreviewTarget, setDdlPreviewTarget] = useState<DdlPreviewTarget | null>(null)
   const [ddlPreview, setDdlPreview] = useState<DdlPreviewState>(EMPTY_DDL_PREVIEW)
 
@@ -819,9 +821,12 @@ export function ConsolePostgresPage() {
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">Tenant: {activeTenant?.label ?? 'Sin tenant'}</Badge>
             <Badge variant="secondary">Workspace: {activeWorkspace?.label ?? 'Sin workspace'}</Badge>
+            <Button type="button" onClick={() => setDatabaseWizardOpen(true)}>Nueva base de datos</Button>
           </div>
         </div>
       </header>
+
+      {databaseWizardOpen ? <ProvisionDatabaseWizard open={databaseWizardOpen} onOpenChange={setDatabaseWizardOpen} defaultEngine="postgresql" /> : null}
 
       <section className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm" aria-labelledby="console-postgres-breadcrumb-heading">
         <div className="space-y-4">

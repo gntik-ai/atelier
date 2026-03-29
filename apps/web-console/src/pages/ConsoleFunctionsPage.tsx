@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { PublishFunctionWizard } from '@/components/console/wizards/PublishFunctionWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
@@ -355,6 +356,7 @@ export function ConsoleFunctionsPage() {
   const [deployResult, setDeployResult] = useState<SectionState<FunctionAction | GatewayMutationAccepted | null>>(EMPTY_DEPLOY_RESULT_STATE)
   const [rollbackTargetVersionId, setRollbackTargetVersionId] = useState<string | null>(null)
   const [rollbackResult, setRollbackResult] = useState<SectionState<FunctionRollbackAccepted | null>>(EMPTY_ROLLBACK_RESULT_STATE)
+  const [publishWizardOpen, setPublishWizardOpen] = useState(false)
   const invokeIdempotencyKeyRef = useRef(buildIdempotencyKey())
   const deployIdempotencyKeyRef = useRef(buildIdempotencyKey())
   const rollbackIdempotencyKeyRef = useRef(buildIdempotencyKey())
@@ -659,9 +661,14 @@ export function ConsoleFunctionsPage() {
             <h1 className="text-2xl font-semibold">Consola de funciones</h1>
             <p className="text-sm text-muted-foreground">Inventario, detalle operativo, activaciones, invocación y despliegue del runtime serverless.</p>
           </div>
-          <Button onClick={openCreateMode} type="button" variant="default">Deploy nueva función</Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setPublishWizardOpen(true)} type="button" variant="default">Publicar función</Button>
+            <Button onClick={openCreateMode} type="button" variant="outline">Deploy nueva función</Button>
+          </div>
         </div>
       </header>
+
+      {publishWizardOpen ? <PublishFunctionWizard open={publishWizardOpen} onOpenChange={setPublishWizardOpen} /> : null}
 
       <section className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_1fr]">
         <section className="space-y-4 rounded-xl border border-border p-4">
@@ -685,7 +692,7 @@ export function ConsoleFunctionsPage() {
                 <Button onClick={() => void loadInventory(activeWorkspaceId)} type="button" variant="outline">Reintentar</Button>
               </div>
             ) : null}
-            {!inventory.loading && !inventory.error && inventory.data && inventory.data.actions.length === 0 ? <p>No hay funciones en este workspace.</p> : null}
+            {!inventory.loading && !inventory.error && (!inventory.data || inventory.data.actions.length === 0) ? <p>No hay funciones en este workspace.</p> : null}
             {!inventory.loading && !inventory.error && inventory.data?.actions.length ? (
               <div className="space-y-2">
                 {inventory.data.actions.map((item) => {

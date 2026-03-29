@@ -9,6 +9,8 @@ import { PendingActivationPage } from '@/pages/PendingActivationPage'
 import { ConsoleAuthPage } from '@/pages/ConsoleAuthPage'
 import { ConsoleMembersPage } from '@/pages/ConsoleMembersPage'
 import { ConsolePlaceholderPage } from '@/pages/ConsolePlaceholderPage'
+import { ConsoleTenantsPage } from '@/pages/ConsoleTenantsPage'
+import { ConsoleWorkspacesPage } from '@/pages/ConsoleWorkspacesPage'
 import { SignupPage } from '@/pages/SignupPage'
 import { WelcomePage } from '@/pages/WelcomePage'
 
@@ -93,23 +95,11 @@ export const appRoutes = [
           },
           {
             path: 'tenants',
-            element: (
-              <ConsolePlaceholderPage
-                badge="Tenants"
-                title="Gestión de tenants"
-                description="Placeholder navegable para la futura administración de tenants, aislamiento lógico y gobierno de plataforma."
-              />
-            )
+            element: <ConsoleTenantsPage />
           },
           {
             path: 'workspaces',
-            element: (
-              <ConsolePlaceholderPage
-                badge="Workspaces"
-                title="Gestión de workspaces"
-                description="Placeholder navegable para la organización operacional de recursos por workspace dentro del tenant."
-              />
-            )
+            element: <ConsoleWorkspacesPage />
           },
           {
             path: 'members',

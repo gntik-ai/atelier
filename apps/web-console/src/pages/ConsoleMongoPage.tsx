@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ProvisionDatabaseWizard } from '@/components/console/wizards/ProvisionDatabaseWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
@@ -199,6 +200,7 @@ export function ConsoleMongoPage() {
   const [views, setViews] = useState<SectionState<MongoView[]>>(() => EMPTY_COLLECTION_STATE([]))
   const [documents, setDocuments] = useState<DocumentsState>(EMPTY_DOCUMENTS_STATE)
   const [expandedDocumentIds, setExpandedDocumentIds] = useState<Set<number>>(() => new Set())
+  const [databaseWizardOpen, setDatabaseWizardOpen] = useState(false)
 
   const resetCollectionDetail = useCallback(() => {
     setSelectedCollection(null)
@@ -456,10 +458,13 @@ export function ConsoleMongoPage() {
           <Badge variant="outline">MongoDB</Badge>
           <Badge variant="secondary">Tenant: {activeTenant?.label ?? 'Sin tenant'}</Badge>
           <Badge variant="secondary">Workspace: {activeWorkspace?.label ?? 'Sin workspace'}</Badge>
+          <Button type="button" onClick={() => setDatabaseWizardOpen(true)}>Nueva base de datos</Button>
         </div>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Inventario documental del tenant activo</h1>
         <p className="mt-2 text-sm text-muted-foreground">{headerDescription}</p>
       </header>
+
+      {databaseWizardOpen ? <ProvisionDatabaseWizard open={databaseWizardOpen} onOpenChange={setDatabaseWizardOpen} defaultEngine="mongodb" /> : null}
 
       <section aria-labelledby="console-mongo-breadcrumb-heading" className="rounded-3xl border border-border bg-card/50 p-4 shadow-sm">
         <h2 id="console-mongo-breadcrumb-heading" className="sr-only">Ruta de navegación MongoDB</h2>

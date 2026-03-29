@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { CreateIamClientWizard } from '@/components/console/wizards/CreateIamClientWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatConsoleEnumLabel, useConsoleContext } from '@/lib/console-context'
@@ -252,6 +253,7 @@ export function ConsoleAuthPage() {
   const [providerErrors, setProviderErrors] = useState<FormErrors>({})
   const [isSubmittingApplication, setIsSubmittingApplication] = useState(false)
   const [isSubmittingProvider, setIsSubmittingProvider] = useState(false)
+  const [iamWizardOpen, setIamWizardOpen] = useState(false)
   const [pendingDeleteApplicationId, setPendingDeleteApplicationId] = useState<string | null>(null)
   const [pendingDetachProviderId, setPendingDetachProviderId] = useState<string | null>(null)
 
@@ -592,9 +594,14 @@ export function ConsoleAuthPage() {
               <Badge variant="outline">Workspace: {activeWorkspace?.label ?? 'No seleccionado'}</Badge>
             </div>
           </div>
-          <Link to="/console/members" className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground">Abrir Members</Link>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={() => setIamWizardOpen(true)}>Nuevo cliente IAM</Button>
+            <Link to="/console/members" className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-accent hover:text-accent-foreground">Abrir Members</Link>
+          </div>
         </div>
       </header>
+
+      {iamWizardOpen ? <CreateIamClientWizard open={iamWizardOpen} onOpenChange={setIamWizardOpen} /> : null}
 
       {feedback ? (
         <div className={`rounded-2xl border p-4 ${feedback.tone === 'error' ? 'border-destructive/30 bg-destructive/5' : 'border-emerald-500/30 bg-emerald-500/5'}`} role="alert">

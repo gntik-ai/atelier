@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { InviteUserWizard } from '@/components/console/wizards/InviteUserWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatConsoleEnumLabel, useConsoleContext } from '@/lib/console-context'
@@ -103,6 +104,7 @@ export function ConsoleMembersPage() {
   const [rolesError, setRolesError] = useState<string | null>(null)
   const [usersReloadKey, setUsersReloadKey] = useState(0)
   const [rolesReloadKey, setRolesReloadKey] = useState(0)
+  const [inviteWizardOpen, setInviteWizardOpen] = useState(false)
 
   const reloadUsers = useCallback(() => {
     setUsersReloadKey((current) => current + 1)
@@ -224,6 +226,7 @@ export function ConsoleMembersPage() {
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">Tenant: {activeTenant.label}</Badge>
             <Badge variant="secondary">Realm: {realmId}</Badge>
+            <Button type="button" onClick={() => setInviteWizardOpen(true)}>Invitar usuario</Button>
           </div>
         </div>
       </header>
@@ -269,6 +272,7 @@ export function ConsoleMembersPage() {
         {!rolesLoading && !rolesError && roles.length === 0 ? <ConsoleSectionEmpty message="No hay roles IAM registrados en este realm." /> : null}
         {!rolesLoading && !rolesError && roles.length > 0 ? <RolesTable roles={roles} /> : null}
       </section>
+      {inviteWizardOpen ? <InviteUserWizard open={inviteWizardOpen} onOpenChange={setInviteWizardOpen} /> : null}
     </section>
   )
 }
