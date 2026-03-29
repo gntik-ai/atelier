@@ -24,7 +24,7 @@ export interface ConsoleShellSession {
 }
 
 export interface ConsoleSessionRequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: JsonValue
   headers?: HeadersInit
   idempotent?: boolean
@@ -291,7 +291,7 @@ async function performAuthenticatedRequest<T>(
   headers.set('Authorization', `Bearer ${accessToken}`)
 
   return requestJson<T>(url, {
-    method: options.method,
+    method: options.method as never,
     body: options.body,
     headers,
     idempotent: options.idempotent,
