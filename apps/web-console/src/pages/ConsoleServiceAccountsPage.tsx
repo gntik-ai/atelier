@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { DestructiveConfirmationDialog } from '@/components/console/DestructiveConfirmationDialog'
+import { useDestructiveOp } from '@/components/console/hooks/useDestructiveOp'
 import { Button } from '@/components/ui/button'
 import { ConsoleCredentialStatusBadge } from '@/components/console/ConsoleCredentialStatusBadge'
 import { ConsolePageState } from '@/components/console/ConsolePageState'
@@ -9,9 +11,11 @@ import {
   revokeServiceAccountCredential,
   rotateServiceAccountCredential,
   useConsoleServiceAccounts,
-  type ConsoleIssuedCredential
+  type ConsoleIssuedCredential,
+  type ConsoleServiceAccount
 } from '@/lib/console-service-accounts'
 import { useConsoleContext } from '@/lib/console-context'
+import { DESTRUCTIVE_OP_LEVELS } from '@/lib/destructive-ops'
 import { readConsoleShellSession } from '@/lib/console-session'
 
 export function ConsoleServiceAccountsPage() {
@@ -20,12 +24,17 @@ export function ConsoleServiceAccountsPage() {
   const [displayName, setDisplayName] = useState('')
   const [feedback, setFeedback] = useState<string | null>(null)
   const [issuedCredential, setIssuedCredential] = useState<ConsoleIssuedCredential | null>(null)
+  const destructiveOp = useDestructiveOp()
   const session = readConsoleShellSession()
   const principalUserId = session?.principal?.userId ?? 'unknown-user'
   const writesBlocked = activeTenant?.state !== 'active'
   const isEmpty = !loading && !error && knownIds.length === 0
 
   const header = useMemo(() => [activeTenant?.label, activeWorkspace?.label].filter(Boolean).join(' · '), [activeTenant?.label, activeWorkspace?.label])
+
+  useEffect(() => {
+    destructiveOp.handleCancel()
+  }, [activeTenantId, activeWorkspaceId, destructiveOp.handleCancel])
 
   if (!activeTenantId) {
     return <ConsolePageState kind="blocked" title="Service accounts bloqueadas" description="Selecciona un tenant para continuar." />
@@ -51,8 +60,21 @@ export function ConsoleServiceAccountsPage() {
 
   async function handleRevoke(serviceAccountId: string) {
     await revokeServiceAccountCredential(workspaceId, serviceAccountId, { reason: 'Console revoke' })
-    setFeedback('Credencial revocada.')
-    reload()
+  }
+
+  function openRevokeDialog(account: ConsoleServiceAccount) {
+    destructiveOp.openDialog({
+      level: DESTRUCTIVE_OP_LEVELS['revoke-service-account-credential'],
+      operationId: 'revoke-service-account-credential',
+      resourceName: account.displayName ?? account.serviceAccountId,
+      resourceType: 'credencial de service account',
+      impactDescription: 'La credencial dejará de funcionar de inmediato.',
+      onConfirm: () => handleRevoke(account.serviceAccountId),
+      onSuccess: () => {
+        setFeedback('Credencial revocada.')
+        reload()
+      }
+    })
   }
 
   async function handleRotate(serviceAccountId: string) {
@@ -106,7 +128,7 @@ export function ConsoleServiceAccountsPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="outline" size="sm" disabled={writesBlocked} onClick={() => void handleIssue(account.serviceAccountId)}>Emitir</Button>
-                      <Button type="button" variant="outline" size="sm" disabled={writesBlocked} onClick={() => void handleRevoke(account.serviceAccountId)}>Revocar</Button>
+                      <Button type="button" variant="outline" size="sm" disabled={writesBlocked} onClick={() => openRevokeDialog(account)}>Revocar</Button>
                       <Button type="button" variant="outline" size="sm" disabled={writesBlocked} onClick={() => void handleRotate(account.serviceAccountId)}>Rotar</Button>
                     </div>
                   </td>
@@ -116,6 +138,15 @@ export function ConsoleServiceAccountsPage() {
           </table>
         </div>
       ) : null}
+
+      <DestructiveConfirmationDialog
+        open={destructiveOp.isOpen}
+        config={destructiveOp.config}
+        opState={destructiveOp.opState}
+        confirmError={destructiveOp.confirmError}
+        onConfirm={() => void destructiveOp.handleConfirm()}
+        onCancel={destructiveOp.handleCancel}
+      />
 
       {issuedCredential ? (
         <div role="dialog" aria-label="Credencial emitida" className="rounded-3xl border border-border bg-card/70 p-6">
