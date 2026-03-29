@@ -15,6 +15,17 @@ Esta tarea materializa la suite de pruebas de regresión de UX que protege los t
 
 No se require cambio de stack ni adición de dependencias.
 
+### 1.1 Reconciliación repo ↔ suite (2026-03-29 cron continuation)
+
+Durante la primera ejecución acotada de `implement` aparecieron desajustes concretos entre el contrato de tests planificado y el comportamiento real del repo. Esta tarea se mantiene como una unidad de regresión, pero se autoriza un parche de producción mínimo en los componentes estrictamente necesarios para que la suite refleje escenarios ya aceptados:
+
+- `DestructiveConfirmationDialog.tsx` debe disparar `config.onSuccess?.()` tras una confirmación satisfactoria, ya que el callback ya forma parte del contrato tipado en `destructive-ops.ts`.
+- `CreateWorkspaceWizard.tsx` y `ProvisionDatabaseWizard.tsx` pueden requerir exponer `validation.blockingError` en el paso donde hoy ya se evalúa la cuota para que el usuario vea el motivo del bloqueo.
+- `PublishFunctionWizard.tsx` puede requerir el mismo render mínimo de `validation.blockingError` si el escenario de bloqueo por cuota se valida ahí.
+- La navegación atrás desde el resumen de `InviteUserWizard` debe considerarse correcta cuando vuelve al último paso real de datos (`Mensaje`), porque ese wizard tiene cuatro pasos antes del resumen.
+- Los snippets sin endpoint usan actualmente `<RESOURCE_HOST>` / `<RESOURCE_PORT>`; la suite debe afirmar esos placeholders reales y no inventar otros alternativos.
+- El enlace de éxito del summary wizard se expone actualmente con la etiqueta `Abrir recurso`; los tests deben verificar el contrato visible real.
+
 ---
 
 ## 2. Arquitectura de la suite
@@ -423,25 +434,30 @@ include: [
 2. Ejecutar el grupo RC; todos los tests del grupo deben pasar.
 
 ### Fase 2 — Suite RS: Snippets (½ día)
+
 1. Ampliar `ConnectionSnippets.test.tsx` con RS-02, RS-03, RS-05, RS-06, RS-08.
 2. Añadir los tests de aislamiento multi-tenant en el mismo fichero.
 3. Ejecutar el grupo RS; todos los tests del grupo deben pasar.
 
 ### Fase 3 — Suite RW: WizardShell genérico (½ día)
+
 1. Ampliar `WizardShell.test.tsx` con RW-01, RW-03, RW-04, RW-06.
 2. Verificar que los dos tests de WizardShell existentes siguen siendo válidos.
 
 ### Fase 4 — Suite RW: Wizards específicos (1 día)
+
 1. Ampliar `CreateTenantWizard.test.tsx` con RW-07 y RW-08.
 2. Crear `CreateWorkspaceWizard.test.tsx`, `CreateIamClientWizard.test.tsx`, `InviteUserWizard.test.tsx`, `ProvisionDatabaseWizard.test.tsx`, `PublishFunctionWizard.test.tsx`.
 3. Para cada wizard: happy path + validación bloqueante + error backend + cuota (si aplica) + permisos.
 
 ### Fase 5 — Configuración CI y cobertura (¼ día)
+
 1. Actualizar `vite.config.ts` (`coverage.include`).
 2. Añadir o actualizar el script de CI para incluir `--reporter=junit`.
 3. Ejecutar la suite completa; verificar exit code y tiempo.
 
 ### Paralelización posible
+
 - Fases 1, 2 y 3 son independientes entre sí y pueden asignarse a diferentes ingenieros.
 - Fase 4 requiere que Fase 3 esté completa (WizardShell debe ser estable antes de los wizards específicos).
 - Fase 0 es prerequisito de todas las demás.
@@ -459,12 +475,14 @@ include: [
 | Wizard con lógica asíncrona de validación de nombre | Baja | Bajo | `useAsyncNameValidator` usa `window.setTimeout`; en tests, `vi.useFakeTimers()` permite avanzar el reloj de forma determinista. |
 
 ### Compatibilidad
+
 - Sin migraciones de base de datos.
 - Sin cambios en APIs de backend.
 - Sin cambios de configuración de Helm/Kubernetes.
 - Los cambios en `vite.config.ts` (`coverage.include`) son aditivos y no afectan a builds de producción.
 
 ### Rollback
+
 - Al ser únicamente código de test, el rollback es eliminar los ficheros añadidos. No existe riesgo de regresión en producción.
 
 ---

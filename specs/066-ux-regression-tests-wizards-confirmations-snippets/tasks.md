@@ -22,7 +22,7 @@ US-UI-04-T06 materializa la suite de regresión de UX que protege los tres grupo
 1. **No se permite navegación exploratoria del repositorio**: no usar `find`, `ls -R`, `grep -r` sobre rutas no listadas en este archivo.
 2. **Solo se pueden leer los archivos listados en la sección "Implementation File Map"** de este documento (columnas MODIFY, CREATE, READ-ONLY).
 3. **No se requiere exploración de API de backend ni de especificaciones OpenAPI**: todos los contratos de mock están definidos explícitamente en la sección § Contratos de Mock de este documento.
-4. **No se modifican archivos de producción** excepto `apps/web-console/vite.config.ts` (sección `coverage.include`, cambio aditivo).
+4. **Preferir cambios de test/fixture**, pero se permiten cambios de producción mínimos cuando el comportamiento actual del componente impide materializar un escenario aceptado de regresión. En esta tarea, esos cambios de producción quedan limitados exclusivamente a los archivos listados en la sección MODIFY de este documento.
 5. **No se crean archivos fuera del file map** a continuación.
 6. Si un componente referenciado no existe aún (ej. wizard pendiente de T02), se escribe el test igual contra el contrato de props especificado; los tests fallan hasta que el componente esté listo (comportamiento esperado como gate de calidad).
 7. Los imports de tipos (`SnippetContext`, `SnippetTemplate`) se obtienen únicamente de los archivos READ-ONLY listados.
@@ -55,6 +55,10 @@ US-UI-04-T06 materializa la suite de regresión de UX que protege los tres grupo
 | `apps/web-console/src/components/console/wizards/CreateTenantWizard.test.tsx` | Añadir escenarios RW-07 (cuota excedida) y RW-08 (sin permisos) |
 | `apps/web-console/src/components/console/DestructiveConfirmationDialog.test.tsx` | Añadir escenarios RC-03, RC-06 (click-outside), RC-07 (redirect), RC-10 |
 | `apps/web-console/src/components/console/ConnectionSnippets.test.tsx` | Añadir escenarios RS-02, RS-03, RS-05, RS-06, RS-08 + test aislamiento multi-tenant |
+| `apps/web-console/src/components/console/DestructiveConfirmationDialog.tsx` | Invocar `config.onSuccess?.()` tras una confirmación satisfactoria sin romper el flujo existente |
+| `apps/web-console/src/components/console/wizards/CreateWorkspaceWizard.tsx` | Mostrar `validation.blockingError` en el paso de nombre cuando la cuota bloquea el avance |
+| `apps/web-console/src/components/console/wizards/ProvisionDatabaseWizard.tsx` | Mostrar `validation.blockingError` en el paso de motor/nombre cuando la cuota bloquea el avance |
+| `apps/web-console/src/components/console/wizards/PublishFunctionWizard.tsx` | Mostrar `validation.blockingError` en el paso de metadatos cuando la cuota bloquea el avance |
 | `apps/web-console/vite.config.ts` | Añadir entradas en `test.coverage.include` para los módulos objetivo |
 
 ### READ-ONLY (solo lectura — para tipos, patrones y contratos)
@@ -101,7 +105,7 @@ Archivo: `apps/web-console/src/components/console/DestructiveConfirmationDialog.
 
 - [ ] **T1-1** `[RC-03]` Añadir test: resumen de cascada en severity CRITICAL presenta tipos y cantidades. Montar con `cascadeImpact: [{ resourceType: 'workspace', count: 2 }, { resourceType: 'database', count: 5 }]`; verificar que el texto con tipo y cantidad es visible en el DOM.
 - [ ] **T1-2** `[RC-06 click-outside]` Ampliar el test existente de cierre (Escape ya cubierto) añadiendo caso: click sobre el overlay/backdrop cierra el diálogo; verificar con `userEvent.click(overlay)` y `expect(dialog).not.toBeInTheDocument()`.
-- [ ] **T1-3** `[RC-07 redirect]` Añadir test: tras confirmación exitosa se invoca el callback `onSuccess`. Mock `onConfirm` que resuelve → verificar que `onSuccess` fue llamado con `waitFor`.
+- [ ] **T1-3** `[RC-07 redirect]` Añadir test: tras confirmación exitosa se invoca el callback `onSuccess`. Si el callback tipado ya existe pero el componente todavía no lo dispara, completar el cableado mínimo en `DestructiveConfirmationDialog.tsx` y verificar con `waitFor`.
 - [ ] **T1-4** `[RC-10]` Añadir test: no se abren dos diálogos simultáneamente. Renderizar dos instancias del componente; verificar que solo la instancia con `open=true` tiene `role="dialog"` en el DOM; la otra no debe estar presente.
 - [ ] **T1-5** Añadir test de aislamiento multi-tenant: renderizar con contexto `TENANT_ALPHA / WORKSPACE_A1`; verificar que ningún valor de `TENANT_BETA` aparece en el DOM.
 - [ ] **T1-6** Ejecutar `vitest run DestructiveConfirmationDialog.test.tsx`; todos los tests RC-01..RC-10 deben pasar.
@@ -110,9 +114,9 @@ Archivo: `apps/web-console/src/components/console/DestructiveConfirmationDialog.
 
 Archivo: `apps/web-console/src/components/console/ConnectionSnippets.test.tsx`
 
-- [ ] **T2-1** `[RS-02]` Añadir test: los valores de host/puerto del fixture `SNIPPET_CTX_POSTGRES` (`db.example.test`, `5432`) aparecen como substring en el código renderizado del snippet.
+- [ ] **T2-1** `[RS-02]` Añadir test: los valores de host/puerto del fixture `SNIPPET_CTX_POSTGRES` (`db.example.test`, `5432`) aparecen en al menos uno de los bloques `<code>` renderizados del snippet, evitando asunciones de unicidad global cuando múltiples ejemplos reutilizan el mismo host/puerto.
 - [ ] **T2-2** `[RS-03]` Añadir test: ningún snippet renderizado con `SNIPPET_CTX_POSTGRES` expone contraseña real; verificar presencia de placeholders `<PG_USER>` / `{PASSWORD}` / `<PASSWORD>` y ausencia de cadenas con formato de secreto real (regex `/[A-Za-z0-9+/]{32,}/` excluida de snippets de código).
-- [ ] **T2-3** `[RS-05]` Añadir test: con contexto `SNIPPET_CTX_NO_ENDPOINT` los snippets muestran placeholders genéricos y una nota explicativa visible (buscar texto con `/sin endpoint/i` o `/no endpoint/i` o `/endpoint no disponible/i`, ajustar al texto real del componente leído en READ-ONLY).
+- [ ] **T2-3** `[RS-05]` Añadir test: con contexto `SNIPPET_CTX_NO_ENDPOINT` los snippets muestran los placeholders actualmente usados por el producto (`<RESOURCE_HOST>` / `<RESOURCE_PORT>`) y una nota explicativa visible ya presente en el componente.
 - [ ] **T2-4** `[RS-06]` Añadir test: con contexto `SNIPPET_CTX_PROVISIONING` se muestra advertencia visible al usuario (buscar texto con `/provisionando/i` o `/provisioning/i` o `/no disponible/i`, ajustar al texto real del componente).
 - [ ] **T2-5** `[RS-08]` Añadir test: para cada tipo de recurso soportado, verificar que al menos el número de pestañas/lenguajes listados en el catálogo de snippets (`snippet-catalog.ts`) está presente como label en el DOM. Iterar con `SNIPPET_CTX_POSTGRES`, `SNIPPET_CTX_MONGO`, `SNIPPET_CTX_STORAGE`, `SNIPPET_CTX_FUNCTION`, `SNIPPET_CTX_IAM_CLIENT`.
 - [ ] **T2-6** Añadir test de aislamiento multi-tenant: renderizar con `SNIPPET_CTX_POSTGRES` (tenantId `ten_alpha`, workspaceSlug `workspace-alpha-1`); verificar que los valores de `TENANT_BETA` (`ten_beta`, `workspace-beta-1`) no aparecen en el DOM.
@@ -132,23 +136,26 @@ Archivo: `apps/web-console/src/components/console/wizards/WizardShell.test.tsx`
 ### Fase 4 — Suite RW: Wizards específicos
 
 #### 4A — CreateTenantWizard (ampliar)
+
 Archivo: `apps/web-console/src/components/console/wizards/CreateTenantWizard.test.tsx`
 
-- [ ] **T4A-1** `[RW-07 tenant]` Añadir test: con `useConsoleQuotas` mockeado devolviendo `QUOTA_EXCEEDED`, el primer paso del wizard muestra aviso de cuota excedida y el botón de avance está deshabilitado.
+- [ ] **T4A-1** `[RW-07 tenant]` Añadir test: con `useConsoleQuotas` mockeado devolviendo `QUOTA_EXCEEDED`, el paso del wizard donde se evalúa la cuota (plan) muestra el aviso de cuota excedida y el botón de avance queda deshabilitado.
 - [ ] **T4A-2** `[RW-08 tenant]` Añadir test: con `readConsoleShellSession` mockeado devolviendo `ROLES_MEMBER_ONLY`, el wizard muestra mensaje de permisos insuficientes.
 - [ ] **T4A-3** Ejecutar `vitest run CreateTenantWizard.test.tsx`; todos los tests del archivo deben pasar.
 
 #### 4B — CreateWorkspaceWizard (nuevo)
+
 Archivo: `apps/web-console/src/components/console/wizards/CreateWorkspaceWizard.test.tsx`
 
 - [ ] **T4B-1** `[RW-01 workspace]` Happy path: completar wizard, verificar que `onSubmit` es llamado con los datos correctos y el feedback de éxito es visible.
 - [ ] **T4B-2** `[RW-02 workspace]` Bloqueo por validación: campo de nombre vacío → botón de avance deshabilitado.
 - [ ] **T4B-3** `[RW-06 workspace]` Error de backend: `onSubmit` rechaza → mensaje de error visible; datos del formulario preservados.
-- [ ] **T4B-4** `[RW-07 workspace]` Cuota excedida: `QUOTA_EXCEEDED` → aviso visible + avance bloqueado.
+- [ ] **T4B-4** `[RW-07 workspace]` Cuota excedida: `QUOTA_EXCEEDED` → aviso visible + avance bloqueado. Si el componente ya bloquea pero no expone el `blockingError`, completar el render mínimo en `CreateWorkspaceWizard.tsx`.
 - [ ] **T4B-5** `[RW-08 workspace]` Sin permisos: `ROLES_MEMBER_ONLY` → mensaje de permisos insuficientes.
 - [ ] **T4B-6** Ejecutar `vitest run CreateWorkspaceWizard.test.tsx`; todos los tests deben pasar.
 
 #### 4C — CreateIamClientWizard (nuevo)
+
 Archivo: `apps/web-console/src/components/console/wizards/CreateIamClientWizard.test.tsx`
 
 - [ ] **T4C-1** `[RW-02 iam]` Bloqueo por validación en campo de nombre de cliente.
@@ -158,30 +165,33 @@ Archivo: `apps/web-console/src/components/console/wizards/CreateIamClientWizard.
 - [ ] **T4C-5** Ejecutar `vitest run CreateIamClientWizard.test.tsx`; todos los tests deben pasar.
 
 #### 4D — InviteUserWizard (nuevo)
+
 Archivo: `apps/web-console/src/components/console/wizards/InviteUserWizard.test.tsx`
 
 - [ ] **T4D-1** `[RW-01 invite]` Navegación adelante y atrás preserva el email introducido.
 - [ ] **T4D-2** `[RW-03 invite]` Paso de resumen muestra email y rol seleccionado.
-- [ ] **T4D-3** `[RW-04 invite]` Desde resumen, botón atrás navega al último paso de selección de rol.
+- [ ] **T4D-3** `[RW-04 invite]` Desde resumen, botón atrás navega al último paso real de datos del wizard (`Mensaje`), preservando email y rol ya introducidos.
 - [ ] **T4D-4** `[RW-06 invite]` Error de backend preserva email y rol; mensaje de error visible.
 - [ ] **T4D-5** `[RW-08 invite]` Sin permisos de invitación: `ROLES_MEMBER_ONLY` → mensaje de permisos insuficientes.
 - [ ] **T4D-6** Ejecutar `vitest run InviteUserWizard.test.tsx`; todos los tests deben pasar.
 
 #### 4E — ProvisionDatabaseWizard (nuevo)
+
 Archivo: `apps/web-console/src/components/console/wizards/ProvisionDatabaseWizard.test.tsx`
 
 - [ ] **T4E-1** `[RW-02 db]` Bloqueo por validación en campo de nombre de base de datos.
 - [ ] **T4E-2** `[RW-05 db]` Confirmación exitosa muestra feedback con database ID retornado.
 - [ ] **T4E-3** `[RW-06 db]` Error de backend preserva datos; mensaje de error visible.
-- [ ] **T4E-4** `[RW-07 db]` Cuota de bases de datos excedida: `QUOTA_DB_EXCEEDED` → aviso visible + avance bloqueado.
+- [ ] **T4E-4** `[RW-07 db]` Cuota de bases de datos excedida: `QUOTA_DB_EXCEEDED` → aviso visible + avance bloqueado. Si el componente ya bloquea pero no expone el `blockingError`, completar el render mínimo en `ProvisionDatabaseWizard.tsx`.
 - [ ] **T4E-5** `[RW-08 db]` Sin permisos: `ROLES_MEMBER_ONLY` → mensaje de permisos insuficientes.
 - [ ] **T4E-6** Ejecutar `vitest run ProvisionDatabaseWizard.test.tsx`; todos los tests deben pasar.
 
 #### 4F — PublishFunctionWizard (nuevo)
+
 Archivo: `apps/web-console/src/components/console/wizards/PublishFunctionWizard.test.tsx`
 
 - [ ] **T4F-1** `[RW-02 fn]` Bloqueo por validación en campo de nombre de función.
-- [ ] **T4F-2** `[RW-05 fn]` Confirmación exitosa muestra feedback con function ID y URL retornados.
+- [ ] **T4F-2** `[RW-05 fn]` Confirmación exitosa muestra feedback con function ID y el enlace de recurso retornado; en el DOM actual el CTA navegable se expone como `Abrir recurso`.
 - [ ] **T4F-3** `[RW-06 fn]` Error de backend preserva datos; mensaje de error visible.
 - [ ] **T4F-4** `[RW-08 fn]` Sin permisos: `ROLES_MEMBER_ONLY` → mensaje de permisos insuficientes.
 - [ ] **T4F-5** Ejecutar `vitest run PublishFunctionWizard.test.tsx`; todos los tests deben pasar.
@@ -189,7 +199,8 @@ Archivo: `apps/web-console/src/components/console/wizards/PublishFunctionWizard.
 ### Fase 5 — Configuración CI y cobertura
 
 - [ ] **T5-1** Abrir `apps/web-console/vite.config.ts` (MODIFY). Localizar la sección `test.coverage.include` y añadir estas entradas si no están presentes:
-  ```
+
+  ```ts
   'src/components/console/wizards/*.tsx'
   'src/components/console/DestructiveConfirmationDialog.tsx'
   'src/components/console/ConnectionSnippets.tsx'
@@ -197,7 +208,8 @@ Archivo: `apps/web-console/src/components/console/wizards/PublishFunctionWizard.
   'src/lib/destructive-ops.ts'
   'src/lib/snippets/*.ts'
   ```
-- [ ] **T5-2** Verificar que el script `test` en `apps/web-console/package.json` incluye `--reporter=junit --outputFile=test-results/junit.xml` o equivalente para CI. Si no lo incluye, añadirlo como script separado `test:ci` para no alterar el flujo de desarrollo local.
+
+- [ ] **T5-2** No tocar `apps/web-console/package.json` (queda fuera del file map). La verificación de CI para esta tarea se resuelve ejecutando los comandos directos de Vitest desde `apps/web-console` y dejando constancia de que el reporter JUnit ya se valida en el pipeline principal fuera de esta unidad.
 - [ ] **T5-3** Ejecutar la suite completa: `cd apps/web-console && vitest run --reporter=verbose`. Verificar exit code 0, sin tests skipped.
 - [ ] **T5-4** Ejecutar con cobertura: `vitest run --coverage`. Verificar que el reporte `coverage/index.html` se genera y que los módulos listados en T5-1 aparecen en el reporte.
 

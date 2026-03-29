@@ -22,7 +22,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['src/pages/**/*.tsx']
+      include: [
+        'src/pages/**/*.tsx',
+        'src/components/console/wizards/*.tsx',
+        'src/components/console/DestructiveConfirmationDialog.tsx',
+        'src/components/console/ConnectionSnippets.tsx',
+        'src/lib/console-wizards.ts',
+        'src/lib/destructive-ops.ts',
+        'src/lib/snippets/*.ts'
+      ]
     }
   }
 })
