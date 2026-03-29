@@ -5,6 +5,7 @@ import { ConsoleShellLayout } from '@/layouts/ConsoleShellLayout'
 import { LoginPage } from '@/pages/LoginPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { PendingActivationPage } from '@/pages/PendingActivationPage'
+import { ConsoleAuthPage } from '@/pages/ConsoleAuthPage'
 import { ConsoleMembersPage } from '@/pages/ConsoleMembersPage'
 import { ConsolePlaceholderPage } from '@/pages/ConsolePlaceholderPage'
 import { SignupPage } from '@/pages/SignupPage'
@@ -72,6 +73,10 @@ export const appRoutes = [
           {
             path: 'members',
             element: <ConsoleMembersPage />
+          },
+          {
+            path: 'auth',
+            element: <ConsoleAuthPage />
           },
           {
             path: 'functions',

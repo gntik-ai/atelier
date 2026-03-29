@@ -59,6 +59,12 @@ const consoleNavigationItems = [
     description: 'Miembros, roles y permisos del realm IAM del tenant activo.'
   },
   {
+    label: 'Auth',
+    to: '/console/auth',
+    icon: Shield,
+    description: 'Superficie Auth/IAM para scopes, clients, providers y aplicaciones externas del contexto activo.'
+  },
+  {
     label: 'Functions',
     to: '/console/functions',
     icon: Workflow,

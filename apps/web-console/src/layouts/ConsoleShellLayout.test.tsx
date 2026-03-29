@@ -65,6 +65,7 @@ describe('ConsoleShellLayout', () => {
 
     expect(await screen.findByRole('link', { name: /in atelier console/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: /auth/i })).toHaveAttribute('href', '/console/auth')
     expect(screen.getByText(/operaciones plataforma/i)).toBeInTheDocument()
     expect(screen.getByTestId('console-shell-avatar')).toHaveTextContent('OP')
     expect(screen.getByLabelText(/contexto activo de consola/i)).toBeInTheDocument()
