@@ -77,6 +77,12 @@ const consoleNavigationItems = [
     description: 'Bases de datos, colecciones, índices, validación, documentos y vistas del dominio documental.'
   },
   {
+    label: 'Kafka',
+    to: '/console/kafka',
+    icon: Activity,
+    description: 'Topics, ACLs, métricas de lag, bridges y helpers de publish/stream.'
+  },
+  {
     label: 'Functions',
     to: '/console/functions',
     icon: Workflow,
