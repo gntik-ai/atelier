@@ -306,12 +306,29 @@ function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2)
 }
 
+function getActivationUnavailableMessage(message: string): string {
+  const normalized = message.toLowerCase()
+  if (normalized.includes('404') || normalized.includes('not found') || normalized.includes('no encontrada') || normalized.includes('no encontrado')) {
+    return 'Esta activación ya no está disponible.'
+  }
+  return message
+}
+
+function getActivationLogsMessage(message: string): string {
+  const normalized = message.toLowerCase()
+  if (normalized.includes('403') || normalized.includes('permiso') || normalized.includes('forbidden')) {
+    return 'No tienes permisos para ver los logs de esta activación.'
+  }
+  return getActivationUnavailableMessage(message)
+}
+
 function statusTone(value?: string | null): 'default' | 'secondary' | 'destructive' | 'outline' {
   const normalized = value?.toLowerCase()
   if (!normalized) return 'outline'
   if (['active', 'succeeded', 'accepted', 'queued'].includes(normalized)) return 'default'
   if (['failed', 'invalid', 'degraded', 'timed_out', 'cancelled'].includes(normalized)) return 'destructive'
-  if (['provisioning', 'deploying', 'running'].includes(normalized)) return 'secondary'
+  if (['provisioning', 'deploying'].includes(normalized)) return 'secondary'
+  if (normalized === 'running') return 'outline'
   return 'outline'
 }
 
@@ -877,6 +894,7 @@ export function ConsoleFunctionsPage() {
                           <span className="text-xs text-muted-foreground">{item.activationId}</span>
                         </div>
                         <p className="mt-2 text-sm">{item.durationMs} ms · {item.triggerKind}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{formatValue(item.startedAt)}</p>
                       </button>
                     ))}
                   </div>
@@ -885,26 +903,55 @@ export function ConsoleFunctionsPage() {
                     {activationDetail.loading ? <p>Cargando detalle de activación…</p> : null}
                     {activationDetail.data.activation ? (
                       <KeyValueGrid items={[
+                        { label: 'Activation ID', value: activationDetail.data.activation.activationId },
+                        { label: 'Resource ID', value: activationDetail.data.activation.resourceId },
                         { label: 'Status', value: activationDetail.data.activation.status },
                         { label: 'Started at', value: activationDetail.data.activation.startedAt },
                         { label: 'Finished at', value: activationDetail.data.activation.finishedAt },
                         { label: 'Duration (ms)', value: activationDetail.data.activation.durationMs },
                         { label: 'Status code', value: activationDetail.data.activation.statusCode },
-                        { label: 'Trigger kind', value: activationDetail.data.activation.triggerKind }
+                        { label: 'Trigger kind', value: activationDetail.data.activation.triggerKind },
+                        { label: 'Memory (MB)', value: activationDetail.data.activation.memoryMb },
+                        { label: 'Invocation ID', value: activationDetail.data.activation.invocationId },
+                        { label: 'Retention (days)', value: activationDetail.data.activation.policy?.retentionDays }
                       ]} />
                     ) : null}
-                    {activationDetail.data.activationError ? <p role="alert">{activationDetail.data.activationError}</p> : null}
+                    {activationDetail.data.activationError ? <p role="alert">{getActivationUnavailableMessage(activationDetail.data.activationError)}</p> : null}
                     <section className="space-y-2">
                       <h3 className="font-semibold">Logs</h3>
-                      {activationDetail.data.logsError ? <p role="alert">{activationDetail.data.logsError}</p> : null}
-                      {activationDetail.data.logs?.truncated ? <p className="text-xs text-muted-foreground">Los logs están truncados. Se muestra el contenido disponible.</p> : null}
-                      {activationDetail.data.logs && activationDetail.data.logs.lines.length === 0 ? <p>No hay logs disponibles para esta activación.</p> : null}
-                      {activationDetail.data.logs ? <pre className="max-h-64 overflow-y-auto rounded bg-muted p-3 text-xs">{activationDetail.data.logs.lines.join('\n')}</pre> : null}
+                      {activationDetail.data.logsError ? <p role="alert">{getActivationLogsMessage(activationDetail.data.logsError)}</p> : null}
+                      {!activationDetail.data.logsError && activationDetail.data.logs?.truncated ? <p className="text-xs text-amber-600">Los logs están truncados. Se muestra el contenido disponible.</p> : null}
+                      {!activationDetail.data.logsError && activationDetail.data.activation?.status === 'running' && !activationDetail.data.logs ? <p>La activación sigue en curso. Los logs pueden no estar disponibles aún.</p> : null}
+                      {!activationDetail.data.logsError && activationDetail.data.logs && activationDetail.data.logs.lines.length === 0 ? <p>No hay logs disponibles para esta activación.</p> : null}
+                      {!activationDetail.data.logsError && activationDetail.data.logs && activationDetail.data.logs.lines.length > 0 ? <pre className="max-h-64 overflow-y-auto rounded bg-muted p-3 text-xs">{activationDetail.data.logs.lines.join('\n')}</pre> : null}
                     </section>
                     <section className="space-y-2">
                       <h3 className="font-semibold">Resultado</h3>
-                      {activationDetail.data.resultError ? <p role="alert">{activationDetail.data.resultError}</p> : null}
-                      {activationDetail.data.result ? <pre className="max-h-64 overflow-y-auto rounded bg-muted p-3 text-xs">{formatJson(activationDetail.data.result.result ?? activationDetail.data.result)}</pre> : null}
+                      {activationDetail.data.resultError ? <p role="alert">{getActivationUnavailableMessage(activationDetail.data.resultError)}</p> : null}
+                      {!activationDetail.data.resultError && activationDetail.data.result ? (() => {
+                        const res = activationDetail.data.result
+                        const ct = res.contentType ?? ''
+                        if (ct.includes('octet-stream')) {
+                          return <p>El resultado no se puede mostrar en texto.</p>
+                        }
+                        if (res.result === null || res.result === undefined) {
+                          return <p>Sin resultado disponible.</p>
+                        }
+                        if (ct.includes('text/plain') && typeof res.result === 'string') {
+                          return <pre className="max-h-64 overflow-y-auto rounded bg-muted p-3 text-xs">{res.result}</pre>
+                        }
+                        return (
+                          <pre className="max-h-64 overflow-y-auto rounded bg-muted p-3 text-xs">
+                            {typeof res.result === 'string' ? res.result : JSON.stringify(res.result, null, 2)}
+                          </pre>
+                        )
+                      })() : null}
+                      {!activationDetail.data.resultError && !activationDetail.data.result && activationDetail.data.activation?.status === 'running' && selectedActivationId && !activationDetail.loading ? (
+                        <p>La activación sigue en curso. El resultado puede no estar disponible aún.</p>
+                      ) : null}
+                      {!activationDetail.data.resultError && !activationDetail.data.result && activationDetail.data.activation?.status !== 'running' && selectedActivationId && !activationDetail.loading ? (
+                        <p>Sin resultado disponible.</p>
+                      ) : null}
                     </section>
                   </div>
                 </div>

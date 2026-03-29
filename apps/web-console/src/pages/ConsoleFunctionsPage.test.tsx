@@ -182,6 +182,233 @@ describe('ConsoleFunctionsPage', () => {
     expect(screen.getByText(/"ok": true/)).toBeInTheDocument()
   })
 
+
+  it('muestra mensaje de logs vacíos cuando lines está vacío', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') return activations().items[0]
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return activationLogs({ lines: [], truncated: false })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/no hay logs disponibles/i)).toBeInTheDocument()
+  })
+
+  it('fallo en logs no bloquea metadata ni resultado (RF-FEL-05)', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') {
+        return {
+          ...activations().items[0],
+          memoryMb: 256,
+          invocationId: 'inv_1',
+          policy: { retentionDays: 7 }
+        }
+      }
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') throw Object.assign(new Error('server error'), { status: 500 })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/resource id/i)).toBeInTheDocument()
+    expect(screen.getByText(/"ok": true/)).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/server error/i)
+  })
+
+  it('fallo en resultado no bloquea metadata ni logs (RF-FEL-06)', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') {
+        return {
+          ...activations().items[0],
+          memoryMb: 256,
+          invocationId: 'inv_1',
+          policy: { retentionDays: 7 }
+        }
+      }
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return activationLogs({ truncated: false })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') throw Object.assign(new Error('result unavailable'), { status: 500 })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/resource id/i)).toBeInTheDocument()
+    expect(screen.getByText(/hello\s+world/)).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/result unavailable/i)
+  })
+
+  it('muestra mensaje cuando contentType es octet-stream', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') return activations().items[0]
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return activationLogs({ lines: [], truncated: false })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult({ contentType: 'application/octet-stream', result: null })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/no se puede mostrar en texto/i)).toBeInTheDocument()
+  })
+
+  it('muestra empty state cuando la función no tiene activaciones (RF-FEL-07)', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations({ items: [] })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+
+    expect(await screen.findByText(/no tiene activaciones registradas/i)).toBeInTheDocument()
+  })
+
+  it('muestra "Sin resultado disponible." cuando result.result es null', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') return activations().items[0]
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return activationLogs({ lines: [], truncated: false })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult({ result: null, contentType: 'application/json' })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/sin resultado disponible/i)).toBeInTheDocument()
+  })
+
+
+  it('muestra el resultado text/plain como texto plano', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') return activations().items[0]
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return activationLogs({ lines: [], truncated: false })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult({ contentType: 'text/plain', result: 'done' })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText('done')).toBeInTheDocument()
+  })
+
+  it('muestra mensajes de activación en curso cuando aún no hay logs ni resultado', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations({
+        items: [{ activationId: 'act_1', resourceId: 'res_fn_1', status: 'running', startedAt: '2026-03-29T07:40:00.000Z', durationMs: 1000, triggerKind: 'direct' }]
+      })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') return { activationId: 'act_1', resourceId: 'res_fn_1', status: 'running', startedAt: '2026-03-29T07:40:00.000Z', durationMs: 1000, triggerKind: 'direct' }
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return null
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return null
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/logs pueden no estar disponibles aún/i)).toBeInTheDocument()
+    expect(screen.getByText(/resultado puede no estar disponible aún/i)).toBeInTheDocument()
+  })
+
+  it('mapea 403 de logs al mensaje de permisos', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') return activations().items[0]
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') throw new Error('403 forbidden')
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/no tienes permisos para ver los logs/i)).toBeInTheDocument()
+  })
+
+  it('mapea 404 de detalle al mensaje de activación no disponible', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      if (url === '/v1/functions/actions/res_fn_1/activations?page[size]=50') return activations()
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1') throw new Error('404 not found')
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/logs') return activationLogs({ lines: [], truncated: false })
+      if (url === '/v1/functions/actions/res_fn_1/activations/act_1/result') return activationResult()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Activations' }))
+    await userEvent.click(await screen.findByRole('button', { name: /act_1/i }))
+
+    expect(await screen.findByText(/esta activación ya no está disponible/i)).toBeInTheDocument()
+  })
+
+  it('renderiza los triggers configurados en la pestaña triggers', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Triggers' }))
+
+    expect(await screen.findByText('Kafka')).toBeInTheDocument()
+    expect(screen.getByText('Cron')).toBeInTheDocument()
+    expect(screen.getByText('Storage')).toBeInTheDocument()
+    expect(screen.getByText(/res_topic_1/i)).toBeInTheDocument()
+    expect(screen.getByText(/res_bucket_1/i)).toBeInTheDocument()
+  })
+
   it('invoca con éxito y muestra invocation id', async () => {
     mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
       if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
