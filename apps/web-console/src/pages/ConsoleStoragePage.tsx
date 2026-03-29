@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { ConnectionSnippets } from '@/components/console/ConnectionSnippets'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import type { SnippetContext } from '@/lib/snippets/snippet-types'
 
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline'
 type SectionState<T> = { data: T; loading: boolean; error: string | null }
@@ -357,6 +359,28 @@ export function ConsoleStoragePage() {
   const quotaPercent = usage.data?.dimensions?.totalBytes?.utilizationPercent ?? null
   const quotaLimit = usage.data?.dimensions?.totalBytes?.limit ?? null
 
+  const storageSnippetContext = useMemo<SnippetContext | null>(() => {
+    if (!selectedBucket) {
+      return null
+    }
+
+    const resourceState = selectedBucket.provisioning?.state ?? selectedBucket.status ?? null
+
+    return {
+      tenantId: selectedBucket.tenantId,
+      tenantSlug: null,
+      workspaceId: selectedBucket.workspaceId,
+      workspaceSlug: null,
+      resourceName: selectedBucket.bucketName,
+      resourceHost: null,
+      resourcePort: null,
+      resourceExtraA: selectedBucket.region ?? null,
+      resourceExtraB: null,
+      resourceState,
+      externalAccessEnabled: resourceState === 'active'
+    }
+  }, [selectedBucket])
+
   if (!activeTenantId) {
     return <p role="alert">Selecciona un tenant para continuar.</p>
   }
@@ -522,6 +546,7 @@ export function ConsoleStoragePage() {
             </div>
           ) : (
             <div className="space-y-4">
+              {storageSnippetContext ? <ConnectionSnippets resourceType="storage-bucket" context={storageSnippetContext} /> : null}
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-semibold">{selectedBucket.bucketName}</h2>
                 <Badge variant={statusTone(selectedBucket.status)}>{formatEnumLabel(selectedBucket.status)}</Badge>

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ConnectionSnippets } from '@/components/console/ConnectionSnippets'
 import { PublishFunctionWizard } from '@/components/console/wizards/PublishFunctionWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import type { SnippetContext } from '@/lib/snippets/snippet-types'
 
 type FunctionExecutionLimits = {
   timeoutMs?: number
@@ -555,6 +557,26 @@ export function ConsoleFunctionsPage() {
   const writeDisabled = !canWrite(effectiveAction)
   const eligibleRollbackVersions = versions.data?.items.filter((item) => item.rollbackEligible) ?? []
 
+  const functionSnippetContext = useMemo<SnippetContext | null>(() => {
+    if (!effectiveAction) {
+      return null
+    }
+
+    return {
+      tenantId: effectiveAction.tenantId ?? activeTenantId,
+      tenantSlug: null,
+      workspaceId: effectiveAction.workspaceId ?? activeWorkspaceId,
+      workspaceSlug: null,
+      resourceName: effectiveAction.actionName,
+      resourceHost: null,
+      resourcePort: null,
+      resourceExtraA: null,
+      resourceExtraB: effectiveAction.httpExposure?.publicUrl ?? null,
+      resourceState: effectiveAction.provisioning?.state ?? effectiveAction.status ?? null,
+      externalAccessEnabled: effectiveAction.httpExposure?.enabled === true
+    }
+  }, [activeTenantId, activeWorkspaceId, effectiveAction])
+
   const handleInvoke = useCallback(async () => {
     if (!selectedActionId) return
     setInvokeResult({ data: null, loading: true, error: null })
@@ -787,6 +809,7 @@ export function ConsoleFunctionsPage() {
                           { label: 'Activation retention', value: effectiveAction.activationPolicy?.retentionDays }
                         ]} />
                       </section>
+                      {functionSnippetContext ? <ConnectionSnippets resourceType="serverless-function" context={functionSnippetContext} /> : null}
                       <section className="space-y-3">
                         <h3 className="font-semibold">Configuración avanzada</h3>
                         <KeyValueGrid items={[

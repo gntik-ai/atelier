@@ -312,4 +312,15 @@ describe('ConsoleStoragePage', () => {
     expect(screen.getByText(/storage \/ objetos/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Objetos' })).toBeInTheDocument()
   })
+
+  it('muestra snippets del bucket seleccionado con placeholders cuando falta endpoint', async () => {
+    queueHappyPath()
+    const user = userEvent.setup()
+
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'media-assets' }))
+
+    expect(await screen.findByRole('heading', { name: 'Snippets de conexión' })).toBeInTheDocument()
+    expect(screen.getAllByText(/<RESOURCE_HOST>/).length).toBeGreaterThan(0)
+  })
 })

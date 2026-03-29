@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { ConnectionSnippets } from '@/components/console/ConnectionSnippets'
 import { DestructiveConfirmationDialog } from '@/components/console/DestructiveConfirmationDialog'
 import { useDestructiveOp } from '@/components/console/hooks/useDestructiveOp'
 import { CreateIamClientWizard } from '@/components/console/wizards/CreateIamClientWizard'
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { formatConsoleEnumLabel, useConsoleContext } from '@/lib/console-context'
 import { DESTRUCTIVE_OP_LEVELS } from '@/lib/destructive-ops'
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import type { SnippetContext } from '@/lib/snippets/snippet-types'
 
 type IamProviderCompatibility = {
   provider: string
@@ -257,6 +259,7 @@ export function ConsoleAuthPage() {
   const [isSubmittingApplication, setIsSubmittingApplication] = useState(false)
   const [isSubmittingProvider, setIsSubmittingProvider] = useState(false)
   const [iamWizardOpen, setIamWizardOpen] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const destructiveOp = useDestructiveOp()
 
   const realmId = activeTenant?.consoleUserRealm ?? null
@@ -349,6 +352,35 @@ export function ConsoleAuthPage() {
     setProviderErrors({})
     setFeedback(null)
   }, [activeTenant?.tenantId, destructiveOp.handleCancel, workspaceId])
+
+  const selectedClient = useMemo(
+    () => realmState.clients.find((client) => client.clientId === selectedClientId) ?? realmState.clients[0] ?? null,
+    [realmState.clients, selectedClientId]
+  )
+
+  const iamSnippetContext = useMemo<SnippetContext | null>(() => {
+    if (!selectedClient) {
+      return null
+    }
+
+    const tokenEndpoint = realmId
+      ? `/realms/${realmId}/protocol/openid-connect/token`
+      : '<KEYCLOAK_TOKEN_ENDPOINT>'
+
+    return {
+      tenantId: activeTenant?.tenantId ?? null,
+      tenantSlug: null,
+      workspaceId,
+      workspaceSlug: activeWorkspace?.label ?? null,
+      resourceName: selectedClient.clientId,
+      resourceHost: null,
+      resourcePort: null,
+      resourceExtraA: null,
+      resourceExtraB: tokenEndpoint,
+      resourceState: selectedClient.state,
+      externalAccessEnabled: selectedClient.enabled
+    }
+  }, [activeTenant?.tenantId, activeWorkspace?.label, realmId, selectedClient, workspaceId])
 
   const providerRows = useMemo<ProviderRow[]>(() => {
     return applicationsState.applications.flatMap((application) =>
@@ -694,7 +726,11 @@ export function ConsoleAuthPage() {
                       <thead><tr className="border-b border-border/60 text-muted-foreground"><th scope="col" className="px-3 py-2 font-medium">Client</th><th scope="col" className="px-3 py-2 font-medium">Protocol</th><th scope="col" className="px-3 py-2 font-medium">Access</th><th scope="col" className="px-3 py-2 font-medium">Estado</th><th scope="col" className="px-3 py-2 font-medium">Redirects</th><th scope="col" className="px-3 py-2 font-medium">Scopes</th></tr></thead>
                       <tbody>
                         {realmState.clients.map((client) => (
-                          <tr key={client.clientId} className="border-b border-border/40 align-top last:border-b-0">
+                          <tr
+                            key={client.clientId}
+                            className={`border-b border-border/40 align-top last:border-b-0 ${selectedClient?.clientId === client.clientId ? 'bg-muted/40' : ''}`}
+                            onClick={() => setSelectedClientId(client.clientId)}
+                          >
                             <td className="px-3 py-3"><div className="font-medium text-foreground">{client.clientId}</div></td>
                             <td className="px-3 py-3"><Badge variant="outline">{formatConsoleEnumLabel(client.protocol)}</Badge></td>
                             <td className="px-3 py-3 text-muted-foreground">{formatConsoleEnumLabel(client.accessType)}</td>
@@ -707,6 +743,7 @@ export function ConsoleAuthPage() {
                     </table>
                   </TableContainer>
                 )}
+                {iamSnippetContext ? <ConnectionSnippets resourceType="iam-client" context={iamSnippetContext} /> : null}
               </div>
             </div>
           </>

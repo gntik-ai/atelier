@@ -247,4 +247,22 @@ describe('ConsoleMongoPage', () => {
     })
     expect(await screen.findByText(/colecciones visibles|Selecciona un workspace para ver las colecciones/)).toBeInTheDocument()
   })
+
+  it('muestra snippets para la colección seleccionada con placeholder de host', async () => {
+    mockUseConsoleContext.mockReturnValue(buildContext({ activeTenant: { label: 'Tenant A' }, activeTenantId: 'tenant-a', activeWorkspace: { label: 'Workspace A' }, activeWorkspaceId: 'ws-1' }))
+    mockRequestConsoleSessionJson
+      .mockResolvedValueOnce({ items: [{ databaseName: 'catalog' }] })
+      .mockResolvedValueOnce({ items: [{ collectionName: 'orders' }] })
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({ collectionName: 'orders' })
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({ items: [] })
+
+    render(<ConsoleMongoPage />)
+    await clickDatabase('catalog')
+    fireEvent.click(await screen.findByText('orders'))
+
+    expect(await screen.findByRole('heading', { name: 'Snippets de conexión' })).toBeInTheDocument()
+    expect(screen.getAllByText(/<RESOURCE_HOST>/).length).toBeGreaterThan(0)
+  })
 })

@@ -346,6 +346,25 @@ describe('ConsolePostgresPage', () => {
     expect(await screen.findByText('app_db')).toBeInTheDocument()
     expect(getRequestCount('/v1/postgres/databases?page%5Bsize%5D=100')).toBe(2)
   })
+
+  it('muestra snippets de conexión para la base seleccionada y usa placeholders de host', async () => {
+    mockConsoleApi()
+    const user = userEvent.setup()
+
+    renderPage()
+    await user.click(await screen.findByText('app_db'))
+
+    expect(await screen.findByRole('heading', { name: 'Snippets de conexión' })).toBeInTheDocument()
+    expect(screen.getAllByText(/<RESOURCE_HOST>/).length).toBeGreaterThan(0)
+  })
+
+  it('no renderiza snippets cuando no hay base seleccionada', () => {
+    mockConsoleApi()
+
+    renderPage()
+
+    expect(screen.queryByRole('heading', { name: 'Snippets de conexión' })).not.toBeInTheDocument()
+  })
 })
 
 function renderUi() {

@@ -303,6 +303,18 @@ describe('ConsoleAuthPage', () => {
 
     expect(await screen.findByText(/no autorizado por política del workspace/i)).toBeInTheDocument()
   })
+
+  it('muestra snippets IAM para el client seleccionado sin filtrar secretos reales', async () => {
+    mockSuccessfulLoads([])
+    const user = userEvent.setup()
+
+    renderPage()
+    await user.click((await screen.findAllByText('console-web'))[0]!)
+
+    expect(await screen.findByRole('heading', { name: 'Snippets de conexión' })).toBeInTheDocument()
+    expect(screen.getByText(/client_secret=<CLIENT_SECRET>/)).toBeInTheDocument()
+    expect(screen.queryByText(/super-secret/i)).not.toBeInTheDocument()
+  })
 })
 
 function renderPage() {

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ConnectionSnippets } from '@/components/console/ConnectionSnippets'
 import { ProvisionDatabaseWizard } from '@/components/console/wizards/ProvisionDatabaseWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import type { SnippetContext } from '@/lib/snippets/snippet-types'
 
 type PgDatabase = {
   databaseName: string
@@ -335,6 +337,33 @@ export function ConsolePostgresPage() {
   const [databaseWizardOpen, setDatabaseWizardOpen] = useState(false)
   const [ddlPreviewTarget, setDdlPreviewTarget] = useState<DdlPreviewTarget | null>(null)
   const [ddlPreview, setDdlPreview] = useState<DdlPreviewState>(EMPTY_DDL_PREVIEW)
+
+  const selectedDatabaseRecord = useMemo(
+    () => databases.data.find((database) => database.databaseName === selectedDatabase) ?? null,
+    [databases.data, selectedDatabase]
+  )
+
+  const postgresSnippetContext = useMemo<SnippetContext | null>(() => {
+    if (!selectedDatabase) {
+      return null
+    }
+
+    const databaseState = selectedDatabaseRecord?.state ?? null
+
+    return {
+      tenantId: activeTenantId,
+      tenantSlug: activeTenant?.secondary ?? null,
+      workspaceId: activeWorkspaceId,
+      workspaceSlug: activeWorkspace?.secondary ?? null,
+      resourceName: selectedDatabase,
+      resourceHost: null,
+      resourcePort: 5432,
+      resourceExtraA: selectedSchema,
+      resourceExtraB: null,
+      resourceState: databaseState,
+      externalAccessEnabled: databaseState === 'active'
+    }
+  }, [activeTenant?.secondary, activeTenantId, activeWorkspace?.secondary, activeWorkspaceId, selectedDatabase, selectedDatabaseRecord?.state, selectedSchema])
 
   const resetSchemaAndBelow = useCallback(() => {
     setSelectedSchema(null)
@@ -928,7 +957,9 @@ export function ConsolePostgresPage() {
       ) : null}
 
       {selectedDatabase ? (
-        <section className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm" aria-labelledby="console-postgres-schemas-heading">
+        <>
+          {postgresSnippetContext ? <ConnectionSnippets resourceType="postgres-database" context={postgresSnippetContext} /> : null}
+          <section className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm" aria-labelledby="console-postgres-schemas-heading">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 id="console-postgres-schemas-heading" className="text-lg font-semibold text-foreground">
@@ -991,6 +1022,7 @@ export function ConsolePostgresPage() {
             </div>
           ) : null}
         </section>
+        </>
       ) : null}
 
       {selectedSchema ? (

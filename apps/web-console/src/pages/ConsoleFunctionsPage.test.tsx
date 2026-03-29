@@ -143,7 +143,7 @@ describe('ConsoleFunctionsPage', () => {
 
     renderPage()
     await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
-    expect(await screen.findByText(/https:\/\/example.test\/fn/i)).toBeInTheDocument()
+    expect((await screen.findAllByText(/https:\/\/example.test\/fn/i)).length).toBeGreaterThan(0)
   })
 
   it('abre lazy versions y rollback deshabilitado sin elegibles', async () => {
@@ -525,5 +525,19 @@ describe('ConsoleFunctionsPage', () => {
 
     expect(await screen.findByText(/no hay funciones en este workspace/i)).toBeInTheDocument()
     expect(screen.queryByText('hello-fn')).not.toBeInTheDocument()
+  })
+
+  it('muestra snippets HTTP para la función seleccionada', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()
+      if (url === '/v1/functions/actions/res_fn_1') return detail()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+
+    expect(await screen.findByRole('heading', { name: 'Snippets de conexión' })).toBeInTheDocument()
+    expect(screen.getAllByText(/https:\/\/example.test\/fn/).length).toBeGreaterThan(0)
   })
 })

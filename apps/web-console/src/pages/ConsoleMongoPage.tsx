@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ConnectionSnippets } from '@/components/console/ConnectionSnippets'
 import { ProvisionDatabaseWizard } from '@/components/console/wizards/ProvisionDatabaseWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import type { SnippetContext } from '@/lib/snippets/snippet-types'
 
 type MongoDatabase = {
   databaseName: string
@@ -451,6 +453,26 @@ export function ConsoleMongoPage() {
 
   const selectedCollectionHasOnlyDefaultIndex = indexes.data.length === 1 && indexes.data[0]?.indexName === '_id_'
 
+  const mongoSnippetContext = useMemo<SnippetContext | null>(() => {
+    if (!selectedCollection || !selectedDatabase) {
+      return null
+    }
+
+    return {
+      tenantId: activeTenantId,
+      tenantSlug: activeTenant?.secondary ?? null,
+      workspaceId: activeWorkspaceId,
+      workspaceSlug: activeWorkspace?.secondary ?? null,
+      resourceName: selectedCollection,
+      resourceHost: null,
+      resourcePort: 27017,
+      resourceExtraA: selectedDatabase,
+      resourceExtraB: null,
+      resourceState: null,
+      externalAccessEnabled: Boolean(activeWorkspaceId)
+    }
+  }, [activeTenant?.secondary, activeTenantId, activeWorkspace?.secondary, activeWorkspaceId, selectedCollection, selectedDatabase])
+
   return (
     <section aria-label="MongoDB del tenant activo" className="space-y-6">
       <header className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm">
@@ -640,7 +662,9 @@ export function ConsoleMongoPage() {
       ) : null}
 
       {selectedCollection ? (
-        <section className="rounded-3xl border border-border bg-card/50 p-6 shadow-sm">
+        <>
+          {mongoSnippetContext ? <ConnectionSnippets resourceType="mongo-collection" context={mongoSnippetContext} /> : null}
+          <section className="rounded-3xl border border-border bg-card/50 p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Colección: {selectedCollection}</h2>
@@ -770,6 +794,7 @@ export function ConsoleMongoPage() {
             </div>
           ) : null}
         </section>
+        </>
       ) : null}
     </section>
   )
