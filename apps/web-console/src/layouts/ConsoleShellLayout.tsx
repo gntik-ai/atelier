@@ -71,6 +71,12 @@ const consoleNavigationItems = [
     description: 'Bases de datos, esquemas, tablas, índices, vistas y preview DDL.'
   },
   {
+    label: 'MongoDB',
+    to: '/console/mongo',
+    icon: Database,
+    description: 'Bases de datos, colecciones, índices, validación, documentos y vistas del dominio documental.'
+  },
+  {
     label: 'Functions',
     to: '/console/functions',
     icon: Workflow,

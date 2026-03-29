@@ -17,6 +17,11 @@ const ConsolePostgresPage = lazy(async () => {
   return { default: module.ConsolePostgresPage }
 })
 
+const ConsoleMongoPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleMongoPage')
+  return { default: module.ConsoleMongoPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -87,6 +92,10 @@ export const appRoutes = [
           {
             path: 'postgres',
             element: <ConsolePostgresPage />
+          },
+          {
+            path: 'mongo',
+            element: <ConsoleMongoPage />
           },
           {
             path: 'functions',
