@@ -1,0 +1,10 @@
+{
+  "workflowId": "WF-CON-003",
+  "label": "workspace-creation",
+  "stepCount": 3,
+  "stepKeys": [
+    "create-keycloak-client",
+    "create-postgresql-workspace",
+    "reserve-s3-storage"
+  ]
+}

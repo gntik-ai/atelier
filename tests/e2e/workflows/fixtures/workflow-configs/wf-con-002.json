@@ -1,0 +1,11 @@
+{
+  "workflowId": "WF-CON-002",
+  "label": "tenant-provisioning",
+  "stepCount": 4,
+  "stepKeys": [
+    "create-keycloak-realm",
+    "create-postgresql-boundary",
+    "create-kafka-namespace",
+    "configure-apisix-routes"
+  ]
+}

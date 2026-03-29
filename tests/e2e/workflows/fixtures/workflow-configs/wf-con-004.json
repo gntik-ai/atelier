@@ -1,0 +1,10 @@
+{
+  "workflowId": "WF-CON-004",
+  "label": "credential-generation",
+  "stepCount": 3,
+  "stepKeys": [
+    "create-keycloak-credential",
+    "sync-apisix-consumer",
+    "record-credential-metadata"
+  ]
+}

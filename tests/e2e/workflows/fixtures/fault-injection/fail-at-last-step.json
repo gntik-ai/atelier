@@ -1,0 +1,5 @@
+{
+  "failAtStepOrdinal": "last",
+  "errorCode": "INJECTED_LAST_STEP_FAULT",
+  "description": "Forces failure at the final step; all prior steps must be compensated."
+}

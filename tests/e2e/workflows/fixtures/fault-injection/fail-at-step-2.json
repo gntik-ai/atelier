@@ -1,0 +1,5 @@
+{
+  "failAtStepOrdinal": 2,
+  "errorCode": "INJECTED_STEP_FAULT",
+  "description": "Forces failure at step 2; steps at ordinal 1 succeed and must be compensated."
+}
