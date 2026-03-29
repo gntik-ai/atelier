@@ -61,6 +61,27 @@ describe('ConsoleServiceAccountsPage', () => {
     expect(screen.queryByText('secret-value')).not.toBeInTheDocument()
   })
 
+  it('abre confirmación WARNING al revocar una credencial', async () => {
+    const user = userEvent.setup()
+    const reload = vi.fn()
+    mockUseConsoleContext.mockReturnValue({ activeTenantId: 'ten_1', activeWorkspaceId: 'wrk_1', activeTenant: { state: 'active', label: 'Tenant' }, activeWorkspace: { label: 'Workspace' } })
+    mockUseConsoleServiceAccounts.mockReturnValue({ accounts: [{ serviceAccountId: 'sa_1', displayName: 'Ops SA', desiredState: 'active', expiresAt: null, credentialStatus: { state: 'active' }, accessProjection: { effectiveAccess: 'rw', clientState: 'active' } }], loading: false, error: null, reload, knownIds: ['sa_1'] })
+    mockRevokeServiceAccountCredential.mockResolvedValue(undefined)
+    render(<ConsoleServiceAccountsPage />)
+
+    await user.click(screen.getByRole('button', { name: /revocar/i }))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/ops sa/i)
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/la credencial dejará de funcionar de inmediato/i)
+
+    await user.click(screen.getByRole('button', { name: /^confirmar$/i }))
+
+    await waitFor(() => {
+      expect(mockRevokeServiceAccountCredential).toHaveBeenCalledWith('wrk_1', 'sa_1', { reason: 'Console revoke' })
+      expect(reload).toHaveBeenCalled()
+    })
+  })
+
   it('deshabilita acciones con tenant inactivo', () => {
     mockUseConsoleContext.mockReturnValue({ activeTenantId: 'ten_1', activeWorkspaceId: 'wrk_1', activeTenant: { state: 'suspended' }, activeWorkspace: { label: 'Workspace' } })
     mockUseConsoleServiceAccounts.mockReturnValue({ accounts: [{ serviceAccountId: 'sa_1', displayName: 'Ops SA', desiredState: 'active', expiresAt: null, credentialStatus: { state: 'active' }, accessProjection: { effectiveAccess: 'rw', clientState: 'active' } }], loading: false, error: null, reload: vi.fn(), knownIds: ['sa_1'] })

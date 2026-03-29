@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { DestructiveConfirmationDialog } from '@/components/console/DestructiveConfirmationDialog'
+import { useDestructiveOp } from '@/components/console/hooks/useDestructiveOp'
 import { CreateIamClientWizard } from '@/components/console/wizards/CreateIamClientWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatConsoleEnumLabel, useConsoleContext } from '@/lib/console-context'
+import { DESTRUCTIVE_OP_LEVELS } from '@/lib/destructive-ops'
 import { requestConsoleSessionJson } from '@/lib/console-session'
 
 type IamProviderCompatibility = {
@@ -254,8 +257,7 @@ export function ConsoleAuthPage() {
   const [isSubmittingApplication, setIsSubmittingApplication] = useState(false)
   const [isSubmittingProvider, setIsSubmittingProvider] = useState(false)
   const [iamWizardOpen, setIamWizardOpen] = useState(false)
-  const [pendingDeleteApplicationId, setPendingDeleteApplicationId] = useState<string | null>(null)
-  const [pendingDetachProviderId, setPendingDetachProviderId] = useState<string | null>(null)
+  const destructiveOp = useDestructiveOp()
 
   const realmId = activeTenant?.consoleUserRealm ?? null
   const workspaceId = activeWorkspace?.workspaceId ?? null
@@ -340,14 +342,13 @@ export function ConsoleAuthPage() {
     setEditingApplicationId(null)
     setProviderPanelApplicationId(null)
     setProviderEditingId(null)
-    setPendingDeleteApplicationId(null)
-    setPendingDetachProviderId(null)
+    destructiveOp.handleCancel()
     setApplicationForm(EMPTY_APPLICATION_FORM)
     setProviderForm(EMPTY_PROVIDER_FORM)
     setApplicationErrors({})
     setProviderErrors({})
     setFeedback(null)
-  }, [activeTenant?.tenantId, workspaceId])
+  }, [activeTenant?.tenantId, destructiveOp.handleCancel, workspaceId])
 
   const providerRows = useMemo<ProviderRow[]>(() => {
     return applicationsState.applications.flatMap((application) =>
@@ -443,25 +444,31 @@ export function ConsoleAuthPage() {
     }
   }
 
-  async function confirmSoftDeleteApplication() {
-    if (!workspaceId || !pendingDeleteApplicationId) return
-    const application = applicationsState.applications.find((item) => item.applicationId === pendingDeleteApplicationId)
-    if (!application) return
+  function openSoftDeleteApplicationDialog(application: ExternalApplication) {
+    destructiveOp.openDialog({
+      level: DESTRUCTIVE_OP_LEVELS['soft-delete-application'],
+      operationId: 'soft-delete-application',
+      resourceName: application.displayName || application.slug,
+      resourceType: 'aplicación externa',
+      impactDescription: 'La aplicación se marcará como soft_deleted y sus providers asociados dejarán de estar operativos.',
+      onConfirm: async () => {
+        if (!workspaceId) throw new Error('Selecciona un workspace antes de eliminar la aplicación.')
 
-    setIsSubmittingApplication(true)
-    setFeedback(null)
-    try {
-      await requestConsoleSessionJson<MutationAccepted>(
-        `/v1/workspaces/${workspaceId}/applications/${application.applicationId}`,
-        { method: 'PUT', body: { ...buildApplicationPayload(toApplicationForm(application), application), desiredState: 'soft_deleted' } as never }
-      )
-      setPendingDeleteApplicationId(null)
-      await reloadApplications(`La aplicación ${application.displayName} se marcó como soft_deleted.`)
-    } catch (error) {
-      setFeedback({ tone: 'error', message: getErrorMessage(error, 'No se pudo eliminar lógicamente la aplicación.') })
-    } finally {
-      setIsSubmittingApplication(false)
-    }
+        setIsSubmittingApplication(true)
+        setFeedback(null)
+        try {
+          await requestConsoleSessionJson<MutationAccepted>(
+            `/v1/workspaces/${workspaceId}/applications/${application.applicationId}`,
+            { method: 'PUT', body: { ...buildApplicationPayload(toApplicationForm(application), application), desiredState: 'soft_deleted' } as never }
+          )
+        } finally {
+          setIsSubmittingApplication(false)
+        }
+      },
+      onSuccess: () => {
+        void reloadApplications(`La aplicación ${application.displayName} se marcó como soft_deleted.`)
+      }
+    })
   }
 
   async function submitProvider(event: React.FormEvent<HTMLFormElement>) {
@@ -520,31 +527,40 @@ export function ConsoleAuthPage() {
     }
   }
 
-  async function confirmDetachProvider() {
-    if (!workspaceId || !providerApplication || !pendingDetachProviderId) return
-    const nextProviders = (providerApplication.federatedProviders ?? []).filter((provider) => provider.providerId !== pendingDetachProviderId)
-    setIsSubmittingProvider(true)
-    setFeedback(null)
-    try {
-      await requestConsoleSessionJson<MutationAccepted>(
-        `/v1/workspaces/${workspaceId}/applications/${providerApplication.applicationId}`,
-        {
-          method: 'PUT',
-          body: {
-            ...buildApplicationPayload(toApplicationForm(providerApplication), providerApplication),
-            federatedProviders: nextProviders
-          } as never
+  function openDetachProviderDialog(application: ExternalApplication, provider: FederatedIdentityProvider) {
+    destructiveOp.openDialog({
+      level: DESTRUCTIVE_OP_LEVELS['detach-provider'],
+      operationId: 'detach-provider',
+      resourceName: provider.alias || provider.displayName || provider.providerId,
+      resourceType: 'provider federado',
+      impactDescription: 'El provider dejará de estar asociado a la aplicación actual.',
+      onConfirm: async () => {
+        if (!workspaceId) throw new Error('Selecciona un workspace antes de desasociar el provider.')
+
+        const nextProviders = (application.federatedProviders ?? []).filter((item) => item.providerId !== provider.providerId)
+        setIsSubmittingProvider(true)
+        setFeedback(null)
+        try {
+          await requestConsoleSessionJson<MutationAccepted>(
+            `/v1/workspaces/${workspaceId}/applications/${application.applicationId}`,
+            {
+              method: 'PUT',
+              body: {
+                ...buildApplicationPayload(toApplicationForm(application), application),
+                federatedProviders: nextProviders
+              } as never
+            }
+          )
+        } finally {
+          setIsSubmittingProvider(false)
         }
-      )
-      setPendingDetachProviderId(null)
-      setProviderEditingId(null)
-      setProviderForm(EMPTY_PROVIDER_FORM)
-      await reloadApplications('Provider desasociado. Refrescando inventario…')
-    } catch (error) {
-      setFeedback({ tone: 'error', message: getErrorMessage(error, 'No se pudo desasociar el provider.') })
-    } finally {
-      setIsSubmittingProvider(false)
-    }
+      },
+      onSuccess: () => {
+        setProviderEditingId(null)
+        setProviderForm(EMPTY_PROVIDER_FORM)
+        void reloadApplications('Provider desasociado. Refrescando inventario…')
+      }
+    })
   }
 
   function openCreateForm() {
@@ -732,7 +748,7 @@ export function ConsoleAuthPage() {
             <div className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
               <div className="mb-4 space-y-1"><h3 className="text-lg font-semibold text-foreground">Aplicaciones externas</h3><p className="text-sm text-muted-foreground">Alta, edición, baja lógica y acceso a providers por aplicación.</p></div>
               {applicationsState.applications.length === 0 ? <p className="text-sm text-muted-foreground">No hay aplicaciones externas vinculadas a este workspace.</p> : (
-                <div className="space-y-4">{applicationsState.applications.filter((application) => application.state !== 'soft_deleted').map((application) => (<article key={application.applicationId} className="rounded-2xl border border-border/60 p-4"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="space-y-2"><div className="flex flex-wrap items-center gap-2"><h4 className="text-base font-semibold text-foreground">{application.displayName}</h4><Badge variant="outline">{formatConsoleEnumLabel(application.protocol)}</Badge><Badge variant="outline">{formatConsoleEnumLabel(application.state)}</Badge></div><p className="text-xs text-muted-foreground">{application.slug}</p><p className="text-sm text-muted-foreground">Flows: {formatList(application.authenticationFlows)}</p><p className="text-sm text-muted-foreground">Redirects: {formatList(application.redirectUris)}</p><p className="text-sm text-muted-foreground">Scopes: {formatList((application.scopes ?? []).map((scope) => scope.scopeName))}</p><ValidationBadge validation={application.validation} /></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => openEditForm(application)} disabled={Boolean(writeBlockedReason)}>Editar</Button><Button type="button" variant="outline" onClick={() => openProviderPanel(application)} disabled={Boolean(writeBlockedReason) || application.protocol === 'api_key'}>Providers</Button><Button type="button" variant="outline" onClick={() => setPendingDeleteApplicationId(application.applicationId)} disabled={Boolean(writeBlockedReason)}>Eliminar</Button></div></div>{pendingDeleteApplicationId === application.applicationId ? <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"><p className="text-sm text-foreground">Confirma la baja lógica de {application.displayName}. Sus providers asociados se desvincularán con la baja.</p><div className="mt-3 flex gap-2"><Button type="button" variant="outline" onClick={() => setPendingDeleteApplicationId(null)}>Cancelar</Button><Button type="button" onClick={confirmSoftDeleteApplication} disabled={isSubmittingApplication}>Confirmar eliminación</Button></div></div> : null}</article>))}</div>
+                <div className="space-y-4">{applicationsState.applications.filter((application) => application.state !== 'soft_deleted').map((application) => (<article key={application.applicationId} className="rounded-2xl border border-border/60 p-4"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div className="space-y-2"><div className="flex flex-wrap items-center gap-2"><h4 className="text-base font-semibold text-foreground">{application.displayName}</h4><Badge variant="outline">{formatConsoleEnumLabel(application.protocol)}</Badge><Badge variant="outline">{formatConsoleEnumLabel(application.state)}</Badge></div><p className="text-xs text-muted-foreground">{application.slug}</p><p className="text-sm text-muted-foreground">Flows: {formatList(application.authenticationFlows)}</p><p className="text-sm text-muted-foreground">Redirects: {formatList(application.redirectUris)}</p><p className="text-sm text-muted-foreground">Scopes: {formatList((application.scopes ?? []).map((scope) => scope.scopeName))}</p><ValidationBadge validation={application.validation} /></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => openEditForm(application)} disabled={Boolean(writeBlockedReason)}>Editar</Button><Button type="button" variant="outline" onClick={() => openProviderPanel(application)} disabled={Boolean(writeBlockedReason) || application.protocol === 'api_key'}>Providers</Button><Button type="button" variant="outline" onClick={() => openSoftDeleteApplicationDialog(application)} disabled={Boolean(writeBlockedReason)}>Eliminar</Button></div></div></article>))}</div>
               )}
             </div>
 
@@ -751,7 +767,7 @@ export function ConsoleAuthPage() {
 
             {providerApplication.protocol !== 'api_key' ? (
               <>
-                <div className="space-y-3">{(providerApplication.federatedProviders ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No hay providers asociados a esta aplicación.</p> : (providerApplication.federatedProviders ?? []).map((provider) => (<article key={provider.providerId} className="rounded-2xl border border-border/60 p-4"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div className="space-y-1"><div className="flex flex-wrap items-center gap-2"><h4 className="font-medium text-foreground">{provider.alias}</h4><Badge variant="outline">{formatConsoleEnumLabel(provider.protocol)}</Badge><Badge variant="outline">{formatConsoleEnumLabel(provider.providerMode)}</Badge></div><p className="text-sm text-muted-foreground">{provider.displayName}</p><BooleanBadge label="Enabled" value={provider.enabled ?? true} /></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => openProviderEditor(provider)}>Editar</Button><Button type="button" variant="outline" onClick={() => toggleProvider(provider)} disabled={isSubmittingProvider}>{provider.enabled ?? true ? 'Deshabilitar' : 'Habilitar'}</Button><Button type="button" variant="outline" onClick={() => setPendingDetachProviderId(provider.providerId)}>Desasociar</Button></div></div>{pendingDetachProviderId === provider.providerId ? <div className="mt-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4"><p className="text-sm text-foreground">Confirma la desasociación del provider {provider.alias}.</p><div className="mt-3 flex gap-2"><Button type="button" variant="outline" onClick={() => setPendingDetachProviderId(null)}>Cancelar</Button><Button type="button" onClick={confirmDetachProvider} disabled={isSubmittingProvider}>Confirmar desasociación</Button></div></div> : null}</article>))}</div>
+                <div className="space-y-3">{(providerApplication.federatedProviders ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No hay providers asociados a esta aplicación.</p> : (providerApplication.federatedProviders ?? []).map((provider) => (<article key={provider.providerId} className="rounded-2xl border border-border/60 p-4"><div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"><div className="space-y-1"><div className="flex flex-wrap items-center gap-2"><h4 className="font-medium text-foreground">{provider.alias}</h4><Badge variant="outline">{formatConsoleEnumLabel(provider.protocol)}</Badge><Badge variant="outline">{formatConsoleEnumLabel(provider.providerMode)}</Badge></div><p className="text-sm text-muted-foreground">{provider.displayName}</p><BooleanBadge label="Enabled" value={provider.enabled ?? true} /></div><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => openProviderEditor(provider)}>Editar</Button><Button type="button" variant="outline" onClick={() => toggleProvider(provider)} disabled={isSubmittingProvider}>{provider.enabled ?? true ? 'Deshabilitar' : 'Habilitar'}</Button><Button type="button" variant="outline" onClick={() => openDetachProviderDialog(providerApplication, provider)}>Desasociar</Button></div></div></article>))}</div>
                 <form className="space-y-4 rounded-2xl border border-border/60 p-4" onSubmit={submitProvider}>
                   <h4 className="text-base font-semibold text-foreground">{providerEditingId ? `Editar provider ${providerEditingId}` : 'Añadir provider federado'}</h4>
                   <div className="grid gap-4 md:grid-cols-2"><TextField label="Provider ID" name="providerId" value={providerForm.providerId} onChange={(value) => setProviderForm((current) => ({ ...current, providerId: value }))} error={providerErrors.providerId} disabled={Boolean(providerEditingId)} /><TextField label="Alias" name="alias" value={providerForm.alias} onChange={(value) => setProviderForm((current) => ({ ...current, alias: value }))} error={providerErrors.alias} /><TextField label="Display name" name="providerDisplayName" value={providerForm.displayName} onChange={(value) => setProviderForm((current) => ({ ...current, displayName: value }))} error={providerErrors.displayName} /><label className="space-y-2 text-sm text-foreground"><span>Protocol</span><select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={providerForm.protocol} onChange={(event) => setProviderForm((current) => ({ ...current, protocol: event.target.value as ProviderFormState['protocol'] }))}><option value="oidc">OIDC</option><option value="saml">SAML</option></select></label><label className="space-y-2 text-sm text-foreground"><span>Provider mode</span><select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={providerForm.providerMode} onChange={(event) => setProviderForm((current) => ({ ...current, providerMode: event.target.value as ProviderFormState['providerMode'] }))}><option value="manual_endpoints">Manual endpoints</option><option value="metadata_url">Metadata URL</option><option value="inline_metadata">Inline metadata</option></select></label><label className="flex items-center gap-2 pt-8 text-sm text-foreground"><input type="checkbox" checked={providerForm.enabled} onChange={(event) => setProviderForm((current) => ({ ...current, enabled: event.target.checked }))} />Enabled</label></div>
@@ -766,6 +782,15 @@ export function ConsoleAuthPage() {
           </section>
         ) : null}
       </section>
+
+      <DestructiveConfirmationDialog
+        open={destructiveOp.isOpen}
+        config={destructiveOp.config}
+        opState={destructiveOp.opState}
+        confirmError={destructiveOp.confirmError}
+        onConfirm={() => void destructiveOp.handleConfirm()}
+        onCancel={destructiveOp.handleCancel}
+      />
     </section>
   )
 }

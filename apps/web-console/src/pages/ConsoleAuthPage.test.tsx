@@ -181,8 +181,10 @@ describe('ConsoleAuthPage', () => {
     renderPage()
 
     await user.click(await screen.findByRole('button', { name: /eliminar/i }))
-    expect(screen.getByText(/confirma la baja lógica de portal clientes/i)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /confirmar eliminación/i }))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/portal clientes/i)
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/soft_deleted/i)
+    await user.click(screen.getByRole('button', { name: /^confirmar$/i }))
 
     await waitFor(() => {
       expect(requestConsoleSessionJsonMock).toHaveBeenCalledWith(
@@ -236,7 +238,10 @@ describe('ConsoleAuthPage', () => {
 
     await user.click(await screen.findByRole('button', { name: /providers/i }))
     await user.click(screen.getByRole('button', { name: /desasociar/i }))
-    await user.click(screen.getByRole('button', { name: /confirmar desasociación/i }))
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/corp oidc/i)
+    expect(screen.getByRole('alertdialog')).toHaveTextContent(/dejará de estar asociado a la aplicación actual/i)
+    await user.click(screen.getByRole('button', { name: /^confirmar$/i }))
 
     await waitFor(() => {
       expect(requestConsoleSessionJsonMock).toHaveBeenCalledWith(
