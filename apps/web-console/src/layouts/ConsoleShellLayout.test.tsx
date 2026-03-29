@@ -196,6 +196,24 @@ describe('ConsoleShellLayout', () => {
     expect(await screen.findByRole('link', { name: /postgresql/i })).toHaveAttribute('href', '/console/postgres')
   })
 
+  it('renderiza el ítem Kafka en el sidebar', async () => {
+    stubShellApi()
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/overview')
+
+    expect(await screen.findByRole('link', { name: /kafka/i })).toBeInTheDocument()
+  })
+
+  it('apunta el ítem Kafka a /console/kafka', async () => {
+    stubShellApi()
+    persistConsoleShellSession(baseSession)
+
+    renderShell('/console/overview')
+
+    expect(await screen.findByRole('link', { name: /kafka/i })).toHaveAttribute('href', '/console/kafka')
+  })
+
   it('muestra reintento cuando falla la carga de tenants y se recupera al reintentar', async () => {
     fetchMock
       .mockImplementationOnce(async (input) => {

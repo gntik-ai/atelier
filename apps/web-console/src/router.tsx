@@ -22,6 +22,11 @@ const ConsoleMongoPage = lazy(async () => {
   return { default: module.ConsoleMongoPage }
 })
 
+const ConsoleKafkaPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleKafkaPage')
+  return { default: module.ConsoleKafkaPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -96,6 +101,10 @@ export const appRoutes = [
           {
             path: 'mongo',
             element: <ConsoleMongoPage />
+          },
+          {
+            path: 'kafka',
+            element: <ConsoleKafkaPage />
           },
           {
             path: 'functions',
