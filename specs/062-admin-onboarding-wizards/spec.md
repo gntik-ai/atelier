@@ -38,31 +38,37 @@ Esta tarea introduce **wizards de onboarding paso a paso** que:
 Se especifican seis wizards, cada uno como flujo multi-paso modal o de página completa:
 
 #### W1 — Creación de tenant
+
 - **Pasos**: nombre del tenant → plan/tier selección → configuración inicial (región, preferencias) → resumen y confirmación.
 - **Precondiciones**: el usuario debe tener rol `superadmin` o permiso explícito de creación de tenants.
 - **Validaciones por paso**: unicidad de nombre, disponibilidad de cuota global de tenants.
 
 #### W2 — Creación de workspace
+
 - **Pasos**: selección de tenant contexto → nombre del workspace → configuración (límites iniciales, descripción) → resumen y confirmación.
 - **Precondiciones**: el tenant debe existir; el usuario debe tener rol `tenant_owner` o `workspace_admin` sobre el tenant.
 - **Validaciones por paso**: unicidad de nombre dentro del tenant, cuota de workspaces del tenant no excedida.
 
 #### W3 — Creación de cliente IAM
+
 - **Pasos**: selección de workspace → tipo de cliente (public / confidential / service-account) → identificador y redirect URIs (si aplica) → scopes y permisos → resumen y confirmación.
 - **Precondiciones**: workspace debe existir; usuario con permiso de gestión IAM en el workspace.
 - **Validaciones por paso**: formato de URIs, scopes válidos según configuración del tenant.
 
 #### W4 — Invitación de usuario
+
 - **Pasos**: selección de workspace → email del invitado → rol asignado → mensaje opcional → resumen y confirmación.
 - **Precondiciones**: workspace debe existir; usuario con permiso de invitación.
 - **Validaciones por paso**: formato de email, rol válido dentro del workspace, cuota de miembros no excedida.
 
 #### W5 — Onboarding de base de datos
+
 - **Pasos**: selección de workspace → motor (PostgreSQL / MongoDB) → nombre de la base de datos → configuración inicial (extensiones PG / colecciones Mongo opcionales) → resumen y confirmación.
 - **Precondiciones**: workspace debe existir; usuario con permiso de provisión de datos; cuota de bases de datos no excedida.
 - **Validaciones por paso**: unicidad de nombre, compatibilidad motor-workspace, cuota disponible.
 
 #### W6 — Publicación de función
+
 - **Pasos**: selección de workspace → nombre y descripción → runtime y versión → configuración de recursos (memoria, timeout) → trigger/ruta → resumen y confirmación.
 - **Precondiciones**: workspace debe existir; usuario con permiso de gestión de funciones; cuota de funciones no excedida.
 - **Validaciones por paso**: unicidad de nombre, runtime soportado, límites de recursos dentro de cuota.
@@ -111,23 +117,28 @@ Se especifican seis wizards, cada uno como flujo multi-paso modal o de página c
 ## 5. Permisos, multi-tenancy, auditoría, cuotas y seguridad
 
 ### Permisos
+
 - Cada wizard verifica los permisos del usuario contra el tenant/workspace de contexto antes de renderizar.
 - Los permisos requeridos son los mismos que los de la operación subyacente (e.g., crear tenant requiere `tenant:create`).
 
 ### Multi-tenancy
+
 - El contexto de tenant/workspace se hereda del selector de contexto de la consola (provisto por US-UI-03).
 - Los wizards de tenant y workspace operan a nivel de tenant; los demás operan a nivel de workspace.
 - No debe ser posible crear recursos fuera del tenant/workspace activo del usuario.
 
 ### Auditoría
+
 - La acción final de cada wizard (la llamada de creación) genera un evento de auditoría con actor, recurso, operación y timestamp.
 - Los pasos intermedios del wizard no generan eventos de auditoría (son solo UI client-side).
 
 ### Cuotas
+
 - Los wizards consultan las cuotas aplicables antes de permitir avanzar en los pasos relevantes.
 - La verificación de cuota es doble: client-side para UX rápida, server-side para enforcement real en la llamada final.
 
 ### Seguridad
+
 - Todos los datos del wizard se transmiten al backend exclusivamente vía HTTPS.
 - No se almacenan datos sensibles (secrets, tokens) en el estado client-side del wizard.
 - Las redirect URIs del wizard de cliente IAM se validan contra patrones permitidos.
@@ -145,15 +156,18 @@ Se especifican seis wizards, cada uno como flujo multi-paso modal o de página c
 ## 7. Riesgos, supuestos y preguntas abiertas
 
 ### Supuestos
+
 - Los endpoints de backend para las seis operaciones de creación ya existen o serán provistos por sus respectivos servicios antes de la integración.
 - El selector de contexto tenant/workspace (US-UI-03) está disponible y funcional.
 - Las vistas de gestión de cuotas y métricas (US-UI-04-T01) se implementan en paralelo o antes; los wizards solo necesitan consultar cuotas, no gestionarlas.
 
 ### Riesgos
+
 | Riesgo | Mitigación |
 |---|---|
 | Los endpoints de creación no están listos al momento de implementar los wizards. | Diseñar los wizards contra contratos de API definidos; usar mocks para desarrollo. |
 | La verificación de cuotas client-side puede quedar desincronizada con el server-side. | La validación server-side es autoritativa; la client-side es solo UX. Documentar esta dualidad. |
 
 ### Preguntas abiertas
+
 - Ninguna bloqueante identificada para avanzar a planificación.
