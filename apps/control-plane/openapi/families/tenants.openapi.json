@@ -178,6 +178,17 @@
           "type": "string"
         }
       },
+      "WorkflowJobRef": {
+        "description": "Stable workflow job reference for one accepted console workflow mutation.",
+        "in": "path",
+        "name": "jobRef",
+        "required": true,
+        "schema": {
+          "maxLength": 200,
+          "minLength": 8,
+          "type": "string"
+        }
+      },
       "XApiVersion": {
         "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
         "in": "header",
@@ -3584,6 +3595,12 @@
           "tenant_admin",
           "platform_team"
         ],
+        "x-console-delegation-mode": "backend_workflow",
+        "x-console-status-operation-ids": [
+          "getTenantWorkflowJobStatus"
+        ],
+        "x-console-tier": "spa",
+        "x-console-workflow-id": "WF-CON-002",
         "x-family": "tenants",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
@@ -6578,6 +6595,204 @@
         "x-rate-limit-class": "control-write",
         "x-resource-type": "tenant_storage_context",
         "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/tenants/{tenantId}/workflow-jobs/{jobRef}": {
+      "get": {
+        "operationId": "getTenantWorkflowJobStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkflowJobRef"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actor": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "errorSummary": {
+                      "anyOf": [
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "idempotencyKey": {
+                      "type": "string"
+                    },
+                    "jobRef": {
+                      "type": "string"
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "enum": [
+                        "pending",
+                        "running",
+                        "succeeded",
+                        "failed"
+                      ],
+                      "type": "string"
+                    },
+                    "tenantId": {
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "workflowId": {
+                      "type": "string"
+                    },
+                    "workspaceId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "jobRef",
+                    "workflowId",
+                    "idempotencyKey",
+                    "status",
+                    "createdAt",
+                    "updatedAt",
+                    "result",
+                    "errorSummary",
+                    "tenantId",
+                    "workspaceId",
+                    "actor"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Workflow job status returned."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The workflow-job status request is malformed or contextually inconsistent."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workflow job was not found."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get one tenant-scoped workflow job status.",
+        "tags": [
+          "Tenants"
+        ],
+        "x-console-delegation-mode": "status_query",
+        "x-console-tier": "spa",
+        "x-console-workflow-id": "WF-CON-002",
+        "x-family": "tenants",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "workflow_job",
+        "x-scope": "tenant",
+        "x-tenant-binding": "required",
         "x-visibility": "public"
       }
     }

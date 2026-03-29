@@ -8,6 +8,11 @@ import {
   REQUIRED_PRODUCT_PLUGINS
 } from '../../scripts/lib/gateway-policy.mjs';
 import { readGatewayRouting, readPublicRouteCatalog } from '../../scripts/lib/public-api.mjs';
+import {
+  listConsoleRoutesByTier,
+  listConsoleWorkflowRoutes,
+  summarizeConsoleEndpointSeparation
+} from '../../apps/control-plane/src/public-api-catalog.mjs';
 
 test('gateway contract publishes APISIX policy for every public family and passthrough route', () => {
   const values = readGatewayPolicyValues();
@@ -83,4 +88,17 @@ test('route catalog exposes gateway-facing auth and context metadata for every o
     assert.equal(route.internalRequestMode, 'validated_attestation');
     assert.ok(route.maxRequestBodyBytes > 0);
   }
+});
+
+test('route catalog helpers can filter and summarize console endpoint separation metadata', () => {
+  const spaRoutes = listConsoleRoutesByTier('spa');
+  const wf002Routes = listConsoleWorkflowRoutes('WF-CON-002');
+  const summary = summarizeConsoleEndpointSeparation();
+
+  assert.equal(spaRoutes.some((route) => route.operationId === 'createTenant'), true);
+  assert.equal(spaRoutes.some((route) => route.operationId === 'getTenantWorkflowJobStatus'), true);
+  assert.equal(wf002Routes.some((route) => route.operationId === 'createTenant'), true);
+  assert.equal(wf002Routes.some((route) => route.operationId === 'getTenantWorkflowJobStatus'), true);
+  assert.equal(summary.spa.operationIds.includes('createWorkspace'), true);
+  assert.equal(summary.platform.operationIds.includes('getRouteCatalog'), true);
 });

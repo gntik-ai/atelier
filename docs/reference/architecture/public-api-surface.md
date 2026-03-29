@@ -98,6 +98,7 @@ Tenant lifecycle, membership, invitation, quota, and tenant-level capability sur
 | POST | `/v1/tenants/{tenantId}/reactivation` | tenant | tenant | Reactivate one suspended tenant and restore descendant access controls under audit |
 | GET | `/v1/tenants/{tenantId}/storage-context` | tenant | tenant_storage_context | Fetch the tenant-scoped logical storage context used for workspace bucket bootstrap. |
 | POST | `/v1/tenants/{tenantId}/storage-context/credential-rotations` | tenant | tenant_storage_context | Rotate the active tenant-scoped storage credential reference without recreating the namespace. |
+| GET | `/v1/tenants/{tenantId}/workflow-jobs/{jobRef}` | tenant | workflow_job | Get one tenant-scoped workflow job status. |
 
 ## Workspaces
 
@@ -132,6 +133,7 @@ Workspace lifecycle, application inventory, workload identities, and managed-res
 | POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-issuance` | workspace | service_account | Issue a new secret-free credential reference for one workspace service account. |
 | POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-revocations` | workspace | service_account | Revoke one or all active credential references for a workspace service account. |
 | POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations` | workspace | service_account | Rotate the active credential reference for one workspace service account. |
+| GET | `/v1/workspaces/{workspaceId}/workflow-jobs/{jobRef}` | workspace | workflow_job | Get one workspace-scoped workflow job status. |
 
 ## Auth
 

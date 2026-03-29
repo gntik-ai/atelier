@@ -3308,6 +3308,8 @@
           "platform_team",
           "superadmin"
         ],
+        "x-console-discovery-surface": true,
+        "x-console-tier": "platform",
         "x-family": "platform",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "catalog",
