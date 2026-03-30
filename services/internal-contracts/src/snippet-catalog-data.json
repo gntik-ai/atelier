@@ -27,6 +27,15 @@
     "secretPlaceholderRef": "Usa la credencial del usuario de base de datos mostrada en la consola del workspace."
   },
   {
+    "id": "postgres-query",
+    "serviceKey": "postgres-database",
+    "language": "sql",
+    "label": "Query example",
+    "codeTemplate": "SELECT now(), current_database(), current_user;",
+    "placeholders": [],
+    "secretPlaceholderRef": "Ejecuta la consulta con la conexión PostgreSQL del workspace."
+  },
+  {
     "id": "mongo-uri",
     "serviceKey": "mongo-collection",
     "language": "uri",
@@ -52,6 +61,42 @@
     "codeTemplate": "from pymongo import MongoClient\nclient = MongoClient('mongodb://<MONGO_USER>:<YOUR_MONGO_PASSWORD>@{HOST}:{PORT}/{RESOURCE_EXTRA_A}?authSource=admin')",
     "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_EXTRA_A}", "<YOUR_MONGO_PASSWORD>"],
     "secretPlaceholderRef": "Usa la contraseña o API key del usuario Mongo provisionado para este workspace."
+  },
+  {
+    "id": "mongo-find",
+    "serviceKey": "mongo-collection",
+    "language": "javascript",
+    "label": "Find documents",
+    "codeTemplate": "db.getSiblingDB('{RESOURCE_EXTRA_A}').getCollection('{RESOURCE_NAME}').find({}).limit(10)",
+    "placeholders": ["{RESOURCE_EXTRA_A}", "{RESOURCE_NAME}"],
+    "secretPlaceholderRef": "Ejecuta el ejemplo con tus credenciales Mongo del workspace."
+  },
+  {
+    "id": "kafka-produce-node",
+    "serviceKey": "kafka-events",
+    "language": "nodejs",
+    "label": "Produce event (Node.js)",
+    "codeTemplate": "import { Kafka } from 'kafkajs'\n\nconst kafka = new Kafka({ brokers: ['{HOST}:{PORT}'] })\nconst producer = kafka.producer()\nawait producer.connect()\nawait producer.send({ topic: '{RESOURCE_NAME}', messages: [{ value: JSON.stringify({ workspaceId: '{WORKSPACE_ID}' }) }] })",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_NAME}", "{WORKSPACE_ID}"],
+    "secretPlaceholderRef": "Usa las credenciales Kafka provisionadas para este workspace."
+  },
+  {
+    "id": "kafka-consume-node",
+    "serviceKey": "kafka-events",
+    "language": "nodejs",
+    "label": "Consume events (Node.js)",
+    "codeTemplate": "import { Kafka } from 'kafkajs'\n\nconst kafka = new Kafka({ brokers: ['{HOST}:{PORT}'] })\nconst consumer = kafka.consumer({ groupId: 'workspace-{WORKSPACE_ID}' })\nawait consumer.connect()\nawait consumer.subscribe({ topic: '{RESOURCE_NAME}' })",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_NAME}", "{WORKSPACE_ID}"],
+    "secretPlaceholderRef": "Usa las credenciales Kafka provisionadas para este workspace."
+  },
+  {
+    "id": "kafka-list-topics",
+    "serviceKey": "kafka-events",
+    "language": "bash",
+    "label": "List topics",
+    "codeTemplate": "kcat -b {HOST}:{PORT} -L",
+    "placeholders": ["{HOST}", "{PORT}"],
+    "secretPlaceholderRef": "Configura SASL/TLS con las credenciales Kafka del workspace antes de ejecutar este comando."
   },
   {
     "id": "storage-aws-cli",
@@ -81,6 +126,15 @@
     "secretPlaceholderRef": "Sustituye los placeholders por tus access keys del workspace o credenciales temporales."
   },
   {
+    "id": "storage-list-objects",
+    "serviceKey": "storage-bucket",
+    "language": "bash",
+    "label": "List objects",
+    "codeTemplate": "aws --endpoint-url {HOST} s3 ls s3://{RESOURCE_NAME}/ --region {RESOURCE_EXTRA_A}",
+    "placeholders": ["{HOST}", "{RESOURCE_NAME}", "{RESOURCE_EXTRA_A}"],
+    "secretPlaceholderRef": "Autentícate con las access keys del workspace antes de listar objetos."
+  },
+  {
     "id": "function-curl",
     "serviceKey": "serverless-function",
     "language": "curl",
@@ -108,13 +162,43 @@
     "secretPlaceholderRef": "Añade tu token/API key real según la política HTTP expuesta por la función."
   },
   {
+    "id": "function-list",
+    "serviceKey": "serverless-function",
+    "language": "bash",
+    "label": "List actions",
+    "codeTemplate": "wsk -i action list /{WORKSPACE_ID}",
+    "placeholders": ["{WORKSPACE_ID}"],
+    "secretPlaceholderRef": "Configura tu contexto OpenWhisk con las credenciales del workspace antes de listar acciones."
+  },
+  {
     "id": "realtime-js-browser-basic",
     "serviceKey": "realtime-subscription",
     "language": "javascript",
     "label": "JavaScript",
     "codeTemplate": "const ws = new WebSocket('{REALTIME_ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect')",
     "placeholders": ["{REALTIME_ENDPOINT}", "{WORKSPACE_ID}"],
-    "secretPlaceholderRef": "Obtén tu access token desde Keycloak antes de abrir la suscripción."
+    "secretPlaceholderRef": "Obtén tu access token desde Keycloak antes de abrir la suscripción.",
+    "dependencyNote": "Requires Event Streaming (kafka-events) to be enabled."
+  },
+  {
+    "id": "realtime-receive-events",
+    "serviceKey": "realtime-subscription",
+    "language": "javascript",
+    "label": "Receive events",
+    "codeTemplate": "ws.onmessage = (event) => console.log('workspace event', event.data)",
+    "placeholders": [],
+    "secretPlaceholderRef": "Autentícate primero y reutiliza la conexión realtime activa.",
+    "dependencyNote": "Requires Event Streaming (kafka-events) to be enabled."
+  },
+  {
+    "id": "realtime-unsubscribe",
+    "serviceKey": "realtime-subscription",
+    "language": "javascript",
+    "label": "Unsubscribe",
+    "codeTemplate": "ws.send(JSON.stringify({ type: 'unsubscribe', workspaceId: '{WORKSPACE_ID}' }))",
+    "placeholders": ["{WORKSPACE_ID}"],
+    "secretPlaceholderRef": "Usa la misma conexión autenticada del workspace para cancelar la suscripción.",
+    "dependencyNote": "Requires Event Streaming (kafka-events) to be enabled."
   },
   {
     "id": "webhooks-curl",

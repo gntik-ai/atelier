@@ -38,6 +38,8 @@ export { default as workspaceOpenApiVersion } from './workspace-openapi-version.
 export { default as sdkPackage } from './sdk-package.json' with { type: 'json' };
 export { default as openapiSpecUpdatedEvent } from './openapi-spec-updated-event.json' with { type: 'json' };
 export { default as sdkGenerationCompletedEvent } from './sdk-generation-completed-event.json' with { type: 'json' };
+export { default as workspaceCapabilityCatalogResponse } from './workspace-capability-catalog-response.json' with { type: 'json' };
+export { default as workspaceCapabilityCatalogAccessedEvent } from './workspace-capability-catalog-accessed-event.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;

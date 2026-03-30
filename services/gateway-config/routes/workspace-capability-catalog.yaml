@@ -1,0 +1,35 @@
+routes:
+  - name: workspace-capability-catalog-list
+    uri: /v1/workspaces/:workspaceId/capability-catalog
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      workspace-scope-enforcement:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+  - name: workspace-capability-catalog-item
+    uri: /v1/workspaces/:workspaceId/capability-catalog/:capabilityId
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      workspace-scope-enforcement:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1

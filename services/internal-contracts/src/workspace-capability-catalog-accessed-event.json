@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atelier.internal/schemas/workspace-capability-catalog-accessed-event.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventType", "workspaceId", "tenantId", "actorId", "capabilityId", "accessDate", "correlationId", "timestamp"],
+  "properties": {
+    "eventType": { "type": "string", "const": "workspace.capability-catalog.accessed" },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "capabilityId": {
+      "anyOf": [
+        { "type": "string", "minLength": 1 },
+        { "type": "null" }
+      ]
+    },
+    "accessDate": { "type": "string", "format": "date" },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}
