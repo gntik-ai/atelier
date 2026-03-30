@@ -1,14 +1,17 @@
 # Frontend Realtime Quick Start
 
 ## Prerequisites
+
 - Platform account with access to the target workspace.
 - At least one provisioned data source in the workspace.
 - A Keycloak access token obtained with the Authorization Code flow.
 
 ## Endpoint discovery
+
 Find the realtime endpoint in the console under workspace Settings → Realtime or via `GET /api/workspaces/{workspaceId}/config`.
 
 ## Basic subscription
+
 ```javascript
 // Requires: a valid Keycloak access token for this workspace
 const ENDPOINT = '{REALTIME_ENDPOINT}'
@@ -16,7 +19,7 @@ const WORKSPACE_ID = '{WORKSPACE_ID}'
 const TOKEN = '<YOUR_ACCESS_TOKEN>'  // replace with your token
 
 const ws = new WebSocket(
-  `\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
+  `${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
   ['v1.atelier.realtime']
 )
 
@@ -41,6 +44,7 @@ ws.addEventListener('close', (e) => console.log('Connection closed', e.code, e.r
 ```
 
 ## Applying filters
+
 ```javascript
 // Requires: a valid Keycloak access token for this workspace
 const ENDPOINT = '{REALTIME_ENDPOINT}'
@@ -48,7 +52,7 @@ const WORKSPACE_ID = '{WORKSPACE_ID}'
 const TOKEN = '<YOUR_ACCESS_TOKEN>'
 
 const ws = new WebSocket(
-  `\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
+  `${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
   ['v1.atelier.realtime']
 )
 
@@ -77,6 +81,7 @@ ws.addEventListener('message', (event) => {
 | `predicates` | Optional provider-specific filter predicates |
 
 ## Reconnection & token refresh
+
 ```javascript
 const ENDPOINT = '{REALTIME_ENDPOINT}'
 const WORKSPACE_ID = '{WORKSPACE_ID}'
@@ -94,7 +99,7 @@ async function refreshToken() {
 
 function connect() {
   const ws = new WebSocket(
-    `\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect?token=\${encodeURIComponent(token)}`,
+    `${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect?token=${encodeURIComponent(token)}`,
     ['v1.atelier.realtime']
   )
 
@@ -125,6 +130,7 @@ connect()
 ```
 
 ## Common error codes
+
 | Code | Meaning | Resolution |
 |------|---------|-----------|
 | 4001 | `token_expired` | Refresh access token via Keycloak refresh_token grant and reconnect |

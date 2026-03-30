@@ -1,11 +1,13 @@
 # Node.js Realtime Quick Start
 
 ## Prerequisites
+
 - Node.js 18+.
 - Service account with permission to subscribe to realtime channels.
 - Workspace with at least one provisioned data source.
 
 ## Service-account token
+
 ```bash
 curl -X POST 'https://<KEYCLOAK_HOST>/realms/<realm>/protocol/openid-connect/token' \
   -H 'content-type: application/x-www-form-urlencoded' \
@@ -15,9 +17,11 @@ curl -X POST 'https://<KEYCLOAK_HOST>/realms/<realm>/protocol/openid-connect/tok
 ```
 
 ## Endpoint discovery
+
 Find the realtime endpoint in the console under workspace Settings → Realtime or via `GET /api/workspaces/{workspaceId}/config`.
 
 ## Basic subscription
+
 ```javascript
 // npm install ws
 import WebSocket from 'ws'
@@ -27,8 +31,8 @@ const WORKSPACE_ID = '{WORKSPACE_ID}'
 const SERVICE_ACCOUNT_TOKEN = '<YOUR_SERVICE_ACCOUNT_TOKEN>'  // obtain via client_credentials grant
 
 const ws = new WebSocket(
-  `\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
-  { headers: { Authorization: `Bearer \${SERVICE_ACCOUNT_TOKEN}` } }
+  `${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
+  { headers: { Authorization: `Bearer ${SERVICE_ACCOUNT_TOKEN}` } }
 )
 
 ws.on('open', () => {
@@ -51,6 +55,7 @@ ws.on('close', (code, reason) => console.log('Closed', code, reason.toString()))
 ```
 
 ## Applying filters
+
 ```javascript
 // npm install ws
 import WebSocket from 'ws'
@@ -60,8 +65,8 @@ const WORKSPACE_ID = '{WORKSPACE_ID}'
 const SERVICE_ACCOUNT_TOKEN = '<YOUR_SERVICE_ACCOUNT_TOKEN>'
 
 const ws = new WebSocket(
-  `\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
-  { headers: { Authorization: `Bearer \${SERVICE_ACCOUNT_TOKEN}` } }
+  `${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
+  { headers: { Authorization: `Bearer ${SERVICE_ACCOUNT_TOKEN}` } }
 )
 
 ws.on('open', () => {
@@ -81,6 +86,7 @@ ws.on('message', (data) => {
 ```
 
 ## Reconnection with backoff
+
 ```javascript
 // npm install ws
 import WebSocket from 'ws'
@@ -92,8 +98,8 @@ let attempt = 0
 
 function connect() {
   const ws = new WebSocket(
-    `\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
-    { headers: { Authorization: `Bearer \${SERVICE_ACCOUNT_TOKEN}` } }
+    `${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect`,
+    { headers: { Authorization: `Bearer ${SERVICE_ACCOUNT_TOKEN}` } }
   )
 
   ws.on('open', () => {
@@ -123,6 +129,7 @@ connect()
 ```
 
 ## Common error codes
+
 | Code | Meaning | Resolution |
 |------|---------|-----------|
 | 4001 | `token_expired` | Rotate the service-account token and reconnect |

@@ -1,17 +1,21 @@
 # Python Realtime Quick Start
 
 ## Prerequisites
+
 - Python 3.10+.
 - `websockets` package installed.
 - Service account token for the workspace.
 
 ## Asyncio note
+
 Use `asyncio.run()` on Python 3.10+ to bootstrap the event loop for your subscription worker.
 
 ## Endpoint discovery
+
 Find the realtime endpoint in the console under workspace Settings → Realtime or via `GET /api/workspaces/{workspaceId}/config`.
 
 ## Basic subscription
+
 ```python
 # pip install websockets
 import asyncio, json, websockets
@@ -38,6 +42,7 @@ asyncio.run(subscribe())
 ```
 
 ## Applying filters
+
 ```python
 # pip install websockets
 import asyncio, json, websockets
@@ -64,6 +69,7 @@ asyncio.run(subscribe())
 ```
 
 ## Reconnection with backoff
+
 ```python
 # pip install websockets
 import asyncio, json, websockets
@@ -96,6 +102,7 @@ asyncio.run(connect_forever())
 ```
 
 ## Common error codes
+
 | Code | Meaning | Resolution |
 |------|---------|-----------|
 | 4001 | `token_expired` | Rotate the service-account token and reconnect |

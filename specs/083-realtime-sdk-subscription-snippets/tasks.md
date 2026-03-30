@@ -129,10 +129,12 @@ ws.addEventListener('message', (event) => {
 ws.addEventListener('error', (err) => console.error('WebSocket error', err))
 ws.addEventListener('close', (e) => console.log('Connection closed', e.code, e.reason))
 ```
+
 `secretPlaceholderRef`: `'Obtain your access token from Keycloak: POST /realms/<realm>/protocol/openid-connect/token'`
 
 **A-2** `id: 'realtime-nodejs-backend-basic'`, label `'Node.js (backend) — WebSocket subscription'`  
 Template body:
+
 ```javascript
 // npm install ws
 import WebSocket from 'ws'
@@ -164,10 +166,12 @@ ws.on('message', (data) => {
 ws.on('error', (err) => console.error('WS error', err))
 ws.on('close', (code, reason) => console.log('Closed', code, reason.toString()))
 ```
+
 `secretPlaceholderRef`: `'Obtain a service-account token via Keycloak client_credentials grant with your client_id and client_secret.'`
 
 **A-3** `id: 'realtime-python-backend-basic'`, label `'Python (backend) — WebSocket subscription'`  
 Template body:
+
 ```python
 # pip install websockets
 import asyncio, json, websockets
@@ -192,15 +196,18 @@ async def subscribe():
 
 asyncio.run(subscribe())
 ```
+
 `secretPlaceholderRef`: `'Obtain a service-account token via Keycloak client_credentials grant.'`
 
 #### Category B — Filtered subscription
 
 **B-1** `id: 'realtime-js-browser-filter'`, label `'JavaScript (browser) — Filtered subscription'`  
 Same structure as A-1 but `filter` object in the `subscribe` message is:
+
 ```javascript
 filter: { operation: 'INSERT', entity: 'orders' }
 ```
+
 Add inline comment: `// Supported filter fields: operation (INSERT|UPDATE|DELETE), entity (table/collection name)`
 
 **B-2** `id: 'realtime-nodejs-backend-filter'`, label `'Node.js (backend) — Filtered subscription'`  
@@ -213,6 +220,7 @@ Same as A-3 with filter: `{"operation": "INSERT", "entity": "orders"}`
 
 **C-1** `id: 'realtime-js-browser-reconnect'`, label `'JavaScript (browser) — Reconnection with backoff & token refresh'`  
 Template body:
+
 ```javascript
 const ENDPOINT = '{REALTIME_ENDPOINT}'
 const WORKSPACE_ID = '{WORKSPACE_ID}'
