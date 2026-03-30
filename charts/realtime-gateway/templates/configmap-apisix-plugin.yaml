@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realtime-gateway-apisix-plugin
+  labels:
+    app: realtime-gateway
+data:
+  jwt-auth.yaml: |
+    plugins:
+      jwt-auth:
+        jwks_uri: {{ .Values.apisix.jwtAuth.jwksUrl | quote }}
+        realm: {{ .Values.apisix.jwtAuth.realm | quote }}

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realtime-gateway
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: realtime-gateway
+  template:
+    metadata:
+      labels:
+        app: realtime-gateway
+    spec:
+      containers:
+        - name: realtime-gateway
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: KEYCLOAK_JWKS_URL
+              value: {{ .Values.env.KEYCLOAK_JWKS_URL | quote }}
+            - name: KEYCLOAK_INTROSPECTION_URL
+              value: {{ .Values.env.KEYCLOAK_INTROSPECTION_URL | quote }}
+            - name: KEYCLOAK_INTROSPECTION_CLIENT_ID
+              value: {{ .Values.env.KEYCLOAK_INTROSPECTION_CLIENT_ID | quote }}
+            - name: JWKS_CACHE_TTL_SECONDS
+              value: {{ .Values.env.JWKS_CACHE_TTL_SECONDS | quote }}
+            - name: SCOPE_REVALIDATION_INTERVAL_SECONDS
+              value: {{ .Values.env.SCOPE_REVALIDATION_INTERVAL_SECONDS | quote }}
+            - name: TOKEN_EXPIRY_GRACE_SECONDS
+              value: {{ .Values.env.TOKEN_EXPIRY_GRACE_SECONDS | quote }}
+            - name: MAX_FILTER_PREDICATES
+              value: {{ .Values.env.MAX_FILTER_PREDICATES | quote }}
+            - name: MAX_SUBSCRIPTIONS_PER_WORKSPACE
+              value: {{ .Values.env.MAX_SUBSCRIPTIONS_PER_WORKSPACE | quote }}
+            - name: AUDIT_KAFKA_TOPIC_AUTH_GRANTED
+              value: {{ .Values.env.AUDIT_KAFKA_TOPIC_AUTH_GRANTED | quote }}
+            - name: AUDIT_KAFKA_TOPIC_AUTH_DENIED
+              value: {{ .Values.env.AUDIT_KAFKA_TOPIC_AUTH_DENIED | quote }}
+            - name: AUDIT_KAFKA_TOPIC_SESSION_SUSPENDED
+              value: {{ .Values.env.AUDIT_KAFKA_TOPIC_SESSION_SUSPENDED | quote }}
+            - name: AUDIT_KAFKA_TOPIC_SESSION_RESUMED
+              value: {{ .Values.env.AUDIT_KAFKA_TOPIC_SESSION_RESUMED | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.databaseUrl.name }}
+                  key: {{ .Values.secretRefs.databaseUrl.key }}
+            - name: KEYCLOAK_INTROSPECTION_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.introspectionClientSecret.name }}
+                  key: {{ .Values.secretRefs.introspectionClientSecret.key }}
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secretRefs.kafkaBrokers.name }}
+                  key: {{ .Values.secretRefs.kafkaBrokers.key }}
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: {{ .Values.service.port }}
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: {{ .Values.service.port }}

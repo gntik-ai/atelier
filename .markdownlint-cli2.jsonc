@@ -13,7 +13,10 @@
     "specs/080-pg-change-to-kafka/tasks.md",
     "specs/070-saga-compensation-workflows/plan.md",
     "specs/070-saga-compensation-workflows/tasks.md",
-    "specs/072-workflow-e2e-compensation/tasks.md"
+    "specs/072-workflow-e2e-compensation/tasks.md",
+    "specs/082-realtime-auth-scope-filters/plan.md",
+    "specs/082-realtime-auth-scope-filters/spec.md",
+    "specs/082-realtime-auth-scope-filters/tasks.md"
   ],
   "globs": [
     "README.md",

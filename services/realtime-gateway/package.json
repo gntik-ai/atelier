@@ -1,0 +1,19 @@
+{
+  "name": "@atelier/realtime-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test ../../tests/unit/realtime-gateway/*.test.mjs ../../tests/integration/realtime-gateway/*.test.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "jose": "^5.9.6",
+    "jwks-rsa": "^3.1.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.13.1"
+  }
+}

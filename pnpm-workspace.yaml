@@ -1,4 +1,5 @@
 packages:
   - apps/*
   - services/*
+  - services/realtime-gateway
   - tests/*
