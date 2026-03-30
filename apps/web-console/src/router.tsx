@@ -54,6 +54,16 @@ const ConsoleQuotasPage = lazy(async () => {
   return { default: module.ConsoleQuotasPage }
 })
 
+const ConsoleOperationsPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleOperationsPage')
+  return { default: module.ConsoleOperationsPage }
+})
+
+const ConsoleOperationDetailPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleOperationDetailPage')
+  return { default: module.ConsoleOperationDetailPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -140,6 +150,14 @@ export const appRoutes = [
           {
             path: 'quotas',
             element: <ConsoleQuotasPage />
+          },
+          {
+            path: 'operations',
+            element: <ConsoleOperationsPage />
+          },
+          {
+            path: 'operations/:operationId',
+            element: <ConsoleOperationDetailPage />
           },
           {
             path: 'profile',

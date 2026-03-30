@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://atelier.internal/contracts/async-operation-query-response.json",
+  "title": "AsyncOperationQueryResponse",
+  "type": "object",
+  "oneOf": [
+    {
+      "properties": {
+        "queryType": { "const": "list" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/OperationSummary" }
+        },
+        "total": { "type": "integer", "minimum": 0 },
+        "pagination": { "$ref": "#/definitions/Pagination" }
+      },
+      "required": ["queryType", "items", "total", "pagination"],
+      "additionalProperties": false
+    },
+    {
+      "properties": {
+        "queryType": { "const": "detail" },
+        "operationId": { "type": "string", "format": "uuid" },
+        "status": { "$ref": "#/definitions/OperationStatus" },
+        "operationType": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "workspaceId": { "type": ["string", "null"] },
+        "actorId": { "type": "string" },
+        "actorType": { "type": "string" },
+        "correlationId": { "type": "string" },
+        "idempotencyKey": { "type": ["string", "null"] },
+        "sagaId": { "type": ["string", "null"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "errorSummary": { "type": ["object", "null"] }
+      },
+      "required": [
+        "queryType",
+        "operationId",
+        "status",
+        "operationType",
+        "tenantId",
+        "actorId",
+        "actorType",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "properties": {
+        "queryType": { "const": "logs" },
+        "operationId": { "type": "string", "format": "uuid" },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "logEntryId": { "type": "string", "format": "uuid" },
+              "level": { "type": "string", "enum": ["info", "warning", "error"] },
+              "message": { "type": "string" },
+              "occurredAt": { "type": "string", "format": "date-time" }
+            },
+            "required": ["logEntryId", "level", "message", "occurredAt"],
+            "additionalProperties": false
+          }
+        },
+        "total": { "type": "integer", "minimum": 0 },
+        "pagination": { "$ref": "#/definitions/Pagination" }
+      },
+      "required": ["queryType", "operationId", "entries", "total", "pagination"],
+      "additionalProperties": false
+    },
+    {
+      "properties": {
+        "queryType": { "const": "result" },
+        "operationId": { "type": "string", "format": "uuid" },
+        "status": { "$ref": "#/definitions/OperationStatus" },
+        "resultType": { "type": "string", "enum": ["success", "failure", "pending"] },
+        "summary": { "type": ["string", "null"] },
+        "failureReason": { "type": ["string", "null"] },
+        "retryable": { "type": ["boolean", "null"] },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["queryType", "operationId", "status", "resultType"],
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "OperationStatus": {
+      "type": "string",
+      "enum": ["pending", "running", "completed", "failed"]
+    },
+    "Pagination": {
+      "type": "object",
+      "properties": {
+        "limit": { "type": "integer", "minimum": 0 },
+        "offset": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["limit", "offset"],
+      "additionalProperties": false
+    },
+    "OperationSummary": {
+      "type": "object",
+      "properties": {
+        "operationId": { "type": "string", "format": "uuid" },
+        "status": { "$ref": "#/definitions/OperationStatus" },
+        "operationType": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "workspaceId": { "type": ["string", "null"] },
+        "actorId": { "type": "string" },
+        "actorType": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "correlationId": { "type": "string" }
+      },
+      "required": [
+        "operationId",
+        "status",
+        "operationType",
+        "tenantId",
+        "actorId",
+        "actorType",
+        "createdAt",
+        "updatedAt",
+        "correlationId"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

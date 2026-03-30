@@ -25,6 +25,7 @@ services/provisioning-orchestrator/src/{models,repositories,events,actions,migra
 Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning assets: Follow standard conventions
 
 ## Recent Changes
+- 074-async-job-progress-ui: Added async operation query endpoints/contracts, log-entry migration, console operation tracking pages, and focused backend/frontend tests
 - 073-async-job-status-model: Added async operation domain model, PostgreSQL persistence, Kafka event contract, and OpenWhisk action wrappers
 - 072-workflow-e2e-compensation: Added Node.js 20+ (ESM modules), aligned with existing project standard
 - 001-function-versioning-rollback: Added Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning assets + Node built-in `node:test`, existing public API contract generation/validation scripts, existing governed OpenWhisk helper modules

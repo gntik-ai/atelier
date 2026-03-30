@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
+import { ActiveOperationsIndicator } from '@/components/console/ActiveOperationsIndicator'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { terminateConsoleLoginSession } from '@/lib/console-auth'
@@ -87,6 +88,12 @@ const consoleNavigationItems = [
     to: '/console/functions',
     icon: Workflow,
     description: 'Entrada persistente al dominio serverless del producto.'
+  },
+  {
+    label: 'Operaciones',
+    to: '/console/operations',
+    icon: Activity,
+    description: 'Seguimiento de operaciones asíncronas, logs resumidos y resultado final.'
   },
   {
     label: 'Storage',
@@ -237,7 +244,13 @@ export function ConsoleShellLayout() {
               </div>
             </div>
 
-            <ConsoleHeaderContextControls />
+            <div className="flex min-w-0 flex-1 items-center justify-center">
+              <ConsoleHeaderContextControls />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <ActiveOperationsIndicator />
+            </div>
 
             <div className="relative flex items-center gap-3">
               <div className="hidden text-right md:block">
