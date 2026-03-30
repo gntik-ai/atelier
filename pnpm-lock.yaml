@@ -197,6 +197,15 @@ importers:
         specifier: ^8.13.1
         version: 8.16.3
 
+  services/workspace-docs-service:
+    dependencies:
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
+      pg:
+        specifier: ^8.14.1
+        version: 8.16.3
+
   tests/e2e: {}
 
 packages:
