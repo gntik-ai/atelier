@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "async-operation-state-changed",
+  "title": "Async Operation State Changed Event",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "operationId",
+    "tenantId",
+    "actorId",
+    "previousStatus",
+    "newStatus",
+    "occurredAt",
+    "correlationId"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "const": "async_operation.state_changed" },
+    "operationId": { "type": "string", "format": "uuid" },
+    "tenantId": { "type": "string" },
+    "workspaceId": { "type": ["string", "null"] },
+    "actorId": { "type": "string" },
+    "actorType": { "type": "string" },
+    "operationType": { "type": "string" },
+    "previousStatus": { "type": "string", "enum": ["pending", "running", "completed", "failed"] },
+    "newStatus": { "type": "string", "enum": ["pending", "running", "completed", "failed"] },
+    "errorSummary": {
+      "oneOf": [
+        { "$ref": "#/definitions/errorSummary" },
+        { "type": "null" }
+      ]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string" }
+  },
+  "definitions": {
+    "errorSummary": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "failedStep": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

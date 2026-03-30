@@ -23,6 +23,7 @@ const PUBLIC_API_TAXONOMY_URL = new URL('./public-api-taxonomy.json', import.met
 const PUBLIC_ROUTE_CATALOG_URL = new URL('./public-route-catalog.json', import.meta.url);
 export { default as sagaContract } from './saga-contract.json' with { type: 'json' };
 export { default as consoleWorkflowAuditPolicy } from './console-workflow-audit-policy.json' with { type: 'json' };
+export { default as asyncOperationStateChangedSchema } from './async-operation-state-changed.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;

@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "12.1.0",
+    "ajv": "8.17.1",
     "markdownlint-cli2": "0.22.0",
     "yaml": "2.8.3"
   },

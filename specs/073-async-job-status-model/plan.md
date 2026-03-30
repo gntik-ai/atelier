@@ -142,7 +142,7 @@ CREATE INDEX IF NOT EXISTS idx_async_op_transitions_operation
 
 #### Máquina de estados válida
 
-```
+```text
 pending  → running
 running  → completed
 running  → failed
@@ -514,7 +514,7 @@ Contenido: DDL completo de `async_operations` y `async_operation_transitions` co
 
 ### Secuencia de implementación recomendada
 
-```
+```text
 1. DDL migration (073-async-operation-tables.sql)
 2. async-operation-states.mjs + unit tests
 3. async-operation.mjs (entity) + unit tests

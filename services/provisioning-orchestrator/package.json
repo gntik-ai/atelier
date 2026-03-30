@@ -7,5 +7,9 @@
     "lint": "node -e \"console.log('provisioning-orchestrator lint placeholder')\"",
     "test": "node -e \"console.log('provisioning-orchestrator test placeholder')\"",
     "typecheck": "node -e \"console.log('provisioning-orchestrator typecheck placeholder')\""
+  },
+  "dependencies": {
+    "kafkajs": "2.2.4",
+    "pg": "8.16.3"
   }
 }
