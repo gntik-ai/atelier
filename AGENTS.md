@@ -41,4 +41,11 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New environment variables: `IDEMPOTENCY_KEY_TTL_HOURS`, `OPERATION_DEFAULT_MAX_RETRIES`, `IDEMPOTENCY_KEY_MAX_LENGTH`
 
 <!-- MANUAL ADDITIONS START -->
+## Retry Semantics & Manual Intervention
+
+- Failure classification pattern: classify failures with `classifyByErrorCode(errorCode, operationType, mappingCache)` backed by PostgreSQL table `failure_code_mappings`, loaded into in-memory cache ordered by `priority`.
+- Manual intervention pattern: persist fast query state in `async_operations.manual_intervention_required` and preserve lifecycle/audit detail in `manual_intervention_flags`.
+- Retry override pattern: create superadmin override records with `INSERT ... WHERE NOT EXISTS` semantics and return `409 OVERRIDE_IN_PROGRESS` on concurrent requests.
+- New environment variables: `FAILURE_CLASSIFICATION_CACHE_TTL_SECONDS`, `INTERVENTION_NOTIFICATION_DEBOUNCE_MINUTES`, `RETRY_OVERRIDE_REQUIRES_JUSTIFICATION`.
+- New Kafka topics: `console.async-operation.failure-classified` (30d), `console.async-operation.manual-intervention-required` (30d), `console.async-operation.retry-override` (30d), `console.async-operation.intervention-notification` (7d).
 <!-- MANUAL ADDITIONS END -->

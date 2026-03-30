@@ -12,6 +12,10 @@ export { default as asyncOperationRetryRequestSchema } from '../../../specs/075-
 export { default as asyncOperationRetryResponseSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/async-operation-retry-response.json' with { type: 'json' };
 export { default as idempotencyDedupEventContractSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/idempotency-dedup-event.json' with { type: 'json' };
 export { default as operationRetryEventContractSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/operation-retry-event.json' with { type: 'json' };
+export { default as failureClassifiedEventSchema } from '../../../services/internal-contracts/src/failure-classified-event.json' with { type: 'json' };
+export { default as manualInterventionRequiredEventSchema } from '../../../services/internal-contracts/src/manual-intervention-required-event.json' with { type: 'json' };
+export { default as retryOverrideEventSchema } from '../../../services/internal-contracts/src/retry-override-event.json' with { type: 'json' };
+export { default as interventionNotificationEventSchema } from '../../../services/internal-contracts/src/intervention-notification-event.json' with { type: 'json' };
 
 export const provisioningOrchestratorBoundary = getService(PROVISIONING_ORCHESTRATOR_SERVICE_ID);
 export const provisioningRequestContract = getContract('provisioning_request');

@@ -391,3 +391,37 @@ export async function atomicTransitionSystem(db, { operation_id, tenant_id, new_
     throw error;
   }
 }
+
+export async function updateFailureClassification(
+  db,
+  operationId,
+  { failureCategory, failureErrorCode, failureDescription, failureSuggestedActions } = {},
+  tenantId
+) {
+  requireTenantId(tenantId);
+  const result = await db.query(
+    `UPDATE async_operations
+     SET failure_category = $3,
+         failure_error_code = $4,
+         failure_description = $5,
+         failure_suggested_actions = $6,
+         updated_at = NOW()
+     WHERE operation_id = $1 AND tenant_id = $2
+     RETURNING *`,
+    [operationId, tenantId, failureCategory, failureErrorCode, failureDescription, JSON.stringify(failureSuggestedActions ?? [])]
+  );
+  return mapOperationRow(result.rows[0] ?? null);
+}
+
+export async function setManualInterventionRequired(db, operationId, required, tenantId) {
+  requireTenantId(tenantId);
+  const result = await db.query(
+    `UPDATE async_operations
+     SET manual_intervention_required = $3,
+         updated_at = NOW()
+     WHERE operation_id = $1 AND tenant_id = $2
+     RETURNING *`,
+    [operationId, tenantId, required]
+  );
+  return mapOperationRow(result.rows[0] ?? null);
+}

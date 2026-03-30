@@ -30,6 +30,10 @@ export { default as operationRetryEventSchema } from './operation-retry-event.js
 export { default as operationCancelEventSchema } from './operation-cancel-event.json' with { type: 'json' };
 export { default as operationTimeoutEventSchema } from './operation-timeout-event.json' with { type: 'json' };
 export { default as operationRecoveryEventSchema } from './operation-recovery-event.json' with { type: 'json' };
+export { default as failureClassifiedEventSchema } from './failure-classified-event.json' with { type: 'json' };
+export { default as manualInterventionRequiredEventSchema } from './manual-intervention-required-event.json' with { type: 'json' };
+export { default as retryOverrideEventSchema } from './retry-override-event.json' with { type: 'json' };
+export { default as interventionNotificationEventSchema } from './intervention-notification-event.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;
