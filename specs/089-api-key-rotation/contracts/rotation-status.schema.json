@@ -1,0 +1,12 @@
+{
+  "rotationStateId": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "in_progress",
+  "rotationType": "grace_period",
+  "newCredentialId": "cred_new",
+  "oldCredentialId": "cred_old",
+  "gracePeriodSeconds": 3600,
+  "deprecatedExpiresAt": "2026-03-30T20:00:00.000Z",
+  "initiatedAt": "2026-03-30T19:00:00.000Z",
+  "initiatedBy": "usr_123",
+  "remainingSeconds": 1800
+}

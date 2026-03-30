@@ -1,5 +1,6 @@
 import { listNotes } from './note-repository.mjs'
 import { buildSnippetContexts } from './snippet-context-builder.mjs'
+import { buildRotationProcedureSection } from './rotation-procedure-section.mjs'
 
 function withTimeout(promise, ms = 2000) {
   return new Promise((resolve, reject) => {
@@ -51,6 +52,11 @@ export async function assembleWorkspaceDocs(ctx, db, internalClient) {
       authInstructions: buildAuthInstructions(apiSurface),
       enabledServices,
       customNotes,
+      rotationProcedureSection: buildRotationProcedureSection({
+        workspaceId: ctx.workspaceId,
+        tenantId: ctx.tenantId,
+        baseUrl: apiSurface.baseUrl ?? ''
+      }),
       stale: false
     }
   } catch (error) {
@@ -68,6 +74,11 @@ export async function assembleWorkspaceDocs(ctx, db, internalClient) {
         authInstructions: buildAuthInstructions({}),
         enabledServices: [],
         customNotes: await listNotes(db, ctx.tenantId, ctx.workspaceId),
+        rotationProcedureSection: buildRotationProcedureSection({
+          workspaceId: ctx.workspaceId,
+          tenantId: ctx.tenantId,
+          baseUrl: ''
+        }),
         stale: true
       }
     }

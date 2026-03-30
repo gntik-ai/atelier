@@ -2574,6 +2574,13 @@
             "maxLength": 255,
             "minLength": 3,
             "type": "string"
+          },
+          "gracePeriodSeconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 86400,
+            "default": 0,
+            "description": "Duration in seconds during which both old and new credentials remain valid. 0 = immediate rotation."
           }
         },
         "required": [
@@ -2585,6 +2592,7 @@
       "ServiceAccountCredentialStatus": {
         "enum": [
           "active",
+          "rotating_deprecated",
           "rotation_due",
           "revoked",
           "expired"
@@ -3431,6 +3439,168 @@
           "iamBoundary"
         ],
         "type": "object"
+      },
+      "CredentialRotationStatus": {
+        "type": "object",
+        "required": [
+          "rotationStateId",
+          "state",
+          "rotationType",
+          "newCredentialId",
+          "initiatedAt",
+          "initiatedBy"
+        ],
+        "properties": {
+          "rotationStateId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "in_progress",
+              "completed",
+              "force_completed",
+              "expired"
+            ]
+          },
+          "rotationType": {
+            "type": "string",
+            "enum": [
+              "grace_period",
+              "immediate"
+            ]
+          },
+          "newCredentialId": {
+            "type": "string"
+          },
+          "oldCredentialId": {
+            "type": "string"
+          },
+          "gracePeriodSeconds": {
+            "type": "integer"
+          },
+          "deprecatedExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "initiatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "initiatedBy": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remainingSeconds": {
+            "type": "integer"
+          }
+        }
+      },
+      "CredentialRotationHistoryEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "rotationType",
+          "initiatedAt",
+          "initiatedBy",
+          "completionReason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rotationType": {
+            "type": "string",
+            "enum": [
+              "grace_period",
+              "immediate"
+            ]
+          },
+          "gracePeriodSeconds": {
+            "type": "integer"
+          },
+          "oldCredentialId": {
+            "type": "string"
+          },
+          "newCredentialId": {
+            "type": "string"
+          },
+          "initiatedBy": {
+            "type": "string"
+          },
+          "initiatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completionReason": {
+            "type": "string",
+            "enum": [
+              "expired",
+              "force_completed",
+              "immediate"
+            ]
+          }
+        }
+      },
+      "CredentialRotationHistoryPage": {
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CredentialRotationHistoryEntry"
+            }
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          }
+        }
+      },
+      "TenantRotationPolicy": {
+        "type": "object",
+        "required": [
+          "tenantId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "maxCredentialAgeDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "maxGracePeriodSeconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "warnBeforeExpiryDays": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 14
+          }
+        }
       }
     }
   },
@@ -7450,6 +7620,242 @@
         "x-tenant-binding": "derived_from_workspace",
         "x-visibility": "public",
         "x-workspace-binding": "required"
+      }
+    },
+    "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/rotation-status": {
+      "get": {
+        "tags": [
+          "ServiceAccounts"
+        ],
+        "summary": "Get current rotation state",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ServiceAccountId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current rotation state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialRotationStatus"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-rate-limit-class": "control-read",
+        "x-audiences": [
+          "console"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/rotation-force-complete": {
+      "post": {
+        "tags": [
+          "ServiceAccounts"
+        ],
+        "summary": "Force-complete an in-progress rotation",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ServiceAccountId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rotation force-completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialRotationStatus"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-rate-limit-class": "control-write",
+        "x-audiences": [
+          "console"
+        ]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/rotation-history": {
+      "get": {
+        "tags": [
+          "ServiceAccounts"
+        ],
+        "summary": "List past rotations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/ServiceAccountId"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rotation history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialRotationHistoryPage"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "workspaces",
+        "x-scope": "workspace",
+        "x-rate-limit-class": "control-read",
+        "x-audiences": [
+          "console"
+        ]
+      }
+    },
+    "/v1/tenants/{tenantId}/rotation-policy": {
+      "get": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Get tenant rotation policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^ten_[0-9a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant rotation policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantRotationPolicy"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "workspaces",
+        "x-scope": "tenant",
+        "x-rate-limit-class": "control-read",
+        "x-audiences": [
+          "console"
+        ]
+      },
+      "put": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Set tenant rotation policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^ten_[0-9a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantRotationPolicy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved tenant rotation policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantRotationPolicy"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "workspaces",
+        "x-scope": "tenant",
+        "x-rate-limit-class": "control-write",
+        "x-audiences": [
+          "console"
+        ]
       }
     }
   },

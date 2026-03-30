@@ -1,0 +1,5 @@
+{
+  "requestedByUserId": "usr_123",
+  "rotateReason": "scheduled rotation",
+  "gracePeriodSeconds": 3600
+}

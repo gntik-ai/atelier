@@ -254,7 +254,9 @@
         "enum": [
           "generate",
           "rotate",
-          "revoke"
+          "revoke",
+          "force-complete-rotation",
+          "set-tenant-rotation-policy"
         ]
       }
     },

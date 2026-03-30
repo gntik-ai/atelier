@@ -1,0 +1,9 @@
+{
+  "events": [
+    { "topic": "console.credential-rotation.initiated", "tenantId": "ten_123", "workspaceId": "wrk_123", "serviceAccountId": "svc_123", "rotationType": "grace_period", "gracePeriodSeconds": 3600, "actorId": "usr_123", "newCredentialId": "cred_new", "oldCredentialId": "cred_old" },
+    { "topic": "console.credential-rotation.deprecated-expired", "tenantId": "ten_123", "workspaceId": "wrk_123", "serviceAccountId": "svc_123", "rotationType": "grace_period", "gracePeriodSeconds": 3600, "deprecatedExpiresAt": "2026-03-30T20:00:00.000Z" },
+    { "topic": "console.credential-rotation.force-completed", "tenantId": "ten_123", "workspaceId": "wrk_123", "serviceAccountId": "svc_123", "completedBy": "usr_123" },
+    { "topic": "console.credential-rotation.policy-violation", "tenantId": "ten_123", "workspaceId": "wrk_123", "requestedGracePeriodSeconds": 90000, "policyMaxGracePeriodSeconds": 86400 },
+    { "topic": "console.credential-rotation.age-warning", "tenantId": "ten_123", "workspaceId": "wrk_123", "serviceAccountId": "svc_123", "credentialId": "cred_old", "credentialAgeDays": 85, "policyMaxAgeDays": 90 }
+  ]
+}

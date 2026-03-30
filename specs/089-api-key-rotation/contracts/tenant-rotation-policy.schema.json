@@ -1,0 +1,6 @@
+{
+  "tenantId": "ten_123",
+  "maxCredentialAgeDays": 90,
+  "maxGracePeriodSeconds": 86400,
+  "warnBeforeExpiryDays": 14
+}
