@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workspace-docs-service
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: workspace-docs-service
+  template:
+    metadata:
+      labels:
+        app: workspace-docs-service
+    spec:
+      containers:
+        - name: workspace-docs-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          env:
+            - name: WORKSPACE_DOCS_NOTE_MAX_LENGTH
+              valueFrom:
+                configMapKeyRef:
+                  name: workspace-docs-service
+                  key: WORKSPACE_DOCS_NOTE_MAX_LENGTH
+            - name: WORKSPACE_DOCS_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: workspace-docs-service
+                  key: WORKSPACE_DOCS_DB_URL
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef:
+                  name: workspace-docs-service
+                  key: KAFKA_BROKERS
+            - name: INTERNAL_API_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: workspace-docs-service
+                  key: INTERNAL_API_BASE_URL

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workspace-docs-accessed-event.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventType", "workspaceId", "tenantId", "actorId", "accessDate", "correlationId"],
+  "properties": {
+    "eventType": { "const": "workspace.docs.accessed" },
+    "workspaceId": { "type": "string" },
+    "tenantId": { "type": "string" },
+    "actorId": { "type": "string" },
+    "accessDate": { "type": "string", "format": "date" },
+    "correlationId": { "type": "string" }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Workspace Docs API Fragment",
+    "version": "2026-03-01"
+  },
+  "paths": {
+    "/v1/workspaces/{workspaceId}/docs": {
+      "get": {
+        "summary": "Get workspace documentation",
+        "description": "Accepted X-API-Version: 2026-03-01",
+        "x-gateway-auth-mode": "bearer_oidc",
+        "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/docs/notes": {
+      "post": {
+        "summary": "Create workspace documentation note",
+        "description": "Accepted X-API-Version: 2026-03-01",
+        "x-gateway-auth-mode": "bearer_oidc",
+        "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
+      }
+    },
+    "/v1/workspaces/{workspaceId}/docs/notes/{noteId}": {
+      "put": {
+        "summary": "Update workspace documentation note",
+        "description": "Accepted X-API-Version: 2026-03-01",
+        "x-gateway-auth-mode": "bearer_oidc",
+        "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
+      },
+      "delete": {
+        "summary": "Delete workspace documentation note",
+        "description": "Accepted X-API-Version: 2026-03-01",
+        "x-gateway-auth-mode": "bearer_oidc",
+        "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
+      }
+    }
+  }
+}

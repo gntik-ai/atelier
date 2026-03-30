@@ -1,0 +1,137 @@
+[
+  {
+    "id": "postgres-uri",
+    "serviceKey": "postgres-database",
+    "language": "uri",
+    "label": "URI PostgreSQL",
+    "codeTemplate": "postgresql://<PG_USER>:<YOUR_DB_PASSWORD>@{HOST}:{PORT}/{RESOURCE_NAME}?sslmode=require",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_NAME}", "<YOUR_DB_PASSWORD>"],
+    "secretPlaceholderRef": "Usa la credencial del usuario de base de datos mostrada en la consola del workspace."
+  },
+  {
+    "id": "postgres-node-pg",
+    "serviceKey": "postgres-database",
+    "language": "nodejs",
+    "label": "Node.js",
+    "codeTemplate": "import { Client } from 'pg'\n\nconst client = new Client({\n  host: '{HOST}',\n  port: {PORT},\n  database: '{RESOURCE_NAME}',\n  user: '<PG_USER>',\n  password: '<YOUR_DB_PASSWORD>',\n  ssl: true\n})",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_NAME}", "<YOUR_DB_PASSWORD>"],
+    "secretPlaceholderRef": "Usa la credencial del usuario de base de datos mostrada en la consola del workspace."
+  },
+  {
+    "id": "postgres-python-psycopg2",
+    "serviceKey": "postgres-database",
+    "language": "python",
+    "label": "Python",
+    "codeTemplate": "import psycopg2\n\nconn = psycopg2.connect(host='{HOST}', port={PORT}, dbname='{RESOURCE_NAME}', user='<PG_USER>', password='<YOUR_DB_PASSWORD>', sslmode='require')",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_NAME}", "<YOUR_DB_PASSWORD>"],
+    "secretPlaceholderRef": "Usa la credencial del usuario de base de datos mostrada en la consola del workspace."
+  },
+  {
+    "id": "mongo-uri",
+    "serviceKey": "mongo-collection",
+    "language": "uri",
+    "label": "MongoDB URI",
+    "codeTemplate": "mongodb://<MONGO_USER>:<YOUR_MONGO_PASSWORD>@{HOST}:{PORT}/{RESOURCE_EXTRA_A}?authSource=admin",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_EXTRA_A}", "<YOUR_MONGO_PASSWORD>"],
+    "secretPlaceholderRef": "Usa la contraseña o API key del usuario Mongo provisionado para este workspace."
+  },
+  {
+    "id": "mongo-node-mongoose",
+    "serviceKey": "mongo-collection",
+    "language": "nodejs",
+    "label": "Node.js",
+    "codeTemplate": "import mongoose from 'mongoose'\nawait mongoose.connect('mongodb://<MONGO_USER>:<YOUR_MONGO_PASSWORD>@{HOST}:{PORT}/{RESOURCE_EXTRA_A}?authSource=admin')",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_EXTRA_A}", "<YOUR_MONGO_PASSWORD>"],
+    "secretPlaceholderRef": "Usa la contraseña o API key del usuario Mongo provisionado para este workspace."
+  },
+  {
+    "id": "mongo-python-pymongo",
+    "serviceKey": "mongo-collection",
+    "language": "python",
+    "label": "Python",
+    "codeTemplate": "from pymongo import MongoClient\nclient = MongoClient('mongodb://<MONGO_USER>:<YOUR_MONGO_PASSWORD>@{HOST}:{PORT}/{RESOURCE_EXTRA_A}?authSource=admin')",
+    "placeholders": ["{HOST}", "{PORT}", "{RESOURCE_EXTRA_A}", "<YOUR_MONGO_PASSWORD>"],
+    "secretPlaceholderRef": "Usa la contraseña o API key del usuario Mongo provisionado para este workspace."
+  },
+  {
+    "id": "storage-aws-cli",
+    "serviceKey": "storage-bucket",
+    "language": "awscli",
+    "label": "AWS CLI",
+    "codeTemplate": "aws --endpoint-url {HOST} s3 ls s3://{RESOURCE_NAME} --region {RESOURCE_EXTRA_A}",
+    "placeholders": ["{HOST}", "{RESOURCE_NAME}", "{RESOURCE_EXTRA_A}", "<AWS_ACCESS_KEY_ID>", "<AWS_SECRET_ACCESS_KEY>"],
+    "secretPlaceholderRef": "Sustituye los placeholders por tus access keys del workspace o credenciales temporales."
+  },
+  {
+    "id": "storage-node-sdk",
+    "serviceKey": "storage-bucket",
+    "language": "nodejs",
+    "label": "Node.js",
+    "codeTemplate": "import { S3Client } from '@aws-sdk/client-s3'\nconst client = new S3Client({ endpoint: '{HOST}', region: '{RESOURCE_EXTRA_A}', credentials: { accessKeyId: '<AWS_ACCESS_KEY_ID>', secretAccessKey: '<AWS_SECRET_ACCESS_KEY>' } })",
+    "placeholders": ["{HOST}", "{RESOURCE_NAME}", "{RESOURCE_EXTRA_A}", "<AWS_ACCESS_KEY_ID>", "<AWS_SECRET_ACCESS_KEY>"],
+    "secretPlaceholderRef": "Sustituye los placeholders por tus access keys del workspace o credenciales temporales."
+  },
+  {
+    "id": "storage-python-boto3",
+    "serviceKey": "storage-bucket",
+    "language": "python",
+    "label": "Python",
+    "codeTemplate": "import boto3\ns3 = boto3.client('s3', endpoint_url='{HOST}', region_name='{RESOURCE_EXTRA_A}', aws_access_key_id='<AWS_ACCESS_KEY_ID>', aws_secret_access_key='<AWS_SECRET_ACCESS_KEY>')",
+    "placeholders": ["{HOST}", "{RESOURCE_NAME}", "{RESOURCE_EXTRA_A}", "<AWS_ACCESS_KEY_ID>", "<AWS_SECRET_ACCESS_KEY>"],
+    "secretPlaceholderRef": "Sustituye los placeholders por tus access keys del workspace o credenciales temporales."
+  },
+  {
+    "id": "function-curl",
+    "serviceKey": "serverless-function",
+    "language": "curl",
+    "label": "cURL",
+    "codeTemplate": "curl -X POST '{RESOURCE_EXTRA_B}' -H 'Content-Type: application/json' -H 'Authorization: Bearer <API_TOKEN>' -d '{\"ping\":true}'",
+    "placeholders": ["{RESOURCE_EXTRA_B}", "<API_TOKEN>"],
+    "secretPlaceholderRef": "Añade tu token/API key real según la política HTTP expuesta por la función."
+  },
+  {
+    "id": "function-node-fetch",
+    "serviceKey": "serverless-function",
+    "language": "nodejs",
+    "label": "Node.js",
+    "codeTemplate": "const response = await fetch('{RESOURCE_EXTRA_B}', { method: 'POST', headers: { authorization: 'Bearer <API_TOKEN>' } })",
+    "placeholders": ["{RESOURCE_EXTRA_B}", "<API_TOKEN>"],
+    "secretPlaceholderRef": "Añade tu token/API key real según la política HTTP expuesta por la función."
+  },
+  {
+    "id": "function-python-requests",
+    "serviceKey": "serverless-function",
+    "language": "python",
+    "label": "Python",
+    "codeTemplate": "import requests\nrequests.post('{RESOURCE_EXTRA_B}', headers={'authorization':'Bearer <API_TOKEN>'})",
+    "placeholders": ["{RESOURCE_EXTRA_B}", "<API_TOKEN>"],
+    "secretPlaceholderRef": "Añade tu token/API key real según la política HTTP expuesta por la función."
+  },
+  {
+    "id": "realtime-js-browser-basic",
+    "serviceKey": "realtime-subscription",
+    "language": "javascript",
+    "label": "JavaScript",
+    "codeTemplate": "const ws = new WebSocket('{REALTIME_ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect')",
+    "placeholders": ["{REALTIME_ENDPOINT}", "{WORKSPACE_ID}"],
+    "secretPlaceholderRef": "Obtén tu access token desde Keycloak antes de abrir la suscripción."
+  },
+  {
+    "id": "webhooks-curl",
+    "serviceKey": "webhooks",
+    "language": "curl",
+    "label": "cURL",
+    "codeTemplate": "curl '{HOST}' -H 'Authorization: Bearer <ACCESS_TOKEN>'",
+    "placeholders": ["{HOST}", "<ACCESS_TOKEN>"],
+    "secretPlaceholderRef": "Usa un bearer token del workspace."
+  },
+  {
+    "id": "scheduling-curl",
+    "serviceKey": "scheduling",
+    "language": "curl",
+    "label": "cURL",
+    "codeTemplate": "curl '{HOST}' -H 'Authorization: Bearer <ACCESS_TOKEN>'",
+    "placeholders": ["{HOST}", "<ACCESS_TOKEN>"],
+    "secretPlaceholderRef": "Usa un bearer token del workspace."
+  }
+]

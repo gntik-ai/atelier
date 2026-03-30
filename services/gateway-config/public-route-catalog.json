@@ -1,0 +1,30 @@
+[
+  {
+    "family": "workspaces",
+    "downstreamService": "workspace_docs_service",
+    "method": "GET",
+    "path": "/v1/workspaces/{workspaceId}/docs",
+    "audiences": ["developer_external", "workspace_owner", "workspace_admin", "workspace_viewer"]
+  },
+  {
+    "family": "workspaces",
+    "downstreamService": "workspace_docs_service",
+    "method": "POST",
+    "path": "/v1/workspaces/{workspaceId}/docs/notes",
+    "audiences": ["workspace_owner", "workspace_admin"]
+  },
+  {
+    "family": "workspaces",
+    "downstreamService": "workspace_docs_service",
+    "method": "PUT",
+    "path": "/v1/workspaces/{workspaceId}/docs/notes/{noteId}",
+    "audiences": ["workspace_owner", "workspace_admin"]
+  },
+  {
+    "family": "workspaces",
+    "downstreamService": "workspace_docs_service",
+    "method": "DELETE",
+    "path": "/v1/workspaces/{workspaceId}/docs/notes/{noteId}",
+    "audiences": ["workspace_owner", "workspace_admin"]
+  }
+]

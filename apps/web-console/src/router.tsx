@@ -69,6 +69,11 @@ const ConsoleRealtimePage = lazy(async () => {
   return { default: module.ConsoleRealtimePage }
 })
 
+const ConsoleDocsPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleDocsPage')
+  return { default: module.ConsoleDocsPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -167,6 +172,10 @@ export const appRoutes = [
           {
             path: 'workspaces/:workspaceId/realtime',
             element: <ConsoleRealtimePage />
+          },
+          {
+            path: 'workspaces/:workspaceId/docs',
+            element: <ConsoleDocsPage />
           },
           {
             path: 'profile',

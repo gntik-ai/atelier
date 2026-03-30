@@ -1,0 +1,6 @@
+image:
+  repository: workspace-docs-service
+  tag: latest
+replicaCount: 1
+env:
+  noteMaxLength: "4096"

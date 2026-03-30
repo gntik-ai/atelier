@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workspace-docs-response.json",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["workspaceId", "tenantId", "generatedAt", "baseUrl", "authInstructions", "enabledServices", "customNotes"],
+  "properties": {
+    "workspaceId": { "type": "string" },
+    "tenantId": { "type": "string" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "baseUrl": { "type": "string" },
+    "stale": { "type": "boolean" },
+    "authInstructions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "tokenEndpoint", "clientIdPlaceholder", "clientSecretPlaceholder", "scopeHint", "consoleRef"],
+      "properties": {
+        "method": { "type": "string" },
+        "tokenEndpoint": { "type": ["string", "null"] },
+        "clientIdPlaceholder": { "type": "string" },
+        "clientSecretPlaceholder": { "type": "string" },
+        "scopeHint": { "type": "string" },
+        "consoleRef": { "type": "string" }
+      }
+    },
+    "enabledServices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["serviceKey", "category", "label", "endpoint", "port", "resourceName", "snippets"],
+        "properties": {
+          "serviceKey": { "type": "string" },
+          "category": { "type": "string" },
+          "label": { "type": "string" },
+          "endpoint": { "type": "string" },
+          "port": { "type": ["integer", "null"] },
+          "resourceName": { "type": ["string", "null"] },
+          "snippets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": ["id", "label", "code", "hasPlaceholderSecrets", "secretPlaceholderRef"],
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" },
+                "code": { "type": "string" },
+                "notes": { "type": "array", "items": { "type": "string" } },
+                "hasPlaceholderSecrets": { "type": "boolean" },
+                "secretPlaceholderRef": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "customNotes": {
+      "type": "array",
+      "items": { "$ref": "workspace-doc-note.json" }
+    }
+  }
+}

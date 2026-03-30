@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workspace-doc-note.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["noteId", "content", "authorId", "createdAt", "updatedAt"],
+  "properties": {
+    "noteId": { "type": "string" },
+    "content": { "type": "string" },
+    "authorId": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}
