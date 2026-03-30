@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-cdc-bridge
+spec:
+  type: ClusterIP
+  selector:
+    app: mongo-cdc-bridge
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP

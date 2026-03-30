@@ -1,0 +1,17 @@
+{
+  "name": "@atelier/mongo-cdc-bridge",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "test": "node --test tests/unit/**/*.test.mjs tests/integration/**/*.test.mjs",
+    "test:unit": "node --test tests/unit/**/*.test.mjs",
+    "test:integration": "node --test tests/integration/**/*.test.mjs"
+  },
+  "dependencies": {
+    "mongodb": "^6.17.0",
+    "pg": "^8.11.0",
+    "kafkajs": "^2.2.4"
+  }
+}

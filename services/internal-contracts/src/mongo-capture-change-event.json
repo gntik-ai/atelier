@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "mongo-capture-change-event",
+  "type": "object",
+  "required": ["specversion", "type", "source", "id", "time", "tenantid", "workspaceid", "data"],
+  "properties": {
+    "specversion": { "const": "1.0" },
+    "type": { "const": "console.mongo-capture.change" },
+    "source": { "type": "string" },
+    "id": { "type": "string", "format": "uuid" },
+    "time": { "type": "string", "format": "date-time" },
+    "tenantid": { "type": "string" },
+    "workspaceid": { "type": "string" },
+    "data": {
+      "type": "object",
+      "required": ["event_type", "database_name", "collection_name", "document_key", "capture_mode", "capture_config_id"],
+      "properties": {
+        "event_type": { "enum": ["insert", "update", "replace", "delete"] },
+        "database_name": { "type": "string" },
+        "collection_name": { "type": "string" },
+        "document_key": {},
+        "capture_mode": { "enum": ["delta", "full-document"] },
+        "full_document": { "type": ["object", "null"] },
+        "update_description": {
+          "type": ["object", "null"],
+          "properties": {
+            "updatedFields": { "type": "object" },
+            "removedFields": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "cluster_time": { "type": ["string", "null"], "format": "date-time" },
+        "wall_time": { "type": ["string", "null"], "format": "date-time" },
+        "capture_config_id": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,462 @@
+{
+  "components": {
+    "parameters": {
+      "IdempotencyKey": {
+        "description": "Stable idempotency token for safe retries of POST, PUT, PATCH, and DELETE operations routed through the gateway. Replays are retained for 24h and surfaced through X-Idempotency-Replayed.",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      },
+      "WorkspaceId": {
+        "description": "Stable workspace identifier.",
+        "in": "path",
+        "name": "workspaceId",
+        "required": true,
+        "schema": {
+          "minLength": 3,
+          "pattern": "^wrk_[0-9a-z]+$",
+          "type": "string"
+        }
+      },
+      "XApiVersion": {
+        "description": "Pinned additive contract version for the v1 public API release published with gateway QoS and hardening support.",
+        "in": "header",
+        "name": "X-API-Version",
+        "required": true,
+        "schema": {
+          "const": "2026-03-26",
+          "pattern": "^2026-03-26$",
+          "type": "string"
+        }
+      },
+      "XCorrelationId": {
+        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, audit flows, and backfilled by the gateway when recovery requires it.",
+        "in": "header",
+        "name": "X-Correlation-Id",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "ErrorDetail": {
+        "additionalProperties": true,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "violations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorResource": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^GW_[A-Z0-9_]+$",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+            "type": "string"
+          },
+          "detail": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "message": {
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "type": "string"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/ErrorResource"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "status": {
+            "maximum": 599,
+            "minimum": 400,
+            "type": "integer"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "code",
+          "message",
+          "detail",
+          "requestId",
+          "correlationId",
+          "timestamp",
+          "resource"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Workspace-scoped MongoDB change-capture enablement and listing surfaces. Generated from the unified public API contract for v1.",
+    "summary": "Workspace-scoped MongoDB change-capture enablement and listing surfaces.",
+    "title": "In Atelier Mongo Captures API",
+    "version": "1.21.0"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/realtime/workspaces/{workspaceId}/mongo-captures": {
+      "get": {
+        "operationId": "listMongoCaptures",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Capture list."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List MongoDB change stream captures for one workspace",
+        "tags": [
+          "Workspaces",
+          "Realtime",
+          "MongoCaptures"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "mongo-captures",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "mongo_capture_config",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "enableMongoCapture",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "capture_mode": {
+                    "default": "delta",
+                    "enum": [
+                      "delta",
+                      "full_document"
+                    ],
+                    "type": "string"
+                  },
+                  "collection_name": {
+                    "type": "string"
+                  },
+                  "data_source_ref": {
+                    "type": "string"
+                  },
+                  "database_name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "data_source_ref",
+                  "database_name",
+                  "collection_name",
+                  "capture_mode"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Capture enabled."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Already active."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Quota exceeded."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Enable MongoDB change stream capture for one workspace collection",
+        "tags": [
+          "Workspaces",
+          "Realtime",
+          "MongoCaptures"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "mongo-captures",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "mongo_capture_config",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://{publicHost}",
+      "variables": {
+        "publicHost": {
+          "default": "api.dev.in-atelier.example.com",
+          "enum": [
+            "api.dev.in-atelier.example.com",
+            "api.sandbox.in-atelier.example.com",
+            "api.staging.in-atelier.example.com",
+            "api.in-atelier.example.com"
+          ]
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Workspaces"
+    }
+  ]
+}

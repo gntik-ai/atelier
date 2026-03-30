@@ -1,0 +1,271 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Mongo Capture API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/realtime/workspaces/{workspaceId}/mongo-captures": {
+      "post": {
+        "summary": "Enable MongoDB change capture for one collection",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MongoCaptureEnableRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MongoCaptureConfig" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/DataSourceNotAccessible" },
+          "404": { "$ref": "#/components/responses/CollectionNotFound" },
+          "409": { "$ref": "#/components/responses/CaptureAlreadyActive" },
+          "429": { "$ref": "#/components/responses/QuotaExceeded" }
+        }
+      },
+      "get": {
+        "summary": "List MongoDB captures for one workspace",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["active", "paused", "errored", "disabled"] }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "minimum": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capture list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MongoCaptureListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/realtime/workspaces/{workspaceId}/mongo-captures/{captureId}": {
+      "delete": {
+        "summary": "Disable one MongoDB change capture",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "captureId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Disabled" },
+          "404": { "$ref": "#/components/responses/CaptureNotFound" },
+          "409": { "$ref": "#/components/responses/CaptureAlreadyDisabled" }
+        }
+      }
+    },
+    "/v1/realtime/tenants/{tenantId}/mongo-captures/summary": {
+      "get": {
+        "summary": "List active MongoDB captures across tenant workspaces",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant summary",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MongoCaptureTenantSummaryResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MongoCaptureEnableRequest": {
+        "type": "object",
+        "required": ["data_source_ref", "database_name", "collection_name"],
+        "properties": {
+          "data_source_ref": { "type": "string" },
+          "database_name": { "type": "string" },
+          "collection_name": { "type": "string" },
+          "capture_mode": { "type": "string", "enum": ["delta", "full-document"], "default": "delta" }
+        }
+      },
+      "MongoCaptureConfig": {
+        "type": "object",
+        "required": ["id", "workspace_id", "tenant_id", "data_source_ref", "database_name", "collection_name", "capture_mode", "status", "activation_ts", "actor_identity"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "workspace_id": { "type": "string", "format": "uuid" },
+          "tenant_id": { "type": "string", "format": "uuid" },
+          "data_source_ref": { "type": "string" },
+          "database_name": { "type": "string" },
+          "collection_name": { "type": "string" },
+          "capture_mode": { "type": "string", "enum": ["delta", "full-document"] },
+          "status": { "type": "string", "enum": ["active", "paused", "errored", "disabled"] },
+          "activation_ts": { "type": "string", "format": "date-time" },
+          "deactivation_ts": { "type": ["string", "null"], "format": "date-time" },
+          "actor_identity": { "type": "string" },
+          "last_error": { "type": ["string", "null"] }
+        }
+      },
+      "MongoCaptureListResponse": {
+        "type": "object",
+        "required": ["items", "total"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MongoCaptureConfig" }
+          },
+          "total": { "type": "integer" },
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" }
+        }
+      },
+      "MongoCaptureTenantWorkspaceSummary": {
+        "type": "object",
+        "required": ["workspace_id", "active_count", "quota_max", "collections"],
+        "properties": {
+          "workspace_id": { "type": "string", "format": "uuid" },
+          "active_count": { "type": "integer" },
+          "quota_max": { "type": "integer" },
+          "collections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "database_name": { "type": "string" },
+                "collection_name": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "MongoCaptureTenantSummaryResponse": {
+        "type": "object",
+        "required": ["workspaces"],
+        "properties": {
+          "tenant_id": { "type": "string", "format": "uuid" },
+          "workspaces": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MongoCaptureTenantWorkspaceSummary" }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" }
+        }
+      }
+    },
+    "responses": {
+      "QuotaExceeded": {
+        "description": "Quota exceeded",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "code": "QUOTA_EXCEEDED" }
+          }
+        }
+      },
+      "CollectionNotFound": {
+        "description": "Collection not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "code": "COLLECTION_NOT_FOUND" }
+          }
+        }
+      },
+      "DataSourceNotAccessible": {
+        "description": "Replica set required or data source not accessible",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "examples": {
+              "dataSource": { "value": { "code": "DATA_SOURCE_NOT_ACCESSIBLE" } },
+              "replicaSet": { "value": { "code": "REPLICA_SET_REQUIRED" } }
+            }
+          }
+        }
+      },
+      "CaptureAlreadyActive": {
+        "description": "Capture already active",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "code": "CAPTURE_ALREADY_ACTIVE" }
+          }
+        }
+      },
+      "CaptureNotFound": {
+        "description": "Capture not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "code": "CAPTURE_NOT_FOUND" }
+          }
+        }
+      },
+      "CaptureAlreadyDisabled": {
+        "description": "Capture already disabled",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "code": "CAPTURE_ALREADY_DISABLED" }
+          }
+        }
+      }
+    }
+  }
+}

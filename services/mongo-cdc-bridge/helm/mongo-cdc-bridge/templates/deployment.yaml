@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-cdc-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-cdc-bridge
+  template:
+    metadata:
+      labels:
+        app: mongo-cdc-bridge
+    spec:
+      containers:
+        - name: mongo-cdc-bridge
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          envFrom:
+            - configMapRef:
+                name: mongo-cdc-bridge
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

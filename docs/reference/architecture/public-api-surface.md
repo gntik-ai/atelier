@@ -40,6 +40,8 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 | iam | tenant_control | tenant_control | 262144 | control_plane | mutations |
 | metrics | observability | observability | 65536 | observability | safe_reads |
 | mongo | provisioning | provisioning | 1048576 | provisioning | mutations |
+| mongo-capture-tenant-summary | realtime | realtime | 131072 | realtime | mutations |
+| mongo-captures | realtime | realtime | 131072 | realtime | mutations |
 | pg-capture-tenant-summary | realtime | realtime | 131072 | realtime | mutations |
 | pg-captures | realtime | realtime | 131072 | realtime | mutations |
 | platform | platform_control | platform_control | 262144 | control_plane | mutations |
@@ -264,6 +266,23 @@ Workspace-scoped document database control, discovery, and tenant-safe Data API 
 | DELETE | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Delete one MongoDB collection onboarding template from a workspace |
 | GET | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Fetch one MongoDB collection onboarding template for a workspace |
 | PUT | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Update one MongoDB collection onboarding template for a workspace |
+
+## Mongo Capture Tenant Summary
+
+Tenant-scoped MongoDB change-capture summary surfaces.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/realtime/tenants/{tenantId}/mongo-captures/summary` | tenant | mongo_capture_summary | List active MongoDB change stream captures across tenant workspaces |
+
+## Mongo Captures
+
+Workspace-scoped MongoDB change-capture enablement and listing surfaces.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/realtime/workspaces/{workspaceId}/mongo-captures` | workspace | mongo_capture_config | List MongoDB change stream captures for one workspace |
+| POST | `/v1/realtime/workspaces/{workspaceId}/mongo-captures` | workspace | mongo_capture_config | Enable MongoDB change stream capture for one workspace collection |
 
 ## Pg Capture Tenant Summary
 

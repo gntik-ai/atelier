@@ -1645,6 +1645,10 @@
     {
       "id": "BI-FN-AUD-003",
       "rule": "A rollback evidence record must be emitted for every rollback attempt regardless of outcome; a failed rollback must produce a record with outcome: 'failure', not an absent record."
+    },
+    {
+      "id": "BI-MONGO-CAPTURE-001",
+      "rule": "A change event from a captured MongoDB collection MUST NOT be delivered to a Kafka topic associated with a different workspace"
     }
   ],
   "business_state_machines": [

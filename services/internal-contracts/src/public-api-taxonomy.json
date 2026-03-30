@@ -287,6 +287,53 @@
       "apisix_route_class": "data-control"
     },
     {
+      "id": "mongo-capture-tenant-summary",
+      "title": "Mongo Capture Tenant Summary",
+      "prefix": "/v1/realtime/tenants/{tenantId}/mongo-captures/summary",
+      "summary": "Tenant-scoped MongoDB change-capture summary surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_query",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "tenant"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "realtime"
+    },
+    {
+      "id": "mongo-captures",
+      "title": "Mongo Captures",
+      "prefix": "/v1/realtime/workspaces/{workspaceId}/mongo-captures",
+      "summary": "Workspace-scoped MongoDB change-capture enablement and listing surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record",
+        "kafka_event"
+      ],
+      "resource_scopes": [
+        "workspace"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "realtime"
+    },
+    {
       "id": "pg-capture-tenant-summary",
       "title": "Pg Capture Tenant Summary",
       "prefix": "/v1/tenants/{tenantId}/pg-captures/summary",

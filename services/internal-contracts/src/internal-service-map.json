@@ -287,6 +287,49 @@
         "audit_record"
       ],
       "outbound_contracts": []
+    },
+    {
+      "id": "mongo-cdc-bridge",
+      "package": "services/mongo-cdc-bridge",
+      "layer": "application",
+      "responsibilities": [
+        "Opens MongoDB change streams for active captures",
+        "Maps MongoDB change events to CloudEvents schema",
+        "Publishes change events to per-workspace Kafka topics at-least-once",
+        "Persists resume tokens after confirmed Kafka publish",
+        "Detects and handles ChangeStreamInvalidate events",
+        "Hot-reloads capture config from PostgreSQL without restart"
+      ],
+      "kafka_produces": [
+        "{tenantId}.{workspaceId}.mongo-changes",
+        "console.mongo-capture.lifecycle"
+      ],
+      "kafka_consumes": [],
+      "postgres_tables_read": [
+        "mongo_capture_configs",
+        "mongo_capture_resume_tokens"
+      ],
+      "postgres_tables_write": [
+        "mongo_capture_resume_tokens"
+      ],
+      "owned_resources": [
+        "mongo change event envelope",
+        "mongo capture watcher health",
+        "mongo capture resume token checkpoint",
+        "mongo capture config cache"
+      ],
+      "service_dependencies": [
+        "provisioning_orchestrator"
+      ],
+      "adapter_dependencies": [
+        "mongodb",
+        "kafka",
+        "postgresql"
+      ],
+      "inbound_contracts": [],
+      "outbound_contracts": [
+        "mongo_change_stream_event"
+      ]
     }
   ],
   "adapter_ports": [

@@ -54401,6 +54401,16 @@
             },
             "description": "Already active."
           },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "429": {
             "content": {
               "application/json": {
@@ -54410,16 +54420,6 @@
               }
             },
             "description": "Quota exceeded."
-          },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unexpected control-plane error."
           },
           "431": {
             "description": "Gateway rejected one or more invalid or oversized request headers.",
@@ -54441,15 +54441,15 @@
               }
             }
           },
-          "413": {
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+          "default": {
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Unexpected control-plane error."
           }
         },
         "security": [
@@ -54522,16 +54522,6 @@
             },
             "description": "Forbidden."
           },
-          "default": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unexpected control-plane error."
-          },
           "429": {
             "description": "Gateway QoS policy rejected the request rate for this route family.",
             "content": {
@@ -54561,6 +54551,16 @@
                 }
               }
             }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
           }
         },
         "security": [
@@ -54635,6 +54635,36 @@
             },
             "description": "Forbidden."
           },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -54644,6 +54674,77 @@
               }
             },
             "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List active PostgreSQL CDC captures across tenant workspaces",
+        "tags": [
+          "Tenants",
+          "Realtime",
+          "PgCaptures"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "platform_team"
+        ],
+        "x-family": "pg-capture-tenant-summary",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "pg_capture_summary",
+        "x-scope": "tenant",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/realtime/workspaces/{workspaceId}/mongo-captures": {
+      "get": {
+        "operationId": "listMongoCaptures",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capture list.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden."
           },
           "429": {
             "description": "Gateway QoS policy rejected the request rate for this route family.",
@@ -54674,6 +54775,16 @@
                 }
               }
             }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
           }
         },
         "security": [
@@ -54681,11 +54792,303 @@
             "bearerAuth": []
           }
         ],
-        "summary": "List active PostgreSQL CDC captures across tenant workspaces",
+        "summary": "List MongoDB change stream captures for one workspace",
+        "tags": [
+          "Workspaces",
+          "Realtime",
+          "MongoCaptures"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "mongo-captures",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "mongo_capture_config",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      },
+      "post": {
+        "operationId": "enableMongoCapture",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "data_source_ref",
+                  "database_name",
+                  "collection_name",
+                  "capture_mode"
+                ],
+                "properties": {
+                  "data_source_ref": {
+                    "type": "string"
+                  },
+                  "database_name": {
+                    "type": "string"
+                  },
+                  "collection_name": {
+                    "type": "string"
+                  },
+                  "capture_mode": {
+                    "type": "string",
+                    "enum": [
+                      "delta",
+                      "full_document"
+                    ],
+                    "default": "delta"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Capture enabled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Already active."
+          },
+          "413": {
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Quota exceeded."
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Enable MongoDB change stream capture for one workspace collection",
+        "tags": [
+          "Workspaces",
+          "Realtime",
+          "MongoCaptures"
+        ],
+        "x-audiences": [
+          "developer_external",
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-family": "mongo-captures",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "mongo_capture_config",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/realtime/tenants/{tenantId}/mongo-captures/summary": {
+      "get": {
+        "operationId": "getTenantMongoCaptureSummary",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/TenantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant capture summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden."
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List active MongoDB change stream captures across tenant workspaces",
         "tags": [
           "Tenants",
           "Realtime",
-          "PgCaptures"
+          "MongoCaptures"
         ],
         "x-audiences": [
           "developer_external",
@@ -54693,10 +55096,10 @@
           "tenant_admin",
           "platform_team"
         ],
-        "x-family": "pg-capture-tenant-summary",
+        "x-family": "mongo-capture-tenant-summary",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-read",
-        "x-resource-type": "pg_capture_summary",
+        "x-resource-type": "mongo_capture_summary",
         "x-scope": "tenant",
         "x-visibility": "public"
       }

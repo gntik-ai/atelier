@@ -406,6 +406,36 @@ spec:
         - data.openwhisk.actions
       qosProfile: realtime
       requestValidationProfile: realtime
+    - id: mongo-captures
+      pathPrefix: /v1/realtime/workspaces/{workspaceId}/mongo-captures
+      upstreamService: control_api
+      routeClass: realtime
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *a1
+      planCapabilityAnyOf:
+        - data.openwhisk.actions
+      qosProfile: realtime
+      requestValidationProfile: realtime
+    - id: mongo-capture-tenant-summary
+      pathPrefix: /v1/realtime/tenants/{tenantId}/mongo-captures/summary
+      upstreamService: control_api
+      routeClass: realtime
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: optional
+      propagatedHeaders: *a1
+      planCapabilityAnyOf:
+        - data.openwhisk.actions
+      qosProfile: realtime
+      requestValidationProfile: realtime
   allowedRequestHeaders: &a2
     - Authorization
     - Content-Type
@@ -441,3 +471,22 @@ spec:
         - GET
       upstreamService: control_api
       authMode: none
+    - id: public-api-mongo-captures
+      path: /v1/realtime/workspaces/{workspaceId}/mongo-captures
+      methods:
+        - GET
+        - POST
+      upstreamService: control_api
+      authMode: bearer_oidc
+    - id: public-api-mongo-capture-disable
+      path: /v1/realtime/workspaces/{workspaceId}/mongo-captures/{captureId}
+      methods:
+        - DELETE
+      upstreamService: control_api
+      authMode: bearer_oidc
+    - id: public-api-mongo-capture-tenant-summary
+      path: /v1/realtime/tenants/{tenantId}/mongo-captures/summary
+      methods:
+        - GET
+      upstreamService: control_api
+      authMode: bearer_oidc
