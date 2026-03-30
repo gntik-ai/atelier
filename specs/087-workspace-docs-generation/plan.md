@@ -151,11 +151,11 @@ services/gateway-config/
 
 ## Phase 1: Design & Contracts
 
-### Data Model
+### Data Model Summary
 
 See `data-model.md` (output below in this plan).
 
-### API Contracts
+### API Contract Summary
 
 See `contracts/workspace-docs-api.openapi.json`.
 
@@ -343,11 +343,13 @@ Audit events emitted to existing `console.audit` topic using the existing `obser
 **Audiences**: `workspace_admin`, `workspace_owner`
 
 **Request body**:
+
 ```json
 { "content": "string (max 4096 chars, plain text)" }
 ```
 
 **Response 201**:
+
 ```json
 {
   "noteId": "string (UUID)",
@@ -570,6 +572,7 @@ Add navigation link in workspace sidebar/nav menu (consistent with existing `Con
 ## Observability
 
 - **Kafka event**: `console.workspace.docs.accessed` — schema in `services/internal-contracts/src/workspace-docs-accessed-event.json`
+
   ```json
   {
     "eventType": "workspace.docs.accessed",
@@ -580,6 +583,7 @@ Add navigation link in workspace sidebar/nav menu (consistent with existing `Con
     "correlationId": "..."
   }
   ```
+
 - **Structured logs**: Action logs `doc_assembly_duration_ms`, `upstream_capabilities_latency_ms`, `upstream_api_surface_latency_ms` at INFO level.
 - **Existing Kafka audit pipeline**: Reuses `console.audit` topic + schema envelope; no new topic required.
 

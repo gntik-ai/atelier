@@ -176,7 +176,7 @@ charts/workspace-docs-service/
 
 ## Dependencies Graph
 
-```
+```text
 Phase 1 (T001–T003)
   └── Phase 2 (T004–T008)
         ├── Phase 3: US1 (T009–T017)  ← MVP — deliver first
