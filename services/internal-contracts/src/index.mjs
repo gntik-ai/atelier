@@ -27,6 +27,9 @@ export { default as asyncOperationStateChangedSchema } from './async-operation-s
 export { default as asyncOperationQueryResponseSchema } from './async-operation-query-response.json' with { type: 'json' };
 export { default as idempotencyDedupEventSchema } from './idempotency-dedup-event.json' with { type: 'json' };
 export { default as operationRetryEventSchema } from './operation-retry-event.json' with { type: 'json' };
+export { default as operationCancelEventSchema } from './operation-cancel-event.json' with { type: 'json' };
+export { default as operationTimeoutEventSchema } from './operation-timeout-event.json' with { type: 'json' };
+export { default as operationRecoveryEventSchema } from './operation-recovery-event.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;

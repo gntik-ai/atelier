@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "operation-timeout-event.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "operationId",
+    "tenantId",
+    "previousStatus",
+    "timeoutReason",
+    "occurredAt",
+    "correlationId"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "type": "string", "const": "async_operation.timed_out" },
+    "operationId": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "const": "system" },
+    "previousStatus": { "type": "string", "minLength": 1 },
+    "newStatus": { "type": "string", "const": "timed_out" },
+    "timeoutReason": { "type": "string", "minLength": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 }
+  }
+}

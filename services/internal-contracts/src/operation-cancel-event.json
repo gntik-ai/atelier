@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "operation-cancel-event.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "operationId",
+    "tenantId",
+    "actorId",
+    "cancelledBy",
+    "previousStatus",
+    "occurredAt",
+    "correlationId"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "type": "string", "const": "async_operation.cancelled" },
+    "operationId": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "cancelledBy": { "type": "string", "minLength": 1 },
+    "previousStatus": { "type": "string", "minLength": 1 },
+    "newStatus": { "type": "string", "enum": ["cancelling", "cancelled"] },
+    "reason": { "type": ["string", "null"] },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 }
+  }
+}

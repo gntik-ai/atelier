@@ -1,0 +1,12 @@
+timeoutSweep:
+  enabled: true
+  schedule: '*/5 * * * *'
+
+orphanSweep:
+  enabled: true
+  schedule: '*/10 * * * *'
+
+env:
+  OPERATION_DEFAULT_TIMEOUT_MINUTES: '60'
+  OPERATION_DEFAULT_ORPHAN_THRESHOLD_MINUTES: '30'
+  OPERATION_DEFAULT_CANCELLING_TIMEOUT_MINUTES: '5'

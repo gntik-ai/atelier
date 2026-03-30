@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "operation-recovery-event.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "operationId",
+    "tenantId",
+    "previousStatus",
+    "recoveryAction",
+    "recoveryReason",
+    "occurredAt",
+    "correlationId"
+  ],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventType": { "type": "string", "const": "async_operation.recovered" },
+    "operationId": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "const": "system" },
+    "previousStatus": { "type": "string", "minLength": 1 },
+    "newStatus": { "type": "string", "const": "failed" },
+    "recoveryAction": { "type": "string", "const": "fail" },
+    "recoveryReason": { "type": "string", "minLength": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 }
+  }
+}

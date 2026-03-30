@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { validateTransition } from './async-operation-states.mjs';
+import { CANCELLABLE_STATES, validateTransition } from './async-operation-states.mjs';
 
 const REQUIRED_CREATE_FIELDS = Object.freeze(['tenant_id', 'actor_id', 'actor_type', 'operation_type']);
 const ACTOR_TYPES = new Set(['workspace_admin', 'tenant_owner', 'superadmin', 'tenant_member']);
@@ -8,8 +8,8 @@ const SENSITIVE_MESSAGE_PATTERNS = [
   /postgres(?:ql)?:\/\//i,
   /mongodb(?:\+srv)?:\/\//i,
   /(?:api[_-]?key|token|secret|password)\s*[=:]/i,
-  /(?:\/[^^\s]+){2,}/,
-  /at\s+.+\(.+\)/
+  /(?:\/[^\s]+){2,}/,
+  /\bat\s+.+\(.+\)/
 ];
 
 export function createOperation(input = {}) {
@@ -50,6 +50,10 @@ export function createOperation(input = {}) {
     operation_type: input.operation_type,
     status: input.status ?? 'pending',
     error_summary: input.error_summary ?? null,
+    cancellation_reason: input.cancellation_reason ?? null,
+    cancelled_by: input.cancelled_by ?? null,
+    timeout_policy_snapshot: input.timeout_policy_snapshot ? structuredClone(input.timeout_policy_snapshot) : null,
+    policy_applied_at: input.policy_applied_at ?? null,
     correlation_id: input.correlation_id ?? generateCorrelationId(input.tenant_id),
     idempotency_key: input.idempotency_key ?? null,
     saga_id: input.saga_id ?? null,
@@ -81,12 +85,23 @@ export function applyTransition(operation, input = {}) {
     validateErrorSummary(input.error_summary);
   }
 
-  return {
+  const updatedAt = new Date().toISOString();
+  const nextOperation = {
     ...operation,
     status: input.new_status,
     error_summary: input.new_status === 'failed' ? normalizeErrorSummary(input.error_summary) : null,
-    updated_at: new Date().toISOString()
+    cancellation_reason: input.new_status === 'timed_out'
+      ? 'timeout exceeded'
+      : (input.new_status === 'cancelling' ? input.cancellation_reason ?? null : operation.cancellation_reason ?? null),
+    cancelled_by: input.new_status === 'cancelling' ? input.cancelled_by ?? null : operation.cancelled_by ?? null,
+    updated_at: updatedAt
   };
+
+  return nextOperation;
+}
+
+export function isCancellable(status) {
+  return CANCELLABLE_STATES.has(status);
 }
 
 export function generateCorrelationId(tenantId) {
