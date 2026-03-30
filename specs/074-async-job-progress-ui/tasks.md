@@ -185,7 +185,7 @@ export async function getOperationResult(db, params) {}
 
 ### Flujo de ejecución
 
-```
+```text
 Input: { queryType, operationId?, filters?, pagination?, ...callerContext injected by OW }
 
 1. Extraer tenant_id y actorType de callerContext (IAM-verified; nunca del payload)

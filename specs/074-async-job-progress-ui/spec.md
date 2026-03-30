@@ -152,6 +152,7 @@ Mientras el usuario navega por la consola tras iniciar un aprovisionamiento, un 
 ## Scope Boundaries
 
 ### In Scope
+
 - Endpoints de consulta (listado, detalle, logs, resultado) para operaciones asíncronas.
 - Componentes UI de la consola para visualizar estado, progreso, logs y resultado.
 - Indicador no bloqueante de operaciones activas.
@@ -159,6 +160,7 @@ Mientras el usuario navega por la consola tras iniciar un aprovisionamiento, un 
 - Auditoría de accesos a datos de operaciones.
 
 ### Out of Scope
+
 - Creación o modificación de operaciones (ya cubierto por US-UIB-02-T01).
 - Reintentos de operaciones fallidas (US-UIB-02-T03).
 - Políticas de timeout o cancelación (US-UIB-02-T04).
