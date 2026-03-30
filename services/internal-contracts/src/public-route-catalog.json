@@ -13970,6 +13970,254 @@
         "application/json"
       ],
       "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "pg-capture-tenant-summary",
+      "familyTitle": "Pg Capture Tenant Summary",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "realtime",
+      "gatewayRequestValidationProfile": "realtime",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "realtime",
+      "gatewayTimeoutProfile": "realtime",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 131072,
+      "method": "GET",
+      "operationId": "getTenantPgCaptureSummary",
+      "path": "/v1/tenants/{tenantId}/pg-captures/summary",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "control-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "pg_capture_summary",
+      "scope": "tenant",
+      "summary": "List active PostgreSQL CDC captures across tenant workspaces",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Tenants",
+        "Realtime",
+        "PgCaptures"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "optional"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "pg-captures",
+      "familyTitle": "Pg Captures",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "realtime",
+      "gatewayRequestValidationProfile": "realtime",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "realtime",
+      "gatewayTimeoutProfile": "realtime",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 131072,
+      "method": "GET",
+      "operationId": "listPgCaptures",
+      "path": "/v1/workspaces/{workspaceId}/pg-captures",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "control-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "pg_capture_config",
+      "scope": "workspace",
+      "summary": "List PostgreSQL CDC captures for one workspace",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "Workspaces",
+        "Realtime",
+        "PgCaptures"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "pg-captures",
+      "familyTitle": "Pg Captures",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "realtime",
+      "gatewayRequestValidationProfile": "realtime",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "realtime",
+      "gatewayTimeoutProfile": "realtime",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 131072,
+      "method": "POST",
+      "operationId": "enablePgCapture",
+      "path": "/v1/workspaces/{workspaceId}/pg-captures",
+      "planCapabilityAnyOf": [
+        "data.openwhisk.actions"
+      ],
+      "qosBurst": 80,
+      "rateLimitClass": "control-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "pg_capture_config",
+      "scope": "workspace",
+      "summary": "Enable PostgreSQL CDC capture for one workspace table",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "Workspaces",
+        "Realtime",
+        "PgCaptures"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
         "platform_team",
         "superadmin"
       ],
@@ -30597,171 +30845,6 @@
       "tenantBinding": "derived_from_workspace",
       "visibility": "public",
       "workspaceBinding": "required"
-    },
-    {
-      "adminChannel": null,
-      "allowAnonymousOptions": true,
-      "allowedContentTypes": [
-        "application/json"
-      ],
-      "authRequired": true,
-      "consoleDelegationMode": null,
-      "consoleDiscoverySurface": false,
-      "consoleStatusOperationIds": [],
-      "consoleTier": null,
-      "consoleWorkflowId": null,
-      "correlationIdGeneratedWhenMissing": true,
-      "correlationIdRequired": true,
-      "deprecated": false,
-      "discoveryRoute": "/v1/platform/route-catalog",
-      "downstreamAdapters": [],
-      "downstreamService": "control_api",
-      "errorEnvelope": "ErrorResponse",
-      "explicitConfirmationRequired": false,
-      "gatewayAllowedHeaders": [
-        "Authorization",
-        "Content-Type",
-        "Idempotency-Key",
-        "X-API-Version",
-        "X-Correlation-Id",
-        "X-Requested-With"
-      ],
-      "gatewayContextHeaders": [
-        "X-Auth-Subject",
-        "X-Actor-Username",
-        "X-Tenant-Id",
-        "X-Workspace-Id",
-        "X-Plan-Id",
-        "X-Auth-Scopes",
-        "X-Actor-Roles"
-      ],
-      "gatewayAuthMode": "bearer_oidc",
-      "gatewayRetryProfile": "mutations",
-      "gatewayTimeoutProfile": "control_plane",
-      "idempotencyReplayHeader": "X-Idempotency-Replayed",
-      "idempotencyTtlSeconds": 86400,
-      "internalRequestMode": "validated_attestation",
-      "requiredHeaders": [
-        "Idempotency-Key",
-        "X-API-Version",
-        "X-Correlation-Id"
-      ],
-      "requiredPlanFlags": [],
-      "visibility": "public",
-      "audiences": [
-        "developer_external",
-        "tenant_owner",
-        "tenant_admin",
-        "workspace_owner",
-        "workspace_admin",
-        "platform_team"
-      ],
-      "family": "pg-captures",
-      "familyTitle": "Pg Captures",
-      "gatewayQosProfile": "realtime",
-      "gatewayRequestValidationProfile": "realtime",
-      "gatewayRouteClass": "realtime",
-      "maxRequestBodyBytes": 131072,
-      "method": "POST",
-      "operationId": "enablePgCapture",
-      "path": "/v1/workspaces/{workspaceId}/pg-captures",
-      "planCapabilityAnyOf": [
-        "data.openwhisk.actions"
-      ],
-      "qosBurst": 20,
-      "rateLimitClass": "control-write",
-      "resourceType": "pg_capture_config",
-      "scope": "workspace",
-      "summary": "Enable PostgreSQL CDC capture for one workspace table",
-      "supportsIdempotencyKey": true,
-      "tags": [
-        "Workspaces",
-        "Realtime",
-        "PgCaptures"
-      ],
-      "tenantBinding": "required",
-      "workspaceBinding": "required"
-    },
-    {
-      "adminChannel": null,
-      "allowAnonymousOptions": true,
-      "allowedContentTypes": [
-        "application/json"
-      ],
-      "authRequired": true,
-      "consoleDelegationMode": null,
-      "consoleDiscoverySurface": false,
-      "consoleStatusOperationIds": [],
-      "consoleTier": null,
-      "consoleWorkflowId": null,
-      "correlationIdGeneratedWhenMissing": true,
-      "correlationIdRequired": true,
-      "deprecated": false,
-      "discoveryRoute": "/v1/platform/route-catalog",
-      "downstreamAdapters": [],
-      "downstreamService": "control_api",
-      "errorEnvelope": "ErrorResponse",
-      "explicitConfirmationRequired": false,
-      "gatewayAllowedHeaders": [
-        "Authorization",
-        "Content-Type",
-        "Idempotency-Key",
-        "X-API-Version",
-        "X-Correlation-Id",
-        "X-Requested-With"
-      ],
-      "gatewayContextHeaders": [
-        "X-Auth-Subject",
-        "X-Actor-Username",
-        "X-Tenant-Id",
-        "X-Workspace-Id",
-        "X-Plan-Id",
-        "X-Auth-Scopes",
-        "X-Actor-Roles"
-      ],
-      "gatewayAuthMode": "bearer_oidc",
-      "gatewayRetryProfile": "mutations",
-      "gatewayTimeoutProfile": "control_plane",
-      "idempotencyReplayHeader": "X-Idempotency-Replayed",
-      "idempotencyTtlSeconds": 86400,
-      "internalRequestMode": "validated_attestation",
-      "requiredHeaders": [
-        "X-API-Version",
-        "X-Correlation-Id"
-      ],
-      "requiredPlanFlags": [],
-      "visibility": "public",
-      "audiences": [
-        "developer_external",
-        "tenant_owner",
-        "tenant_admin",
-        "platform_team"
-      ],
-      "family": "pg-capture-tenant-summary",
-      "familyTitle": "Pg Capture Tenant Summary",
-      "gatewayQosProfile": "realtime",
-      "gatewayRequestValidationProfile": "realtime",
-      "gatewayRouteClass": "realtime",
-      "maxRequestBodyBytes": 131072,
-      "method": "GET",
-      "operationId": "getTenantPgCaptureSummary",
-      "path": "/v1/tenants/{tenantId}/pg-captures/summary",
-      "planCapabilityAnyOf": [
-        "data.openwhisk.actions"
-      ],
-      "qosBurst": 20,
-      "rateLimitClass": "control-write",
-      "resourceType": "pg_capture_summary",
-      "scope": "tenant",
-      "summary": "List active PostgreSQL CDC captures across tenant workspaces",
-      "supportsIdempotencyKey": false,
-      "tags": [
-        "Tenants",
-        "Realtime",
-        "PgCaptures"
-      ],
-      "tenantBinding": "required",
-      "workspaceBinding": "optional"
     }
   ],
   "version": "2026-03-26"
