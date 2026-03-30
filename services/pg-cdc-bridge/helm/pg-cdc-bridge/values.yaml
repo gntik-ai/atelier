@@ -1,0 +1,26 @@
+replicaCount: 1
+image:
+  repository: atelier/pg-cdc-bridge
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+env:
+  PG_CDC_CACHE_TTL_SECONDS: "30"
+  PG_CDC_WAL_KEEP_THRESHOLD_MB: "512"
+  PG_CDC_MAX_EVENTS_PER_SECOND: "1000"
+  PG_CDC_KAFKA_CLIENT_ID: "pg-cdc-bridge"
+  PG_CAPTURE_DEFAULT_WORKSPACE_QUOTA: "10"
+  PG_CAPTURE_DEFAULT_TENANT_QUOTA: "50"
+  PG_CAPTURE_KAFKA_TOPIC_LIFECYCLE: "console.pg-capture.lifecycle"
+  PORT: "8080"
+secrets:
+  DATABASE_URL: ""
+  PG_CDC_KAFKA_BROKERS: ""
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+service:
+  port: 8080

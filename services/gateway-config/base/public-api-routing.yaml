@@ -376,6 +376,36 @@ spec:
         - data.kafka.topics
       qosProfile: realtime
       requestValidationProfile: realtime
+    - id: pg-captures
+      pathPrefix: /v1/workspaces/{workspaceId}/pg-captures
+      upstreamService: control_api
+      routeClass: realtime
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: required
+      propagatedHeaders: *a1
+      planCapabilityAnyOf:
+        - data.openwhisk.actions
+      qosProfile: realtime
+      requestValidationProfile: realtime
+    - id: pg-capture-tenant-summary
+      pathPrefix: /v1/tenants/{tenantId}/pg-captures/summary
+      upstreamService: control_api
+      routeClass: realtime
+      authMode: bearer_oidc
+      discoveryEnabled: false
+      corsProfile: product_api
+      allowAnonymousOptions: true
+      tenantBinding: required
+      workspaceBinding: optional
+      propagatedHeaders: *a1
+      planCapabilityAnyOf:
+        - data.openwhisk.actions
+      qosProfile: realtime
+      requestValidationProfile: realtime
   allowedRequestHeaders: &a2
     - Authorization
     - Content-Type

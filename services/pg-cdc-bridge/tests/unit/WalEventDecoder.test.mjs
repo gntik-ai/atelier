@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { WalEventDecoder } from '../../src/WalEventDecoder.mjs';
+const cstr = (value) => Buffer.concat([Buffer.from(value), Buffer.from([0])]);
+const textCol = (name) => Buffer.concat([Buffer.from([0]), cstr(name), Buffer.from([0,0,0,25]), Buffer.from([255,255,255,255])]);
+const relationMsg = () => Buffer.concat([Buffer.from('R'), Buffer.from([0,0,0,1]), cstr('public'), cstr('orders'), Buffer.from([0]), Buffer.from([0,2]), textCol('id'), textCol('name')]);
+const tuple = (...vals) => Buffer.concat([Buffer.from('N'), Buffer.from([0, vals.length]), ...vals.flatMap((v) => v === null ? [Buffer.from('n')] : [Buffer.from('t'), Buffer.from([0,0,0,Buffer.byteLength(String(v))]), Buffer.from(String(v))])]);
+const change = (type, ...vals) => Buffer.concat([Buffer.from(type), Buffer.from([0,0,0,1]), Buffer.from('N'), tuple(...vals)]);
+test('relation stored', () => { const d = new WalEventDecoder(); const r = d.decodeMessage(relationMsg()); assert.equal(r.relationName, 'orders'); });
+test('insert decode', () => { const d = new WalEventDecoder(); d.decodeMessage(relationMsg()); const msg = change('I', '1', 'alice'); const result = d.decodeMessage(msg, '0/1'); assert.equal(result.type, 'insert'); assert.equal(result.newRow.name, 'alice'); });
+test('update decode', () => { const d = new WalEventDecoder(); d.decodeMessage(relationMsg()); const result = d.decodeMessage(change('U', '1', 'bob'), '0/2'); assert.equal(result.type, 'update'); assert.equal(result.newRow.name, 'bob'); });
+test('delete decode', () => { const d = new WalEventDecoder(); d.decodeMessage(relationMsg()); const result = d.decodeMessage(change('D', '1', 'bob'), '0/3'); assert.equal(result.type, 'delete'); assert.equal(result.oldRow.id, '1'); });
+test('truncate null and unknown null', () => { const d = new WalEventDecoder(); assert.equal(d.decodeMessage(Buffer.from('T')), null); assert.equal(d.decodeMessage(Buffer.from('Z')), null); });
+test('_decodeRowData maps columns', () => { const d = new WalEventDecoder(); const relation = d.decodeMessage(relationMsg()); const row = d._decodeRowData(tuple('1', 'alice'), 0, relation); assert.equal(row.fields.name, 'alice'); });

@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { main } from '../../../src/actions/realtime/pg-capture-disable.mjs';
+const auth = (claims) => ({ __ow_headers: { authorization: `Bearer ${Buffer.from(JSON.stringify(claims)).toString('base64url')}` } });
+const current = { id: '1', status: 'active', table_name: 'orders', toJSON() { return { id: '1', status: this.status, table_name: 'orders' }; } };
+const deps = (overrides = {}) => ({ configRepo: { findById: async () => current, disable: async () => ({ ...current, status: 'disabled', toJSON() { return { id: '1', status: 'disabled', table_name: 'orders' }; } }), ...overrides.configRepo }, auditRepo: { append: async () => ({}) }, publisher: { publish: async () => ({}) } });
+test('valid -> 204', async () => { const res = await main({ ...auth({ workspace_id: 'w', tenant_id: 't', actor_identity: 'u' }), captureId: '1' }, deps()); assert.equal(res.statusCode, 204); });
+test('not found -> 404', async () => { const res = await main({ ...auth({ workspace_id: 'w', tenant_id: 't' }), captureId: '1' }, deps({ configRepo: { findById: async () => null } })); assert.equal(res.statusCode, 404); });
+test('different workspace hidden -> 404', async () => { const res = await main({ ...auth({ workspace_id: 'w', tenant_id: 't' }), captureId: '1' }, deps({ configRepo: { findById: async () => null } })); assert.equal(res.statusCode, 404); });
+test('already disabled -> 409', async () => { const res = await main({ ...auth({ workspace_id: 'w', tenant_id: 't' }), captureId: '1' }, deps({ configRepo: { findById: async () => ({ ...current, status: 'disabled', toJSON: current.toJSON }) } })); assert.equal(res.statusCode, 409); });
+test('audit publish failure tolerated', async () => { const res = await main({ ...auth({ workspace_id: 'w', tenant_id: 't' }), captureId: '1' }, { ...deps(), auditRepo: { append: async () => { throw new Error('x'); } }, publisher: { publish: async () => { throw new Error('y'); } } }); assert.equal(res.statusCode, 204); });
+test('missing jwt -> 401', async () => { const res = await main({ captureId: '1' }, deps()); assert.equal(res.statusCode, 401); });

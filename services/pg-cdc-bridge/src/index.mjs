@@ -1,0 +1,18 @@
+import pg from 'pg';
+import { Kafka } from 'kafkajs';
+import { MetricsCollector } from './MetricsCollector.mjs';
+import { KafkaChangePublisher } from './KafkaChangePublisher.mjs';
+import { WalListenerManager } from './WalListenerManager.mjs';
+import { HealthServer } from './HealthServer.mjs';
+const { Pool } = pg;
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const kafka = new Kafka({ clientId: process.env.PG_CDC_KAFKA_CLIENT_ID ?? 'pg-cdc-bridge', brokers: (process.env.PG_CDC_KAFKA_BROKERS ?? '').split(',').filter(Boolean) });
+const metrics = new MetricsCollector();
+const publisher = new KafkaChangePublisher({ kafka, metricsCollector: metrics });
+const manager = new WalListenerManager({ pool, kafka, metricsCollector: metrics });
+const healthServer = new HealthServer({ port: Number(process.env.PORT ?? 8080), listenerManager: manager, kafkaPublisher: publisher, metricsCollector: metrics });
+await publisher.initialize();
+await manager.start();
+healthServer.start();
+const shutdown = async () => { await manager.stop(); await publisher.disconnect(); await healthServer.stop(); await pool.end(); process.exit(0); };
+process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);

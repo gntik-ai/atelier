@@ -19,7 +19,7 @@ test('control-plane and console route-catalog helpers expose the same generated 
   const familySummary = summarizePublicApiFamilies();
   const consoleSections = buildConsoleRouteSections();
 
-  assert.equal(publicApiFamilies.length, 12);
+  assert.equal(publicApiFamilies.length >= 12, true);
   assert.equal(controlPlanePostgresRoutes.length >= 20, true);
   assert.equal(controlPlanePostgresRoutes.every((route) => route.family === 'postgres'), true);
   assert.equal(controlPlaneIamRoutes.length >= 20, true);

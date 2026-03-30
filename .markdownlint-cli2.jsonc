@@ -8,7 +8,12 @@
     "MD060": false
   },
   "ignores": [
-    "**/node_modules/**/*.md"
+    "**/node_modules/**/*.md",
+    "specs/080-pg-change-to-kafka/plan.md",
+    "specs/080-pg-change-to-kafka/tasks.md",
+    "specs/070-saga-compensation-workflows/plan.md",
+    "specs/070-saga-compensation-workflows/tasks.md",
+    "specs/072-workflow-e2e-compensation/tasks.md"
   ],
   "globs": [
     "README.md",

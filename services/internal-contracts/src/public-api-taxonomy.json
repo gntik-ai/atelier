@@ -113,77 +113,6 @@
   },
   "families": [
     {
-      "id": "platform",
-      "title": "Platform",
-      "prefix": "/v1/platform",
-      "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
-      "owning_service": "control_api",
-      "downstream_contracts": [
-        "control_api_command",
-        "audit_record"
-      ],
-      "resource_scopes": [
-        "platform"
-      ],
-      "audiences": [
-        "platform_team",
-        "superadmin"
-      ],
-      "visibility": "public",
-      "apisix_route_class": "control"
-    },
-    {
-      "id": "tenants",
-      "title": "Tenants",
-      "prefix": "/v1/tenants",
-      "summary": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.",
-      "owning_service": "control_api",
-      "downstream_contracts": [
-        "control_api_command",
-        "provisioning_request",
-        "audit_record"
-      ],
-      "resource_scopes": [
-        "tenant"
-      ],
-      "audiences": [
-        "developer_external",
-        "tenant_owner",
-        "tenant_admin",
-        "tenant_developer",
-        "tenant_viewer",
-        "platform_team"
-      ],
-      "visibility": "public",
-      "apisix_route_class": "control"
-    },
-    {
-      "id": "workspaces",
-      "title": "Workspaces",
-      "prefix": "/v1/workspaces",
-      "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
-      "owning_service": "control_api",
-      "downstream_contracts": [
-        "control_api_command",
-        "provisioning_request",
-        "audit_record"
-      ],
-      "resource_scopes": [
-        "workspace"
-      ],
-      "audiences": [
-        "developer_external",
-        "tenant_owner",
-        "tenant_admin",
-        "workspace_owner",
-        "workspace_admin",
-        "workspace_viewer",
-        "platform_team"
-      ],
-      "visibility": "public",
-      "apisix_route_class": "control"
-    },
-    {
       "id": "auth",
       "title": "Auth",
       "prefix": "/v1/auth",
@@ -210,101 +139,6 @@
       ],
       "visibility": "public",
       "apisix_route_class": "control"
-    },
-    {
-      "id": "iam",
-      "title": "IAM",
-      "prefix": "/v1/iam",
-      "summary": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts.",
-      "owning_service": "control_api",
-      "downstream_contracts": [
-        "iam_admin_request",
-        "iam_admin_result",
-        "audit_record"
-      ],
-      "downstream_adapters": [
-        "keycloak"
-      ],
-      "resource_scopes": [
-        "tenant",
-        "workspace"
-      ],
-      "audiences": [
-        "tenant_admin",
-        "workspace_admin",
-        "platform_team"
-      ],
-      "visibility": "public",
-      "apisix_route_class": "control"
-    },
-    {
-      "id": "postgres",
-      "title": "Postgres",
-      "prefix": "/v1/postgres",
-      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel.",
-      "owning_service": "control_api",
-      "downstream_contracts": [
-        "provisioning_request",
-        "adapter_call",
-        "postgres_admin_request",
-        "postgres_admin_result",
-        "postgres_inventory_snapshot",
-        "audit_record",
-        "postgres_data_request",
-        "postgres_data_result"
-      ],
-      "downstream_adapters": [
-        "postgresql"
-      ],
-      "resource_scopes": [
-        "tenant",
-        "workspace",
-        "database"
-      ],
-      "audiences": [
-        "tenant_owner",
-        "tenant_admin",
-        "workspace_owner",
-        "workspace_admin",
-        "workspace_developer",
-        "workspace_viewer",
-        "platform_team"
-      ],
-      "visibility": "public",
-      "apisix_route_class": "data-control"
-    },
-    {
-      "id": "mongo",
-      "title": "Mongo",
-      "prefix": "/v1/mongo",
-      "summary": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.",
-      "owning_service": "control_api",
-      "downstream_contracts": [
-        "provisioning_request",
-        "adapter_call",
-        "audit_record",
-        "mongo_data_request",
-        "mongo_data_result",
-        "mongo_change_stream_event"
-      ],
-      "downstream_adapters": [
-        "mongodb"
-      ],
-      "resource_scopes": [
-        "workspace",
-        "database"
-      ],
-      "audiences": [
-        "developer_external",
-        "workspace_owner",
-        "workspace_admin",
-        "workspace_developer",
-        "workspace_viewer",
-        "workspace_service_account",
-        "platform_team"
-      ],
-      "visibility": "public",
-      "apisix_route_class": "data-control"
     },
     {
       "id": "events",
@@ -368,6 +202,194 @@
       "apisix_route_class": "functions"
     },
     {
+      "id": "iam",
+      "title": "IAM",
+      "prefix": "/v1/iam",
+      "summary": "Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, and users through normalized BaaS contracts.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "iam_admin_request",
+        "iam_admin_result",
+        "audit_record"
+      ],
+      "downstream_adapters": [
+        "keycloak"
+      ],
+      "resource_scopes": [
+        "tenant",
+        "workspace"
+      ],
+      "audiences": [
+        "tenant_admin",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "metrics",
+      "title": "Metrics",
+      "prefix": "/v1/metrics",
+      "summary": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "observability"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_operator",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "observability"
+    },
+    {
+      "id": "mongo",
+      "title": "Mongo",
+      "prefix": "/v1/mongo",
+      "summary": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "audit_record",
+        "mongo_data_request",
+        "mongo_data_result",
+        "mongo_change_stream_event"
+      ],
+      "downstream_adapters": [
+        "mongodb"
+      ],
+      "resource_scopes": [
+        "workspace",
+        "database"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "workspace_service_account",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "data-control"
+    },
+    {
+      "id": "pg-capture-tenant-summary",
+      "title": "Pg Capture Tenant Summary",
+      "prefix": "/v1/tenants/{tenantId}/pg-captures/summary",
+      "summary": "Tenant-scoped PostgreSQL change-capture summary surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_query",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "tenant"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "realtime"
+    },
+    {
+      "id": "pg-captures",
+      "title": "Pg Captures",
+      "prefix": "/v1/workspaces/{workspaceId}/pg-captures",
+      "summary": "Workspace-scoped PostgreSQL change-capture enablement and listing surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record",
+        "kafka_event"
+      ],
+      "resource_scopes": [
+        "workspace"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "realtime"
+    },
+    {
+      "id": "platform",
+      "title": "Platform",
+      "prefix": "/v1/platform",
+      "summary": "Cross-tenant platform governance, catalog, and operator discovery surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "platform"
+      ],
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
+    },
+    {
+      "id": "postgres",
+      "title": "Postgres",
+      "prefix": "/v1/postgres",
+      "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "provisioning_request",
+        "adapter_call",
+        "postgres_admin_request",
+        "postgres_admin_result",
+        "postgres_inventory_snapshot",
+        "audit_record",
+        "postgres_data_request",
+        "postgres_data_result"
+      ],
+      "downstream_adapters": [
+        "postgresql"
+      ],
+      "resource_scopes": [
+        "tenant",
+        "workspace",
+        "database"
+      ],
+      "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "data-control"
+    },
+    {
       "id": "storage",
       "title": "Storage",
       "prefix": "/v1/storage",
@@ -398,30 +420,29 @@
       "apisix_route_class": "data-control"
     },
     {
-      "id": "metrics",
-      "title": "Metrics",
-      "prefix": "/v1/metrics",
-      "summary": "Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.",
+      "id": "tenants",
+      "title": "Tenants",
+      "prefix": "/v1/tenants",
+      "summary": "Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.",
       "owning_service": "control_api",
       "downstream_contracts": [
         "control_api_command",
+        "provisioning_request",
         "audit_record"
       ],
       "resource_scopes": [
-        "workspace",
-        "observability"
+        "tenant"
       ],
       "audiences": [
         "developer_external",
         "tenant_owner",
         "tenant_admin",
-        "workspace_owner",
-        "workspace_operator",
-        "workspace_viewer",
+        "tenant_developer",
+        "tenant_viewer",
         "platform_team"
       ],
       "visibility": "public",
-      "apisix_route_class": "observability"
+      "apisix_route_class": "control"
     },
     {
       "id": "websockets",
@@ -452,6 +473,32 @@
       "downstream_adapters": [
         "kafka"
       ]
+    },
+    {
+      "id": "workspaces",
+      "title": "Workspaces",
+      "prefix": "/v1/workspaces",
+      "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
+      "owning_service": "control_api",
+      "downstream_contracts": [
+        "control_api_command",
+        "provisioning_request",
+        "audit_record"
+      ],
+      "resource_scopes": [
+        "workspace"
+      ],
+      "audiences": [
+        "developer_external",
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_viewer",
+        "platform_team"
+      ],
+      "visibility": "public",
+      "apisix_route_class": "control"
     }
   ],
   "resource_taxonomy": [

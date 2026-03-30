@@ -34,106 +34,22 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 
 | Family | QoS profile | Validation profile | Max body bytes | Timeout profile | Retry profile |
 | --- | --- | --- | ---: | --- | --- |
-| platform | platform_control | platform_control | 262144 | control_plane | mutations |
-| tenants | tenant_control | tenant_control | 262144 | control_plane | mutations |
-| workspaces | workspace_control | workspace_control | 262144 | control_plane | mutations |
 | auth | auth_control | auth_control | 131072 | control_plane | mutations |
-| iam | tenant_control | tenant_control | 262144 | control_plane | mutations |
-| postgres | provisioning | provisioning | 1048576 | provisioning | mutations |
-| mongo | provisioning | provisioning | 1048576 | provisioning | mutations |
 | events | event_gateway | event_gateway | 262144 | event_gateway | mutations |
 | functions | provisioning | provisioning | 1048576 | provisioning | mutations |
-| storage | provisioning | provisioning | 1048576 | provisioning | mutations |
+| iam | tenant_control | tenant_control | 262144 | control_plane | mutations |
 | metrics | observability | observability | 65536 | observability | safe_reads |
+| mongo | provisioning | provisioning | 1048576 | provisioning | mutations |
+| pg-capture-tenant-summary | realtime | realtime | 131072 | realtime | mutations |
+| pg-captures | realtime | realtime | 131072 | realtime | mutations |
+| platform | platform_control | platform_control | 262144 | control_plane | mutations |
+| postgres | provisioning | provisioning | 1048576 | provisioning | mutations |
+| storage | provisioning | provisioning | 1048576 | provisioning | mutations |
+| tenants | tenant_control | tenant_control | 262144 | control_plane | mutations |
 | websockets | realtime | realtime | 131072 | realtime | mutations |
+| workspaces | workspace_control | workspace_control | 262144 | control_plane | mutations |
 
 ## Families
-
-## Platform
-
-Cross-tenant platform governance, catalog, and operator discovery surfaces.
-
-| Method | Path | Scope | Resource | Summary |
-| --- | --- | --- | --- | --- |
-| POST | `/v1/platform/deployment-profiles` | platform | deployment_profile | Submit a deployment profile write request |
-| GET | `/v1/platform/deployment-profiles/{deploymentProfileId}` | platform | deployment_profile | Fetch one deployment profile |
-| POST | `/v1/platform/plans` | platform | plan | Submit a commercial plan write request |
-| GET | `/v1/platform/plans/{planId}` | platform | plan | Fetch one commercial plan |
-| POST | `/v1/platform/plans/{planId}/quota-policies` | platform | plan | Submit a quota policy write request |
-| GET | `/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}` | platform | plan | Fetch one quota policy |
-| POST | `/v1/platform/provider-capabilities` | platform | provider_capability | Submit a provider capability write request |
-| GET | `/v1/platform/provider-capabilities/{providerCapabilityId}` | platform | provider_capability | Fetch one provider capability record |
-| GET | `/v1/platform/route-catalog` | platform | route_catalog | List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility |
-| GET | `/v1/platform/storage/provider` | platform | storage_provider | Inspect the active storage provider abstraction and common capability manifest |
-| POST | `/v1/platform/users` | platform | platform_user | Submit a canonical platform user write request under the platform family |
-| GET | `/v1/platform/users/{userId}` | platform | platform_user | Fetch one canonical platform user entity under the platform family |
-
-## Tenants
-
-Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.
-
-| Method | Path | Scope | Resource | Summary |
-| --- | --- | --- | --- | --- |
-| GET | `/v1/tenants` | platform | tenant_collection | List tenants with lifecycle, quota, label, placement, and governance filters |
-| POST | `/v1/tenants` | tenant | tenant | Submit a canonical tenant write request with governance labels, quotas, and lifecycle controls |
-| DELETE | `/v1/tenants/{tenantId}` | tenant | tenant | Logically delete one tenant while preserving retention, auditability, and purge preconditions |
-| GET | `/v1/tenants/{tenantId}` | tenant | tenant | Fetch one canonical tenant with governance labels, quotas, retention posture, and export metadata |
-| PUT | `/v1/tenants/{tenantId}` | tenant | tenant | Update one canonical tenant including lifecycle, quota, label, and retention governance settings |
-| GET | `/v1/tenants/{tenantId}/dashboard` | tenant | tenant_dashboard | Fetch tenant governance dashboard data including quotas, labels, provisioning state, and allowed actions |
-| GET | `/v1/tenants/{tenantId}/effective-capabilities` | tenant | tenant_capabilities | Resolve effective capabilities for one tenant |
-| POST | `/v1/tenants/{tenantId}/exports` | tenant | tenant_export | Create a recovery-oriented functional configuration export for one tenant |
-| PATCH | `/v1/tenants/{tenantId}/iam-access` | tenant | tenant | Suspend or reactivate all tenant-managed IAM access for users and service accounts. |
-| GET | `/v1/tenants/{tenantId}/inventory` | tenant | tenant_inventory | Fetch one tenant inventory snapshot covering workspaces, applications, service accounts, and managed resources |
-| POST | `/v1/tenants/{tenantId}/invitations` | tenant | invitation | Submit an invitation write request |
-| GET | `/v1/tenants/{tenantId}/invitations/{invitationId}` | tenant | invitation | Fetch one invitation record |
-| POST | `/v1/tenants/{tenantId}/invitations/{invitationId}/acceptance` | tenant | invitation | Accept a tenant or workspace invitation while it is still pending. |
-| POST | `/v1/tenants/{tenantId}/invitations/{invitationId}/revocation` | tenant | invitation | Revoke a pending invitation before it is accepted or expires. |
-| POST | `/v1/tenants/{tenantId}/memberships` | tenant | tenant_membership | Submit a tenant membership write request |
-| GET | `/v1/tenants/{tenantId}/memberships/{tenantMembershipId}` | tenant | tenant_membership | Fetch one tenant membership record |
-| POST | `/v1/tenants/{tenantId}/ownership-transfers` | tenant | tenant | Initiate a secure tenant ownership transfer that requires acceptance by the designated target owner. |
-| GET | `/v1/tenants/{tenantId}/ownership-transfers/{ownershipTransferId}` | tenant | tenant | Fetch one tenant ownership transfer record. |
-| POST | `/v1/tenants/{tenantId}/ownership-transfers/{ownershipTransferId}/acceptance` | tenant | tenant | Accept a pending tenant ownership transfer before it expires. |
-| GET | `/v1/tenants/{tenantId}/permission-recalculations/{permissionRecalculationId}` | tenant | tenant | Fetch one tenant-scoped effective-permission recalculation record. |
-| POST | `/v1/tenants/{tenantId}/purge` | tenant | tenant_purge | Definitively purge one logically deleted tenant after retention and elevated confirmation checks |
-| POST | `/v1/tenants/{tenantId}/reactivation` | tenant | tenant | Reactivate one suspended tenant and restore descendant access controls under audit |
-| GET | `/v1/tenants/{tenantId}/storage-context` | tenant | tenant_storage_context | Fetch the tenant-scoped logical storage context used for workspace bucket bootstrap. |
-| POST | `/v1/tenants/{tenantId}/storage-context/credential-rotations` | tenant | tenant_storage_context | Rotate the active tenant-scoped storage credential reference without recreating the namespace. |
-| GET | `/v1/tenants/{tenantId}/workflow-jobs/{jobRef}` | tenant | workflow_job | Get one tenant-scoped workflow job status. |
-
-## Workspaces
-
-Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.
-
-| Method | Path | Scope | Resource | Summary |
-| --- | --- | --- | --- | --- |
-| GET | `/v1/workspaces` | tenant | workspace_collection | List workspaces for one tenant with lifecycle, environment, slug, and display-name filters |
-| POST | `/v1/workspaces` | workspace | workspace | Submit a canonical workspace write request under the workspaces family |
-| DELETE | `/v1/workspaces/{workspaceId}` | workspace | workspace | Soft-delete one canonical workspace while preserving audit and clone lineage metadata |
-| GET | `/v1/workspaces/{workspaceId}` | workspace | workspace | Fetch one canonical workspace entity under the workspaces family |
-| PUT | `/v1/workspaces/{workspaceId}` | workspace | workspace | Update one canonical workspace including IAM, lifecycle, and inheritance policy settings |
-| GET | `/v1/workspaces/{workspaceId}/api-surface` | workspace | workspace_api_surface | Fetch workspace-specific base URLs and application endpoint bindings for external clients |
-| GET | `/v1/workspaces/{workspaceId}/applications` | workspace | application | List canonical external applications, authentication flows, and validation status for one workspace |
-| POST | `/v1/workspaces/{workspaceId}/applications` | workspace | application | Submit a canonical external application write request under the workspaces family |
-| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Fetch one canonical external application entity under the workspaces family |
-| PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Update one canonical external application including federation, logout, scope, and role settings |
-| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers` | workspace | application | List federated OIDC and SAML identity providers attached to one external application |
-| POST | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers` | workspace | application | Create one federated identity provider for an external application |
-| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Fetch one federated identity provider attached to an external application |
-| PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Update one federated identity provider including metadata, certificates, and mapper bindings |
-| GET | `/v1/workspaces/{workspaceId}/applications/templates` | workspace | application | List starter templates for SPA, confidential backend, and B2B SAML external applications |
-| POST | `/v1/workspaces/{workspaceId}/clone` | workspace | workspace | Clone one workspace baseline into a new environment with optional application and credential reset policies |
-| GET | `/v1/workspaces/{workspaceId}/effective-capabilities` | workspace | workspace_capabilities | Resolve effective capabilities for one workspace |
-| POST | `/v1/workspaces/{workspaceId}/managed-resources` | workspace | managed_resource | Submit a canonical managed resource write request |
-| GET | `/v1/workspaces/{workspaceId}/managed-resources/{resourceId}` | workspace | managed_resource | Fetch one canonical managed resource entity |
-| POST | `/v1/workspaces/{workspaceId}/memberships` | workspace | workspace_membership | Submit a workspace membership write request |
-| GET | `/v1/workspaces/{workspaceId}/memberships/{workspaceMembershipId}` | workspace | workspace_membership | Fetch one workspace membership record |
-| GET | `/v1/workspaces/{workspaceId}/permission-recalculations/{permissionRecalculationId}` | workspace | workspace | Fetch one workspace-scoped effective-permission recalculation record. |
-| POST | `/v1/workspaces/{workspaceId}/service-accounts` | workspace | service_account | Submit a canonical service account write request |
-| GET | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}` | workspace | service_account | Fetch one canonical service account entity |
-| POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-issuance` | workspace | service_account | Issue a new secret-free credential reference for one workspace service account. |
-| POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-revocations` | workspace | service_account | Revoke one or all active credential references for a workspace service account. |
-| POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations` | workspace | service_account | Rotate the active credential reference for one workspace service account. |
-| GET | `/v1/workspaces/{workspaceId}/workflow-jobs/{jobRef}` | workspace | workflow_job | Get one workspace-scoped workflow job status. |
 
 ## Auth
 
@@ -152,6 +68,85 @@ Console login, signup, activation, password recovery, and contextual authorizati
 | POST | `/v1/auth/signups/{registrationId}/activation-decisions` | platform | console_signup | Approve or reject a pending self-service signup as a platform superadmin workflow. |
 | GET | `/v1/auth/signups/policy` | platform | signup_policy | Resolve the effective self-service signup mode across global, environment, and plan overrides. |
 | GET | `/v1/auth/status-views/{statusViewId}` | platform | account_status_view | Resolve the canonical status-screen copy and next actions for console auth edge states. |
+
+## Events
+
+Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/events/topics` | workspace | topic | Submit a workspace-scoped Kafka topic governance request with managed naming, ACL isolation, and quota-aware provisioning |
+| GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped Kafka topic contract with naming, ACL, isolation, quota, and KRaft governance metadata |
+| GET | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Fetch one Kafka topic access policy with workspace-scoped ACL bindings and service-account isolation |
+| PUT | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Update one Kafka topic access policy with managed ACL convergence and service-account isolation |
+| GET | `/v1/events/topics/{resourceId}/metadata` | workspace | topic_metadata | Fetch topic partitions, lag, retention, and compaction metadata when provider APIs and policy allow visibility |
+| POST | `/v1/events/topics/{resourceId}/publish` | workspace | event_publication | Publish one event through the HTTP event gateway without exposing native Kafka clients |
+| GET | `/v1/events/topics/{resourceId}/stream` | workspace | event_stream | Consume one topic through the HTTP SSE event gateway with replay and backpressure hints |
+| POST | `/v1/events/workspaces/{workspaceId}/bridges` | workspace | event_bridge | Register a workspace-scoped managed event bridge from PostgreSQL, MongoDB, storage, OpenWhisk, or IAM into Kafka |
+| GET | `/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}` | workspace | event_bridge | Fetch the normalized state for one managed event bridge |
+| GET | `/v1/events/workspaces/{workspaceId}/inventory` | workspace | event_inventory | Fetch one workspace Kafka topic inventory with naming, ACL, quota, and KRaft governance visibility |
+
+## Functions
+
+Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, and inventory contracts routed by the gateway.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/admin/functions/audit/coverage` | platform | function_audit_coverage | Get governed function audit coverage report |
+| POST | `/v1/functions/actions` | workspace | function_action | Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs |
+| DELETE | `/v1/functions/actions/{resourceId}` | workspace | function_action | Delete one governed function action and its managed exposure bindings from the workspace serverless context |
+| GET | `/v1/functions/actions/{resourceId}` | workspace | function_action | Fetch one governed function action with normalized source, execution, policy, and trigger state |
+| PATCH | `/v1/functions/actions/{resourceId}` | workspace | function_action | Update one governed function action without exposing native namespace, subject, or unrestricted provider administration |
+| GET | `/v1/functions/actions/{resourceId}/activations` | workspace | function_activation | List activation summaries for one governed function action under the declared execution policy |
+| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}` | workspace | function_activation | Fetch one activation summary for a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/logs` | workspace | function_activation_log | Fetch redacted activation logs for one governed function action execution when policy allows it |
+| POST | `/v1/functions/actions/{resourceId}/activations/{activationId}/rerun` | workspace | function_invocation | Request one governed rerun for an existing function activation when the action policy permits it |
+| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/result` | workspace | function_activation_result | Fetch the result envelope for one governed function action activation when policy allows it |
+| POST | `/v1/functions/actions/{resourceId}/cron-triggers` | workspace | function_cron_trigger | Register one cron trigger for a governed function action when scheduled delivery is enabled |
+| GET | `/v1/functions/actions/{resourceId}/cron-triggers/{triggerId}` | workspace | function_cron_trigger | Fetch one cron trigger bound to a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/definition-export` | workspace | function_definition_export | Export one governed function action definition for bounded workspace-safe import/export workflows |
+| DELETE | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Delete one APISIX-managed HTTP exposure for a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Fetch the APISIX-managed HTTP exposure for one governed function action |
+| PATCH | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Update one APISIX-managed HTTP exposure for a governed function action |
+| POST | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Create one APISIX-managed HTTP exposure for a governed function action |
+| POST | `/v1/functions/actions/{resourceId}/invocations` | workspace | function_invocation | Invoke one governed function action directly through the control-plane abstraction |
+| POST | `/v1/functions/actions/{resourceId}/kafka-triggers` | workspace | function_kafka_trigger | Register a Kafka-triggered OpenWhisk execution policy for one managed action |
+| GET | `/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}` | workspace | function_kafka_trigger | Fetch one normalized Kafka-triggered function execution policy |
+| POST | `/v1/functions/actions/{resourceId}/rollback` | workspace | function_rollback | Request rollback of one governed function action to a prior immutable version |
+| POST | `/v1/functions/actions/{resourceId}/storage-triggers` | workspace | function_storage_trigger | Register one storage event trigger for a governed function action when storage delivery is enabled |
+| GET | `/v1/functions/actions/{resourceId}/storage-triggers/{triggerId}` | workspace | function_storage_trigger | Fetch one storage trigger bound to a governed function action |
+| GET | `/v1/functions/actions/{resourceId}/versions` | workspace | function_version | List immutable versions for one governed function action within its tenant and workspace lifecycle scope |
+| GET | `/v1/functions/actions/{resourceId}/versions/{versionId}` | workspace | function_version | Fetch one immutable version for a governed function action |
+| GET | `/v1/functions/tenants/{tenantId}/quota` | tenant | function_quota | Fetch governed function quota posture for one tenant |
+| GET | `/v1/functions/workspaces/{workspaceId}/actions` | workspace | function_action | List governed function actions for one workspace including runtime, source, policy, and exposure summaries |
+| GET | `/v1/functions/workspaces/{workspaceId}/audit` | workspace | function_audit | List governed function deployment and admin audit records |
+| GET | `/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement` | workspace | function_audit | List governed function quota enforcement records |
+| GET | `/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence` | workspace | function_audit | List governed function rollback evidence records |
+| POST | `/v1/functions/workspaces/{workspaceId}/definition-imports` | workspace | function_definition_import | Import one governed function action definition into the same workspace scope with collision and visibility policy enforcement |
+| GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
+| POST | `/v1/functions/workspaces/{workspaceId}/package-definition-imports` | workspace | function_definition_import | Import one governed function package definition into the same workspace scope with collision and visibility policy enforcement |
+| GET | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | List governed OpenWhisk packages for one workspace logical serverless context |
+| POST | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | Create one governed OpenWhisk package inside the workspace logical serverless context |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Delete one governed OpenWhisk package from the workspace logical serverless context |
+| GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Fetch one governed OpenWhisk package for the workspace logical serverless context |
+| PATCH | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Update one governed OpenWhisk package without exposing native namespace or subject administration |
+| GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}/definition-export` | workspace | function_definition_export | Export one governed function package definition for bounded workspace-safe import/export workflows |
+| GET | `/v1/functions/workspaces/{workspaceId}/quota` | workspace | function_quota | Fetch governed function quota posture for one workspace |
+| GET | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | List governed OpenWhisk rules for one workspace logical serverless context |
+| POST | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | Create one governed OpenWhisk rule that binds a workspace trigger to a workspace action |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Delete one governed OpenWhisk rule from the workspace logical serverless context |
+| GET | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Fetch one governed OpenWhisk rule for the workspace logical serverless context |
+| PATCH | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Update one governed OpenWhisk rule without exposing native namespace or subject administration |
+| GET | `/v1/functions/workspaces/{workspaceId}/secrets` | workspace | function_workspace_secret | List workspace-scoped governed function secrets without exposing secret material |
+| POST | `/v1/functions/workspaces/{workspaceId}/secrets` | workspace | function_workspace_secret | Create a workspace-scoped governed function secret with a write-only value payload |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Delete a workspace-scoped governed function secret without disclosing secret material |
+| GET | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Get metadata for one workspace-scoped governed function secret without exposing its value |
+| PUT | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Replace a workspace-scoped governed function secret while keeping the secret value write-only |
+| GET | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | List governed OpenWhisk triggers for one workspace logical serverless context |
+| POST | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | Create one governed OpenWhisk trigger for the workspace logical serverless context |
+| DELETE | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Delete one governed OpenWhisk trigger from the workspace logical serverless context |
+| GET | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Fetch one governed OpenWhisk trigger for the workspace logical serverless context |
+| PATCH | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Update one governed OpenWhisk trigger without exposing native namespace or subject administration |
 
 ## IAM
 
@@ -190,6 +185,121 @@ Tenant-scoped IAM administration for Keycloak realms, clients, roles, scopes, an
 | PATCH | `/v1/iam/realms/{realmId}/users/{iamUserId}/status` | tenant | iam_user | Activate or deactivate one managed IAM user |
 | GET | `/v1/iam/tenants/{tenantId}/activity` | tenant | tenant | Query actor-rich IAM lifecycle activity for one tenant. |
 | GET | `/v1/iam/workspaces/{workspaceId}/activity` | workspace | workspace | Query actor-rich IAM lifecycle activity for one workspace context. |
+
+## Metrics
+
+Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}` | tenant | tenant_audit_correlation | Retrieve one tenant-scoped end-to-end audit correlation trace |
+| POST | `/v1/metrics/tenants/{tenantId}/audit-exports` | tenant | tenant_audit_export | Preview a bounded tenant-scoped audit export with masking metadata |
+| GET | `/v1/metrics/tenants/{tenantId}/audit-records` | tenant | tenant_audit_record | Query tenant-scoped audit records through the unified observability surface |
+| GET | `/v1/metrics/tenants/{tenantId}/overview` | tenant | tenant_quota_usage_view | Fetch one tenant-scoped quota usage overview with provisioning-state detail through the unified observability surface |
+| GET | `/v1/metrics/tenants/{tenantId}/quotas` | tenant | tenant_quota_posture | Fetch one tenant-scoped quota posture through the unified observability surface |
+| GET | `/v1/metrics/tenants/{tenantId}/usage` | tenant | tenant_usage_snapshot | Fetch one tenant-scoped usage consumption snapshot through the unified observability surface |
+| GET | `/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}` | workspace | workspace_audit_correlation | Retrieve one workspace-scoped end-to-end audit correlation trace |
+| POST | `/v1/metrics/workspaces/{workspaceId}/audit-exports` | workspace | workspace_audit_export | Preview a bounded workspace-scoped audit export with masking metadata |
+| GET | `/v1/metrics/workspaces/{workspaceId}/audit-records` | workspace | workspace_audit_record | Query workspace-scoped audit records through the unified observability surface |
+| GET | `/v1/metrics/workspaces/{workspaceId}/event-dashboards` | workspace | event_dashboard | Fetch workspace-scoped Kafka bridge and trigger dashboard widgets |
+| GET | `/v1/metrics/workspaces/{workspaceId}/gateway-streams` | workspace | gateway_stream_metrics | Fetch gateway publish, connection, lag, and backpressure metrics for one workspace |
+| GET | `/v1/metrics/workspaces/{workspaceId}/kafka-topics` | workspace | kafka_topic_metrics | Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace |
+| GET | `/v1/metrics/workspaces/{workspaceId}/overview` | workspace | workspace_quota_usage_view | Fetch one workspace-scoped quota usage overview through the unified observability surface |
+| GET | `/v1/metrics/workspaces/{workspaceId}/quotas` | workspace | workspace_quota_posture | Fetch one workspace-scoped quota posture through the unified observability surface |
+| GET | `/v1/metrics/workspaces/{workspaceId}/series` | workspace | metric_series | Fetch one workspace metric series window through the unified metrics family |
+| GET | `/v1/metrics/workspaces/{workspaceId}/usage` | workspace | workspace_usage_snapshot | Fetch one workspace-scoped usage consumption snapshot through the unified observability surface |
+
+## Mongo
+
+Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/mongo/databases` | workspace | mongo_database | List tenant-owned MongoDB logical databases through the normalized administrative surface |
+| POST | `/v1/mongo/databases` | workspace | mongo_database | Create one tenant-owned MongoDB logical database with naming, quota, and isolation guardrails |
+| DELETE | `/v1/mongo/databases/{databaseName}` | workspace | mongo_database | Delete one tenant-owned MongoDB logical database through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}` | workspace | mongo_database | Fetch one normalized MongoDB database contract including dbStats projection |
+| GET | `/v1/mongo/databases/{databaseName}/collections` | workspace | mongo_collection | List normalized MongoDB collections for one tenant-owned logical database |
+| POST | `/v1/mongo/databases/{databaseName}/collections` | workspace | mongo_collection | Create one MongoDB collection with bounded validation, capped, time-series, and index configuration |
+| DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Delete one MongoDB collection through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Fetch one normalized MongoDB collection contract |
+| PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Update one MongoDB collection through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes` | workspace | mongo_index | List normalized MongoDB indexes for one managed collection |
+| POST | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes` | workspace | mongo_index | Create one MongoDB index with bounded TTL, partial filter, and rebuild metadata |
+| DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Delete one MongoDB index from a managed collection |
+| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Fetch one normalized MongoDB index contract |
+| PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Update one MongoDB index definition with bounded structural metadata |
+| POST | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}/rebuild` | workspace | mongo_index | Request one controlled MongoDB index rebuild with explicit approval evidence |
+| GET | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | List normalized MongoDB users for one tenant-owned logical database |
+| POST | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | Create one MongoDB user with secret-indirected credentials and bounded role bindings |
+| DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Delete one MongoDB user through the bounded administrative surface |
+| GET | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Fetch one normalized MongoDB user contract |
+| PUT | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Update one MongoDB user through the bounded administrative surface |
+| POST | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings` | workspace | mongo_role_binding | Assign one bounded MongoDB role binding to a tenant-owned user |
+| DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings/{roleBindingId}` | workspace | mongo_role_binding | Revoke one bounded MongoDB role binding from a tenant-owned user |
+| GET | `/v1/mongo/databases/{databaseName}/views` | workspace | mongo_view | List normalized MongoDB views inside one managed database |
+| POST | `/v1/mongo/databases/{databaseName}/views` | workspace | mongo_view | Create one MongoDB view with a bounded read-only aggregation pipeline |
+| DELETE | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Delete one MongoDB view from a managed database |
+| GET | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Fetch one normalized MongoDB view contract |
+| PUT | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Update one MongoDB view pipeline while preserving read-only safeguards |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/aggregations` | workspace | mongo_data_aggregation | Execute one controlled MongoDB aggregation pipeline with tenant-aware stage injection and bounded planner limits |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write` | workspace | mongo_data_bulk | Execute one bounded MongoDB bulk write request with configurable operation-count and payload-size limits |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/change-streams` | workspace | mongo_data_change_stream | Register one topology-aware MongoDB change-stream bridge request for gateway-managed realtime delivery |
+| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | List workspace-scoped MongoDB documents with validated JSON filters, projection, deterministic sorting, and cursor pagination |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | Insert one tenant-scoped MongoDB document while preserving collection validation and logical tenant segregation |
+| DELETE | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Delete one tenant-scoped MongoDB document by identifier |
+| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Fetch one tenant-scoped MongoDB document by identifier with optional projection |
+| PATCH | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Apply one bounded partial-update document against one tenant-scoped MongoDB document |
+| PUT | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Replace one tenant-scoped MongoDB document with full collection-validation-aware payload checks |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/exports` | workspace | mongo_data_export | Export one bounded JSON document set from a MongoDB collection with restore-ready manifest metadata |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/imports` | workspace | mongo_data_import | Import one bounded JSON document batch into a MongoDB collection with validation-first restore semantics |
+| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials` | workspace | mongo_data_credential | List scoped MongoDB Data API credentials for one logical database |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials` | workspace | mongo_data_credential | Create one scoped MongoDB Data API credential limited to declared database and collection scope |
+| DELETE | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}` | workspace | mongo_data_credential | Revoke one scoped MongoDB Data API credential |
+| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}` | workspace | mongo_data_credential | Fetch one scoped MongoDB Data API credential definition without reissuing the secret value |
+| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/transactions` | workspace | mongo_data_transaction | Execute one topology-aware MongoDB multi-collection transaction with bounded tenant-safe document operations |
+| GET | `/v1/mongo/workspaces/{workspaceId}/inventory` | workspace | mongo_inventory | Fetch the persisted MongoDB administrative inventory projection for one workspace |
+| GET | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | List MongoDB collection onboarding templates for one workspace |
+| POST | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | Create one MongoDB collection onboarding template with bounded defaults and variables |
+| DELETE | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Delete one MongoDB collection onboarding template from a workspace |
+| GET | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Fetch one MongoDB collection onboarding template for a workspace |
+| PUT | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Update one MongoDB collection onboarding template for a workspace |
+
+## Pg Capture Tenant Summary
+
+Tenant-scoped PostgreSQL change-capture summary surfaces.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/tenants/{tenantId}/pg-captures/summary` | tenant | pg_capture_summary | List active PostgreSQL CDC captures across tenant workspaces |
+
+## Pg Captures
+
+Workspace-scoped PostgreSQL change-capture enablement and listing surfaces.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/workspaces/{workspaceId}/pg-captures` | workspace | pg_capture_config | List PostgreSQL CDC captures for one workspace |
+| POST | `/v1/workspaces/{workspaceId}/pg-captures` | workspace | pg_capture_config | Enable PostgreSQL CDC capture for one workspace table |
+
+## Platform
+
+Cross-tenant platform governance, catalog, and operator discovery surfaces.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/platform/deployment-profiles` | platform | deployment_profile | Submit a deployment profile write request |
+| GET | `/v1/platform/deployment-profiles/{deploymentProfileId}` | platform | deployment_profile | Fetch one deployment profile |
+| POST | `/v1/platform/plans` | platform | plan | Submit a commercial plan write request |
+| GET | `/v1/platform/plans/{planId}` | platform | plan | Fetch one commercial plan |
+| POST | `/v1/platform/plans/{planId}/quota-policies` | platform | plan | Submit a quota policy write request |
+| GET | `/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}` | platform | plan | Fetch one quota policy |
+| POST | `/v1/platform/provider-capabilities` | platform | provider_capability | Submit a provider capability write request |
+| GET | `/v1/platform/provider-capabilities/{providerCapabilityId}` | platform | provider_capability | Fetch one provider capability record |
+| GET | `/v1/platform/route-catalog` | platform | route_catalog | List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility |
+| GET | `/v1/platform/storage/provider` | platform | storage_provider | Inspect the active storage provider abstraction and common capability manifest |
+| POST | `/v1/platform/users` | platform | platform_user | Submit a canonical platform user write request under the platform family |
+| GET | `/v1/platform/users/{userId}` | platform | platform_user | Fetch one canonical platform user entity under the platform family |
 
 ## Postgres
 
@@ -312,141 +422,6 @@ Workspace- and tenant-aware PostgreSQL control, structural administration, inven
 | PUT | `/v1/postgres/workspaces/{workspaceId}/templates/{templateId}` | workspace | postgres_template | Update one PostgreSQL database or schema onboarding template for a workspace |
 | GET | `/v1/postgres/workspaces/{workspaceId}/types` | workspace | postgres_type | List PostgreSQL types currently allowed for one workspace and target cluster profile |
 
-## Mongo
-
-Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.
-
-| Method | Path | Scope | Resource | Summary |
-| --- | --- | --- | --- | --- |
-| GET | `/v1/mongo/databases` | workspace | mongo_database | List tenant-owned MongoDB logical databases through the normalized administrative surface |
-| POST | `/v1/mongo/databases` | workspace | mongo_database | Create one tenant-owned MongoDB logical database with naming, quota, and isolation guardrails |
-| DELETE | `/v1/mongo/databases/{databaseName}` | workspace | mongo_database | Delete one tenant-owned MongoDB logical database through the bounded administrative surface |
-| GET | `/v1/mongo/databases/{databaseName}` | workspace | mongo_database | Fetch one normalized MongoDB database contract including dbStats projection |
-| GET | `/v1/mongo/databases/{databaseName}/collections` | workspace | mongo_collection | List normalized MongoDB collections for one tenant-owned logical database |
-| POST | `/v1/mongo/databases/{databaseName}/collections` | workspace | mongo_collection | Create one MongoDB collection with bounded validation, capped, time-series, and index configuration |
-| DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Delete one MongoDB collection through the bounded administrative surface |
-| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Fetch one normalized MongoDB collection contract |
-| PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}` | workspace | mongo_collection | Update one MongoDB collection through the bounded administrative surface |
-| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes` | workspace | mongo_index | List normalized MongoDB indexes for one managed collection |
-| POST | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes` | workspace | mongo_index | Create one MongoDB index with bounded TTL, partial filter, and rebuild metadata |
-| DELETE | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Delete one MongoDB index from a managed collection |
-| GET | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Fetch one normalized MongoDB index contract |
-| PUT | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}` | workspace | mongo_index | Update one MongoDB index definition with bounded structural metadata |
-| POST | `/v1/mongo/databases/{databaseName}/collections/{collectionName}/indexes/{indexName}/rebuild` | workspace | mongo_index | Request one controlled MongoDB index rebuild with explicit approval evidence |
-| GET | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | List normalized MongoDB users for one tenant-owned logical database |
-| POST | `/v1/mongo/databases/{databaseName}/users` | workspace | mongo_user | Create one MongoDB user with secret-indirected credentials and bounded role bindings |
-| DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Delete one MongoDB user through the bounded administrative surface |
-| GET | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Fetch one normalized MongoDB user contract |
-| PUT | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}` | workspace | mongo_user | Update one MongoDB user through the bounded administrative surface |
-| POST | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings` | workspace | mongo_role_binding | Assign one bounded MongoDB role binding to a tenant-owned user |
-| DELETE | `/v1/mongo/databases/{databaseName}/users/{mongoUserName}/role-bindings/{roleBindingId}` | workspace | mongo_role_binding | Revoke one bounded MongoDB role binding from a tenant-owned user |
-| GET | `/v1/mongo/databases/{databaseName}/views` | workspace | mongo_view | List normalized MongoDB views inside one managed database |
-| POST | `/v1/mongo/databases/{databaseName}/views` | workspace | mongo_view | Create one MongoDB view with a bounded read-only aggregation pipeline |
-| DELETE | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Delete one MongoDB view from a managed database |
-| GET | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Fetch one normalized MongoDB view contract |
-| PUT | `/v1/mongo/databases/{databaseName}/views/{viewName}` | workspace | mongo_view | Update one MongoDB view pipeline while preserving read-only safeguards |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/aggregations` | workspace | mongo_data_aggregation | Execute one controlled MongoDB aggregation pipeline with tenant-aware stage injection and bounded planner limits |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/bulk/write` | workspace | mongo_data_bulk | Execute one bounded MongoDB bulk write request with configurable operation-count and payload-size limits |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/change-streams` | workspace | mongo_data_change_stream | Register one topology-aware MongoDB change-stream bridge request for gateway-managed realtime delivery |
-| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | List workspace-scoped MongoDB documents with validated JSON filters, projection, deterministic sorting, and cursor pagination |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents` | workspace | mongo_data_documents | Insert one tenant-scoped MongoDB document while preserving collection validation and logical tenant segregation |
-| DELETE | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Delete one tenant-scoped MongoDB document by identifier |
-| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Fetch one tenant-scoped MongoDB document by identifier with optional projection |
-| PATCH | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Apply one bounded partial-update document against one tenant-scoped MongoDB document |
-| PUT | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/documents/{documentId}` | workspace | mongo_data_document | Replace one tenant-scoped MongoDB document with full collection-validation-aware payload checks |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/exports` | workspace | mongo_data_export | Export one bounded JSON document set from a MongoDB collection with restore-ready manifest metadata |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/collections/{collectionName}/imports` | workspace | mongo_data_import | Import one bounded JSON document batch into a MongoDB collection with validation-first restore semantics |
-| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials` | workspace | mongo_data_credential | List scoped MongoDB Data API credentials for one logical database |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials` | workspace | mongo_data_credential | Create one scoped MongoDB Data API credential limited to declared database and collection scope |
-| DELETE | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}` | workspace | mongo_data_credential | Revoke one scoped MongoDB Data API credential |
-| GET | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/credentials/{credentialId}` | workspace | mongo_data_credential | Fetch one scoped MongoDB Data API credential definition without reissuing the secret value |
-| POST | `/v1/mongo/workspaces/{workspaceId}/data/{databaseName}/transactions` | workspace | mongo_data_transaction | Execute one topology-aware MongoDB multi-collection transaction with bounded tenant-safe document operations |
-| GET | `/v1/mongo/workspaces/{workspaceId}/inventory` | workspace | mongo_inventory | Fetch the persisted MongoDB administrative inventory projection for one workspace |
-| GET | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | List MongoDB collection onboarding templates for one workspace |
-| POST | `/v1/mongo/workspaces/{workspaceId}/templates` | workspace | mongo_template | Create one MongoDB collection onboarding template with bounded defaults and variables |
-| DELETE | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Delete one MongoDB collection onboarding template from a workspace |
-| GET | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Fetch one MongoDB collection onboarding template for a workspace |
-| PUT | `/v1/mongo/workspaces/{workspaceId}/templates/{templateId}` | workspace | mongo_template | Update one MongoDB collection onboarding template for a workspace |
-
-## Events
-
-Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.
-
-| Method | Path | Scope | Resource | Summary |
-| --- | --- | --- | --- | --- |
-| POST | `/v1/events/topics` | workspace | topic | Submit a workspace-scoped Kafka topic governance request with managed naming, ACL isolation, and quota-aware provisioning |
-| GET | `/v1/events/topics/{resourceId}` | workspace | topic | Fetch one workspace-scoped Kafka topic contract with naming, ACL, isolation, quota, and KRaft governance metadata |
-| GET | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Fetch one Kafka topic access policy with workspace-scoped ACL bindings and service-account isolation |
-| PUT | `/v1/events/topics/{resourceId}/access` | workspace | topic_acl | Update one Kafka topic access policy with managed ACL convergence and service-account isolation |
-| GET | `/v1/events/topics/{resourceId}/metadata` | workspace | topic_metadata | Fetch topic partitions, lag, retention, and compaction metadata when provider APIs and policy allow visibility |
-| POST | `/v1/events/topics/{resourceId}/publish` | workspace | event_publication | Publish one event through the HTTP event gateway without exposing native Kafka clients |
-| GET | `/v1/events/topics/{resourceId}/stream` | workspace | event_stream | Consume one topic through the HTTP SSE event gateway with replay and backpressure hints |
-| POST | `/v1/events/workspaces/{workspaceId}/bridges` | workspace | event_bridge | Register a workspace-scoped managed event bridge from PostgreSQL, MongoDB, storage, OpenWhisk, or IAM into Kafka |
-| GET | `/v1/events/workspaces/{workspaceId}/bridges/{bridgeId}` | workspace | event_bridge | Fetch the normalized state for one managed event bridge |
-| GET | `/v1/events/workspaces/{workspaceId}/inventory` | workspace | event_inventory | Fetch one workspace Kafka topic inventory with naming, ACL, quota, and KRaft governance visibility |
-
-## Functions
-
-Workspace-scoped OpenWhisk-governed serverless package, trigger, rule, action, and inventory contracts routed by the gateway.
-
-| Method | Path | Scope | Resource | Summary |
-| --- | --- | --- | --- | --- |
-| GET | `/v1/admin/functions/audit/coverage` | platform | function_audit_coverage | Get governed function audit coverage report |
-| POST | `/v1/functions/actions` | workspace | function_action | Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs |
-| DELETE | `/v1/functions/actions/{resourceId}` | workspace | function_action | Delete one governed function action and its managed exposure bindings from the workspace serverless context |
-| GET | `/v1/functions/actions/{resourceId}` | workspace | function_action | Fetch one governed function action with normalized source, execution, policy, and trigger state |
-| PATCH | `/v1/functions/actions/{resourceId}` | workspace | function_action | Update one governed function action without exposing native namespace, subject, or unrestricted provider administration |
-| GET | `/v1/functions/actions/{resourceId}/activations` | workspace | function_activation | List activation summaries for one governed function action under the declared execution policy |
-| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}` | workspace | function_activation | Fetch one activation summary for a governed function action |
-| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/logs` | workspace | function_activation_log | Fetch redacted activation logs for one governed function action execution when policy allows it |
-| POST | `/v1/functions/actions/{resourceId}/activations/{activationId}/rerun` | workspace | function_invocation | Request one governed rerun for an existing function activation when the action policy permits it |
-| GET | `/v1/functions/actions/{resourceId}/activations/{activationId}/result` | workspace | function_activation_result | Fetch the result envelope for one governed function action activation when policy allows it |
-| POST | `/v1/functions/actions/{resourceId}/cron-triggers` | workspace | function_cron_trigger | Register one cron trigger for a governed function action when scheduled delivery is enabled |
-| GET | `/v1/functions/actions/{resourceId}/cron-triggers/{triggerId}` | workspace | function_cron_trigger | Fetch one cron trigger bound to a governed function action |
-| GET | `/v1/functions/actions/{resourceId}/definition-export` | workspace | function_definition_export | Export one governed function action definition for bounded workspace-safe import/export workflows |
-| DELETE | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Delete one APISIX-managed HTTP exposure for a governed function action |
-| GET | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Fetch the APISIX-managed HTTP exposure for one governed function action |
-| PATCH | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Update one APISIX-managed HTTP exposure for a governed function action |
-| POST | `/v1/functions/actions/{resourceId}/http-exposure` | workspace | function_http_exposure | Create one APISIX-managed HTTP exposure for a governed function action |
-| POST | `/v1/functions/actions/{resourceId}/invocations` | workspace | function_invocation | Invoke one governed function action directly through the control-plane abstraction |
-| POST | `/v1/functions/actions/{resourceId}/kafka-triggers` | workspace | function_kafka_trigger | Register a Kafka-triggered OpenWhisk execution policy for one managed action |
-| GET | `/v1/functions/actions/{resourceId}/kafka-triggers/{triggerId}` | workspace | function_kafka_trigger | Fetch one normalized Kafka-triggered function execution policy |
-| POST | `/v1/functions/actions/{resourceId}/rollback` | workspace | function_rollback | Request rollback of one governed function action to a prior immutable version |
-| POST | `/v1/functions/actions/{resourceId}/storage-triggers` | workspace | function_storage_trigger | Register one storage event trigger for a governed function action when storage delivery is enabled |
-| GET | `/v1/functions/actions/{resourceId}/storage-triggers/{triggerId}` | workspace | function_storage_trigger | Fetch one storage trigger bound to a governed function action |
-| GET | `/v1/functions/actions/{resourceId}/versions` | workspace | function_version | List immutable versions for one governed function action within its tenant and workspace lifecycle scope |
-| GET | `/v1/functions/actions/{resourceId}/versions/{versionId}` | workspace | function_version | Fetch one immutable version for a governed function action |
-| GET | `/v1/functions/tenants/{tenantId}/quota` | tenant | function_quota | Fetch governed function quota posture for one tenant |
-| GET | `/v1/functions/workspaces/{workspaceId}/actions` | workspace | function_action | List governed function actions for one workspace including runtime, source, policy, and exposure summaries |
-| GET | `/v1/functions/workspaces/{workspaceId}/audit` | workspace | function_audit | List governed function deployment and admin audit records |
-| GET | `/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement` | workspace | function_audit | List governed function quota enforcement records |
-| GET | `/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence` | workspace | function_audit | List governed function rollback evidence records |
-| POST | `/v1/functions/workspaces/{workspaceId}/definition-imports` | workspace | function_definition_import | Import one governed function action definition into the same workspace scope with collision and visibility policy enforcement |
-| GET | `/v1/functions/workspaces/{workspaceId}/inventory` | workspace | function_inventory | Fetch one workspace OpenWhisk serverless inventory with logical namespace, subject, package, trigger, and rule visibility |
-| POST | `/v1/functions/workspaces/{workspaceId}/package-definition-imports` | workspace | function_definition_import | Import one governed function package definition into the same workspace scope with collision and visibility policy enforcement |
-| GET | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | List governed OpenWhisk packages for one workspace logical serverless context |
-| POST | `/v1/functions/workspaces/{workspaceId}/packages` | workspace | function_package | Create one governed OpenWhisk package inside the workspace logical serverless context |
-| DELETE | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Delete one governed OpenWhisk package from the workspace logical serverless context |
-| GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Fetch one governed OpenWhisk package for the workspace logical serverless context |
-| PATCH | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}` | workspace | function_package | Update one governed OpenWhisk package without exposing native namespace or subject administration |
-| GET | `/v1/functions/workspaces/{workspaceId}/packages/{packageName}/definition-export` | workspace | function_definition_export | Export one governed function package definition for bounded workspace-safe import/export workflows |
-| GET | `/v1/functions/workspaces/{workspaceId}/quota` | workspace | function_quota | Fetch governed function quota posture for one workspace |
-| GET | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | List governed OpenWhisk rules for one workspace logical serverless context |
-| POST | `/v1/functions/workspaces/{workspaceId}/rules` | workspace | function_rule | Create one governed OpenWhisk rule that binds a workspace trigger to a workspace action |
-| DELETE | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Delete one governed OpenWhisk rule from the workspace logical serverless context |
-| GET | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Fetch one governed OpenWhisk rule for the workspace logical serverless context |
-| PATCH | `/v1/functions/workspaces/{workspaceId}/rules/{ruleName}` | workspace | function_rule | Update one governed OpenWhisk rule without exposing native namespace or subject administration |
-| GET | `/v1/functions/workspaces/{workspaceId}/secrets` | workspace | function_workspace_secret | List workspace-scoped governed function secrets without exposing secret material |
-| POST | `/v1/functions/workspaces/{workspaceId}/secrets` | workspace | function_workspace_secret | Create a workspace-scoped governed function secret with a write-only value payload |
-| DELETE | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Delete a workspace-scoped governed function secret without disclosing secret material |
-| GET | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Get metadata for one workspace-scoped governed function secret without exposing its value |
-| PUT | `/v1/functions/workspaces/{workspaceId}/secrets/{secretName}` | workspace | function_workspace_secret | Replace a workspace-scoped governed function secret while keeping the secret value write-only |
-| GET | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | List governed OpenWhisk triggers for one workspace logical serverless context |
-| POST | `/v1/functions/workspaces/{workspaceId}/triggers` | workspace | function_trigger | Create one governed OpenWhisk trigger for the workspace logical serverless context |
-| DELETE | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Delete one governed OpenWhisk trigger from the workspace logical serverless context |
-| GET | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Fetch one governed OpenWhisk trigger for the workspace logical serverless context |
-| PATCH | `/v1/functions/workspaces/{workspaceId}/triggers/{triggerName}` | workspace | function_trigger | Update one governed OpenWhisk trigger without exposing native namespace or subject administration |
-
 ## Storage
 
 Workspace-scoped object storage discovery, bucket control, and presign-safe surfaces.
@@ -477,28 +452,37 @@ Workspace-scoped object storage discovery, bucket control, and presign-safe surf
 | POST | `/v1/storage/workspaces/{workspaceId}/credentials/{credentialId}/rotations` | workspace | storage_credential | Rotate one scoped storage programmatic credential and return the replacement access key pair once |
 | GET | `/v1/storage/workspaces/{workspaceId}/usage` | workspace | storage_usage_snapshot | Fetch one workspace-scoped storage usage snapshot with bucket breakdown |
 
-## Metrics
+## Tenants
 
-Workspace-scoped usage, quota, gateway-stream, and observability series exposed through the unified gateway.
+Tenant lifecycle, membership, invitation, quota, and tenant-level capability surfaces.
 
 | Method | Path | Scope | Resource | Summary |
 | --- | --- | --- | --- | --- |
-| GET | `/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}` | tenant | tenant_audit_correlation | Retrieve one tenant-scoped end-to-end audit correlation trace |
-| POST | `/v1/metrics/tenants/{tenantId}/audit-exports` | tenant | tenant_audit_export | Preview a bounded tenant-scoped audit export with masking metadata |
-| GET | `/v1/metrics/tenants/{tenantId}/audit-records` | tenant | tenant_audit_record | Query tenant-scoped audit records through the unified observability surface |
-| GET | `/v1/metrics/tenants/{tenantId}/overview` | tenant | tenant_quota_usage_view | Fetch one tenant-scoped quota usage overview with provisioning-state detail through the unified observability surface |
-| GET | `/v1/metrics/tenants/{tenantId}/quotas` | tenant | tenant_quota_posture | Fetch one tenant-scoped quota posture through the unified observability surface |
-| GET | `/v1/metrics/tenants/{tenantId}/usage` | tenant | tenant_usage_snapshot | Fetch one tenant-scoped usage consumption snapshot through the unified observability surface |
-| GET | `/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}` | workspace | workspace_audit_correlation | Retrieve one workspace-scoped end-to-end audit correlation trace |
-| POST | `/v1/metrics/workspaces/{workspaceId}/audit-exports` | workspace | workspace_audit_export | Preview a bounded workspace-scoped audit export with masking metadata |
-| GET | `/v1/metrics/workspaces/{workspaceId}/audit-records` | workspace | workspace_audit_record | Query workspace-scoped audit records through the unified observability surface |
-| GET | `/v1/metrics/workspaces/{workspaceId}/event-dashboards` | workspace | event_dashboard | Fetch workspace-scoped Kafka bridge and trigger dashboard widgets |
-| GET | `/v1/metrics/workspaces/{workspaceId}/gateway-streams` | workspace | gateway_stream_metrics | Fetch gateway publish, connection, lag, and backpressure metrics for one workspace |
-| GET | `/v1/metrics/workspaces/{workspaceId}/kafka-topics` | workspace | kafka_topic_metrics | Fetch topic throughput, lag, retention, compaction, bridge, and trigger metrics for one workspace |
-| GET | `/v1/metrics/workspaces/{workspaceId}/overview` | workspace | workspace_quota_usage_view | Fetch one workspace-scoped quota usage overview through the unified observability surface |
-| GET | `/v1/metrics/workspaces/{workspaceId}/quotas` | workspace | workspace_quota_posture | Fetch one workspace-scoped quota posture through the unified observability surface |
-| GET | `/v1/metrics/workspaces/{workspaceId}/series` | workspace | metric_series | Fetch one workspace metric series window through the unified metrics family |
-| GET | `/v1/metrics/workspaces/{workspaceId}/usage` | workspace | workspace_usage_snapshot | Fetch one workspace-scoped usage consumption snapshot through the unified observability surface |
+| GET | `/v1/tenants` | platform | tenant_collection | List tenants with lifecycle, quota, label, placement, and governance filters |
+| POST | `/v1/tenants` | tenant | tenant | Submit a canonical tenant write request with governance labels, quotas, and lifecycle controls |
+| DELETE | `/v1/tenants/{tenantId}` | tenant | tenant | Logically delete one tenant while preserving retention, auditability, and purge preconditions |
+| GET | `/v1/tenants/{tenantId}` | tenant | tenant | Fetch one canonical tenant with governance labels, quotas, retention posture, and export metadata |
+| PUT | `/v1/tenants/{tenantId}` | tenant | tenant | Update one canonical tenant including lifecycle, quota, label, and retention governance settings |
+| GET | `/v1/tenants/{tenantId}/dashboard` | tenant | tenant_dashboard | Fetch tenant governance dashboard data including quotas, labels, provisioning state, and allowed actions |
+| GET | `/v1/tenants/{tenantId}/effective-capabilities` | tenant | tenant_capabilities | Resolve effective capabilities for one tenant |
+| POST | `/v1/tenants/{tenantId}/exports` | tenant | tenant_export | Create a recovery-oriented functional configuration export for one tenant |
+| PATCH | `/v1/tenants/{tenantId}/iam-access` | tenant | tenant | Suspend or reactivate all tenant-managed IAM access for users and service accounts. |
+| GET | `/v1/tenants/{tenantId}/inventory` | tenant | tenant_inventory | Fetch one tenant inventory snapshot covering workspaces, applications, service accounts, and managed resources |
+| POST | `/v1/tenants/{tenantId}/invitations` | tenant | invitation | Submit an invitation write request |
+| GET | `/v1/tenants/{tenantId}/invitations/{invitationId}` | tenant | invitation | Fetch one invitation record |
+| POST | `/v1/tenants/{tenantId}/invitations/{invitationId}/acceptance` | tenant | invitation | Accept a tenant or workspace invitation while it is still pending. |
+| POST | `/v1/tenants/{tenantId}/invitations/{invitationId}/revocation` | tenant | invitation | Revoke a pending invitation before it is accepted or expires. |
+| POST | `/v1/tenants/{tenantId}/memberships` | tenant | tenant_membership | Submit a tenant membership write request |
+| GET | `/v1/tenants/{tenantId}/memberships/{tenantMembershipId}` | tenant | tenant_membership | Fetch one tenant membership record |
+| POST | `/v1/tenants/{tenantId}/ownership-transfers` | tenant | tenant | Initiate a secure tenant ownership transfer that requires acceptance by the designated target owner. |
+| GET | `/v1/tenants/{tenantId}/ownership-transfers/{ownershipTransferId}` | tenant | tenant | Fetch one tenant ownership transfer record. |
+| POST | `/v1/tenants/{tenantId}/ownership-transfers/{ownershipTransferId}/acceptance` | tenant | tenant | Accept a pending tenant ownership transfer before it expires. |
+| GET | `/v1/tenants/{tenantId}/permission-recalculations/{permissionRecalculationId}` | tenant | tenant | Fetch one tenant-scoped effective-permission recalculation record. |
+| POST | `/v1/tenants/{tenantId}/purge` | tenant | tenant_purge | Definitively purge one logically deleted tenant after retention and elevated confirmation checks |
+| POST | `/v1/tenants/{tenantId}/reactivation` | tenant | tenant | Reactivate one suspended tenant and restore descendant access controls under audit |
+| GET | `/v1/tenants/{tenantId}/storage-context` | tenant | tenant_storage_context | Fetch the tenant-scoped logical storage context used for workspace bucket bootstrap. |
+| POST | `/v1/tenants/{tenantId}/storage-context/credential-rotations` | tenant | tenant_storage_context | Rotate the active tenant-scoped storage credential reference without recreating the namespace. |
+| GET | `/v1/tenants/{tenantId}/workflow-jobs/{jobRef}` | tenant | workflow_job | Get one tenant-scoped workflow job status. |
 
 ## WebSockets
 
@@ -508,3 +492,38 @@ Realtime websocket session negotiation and channel subscriptions for workspace-s
 | --- | --- | --- | --- | --- |
 | POST | `/v1/websockets/sessions` | workspace | websocket_session | Negotiate one websocket session for gateway-managed topic subscriptions |
 | GET | `/v1/websockets/sessions/{sessionId}` | workspace | websocket_session | Fetch one negotiated websocket session descriptor, subscriptions, and backpressure policy |
+
+## Workspaces
+
+Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.
+
+| Method | Path | Scope | Resource | Summary |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/workspaces` | tenant | workspace_collection | List workspaces for one tenant with lifecycle, environment, slug, and display-name filters |
+| POST | `/v1/workspaces` | workspace | workspace | Submit a canonical workspace write request under the workspaces family |
+| DELETE | `/v1/workspaces/{workspaceId}` | workspace | workspace | Soft-delete one canonical workspace while preserving audit and clone lineage metadata |
+| GET | `/v1/workspaces/{workspaceId}` | workspace | workspace | Fetch one canonical workspace entity under the workspaces family |
+| PUT | `/v1/workspaces/{workspaceId}` | workspace | workspace | Update one canonical workspace including IAM, lifecycle, and inheritance policy settings |
+| GET | `/v1/workspaces/{workspaceId}/api-surface` | workspace | workspace_api_surface | Fetch workspace-specific base URLs and application endpoint bindings for external clients |
+| GET | `/v1/workspaces/{workspaceId}/applications` | workspace | application | List canonical external applications, authentication flows, and validation status for one workspace |
+| POST | `/v1/workspaces/{workspaceId}/applications` | workspace | application | Submit a canonical external application write request under the workspaces family |
+| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Fetch one canonical external application entity under the workspaces family |
+| PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}` | workspace | application | Update one canonical external application including federation, logout, scope, and role settings |
+| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers` | workspace | application | List federated OIDC and SAML identity providers attached to one external application |
+| POST | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers` | workspace | application | Create one federated identity provider for an external application |
+| GET | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Fetch one federated identity provider attached to an external application |
+| PUT | `/v1/workspaces/{workspaceId}/applications/{applicationId}/federation/providers/{providerId}` | workspace | application | Update one federated identity provider including metadata, certificates, and mapper bindings |
+| GET | `/v1/workspaces/{workspaceId}/applications/templates` | workspace | application | List starter templates for SPA, confidential backend, and B2B SAML external applications |
+| POST | `/v1/workspaces/{workspaceId}/clone` | workspace | workspace | Clone one workspace baseline into a new environment with optional application and credential reset policies |
+| GET | `/v1/workspaces/{workspaceId}/effective-capabilities` | workspace | workspace_capabilities | Resolve effective capabilities for one workspace |
+| POST | `/v1/workspaces/{workspaceId}/managed-resources` | workspace | managed_resource | Submit a canonical managed resource write request |
+| GET | `/v1/workspaces/{workspaceId}/managed-resources/{resourceId}` | workspace | managed_resource | Fetch one canonical managed resource entity |
+| POST | `/v1/workspaces/{workspaceId}/memberships` | workspace | workspace_membership | Submit a workspace membership write request |
+| GET | `/v1/workspaces/{workspaceId}/memberships/{workspaceMembershipId}` | workspace | workspace_membership | Fetch one workspace membership record |
+| GET | `/v1/workspaces/{workspaceId}/permission-recalculations/{permissionRecalculationId}` | workspace | workspace | Fetch one workspace-scoped effective-permission recalculation record. |
+| POST | `/v1/workspaces/{workspaceId}/service-accounts` | workspace | service_account | Submit a canonical service account write request |
+| GET | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}` | workspace | service_account | Fetch one canonical service account entity |
+| POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-issuance` | workspace | service_account | Issue a new secret-free credential reference for one workspace service account. |
+| POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-revocations` | workspace | service_account | Revoke one or all active credential references for a workspace service account. |
+| POST | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}/credential-rotations` | workspace | service_account | Rotate the active credential reference for one workspace service account. |
+| GET | `/v1/workspaces/{workspaceId}/workflow-jobs/{jobRef}` | workspace | workflow_job | Get one workspace-scoped workflow job status. |

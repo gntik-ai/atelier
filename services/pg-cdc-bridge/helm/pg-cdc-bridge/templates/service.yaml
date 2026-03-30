@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pg-cdc-bridge
+spec:
+  type: ClusterIP
+  selector:
+    app: pg-cdc-bridge
+  ports:
+    - port: 8080
+      targetPort: 8080
