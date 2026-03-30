@@ -1,0 +1,18 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: platform-postgresql-credentials
+  namespace: postgresql
+spec:
+  refreshInterval: {{ $.Values.eso.refreshInterval | quote }}
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: platform-postgresql-credentials
+    immutable: true
+  data:
+    - secretKey: root-password
+      remoteRef: { key: platform/postgresql, property: root-password }
+    - secretKey: app-password
+      remoteRef: { key: platform/postgresql, property: app-password }

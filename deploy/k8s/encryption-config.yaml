@@ -1,0 +1,15 @@
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+# OpenShift equivalent: configure an APIServer object (apiserver.config.openshift.io/v1)
+# and reference this materialized aescbc key sourced during Vault bootstrap from
+# secret/platform/encryption/master-key.
+resources:
+  - resources:
+      - secrets
+    providers:
+      - aescbc:
+          keys:
+            - name: key1
+              # Replace at deploy time with a base64-encoded 32-byte key sourced from Vault.
+              secret: REPLACE_WITH_BASE64_32_BYTE_KEY
+      - identity: {}

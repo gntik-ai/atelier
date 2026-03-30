@@ -1,0 +1,14 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: platform-s3-credentials
+  namespace: s3-compat
+spec:
+  refreshInterval: {{ $.Values.eso.refreshInterval | quote }}
+  secretStoreRef: { name: vault-backend, kind: ClusterSecretStore }
+  target: { name: platform-s3-credentials, immutable: false }
+  data:
+    - secretKey: access-key
+      remoteRef: { key: platform/s3, property: access-key }
+    - secretKey: secret-key
+      remoteRef: { key: platform/s3, property: secret-key }

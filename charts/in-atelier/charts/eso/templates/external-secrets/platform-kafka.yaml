@@ -1,0 +1,14 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: platform-kafka-credentials
+  namespace: kafka
+spec:
+  refreshInterval: {{ $.Values.eso.refreshInterval | quote }}
+  secretStoreRef: { name: vault-backend, kind: ClusterSecretStore }
+  target: { name: platform-kafka-credentials, immutable: true }
+  data:
+    - secretKey: admin-password
+      remoteRef: { key: platform/kafka, property: admin-password }
+    - secretKey: inter-broker-secret
+      remoteRef: { key: platform/kafka, property: inter-broker-secret }

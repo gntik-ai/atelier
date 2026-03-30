@@ -1,0 +1,56 @@
+vault:
+  namespace: secret-store
+  replicas: 1
+  image:
+    repository: hashicorp/vault
+    tag: "1.15.0"
+    pullPolicy: IfNotPresent
+  storage:
+    size: 10Gi
+    storageClassName: ""
+  tls:
+    enabled: true
+    secretName: vault-server-tls
+    issuerRef:
+      name: selfsigned-issuer
+      kind: ClusterIssuer
+  service:
+    type: ClusterIP
+    port: 8200
+    clusterPort: 8201
+  unsealMethod: shamir
+  initShares: 5
+  initThreshold: 3
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  auditSidecar:
+    enabled: true
+    image:
+      repository: node
+      tag: 20-alpine
+      pullPolicy: IfNotPresent
+    kafkaTopic: console.secrets.audit
+    kafkaBrokers: "kafka.kafka.svc.cluster.local:9092"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  networkPolicy:
+    enabled: true
+    allowedNamespaceLabel: vault-access
+  metrics:
+    enabled: true
+  migration:
+    enabled: true
+    image:
+      repository: bitnami/kubectl
+      tag: latest
+      pullPolicy: IfNotPresent

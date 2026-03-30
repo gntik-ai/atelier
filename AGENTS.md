@@ -58,4 +58,11 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - Retry override pattern: create superadmin override records with `INSERT ... WHERE NOT EXISTS` semantics and return `409 OVERRIDE_IN_PROGRESS` on concurrent requests.
 - New environment variables: `FAILURE_CLASSIFICATION_CACHE_TTL_SECONDS`, `INTERVENTION_NOTIFICATION_DEBOUNCE_MINUTES`, `RETRY_OVERRIDE_REQUIRES_JUSTIFICATION`.
 - New Kafka topics: `console.async-operation.failure-classified` (30d), `console.async-operation.manual-intervention-required` (30d), `console.async-operation.retry-override` (30d), `console.async-operation.intervention-notification` (7d).
+## Secure Secret Storage
+
+- New Vault service in namespace `secret-store` with External Secrets Operator integration from `eso-system`.
+- New `secret-audit-handler` sidecar publishes sanitized audit events to Kafka topic `console.secrets.audit` (90d retention target).
+- New PostgreSQL table: `secret_metadata` for metadata-only inventory; never stores secret values.
+- New env vars: `VAULT_ADDR`, `VAULT_NAMESPACE`, `VAULT_SKIP_VERIFY`, `SECRET_AUDIT_KAFKA_TOPIC`, `SECRET_AUDIT_KAFKA_BROKERS`, `VAULT_UNSEAL_METHOD`, `VAULT_INIT_SHARES`, `VAULT_INIT_THRESHOLD`.
+- Vault KV path structure: `platform/`, `tenant/{tenantId}/`, `functions/`, `gateway/`, `iam/`.
 <!-- MANUAL ADDITIONS END -->

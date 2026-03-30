@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-policy-functions
+  namespace: {{ .Values.vault.namespace }}
+data:
+  functions.hcl: |
+    path "secret/data/functions/*" {
+      capabilities = ["read"]
+    }
+    path "secret/metadata/functions/*" {
+      capabilities = ["list", "read"]
+    }

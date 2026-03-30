@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: {{ .Values.vault.namespace }}
+data:
+  vault.hcl: |
+    storage "file" {
+      path = "/vault/data"
+    }
+
+    listener "tcp" {
+      address       = "0.0.0.0:8200"
+      tls_disable   = 0
+      tls_cert_file = "/vault/tls/tls.crt"
+      tls_key_file  = "/vault/tls/tls.key"
+    }
+
+    ui                = true
+    default_lease_ttl = "24h"
+    max_lease_ttl     = "768h"
+    log_level         = "info"
+
+    api_addr     = "https://vault.secret-store.svc.cluster.local:8200"
+    cluster_addr = "https://$(HOSTNAME).vault-internal.secret-store.svc.cluster.local:8201"

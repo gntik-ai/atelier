@@ -1,0 +1,12 @@
+eso:
+  vaultAddress: https://vault.secret-store.svc.cluster.local:8200
+  vaultAuthPath: kubernetes
+  vaultAuthRole: eso-role
+  serviceAccountName: eso-vault-auth
+  refreshInterval: 1h
+  tokenTTL: 24h
+  namespace: eso-system
+  caProvider:
+    name: vault-server-tls
+    key: ca.crt
+    namespace: secret-store

@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: {{ .Values.vault.namespace }}
+spec:
+  serviceName: vault-internal
+  replicas: {{ .Values.vault.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: vault
+          image: "{{ .Values.vault.image.repository }}:{{ .Values.vault.image.tag }}"
+          imagePullPolicy: {{ .Values.vault.image.pullPolicy }}
+          args:
+            - server
+            - -config=/vault/config/vault.hcl
+          env:
+            - name: VAULT_ADDR
+              value: https://vault.secret-store.svc.cluster.local:8200
+            - name: VAULT_API_ADDR
+              value: https://vault.secret-store.svc.cluster.local:8200
+            - name: VAULT_CACERT
+              value: /vault/tls/ca.crt
+            - name: VAULT_SKIP_VERIFY
+              value: "false"
+          ports:
+            - containerPort: 8200
+              name: http
+            - containerPort: 8201
+              name: cluster
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+              port: 8200
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /v1/sys/health?standbyok=true
+              port: 8200
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data
+            - name: audit
+              mountPath: /vault/audit
+            - name: config
+              mountPath: /vault/config
+              readOnly: true
+            - name: tls
+              mountPath: /vault/tls
+              readOnly: true
+{{ tpl (.Files.Get "templates/vault-audit-sidecar.yaml") . | indent 8 }}
+      volumes:
+        - name: config
+          configMap:
+            name: vault-config
+        - name: tls
+          secret:
+            secretName: {{ .Values.vault.tls.secretName }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: vault-data
+        - name: audit
+          persistentVolumeClaim:
+            claimName: vault-audit
+        - name: secret-audit-handler
+          configMap:
+            name: secret-audit-handler-bundle
+            optional: true

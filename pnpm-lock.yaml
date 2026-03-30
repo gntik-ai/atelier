@@ -210,6 +210,12 @@ importers:
         specifier: ^8.16.3
         version: 8.16.3
 
+  services/secret-audit-handler:
+    dependencies:
+      kafkajs:
+        specifier: ^2.2.4
+        version: 2.2.4
+
   services/webhook-engine:
     dependencies:
       kafkajs:

@@ -1,0 +1,78 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: vault-init
+  namespace: {{ .Values.vault.namespace }}
+spec:
+  template:
+    spec:
+      serviceAccountName: vault
+      restartPolicy: OnFailure
+      containers:
+        - name: vault-init
+          image: "{{ .Values.vault.image.repository }}:{{ .Values.vault.image.tag }}"
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              export VAULT_ADDR="https://vault.{{ .Values.vault.namespace }}.svc.cluster.local:8200"
+              export VAULT_CACERT=/vault/tls/ca.crt
+              status=$(vault status -format=json 2>/dev/null || true)
+              initialized=$(printf '%s' "$status" | sed -n 's/.*"initialized"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p' | head -n1)
+              if [ "$initialized" = "true" ]; then
+                echo "Vault already initialized; skipping"
+                exit 0
+              fi
+              init_json=$(vault operator init -format=json -key-shares={{ .Values.vault.initShares }} -key-threshold={{ .Values.vault.initThreshold }})
+              root_token=$(printf '%s' "$init_json" | sed -n 's/.*"root_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+              unseal1=$(printf '%s' "$init_json" | sed -n 's/.*"unseal_keys_b64"[[:space:]]*:[[:space:]]*\["\([^"]*\)".*/\1/p')
+              unseal2=$(printf '%s' "$init_json" | sed -n 's/.*"unseal_keys_b64"[[:space:]]*:[[:space:]]*\[[^,]*,[[:space:]]*"\([^"]*\)".*/\1/p')
+              unseal3=$(printf '%s' "$init_json" | sed -n 's/.*"unseal_keys_b64"[[:space:]]*:[[:space:]]*\[[^,]*,[^,]*,[[:space:]]*"\([^"]*\)".*/\1/p')
+              vault operator unseal "$unseal1"
+              vault operator unseal "$unseal2"
+              vault operator unseal "$unseal3"
+              export VAULT_TOKEN="$root_token"
+              vault auth enable kubernetes || true
+              vault write auth/kubernetes/config kubernetes_host="https://kubernetes.default.svc:443" kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+              vault secrets enable -path=secret kv-v2 || true
+              vault audit enable file file_path=/vault/audit/vault-audit.log || true
+              for policy in platform tenant functions gateway iam; do
+                vault policy write "$policy" "/config/policies/${policy}.hcl"
+              done
+              vault write auth/kubernetes/role/platform-role bound_service_account_names='*' bound_service_account_namespaces='postgresql,mongodb,kafka,s3-compat,openwhisk' policies=platform ttl=24h
+              vault write auth/kubernetes/role/functions-role bound_service_account_names='*' bound_service_account_namespaces='openwhisk' policies=functions ttl=24h
+              vault write auth/kubernetes/role/gateway-role bound_service_account_names='*' bound_service_account_namespaces='apisix' policies=gateway ttl=24h
+              vault write auth/kubernetes/role/iam-role bound_service_account_names='*' bound_service_account_namespaces='keycloak' policies=iam ttl=24h
+              vault write auth/kubernetes/role/eso-role bound_service_account_names='{{ .Values.eso.serviceAccountName | default "eso-vault-auth" }}' bound_service_account_namespaces='eso-system' policies=platform,functions,gateway,iam ttl={{ .Values.eso.tokenTTL | default "24h" }}
+              vault kv put secret/platform/postgresql root-password=dummy-root-password app-password=dummy-app-password
+              vault kv put secret/platform/mongodb root-password=dummy-root-password app-password=dummy-app-password
+              vault kv put secret/platform/kafka admin-password=dummy-admin-password inter-broker-secret=dummy-inter-broker-secret
+              vault kv put secret/platform/s3 access-key=dummy-access-key secret-key=dummy-secret-key
+              vault kv put secret/platform/openwhisk db-password=dummy-db-password
+              vault kv put secret/platform/encryption master-key=REPLACE_WITH_32_BYTE_KEY
+              vault kv put secret/functions/openwhisk controller-password=dummy-controller-password invoker-password=dummy-invoker-password action-encryption-key=dummy-action-encryption-key
+              vault kv put secret/gateway/apisix admin-key=dummy-admin-key dashboard-password=dummy-dashboard-password etcd-password=dummy-etcd-password
+              vault kv put secret/iam/keycloak admin-password=dummy-admin-password db-password=dummy-db-password
+          volumeMounts:
+            - name: tls
+              mountPath: /vault/tls
+              readOnly: true
+            - name: policies
+              mountPath: /config/policies
+              readOnly: true
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.vault.tls.secretName }}
+        - name: policies
+          projected:
+            sources:
+              - configMap:
+                  name: vault-policy-platform
+              - configMap:
+                  name: vault-policy-tenant
+              - configMap:
+                  name: vault-policy-functions
+              - configMap:
+                  name: vault-policy-gateway
+              - configMap:
+                  name: vault-policy-iam

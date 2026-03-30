@@ -1,0 +1,16 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gateway-apisix-credentials
+  namespace: apisix
+spec:
+  refreshInterval: {{ $.Values.eso.refreshInterval | quote }}
+  secretStoreRef: { name: vault-backend, kind: ClusterSecretStore }
+  target: { name: gateway-apisix-credentials, immutable: false }
+  data:
+    - secretKey: admin-key
+      remoteRef: { key: gateway/apisix, property: admin-key }
+    - secretKey: dashboard-password
+      remoteRef: { key: gateway/apisix, property: dashboard-password }
+    - secretKey: etcd-password
+      remoteRef: { key: gateway/apisix, property: etcd-password }

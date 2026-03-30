@@ -1,0 +1,14 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: iam-keycloak-credentials
+  namespace: keycloak
+spec:
+  refreshInterval: {{ $.Values.eso.refreshInterval | quote }}
+  secretStoreRef: { name: vault-backend, kind: ClusterSecretStore }
+  target: { name: iam-keycloak-credentials, immutable: false }
+  data:
+    - secretKey: admin-password
+      remoteRef: { key: iam/keycloak, property: admin-password }
+    - secretKey: db-password
+      remoteRef: { key: iam/keycloak, property: db-password }

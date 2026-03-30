@@ -1,0 +1,16 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: functions-openwhisk-credentials
+  namespace: openwhisk
+spec:
+  refreshInterval: {{ $.Values.eso.refreshInterval | quote }}
+  secretStoreRef: { name: vault-backend, kind: ClusterSecretStore }
+  target: { name: functions-openwhisk-credentials, immutable: false }
+  data:
+    - secretKey: controller-password
+      remoteRef: { key: functions/openwhisk, property: controller-password }
+    - secretKey: invoker-password
+      remoteRef: { key: functions/openwhisk, property: invoker-password }
+    - secretKey: action-encryption-key
+      remoteRef: { key: functions/openwhisk, property: action-encryption-key }

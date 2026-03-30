@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vault-server-tls
+  namespace: {{ .Values.vault.namespace }}
+spec:
+  secretName: {{ .Values.vault.tls.secretName }}
+  issuerRef:
+    name: {{ .Values.vault.tls.issuerRef.name }}
+    kind: {{ .Values.vault.tls.issuerRef.kind }}
+  commonName: vault.secret-store.svc.cluster.local
+  dnsNames:
+    - vault
+    - vault.secret-store
+    - vault.secret-store.svc
+    - vault.secret-store.svc.cluster.local
+    - vault-internal.secret-store.svc.cluster.local

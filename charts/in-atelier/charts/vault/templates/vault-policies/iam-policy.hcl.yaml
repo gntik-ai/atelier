@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-policy-iam
+  namespace: {{ .Values.vault.namespace }}
+data:
+  iam.hcl: |
+    path "secret/data/iam/*" {
+      capabilities = ["read"]
+    }
+    path "secret/metadata/iam/*" {
+      capabilities = ["list", "read"]
+    }

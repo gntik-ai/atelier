@@ -1,0 +1,22 @@
+{{- if .Values.vault.auditSidecar.enabled }}
+- name: secret-audit-handler
+  image: "{{ .Values.vault.auditSidecar.image.repository }}:{{ .Values.vault.auditSidecar.image.tag }}"
+  imagePullPolicy: {{ .Values.vault.auditSidecar.image.pullPolicy }}
+  command: ["node", "/opt/secret-audit-handler/src/index.mjs"]
+  env:
+    - name: VAULT_AUDIT_LOG_PATH
+      value: /vault/audit/vault-audit.log
+    - name: KAFKA_BROKERS
+      value: {{ .Values.vault.auditSidecar.kafkaBrokers | quote }}
+    - name: SECRET_AUDIT_KAFKA_TOPIC
+      value: {{ .Values.vault.auditSidecar.kafkaTopic | quote }}
+  resources:
+{{ toYaml .Values.vault.auditSidecar.resources | indent 4 }}
+  volumeMounts:
+    - name: audit
+      mountPath: /vault/audit
+      readOnly: true
+    - name: secret-audit-handler
+      mountPath: /opt/secret-audit-handler
+      readOnly: true
+{{- end }}

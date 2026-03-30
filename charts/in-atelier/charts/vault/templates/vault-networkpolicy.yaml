@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vault-access-policy
+  namespace: {{ .Values.vault.namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: eso-system
+        - namespaceSelector:
+            matchLabels:
+              {{ .Values.vault.networkPolicy.allowedNamespaceLabel }}: "true"
+      ports:
+        - protocol: TCP
+          port: 8200
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443

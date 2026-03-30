@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-data
+  namespace: {{ .Values.vault.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.vault.storage.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.vault.storage.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vault-audit
+  namespace: {{ .Values.vault.namespace }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- with .Values.vault.storage.storageClassName }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: 2Gi
