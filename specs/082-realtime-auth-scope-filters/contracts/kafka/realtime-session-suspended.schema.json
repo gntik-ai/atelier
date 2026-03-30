@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "tenantId",
+    "workspaceId",
+    "actorIdentity",
+    "channelType",
+    "scopesEvaluated",
+    "suspensionReason",
+    "timestamp"
+  ],
+  "properties": {
+    "eventType": { "const": "realtime.session-suspended" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "actorIdentity": { "type": "string", "minLength": 1 },
+    "subscriptionId": { "type": "string" },
+    "channelType": { "type": "string", "minLength": 1 },
+    "scopesEvaluated": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "suspensionReason": {
+      "type": "string",
+      "enum": ["TOKEN_EXPIRED", "SCOPE_REVOKED"]
+    },
+    "timestamp": { "type": "string" }
+  }
+}

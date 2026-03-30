@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventType",
+    "tenantId",
+    "workspaceId",
+    "actorIdentity",
+    "channelType",
+    "scopesEvaluated",
+    "denialReason",
+    "timestamp"
+  ],
+  "properties": {
+    "eventType": { "const": "realtime.auth-denied" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "actorIdentity": { "type": "string", "minLength": 1 },
+    "subscriptionId": { "type": "string" },
+    "channelType": { "type": "string", "minLength": 1 },
+    "scopesEvaluated": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "filterSnapshot": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "denialReason": { "type": "string", "minLength": 1 },
+    "missingScope": { "type": "string" },
+    "timestamp": { "type": "string" }
+  }
+}

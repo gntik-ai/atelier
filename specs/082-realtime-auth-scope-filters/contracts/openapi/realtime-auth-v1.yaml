@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: Realtime Subscription Authentication API
+  version: 1.0.0
+  description: Realtime subscription authorization, scope mapping, and filter contracts for workspace-scoped delivery.
+servers:
+  - url: https://api.atelier.example
+paths:
+  /workspaces/{workspaceId}/realtime/subscriptions:
+    post:
+      operationId: createRealtimeSubscription
+      summary: Create a workspace-scoped realtime subscription with authorization and optional event filtering.
+      tags: [Realtime]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: ../../../../apps/control-plane/openapi/families/workspaces.openapi.json#/components/parameters/WorkspaceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeSubscriptionCreateRequest'
+      responses:
+        '201':
+          description: Realtime subscription created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeSubscriptionCreatedResponse'
+        '400':
+          description: Invalid or overly complex filter.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ../../../../apps/control-plane/openapi/families/websockets.openapi.json#/components/schemas/ErrorResponse
+                  - type: object
+                    properties:
+                      validationErrors:
+                        type: array
+                        items:
+                          type: string
+        '401':
+          description: Invalid or expired bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: ../../../../apps/control-plane/openapi/families/auth.openapi.json#/components/schemas/ErrorResponse
+        '403':
+          description: Missing realtime scope for the target workspace or channel type.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: ../../../../apps/control-plane/openapi/families/auth.openapi.json#/components/schemas/ErrorResponse
+                  - type: object
+                    properties:
+                      requiredScope:
+                        type: string
+                      missingScope:
+                        type: string
+        '409':
+          description: Subscription quota exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: ../../../../apps/control-plane/openapi/families/websockets.openapi.json#/components/schemas/ErrorResponse
+  /workspaces/{workspaceId}/realtime/subscriptions/{subscriptionId}:
+    delete:
+      operationId: deleteRealtimeSubscription
+      summary: Delete a workspace-scoped realtime subscription.
+      tags: [Realtime]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: ../../../../apps/control-plane/openapi/families/workspaces.openapi.json#/components/parameters/WorkspaceId
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Subscription deleted.
+        '403':
+          description: Caller is not authorized to delete this subscription.
+          content:
+            application/json:
+              schema:
+                $ref: ../../../../apps/control-plane/openapi/families/auth.openapi.json#/components/schemas/ErrorResponse
+        '404':
+          description: Subscription not found.
+          content:
+            application/json:
+              schema:
+                $ref: ../../../../apps/control-plane/openapi/families/websockets.openapi.json#/components/schemas/ErrorResponse
+  /workspaces/{workspaceId}/realtime/scope-mappings:
+    get:
+      operationId: listRealtimeScopeMappings
+      summary: List workspace realtime scope-to-channel mappings.
+      tags: [Realtime]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: ../../../../apps/control-plane/openapi/families/workspaces.openapi.json#/components/parameters/WorkspaceId
+      responses:
+        '200':
+          description: Scope mappings returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeScopeMappingCollectionResponse'
+        '403':
+          description: Caller is not authorized for workspace-admin scope mapping access.
+          content:
+            application/json:
+              schema:
+                $ref: ../../../../apps/control-plane/openapi/families/iam.openapi.json#/components/schemas/ErrorResponse
+    put:
+      operationId: replaceRealtimeScopeMappings
+      summary: Replace workspace realtime scope-to-channel mappings.
+      tags: [Realtime]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: ../../../../apps/control-plane/openapi/families/workspaces.openapi.json#/components/parameters/WorkspaceId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RealtimeScopeMappingReplaceRequest'
+      responses:
+        '200':
+          description: Scope mappings replaced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeScopeMappingCollectionResponse'
+        '403':
+          description: Caller is not authorized for workspace-admin scope mapping access.
+          content:
+            application/json:
+              schema:
+                $ref: ../../../../apps/control-plane/openapi/families/iam.openapi.json#/components/schemas/ErrorResponse
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    RealtimeSubscriptionCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [channelType]
+      properties:
+        channelType:
+          type: string
+          enum: [postgresql-changes, mongodb-changes, kafka-topic, generic]
+        filter:
+          $ref: '#/components/schemas/RealtimeEventFilter'
+    RealtimeSubscriptionCreatedResponse:
+      type: object
+      additionalProperties: false
+      required: [subscriptionId, channelType, filterApplied]
+      properties:
+        subscriptionId:
+          type: string
+        channelType:
+          type: string
+        filterApplied:
+          oneOf:
+            - type: boolean
+            - $ref: '#/components/schemas/RealtimeEventFilter'
+    RealtimeEventFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        operation:
+          type: string
+          enum: [INSERT, UPDATE, DELETE]
+        entity:
+          type: string
+        predicates:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/RealtimeEventPredicate'
+    RealtimeEventPredicate:
+      type: object
+      additionalProperties: false
+      required: [field, op]
+      properties:
+        field:
+          type: string
+        op:
+          type: string
+          enum: [eq, neq, contains]
+        value: {}
+    RealtimeScopeMapping:
+      type: object
+      additionalProperties: false
+      required: [scopeName, channelType]
+      properties:
+        scopeName:
+          type: string
+          description: Canonical IAM scope name, aligned with the IAM scope family.
+        channelType:
+          type: string
+          enum: [postgresql-changes, mongodb-changes, kafka-topic, generic, '*']
+    RealtimeScopeMappingCollectionResponse:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, items]
+      properties:
+        workspaceId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeScopeMapping'
+    RealtimeScopeMappingReplaceRequest:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RealtimeScopeMapping'

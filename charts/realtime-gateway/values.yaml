@@ -1,0 +1,39 @@
+image:
+  repository: ghcr.io/atelier/realtime-gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  port: 8080
+
+apisix:
+  jwtAuth:
+    jwksUrl: https://keycloak.example/realms/atelier/protocol/openid-connect/certs
+    realm: atelier
+
+env:
+  KEYCLOAK_JWKS_URL: https://keycloak.example/realms/atelier/protocol/openid-connect/certs
+  KEYCLOAK_INTROSPECTION_URL: https://keycloak.example/realms/atelier/protocol/openid-connect/token/introspect
+  KEYCLOAK_INTROSPECTION_CLIENT_ID: realtime-gateway
+  JWKS_CACHE_TTL_SECONDS: 300
+  SCOPE_REVALIDATION_INTERVAL_SECONDS: 30
+  TOKEN_EXPIRY_GRACE_SECONDS: 30
+  MAX_FILTER_PREDICATES: 10
+  MAX_SUBSCRIPTIONS_PER_WORKSPACE: 50
+  AUDIT_KAFKA_TOPIC_AUTH_GRANTED: console.realtime.auth-granted
+  AUDIT_KAFKA_TOPIC_AUTH_DENIED: console.realtime.auth-denied
+  AUDIT_KAFKA_TOPIC_SESSION_SUSPENDED: console.realtime.session-suspended
+  AUDIT_KAFKA_TOPIC_SESSION_RESUMED: console.realtime.session-resumed
+
+secretRefs:
+  databaseUrl:
+    name: realtime-gateway-secrets # K8s Secret ref
+    key: DATABASE_URL
+  introspectionClientSecret:
+    name: realtime-gateway-secrets # K8s Secret ref
+    key: KEYCLOAK_INTROSPECTION_CLIENT_SECRET
+  kafkaBrokers:
+    name: realtime-gateway-secrets # K8s Secret ref
+    key: KAFKA_BROKERS
