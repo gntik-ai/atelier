@@ -146,7 +146,7 @@
 
 ## Dependency Order Summary
 
-```
+```text
 Phase 1 (T001–T003)
     └─▶ Phase 2 (T004–T016) — all parallelizable within phase
             └─▶ Phase 3 (T017–T027) — CRUD + config
