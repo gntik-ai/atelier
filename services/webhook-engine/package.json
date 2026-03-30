@@ -1,0 +1,14 @@
+{
+  "name": "webhook-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test ../../tests/unit/webhook-*.test.mjs ../../tests/integration/webhook-*.test.mjs ../../tests/contracts/webhook-api.contract.test.mjs",
+    "lint": "node -e \"console.log('webhook-engine lint placeholder')\""
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "kafkajs": "^2.2.4"
+  }
+}

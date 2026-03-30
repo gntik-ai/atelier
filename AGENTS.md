@@ -41,6 +41,14 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New environment variables: `IDEMPOTENCY_KEY_TTL_HOURS`, `OPERATION_DEFAULT_MAX_RETRIES`, `IDEMPOTENCY_KEY_MAX_LENGTH`
 
 <!-- MANUAL ADDITIONS START -->
+## Webhook Engine
+
+- New service: `services/webhook-engine` using Node.js ESM modules.
+- New PostgreSQL tables: `webhook_subscriptions`, `webhook_signing_secrets`, `webhook_deliveries`, `webhook_delivery_attempts`.
+- New Kafka topics: `console.webhook.subscription.created`, `console.webhook.subscription.updated`, `console.webhook.subscription.deleted`, `console.webhook.subscription.paused`, `console.webhook.subscription.resumed`, `console.webhook.secret.rotated`, `console.webhook.delivery.succeeded`, `console.webhook.delivery.permanently_failed`, `console.webhook.subscription.auto_disabled`.
+- New env vars: `WEBHOOK_SIGNING_KEY`, `WEBHOOK_MAX_SUBSCRIPTIONS_PER_WORKSPACE`, `WEBHOOK_MAX_DELIVERIES_PER_MINUTE_PER_WORKSPACE`, `WEBHOOK_MAX_RETRY_ATTEMPTS`, `WEBHOOK_BASE_BACKOFF_MS`, `WEBHOOK_MAX_BACKOFF_MS`, `WEBHOOK_CONNECTION_TIMEOUT_MS`, `WEBHOOK_RESPONSE_TIMEOUT_MS`, `WEBHOOK_MAX_PAYLOAD_BYTES`, `WEBHOOK_SECRET_GRACE_PERIOD_SECONDS`, `WEBHOOK_AUTO_DISABLE_THRESHOLD`, `WEBHOOK_DELIVERY_HISTORY_MAX_DAYS`.
+- New OpenWhisk actions: `webhook-management`, `webhook-dispatcher`, `webhook-delivery-worker`, `webhook-retry-scheduler`.
+
 ## Retry Semantics & Manual Intervention
 
 - Failure classification pattern: classify failures with `classifyByErrorCode(errorCode, operationType, mappingCache)` backed by PostgreSQL table `failure_code_mappings`, loaded into in-memory cache ordered by `priority`.

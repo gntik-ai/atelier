@@ -1,0 +1,31 @@
+webhookEngine:
+  enabled: true
+  env:
+    WEBHOOK_SIGNING_KEY:
+      secretRef: webhook-engine-signing-key
+    WEBHOOK_MAX_SUBSCRIPTIONS_PER_WORKSPACE: 25
+    WEBHOOK_MAX_DELIVERIES_PER_MINUTE_PER_WORKSPACE: 100
+    WEBHOOK_MAX_RETRY_ATTEMPTS: 5
+    WEBHOOK_BASE_BACKOFF_MS: 1000
+    WEBHOOK_MAX_BACKOFF_MS: 300000
+    WEBHOOK_CONNECTION_TIMEOUT_MS: 5000
+    WEBHOOK_RESPONSE_TIMEOUT_MS: 30000
+    WEBHOOK_MAX_PAYLOAD_BYTES: 524288
+    WEBHOOK_SECRET_GRACE_PERIOD_SECONDS: 86400
+    WEBHOOK_AUTO_DISABLE_THRESHOLD: 5
+    WEBHOOK_DELIVERY_HISTORY_MAX_DAYS: 30
+  openwhiskActions:
+    - webhook-management
+    - webhook-dispatcher
+    - webhook-delivery-worker
+    - webhook-retry-scheduler
+  kafkaTopics:
+    - console.webhook.subscription.created
+    - console.webhook.subscription.updated
+    - console.webhook.subscription.deleted
+    - console.webhook.subscription.paused
+    - console.webhook.subscription.resumed
+    - console.webhook.secret.rotated
+    - console.webhook.delivery.succeeded
+    - console.webhook.delivery.permanently_failed
+    - console.webhook.subscription.auto_disabled

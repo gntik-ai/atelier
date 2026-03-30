@@ -1,0 +1,13 @@
+routes:
+  - name: control-plane-webhooks
+    uri: /v1/webhooks/*
+    priority: 100
+    methods: [GET, POST, PATCH, DELETE]
+    plugins:
+      keycloak-openid:
+        client_id: control-plane
+        bearer_only: true
+    upstream:
+      type: roundrobin
+      nodes:
+        "openwhisk-webhook-management:80": 1
