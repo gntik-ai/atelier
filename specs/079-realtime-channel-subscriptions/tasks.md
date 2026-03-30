@@ -80,7 +80,7 @@
 - [ ] T021 [P] [US1] Write unit tests `tests/unit/realtime/Subscription.test.mjs` — valid transitions (active→suspended, suspended→active, active→deleted, suspended→deleted); invalid transitions throw; `deleted` is terminal
 - [ ] T022 [P] [US1] Write unit tests `tests/unit/realtime/SubscriptionQuota.test.mjs` — under-limit allows; at-limit blocks; workspace quota overrides tenant quota; tenant quota overrides platform default; platform default applied when no rows exist
 
-### Integration Tests
+### Integration Tests (US1)
 
 - [ ] T023 [US1] Write integration tests `tests/integration/realtime/subscription-crud.test.mjs` — create subscription → list → get by ID; channel type unavailable → 400; event filter invalid → 400; response shape matches API contract (SC-001: create < 5 s)
 - [ ] T024 [US1] Write integration tests `tests/integration/realtime/quota-enforcement.test.mjs` — sequential inserts up to quota → accepted; insert at quota+1 → 409 QUOTA_EXCEEDED; concurrent `Promise.all` inserts at limit → no over-allocation (SC-006)
@@ -100,7 +100,7 @@
 - [ ] T025 [US2] Extend `realtime-subscription-crud.mjs` with PATCH flow — validate target subscription belongs to workspace/tenant; validate status transition via `Subscription.transition()`; UPDATE row (`status`, `updated_at`); write audit log; publish Kafka event; return updated subscription (depends on T019)
 - [ ] T026 [US2] Extend `realtime-subscription-crud.mjs` with DELETE flow — soft-delete: set `status='deleted'`, `deleted_at=now()`; write audit log; publish Kafka `deleted` event; return 204 (depends on T025)
 
-### Integration Tests
+### Integration Tests (US2)
 
 - [ ] T027 [US2] Extend `tests/integration/realtime/subscription-crud.test.mjs` — admin list returns all workspace subscriptions with owner/channel/status (SC-002: < 3 s for 500 subs); suspend → status=suspended; reactivate → status=active; delete → 404 on re-GET; illegal transition → 409 INVALID_STATUS_TRANSITION
 
@@ -163,7 +163,7 @@
 
 ## Dependency Graph
 
-```
+```text
 T001–T003 (Setup)
     │
     ▼

@@ -13,7 +13,7 @@
 
 ### 1.1 High-Level Flow
 
-```
+```text
 [External Developer App]
         │ HTTP/WS
         ▼
@@ -115,7 +115,8 @@ CREATE INDEX idx_realtime_subs_filter            ON realtime_subscriptions USING
 ```
 
 **Status machine**:
-```
+
+```text
 active ──suspend──► suspended ──reactivate──► active
   │                    │
   └──delete────────────┴──► deleted  (terminal, soft-deleted)
@@ -165,6 +166,7 @@ CREATE INDEX idx_sub_quotas_tenant ON subscription_quotas (tenant_id);
 ```
 
 **Enforcement pattern**:
+
 ```sql
 -- Atomic quota check + insert in a single transaction:
 WITH current_count AS (
@@ -218,6 +220,7 @@ Base path (exposed via APISIX): `/api/v1/workspaces/{workspaceId}/realtime`
 | GET | `/channels` | List available channel types for the workspace |
 
 **GET /channels response**:
+
 ```json
 {
   "items": [
@@ -246,6 +249,7 @@ Base path (exposed via APISIX): `/api/v1/workspaces/{workspaceId}/realtime`
 | DELETE | `/subscriptions/{id}` | Delete subscription |
 
 **POST /subscriptions request body**:
+
 ```json
 {
   "channel_type": "postgresql-changes",
@@ -261,6 +265,7 @@ Base path (exposed via APISIX): `/api/v1/workspaces/{workspaceId}/realtime`
 ```
 
 **POST /subscriptions response (201)**:
+
 ```json
 {
   "id": "uuid",
@@ -277,6 +282,7 @@ Base path (exposed via APISIX): `/api/v1/workspaces/{workspaceId}/realtime`
 ```
 
 **PATCH /subscriptions/{id} request body** (partial update):
+
 ```json
 {
   "status": "suspended"
@@ -303,12 +309,14 @@ Base path (exposed via APISIX): `/api/v1/workspaces/{workspaceId}/realtime`
 All actions live under `services/provisioning-orchestrator/src/actions/realtime/`.
 
 ### 4.1 `realtime-channel-list.mjs`
+
 - Input: `{ workspaceId, tenantId }` (from JWT context via APISIX).
 - Query `realtime_channels WHERE workspace_id = $1 AND status = 'available'`.
 - Return channel list.
 - No writes, no Kafka events.
 
 ### 4.2 `realtime-subscription-crud.mjs`
+
 - Handles CREATE, READ, LIST, PATCH, DELETE via `method` + `subscriptionId` params.
 - **CREATE flow**:
   1. Validate `channel_type` exists and is `available` for workspace.
@@ -326,6 +334,7 @@ All actions live under `services/provisioning-orchestrator/src/actions/realtime/
 - All flows extract `tenantId`, `workspaceId`, `actorIdentity` from Keycloak JWT forwarded by APISIX.
 
 ### 4.3 `realtime-subscription-resolver.mjs`
+
 - Input: `{ workspaceId, channelType, dataSourceRef, operation, tableName?, collectionName? }`.
 - Query `realtime_subscriptions` WHERE:
   - `workspace_id = $workspaceId`
@@ -336,6 +345,7 @@ All actions live under `services/provisioning-orchestrator/src/actions/realtime/
 - Read-only; no writes, no Kafka events.
 
 #### Resolver SQL Pattern
+
 ```sql
 SELECT id, owner_identity, event_filter, metadata
 FROM realtime_subscriptions
@@ -362,6 +372,7 @@ WHERE workspace_id = $1
 **Partitioning**: by `workspace_id` (key)
 
 **Message envelope**:
+
 ```json
 {
   "specversion": "1.0",
@@ -390,7 +401,7 @@ Valid `action` values: `created`, `suspended`, `reactivated`, `deleted`, `update
 
 ## 6. File Structure
 
-```
+```text
 services/provisioning-orchestrator/src/
   actions/
     realtime/
@@ -445,15 +456,19 @@ tests/
 ## 7. Migrations
 
 ### Migration 0020 — `realtime_channels`
+
 See DDL in §2.1. Also inserts default channel-type rows for existing provisioned workspaces (idempotent, via `INSERT ... ON CONFLICT DO NOTHING`).
 
 ### Migration 0021 — `realtime_subscriptions`
+
 See DDL in §2.2.
 
 ### Migration 0022 — `subscription_quotas`
+
 See DDL in §2.3. Seeds a platform-level default quota row for every existing tenant (from `tenants` table).
 
 ### Migration 0023 — `subscription_audit_log`
+
 See DDL in §2.4.
 
 **Rollback strategy**: Each migration has a paired `DOWN` script that drops the new tables in reverse order (0023 → 0020). Because these are new tables with no foreign keys into existing tables (channels/subscriptions are self-contained), rollback is safe at any point before T02/T03 wire-up.
@@ -573,21 +588,25 @@ JWT claims `sub`, `tenant_id`, `workspace_id` forwarded as HTTP headers `X-Ident
 ## 14. Dependencies & Sequencing
 
 ### Prerequisite (must be done before this task is usable end-to-end)
+
 - US-EVT-03: Kafka topic conventions finalized (channel `kafka_topic_pattern` field depends on this).
 - US-GW-04: APISIX routing in place for the realtime API surface.
 - US-PGDATA-01 / US-MGDATA-02: Provisioned data source catalog available for channel seeding.
 
 ### This task unblocks
+
 - US-DX-01-T02: PostgreSQL CDC → Kafka wiring (needs channel model to know target topics).
 - US-DX-01-T03: MongoDB change streams (same).
 - US-DX-01-T04: Auth scopes and filtering (extends subscription model).
 
 ### Parallelization within this task
+
 - Migrations (0020–0023) can be authored in parallel with OpenAPI contract.
 - Unit tests can be written against domain models independently of DB migrations.
 - OpenWhisk actions depend on repositories, which depend on migrations being applied to test DB.
 
 ### Recommended implementation sequence
+
 1. Migrations (0020 → 0023) + test DB apply.
 2. Domain models (`ChannelType`, `Subscription`, `EventFilter`, `SubscriptionQuota`) + unit tests.
 3. Repositories + quota enforcement + integration tests.
