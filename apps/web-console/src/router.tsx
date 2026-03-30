@@ -64,6 +64,11 @@ const ConsoleOperationDetailPage = lazy(async () => {
   return { default: module.ConsoleOperationDetailPage }
 })
 
+const ConsoleRealtimePage = lazy(async () => {
+  const module = await import('@/pages/ConsoleRealtimePage')
+  return { default: module.ConsoleRealtimePage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -158,6 +163,10 @@ export const appRoutes = [
           {
             path: 'operations/:operationId',
             element: <ConsoleOperationDetailPage />
+          },
+          {
+            path: 'workspaces/:workspaceId/realtime',
+            element: <ConsoleRealtimePage />
           },
           {
             path: 'profile',

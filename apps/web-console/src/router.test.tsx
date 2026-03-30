@@ -11,6 +11,7 @@ vi.mock('@/pages/ConsoleServiceAccountsPage', () => ({ ConsoleServiceAccountsPag
 vi.mock('@/pages/ConsoleQuotasPage', () => ({ ConsoleQuotasPage: () => <h1>Quotas Real</h1> }))
 vi.mock('@/pages/ConsoleTenantsPage', () => ({ ConsoleTenantsPage: () => <h1>Gestión de tenants</h1> }))
 vi.mock('@/pages/ConsoleWorkspacesPage', () => ({ ConsoleWorkspacesPage: () => <h1>Gestión de workspaces</h1> }))
+vi.mock('@/pages/ConsoleRealtimePage', () => ({ ConsoleRealtimePage: () => <h1>Realtime workspace</h1> }))
 
 afterEach(() => cleanup())
 
@@ -30,5 +31,10 @@ describe('router', () => {
     const workspacesRouter = createMemoryRouter(appRoutes, { initialEntries: ['/console/workspaces'] })
     render(<RouterProvider router={workspacesRouter} />)
     expect(await screen.findByRole('heading', { name: /gestión de workspaces/i })).toBeInTheDocument()
+
+    cleanup()
+    const realtimeRouter = createMemoryRouter(appRoutes, { initialEntries: ['/console/workspaces/ws_1/realtime'] })
+    render(<RouterProvider router={realtimeRouter} />)
+    expect(await screen.findByRole('heading', { name: /realtime workspace/i })).toBeInTheDocument()
   })
 })

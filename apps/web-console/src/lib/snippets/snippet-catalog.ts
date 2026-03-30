@@ -120,6 +120,325 @@ export const SNIPPET_CATALOG: Record<ResourceType, SnippetTemplate[]> = {
       secretPlaceholderRef: FUNCTION_SECRET_REF
     }
   ],
+  'realtime-subscription': [
+    {
+      id: 'realtime-js-browser-basic',
+      label: 'JavaScript (browser) — WebSocket subscription',
+      codeTemplate: `// Requires: a valid Keycloak access token for this workspace
+const ENDPOINT = '{REALTIME_ENDPOINT}'
+const WORKSPACE_ID = '{WORKSPACE_ID}'
+const TOKEN = '<YOUR_ACCESS_TOKEN>'  // replace with your token
+
+const ws = new WebSocket(
+  \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
+  ['v1.atelier.realtime']
+)
+
+ws.addEventListener('open', () => {
+  void TOKEN
+  ws.send(JSON.stringify({
+    type: 'subscribe',
+    channelType: '{CHANNEL_TYPE}',
+    filter: {}
+  }))
+})
+
+ws.addEventListener('message', (event) => {
+  const msg = JSON.parse(event.data)
+  if (msg.type === 'event') {
+    console.log('Received event:', msg.payload)
+  }
+})
+
+ws.addEventListener('error', (err) => console.error('WebSocket error', err))
+ws.addEventListener('close', (e) => console.log('Connection closed', e.code, e.reason))`,
+      secretTokens: ['<YOUR_ACCESS_TOKEN>'],
+      secretPlaceholderRef: 'Obtain your access token from Keycloak: POST /realms/<realm>/protocol/openid-connect/token'
+    },
+    {
+      id: 'realtime-nodejs-backend-basic',
+      label: 'Node.js (backend) — WebSocket subscription',
+      codeTemplate: `// npm install ws
+import WebSocket from 'ws'
+
+const ENDPOINT = '{REALTIME_ENDPOINT}'
+const WORKSPACE_ID = '{WORKSPACE_ID}'
+const SERVICE_ACCOUNT_TOKEN = '<YOUR_SERVICE_ACCOUNT_TOKEN>'  // obtain via client_credentials grant
+
+const ws = new WebSocket(
+  \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
+  { headers: { Authorization: \`Bearer \${SERVICE_ACCOUNT_TOKEN}\` } }
+)
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({
+    type: 'subscribe',
+    channelType: '{CHANNEL_TYPE}',
+    filter: {}
+  }))
+})
+
+ws.on('message', (data) => {
+  const msg = JSON.parse(data.toString())
+  if (msg.type === 'event') {
+    console.log('Event received:', msg.payload)
+  }
+})
+
+ws.on('error', (err) => console.error('WS error', err))
+ws.on('close', (code, reason) => console.log('Closed', code, reason.toString()))`,
+      secretTokens: ['<YOUR_SERVICE_ACCOUNT_TOKEN>'],
+      secretPlaceholderRef: 'Obtain a service-account token via Keycloak client_credentials grant with your client_id and client_secret.'
+    },
+    {
+      id: 'realtime-python-backend-basic',
+      label: 'Python (backend) — WebSocket subscription',
+      codeTemplate: `# pip install websockets
+import asyncio, json, websockets
+
+ENDPOINT = "{REALTIME_ENDPOINT}"
+WORKSPACE_ID = "{WORKSPACE_ID}"
+SERVICE_ACCOUNT_TOKEN = "<YOUR_SERVICE_ACCOUNT_TOKEN>"
+
+async def subscribe():
+    uri = f"{ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect"
+    headers = {"Authorization": f"Bearer {SERVICE_ACCOUNT_TOKEN}"}
+    async with websockets.connect(uri, additional_headers=headers) as ws:
+        await ws.send(json.dumps({
+            "type": "subscribe",
+            "channelType": "{CHANNEL_TYPE}",
+            "filter": {}
+        }))
+        async for message in ws:
+            msg = json.loads(message)
+            if msg.get("type") == "event":
+                print("Event:", msg["payload"])
+
+asyncio.run(subscribe())`,
+      secretTokens: ['<YOUR_SERVICE_ACCOUNT_TOKEN>'],
+      secretPlaceholderRef: 'Obtain a service-account token via Keycloak client_credentials grant.'
+    },
+    {
+      id: 'realtime-js-browser-filter',
+      label: 'JavaScript (browser) — Filtered subscription',
+      codeTemplate: `// Requires: a valid Keycloak access token for this workspace
+const ENDPOINT = '{REALTIME_ENDPOINT}'
+const WORKSPACE_ID = '{WORKSPACE_ID}'
+const TOKEN = '<YOUR_ACCESS_TOKEN>'
+
+const ws = new WebSocket(
+  \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
+  ['v1.atelier.realtime']
+)
+
+ws.addEventListener('open', () => {
+  void TOKEN
+  ws.send(JSON.stringify({
+    type: 'subscribe',
+    channelType: '{CHANNEL_TYPE}',
+    // Supported filter fields: operation (INSERT|UPDATE|DELETE), entity (table/collection name)
+    filter: { operation: 'INSERT', entity: 'orders' }
+  }))
+})
+
+ws.addEventListener('message', (event) => {
+  const msg = JSON.parse(event.data)
+  if (msg.type === 'event') {
+    console.log('Filtered event:', msg.payload)
+  }
+})`,
+      secretTokens: ['<YOUR_ACCESS_TOKEN>'],
+      secretPlaceholderRef: 'Obtain your access token from Keycloak: POST /realms/<realm>/protocol/openid-connect/token'
+    },
+    {
+      id: 'realtime-nodejs-backend-filter',
+      label: 'Node.js (backend) — Filtered subscription',
+      codeTemplate: `// npm install ws
+import WebSocket from 'ws'
+
+const ENDPOINT = '{REALTIME_ENDPOINT}'
+const WORKSPACE_ID = '{WORKSPACE_ID}'
+const SERVICE_ACCOUNT_TOKEN = '<YOUR_SERVICE_ACCOUNT_TOKEN>'
+
+const ws = new WebSocket(
+  \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
+  { headers: { Authorization: \`Bearer \${SERVICE_ACCOUNT_TOKEN}\` } }
+)
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({
+    type: 'subscribe',
+    channelType: '{CHANNEL_TYPE}',
+    filter: { operation: 'INSERT', entity: 'orders' }
+  }))
+})
+
+ws.on('message', (data) => {
+  const msg = JSON.parse(data.toString())
+  if (msg.type === 'event') {
+    console.log('Filtered event:', msg.payload)
+  }
+})`,
+      secretTokens: ['<YOUR_SERVICE_ACCOUNT_TOKEN>'],
+      secretPlaceholderRef: 'Obtain a service-account token via Keycloak client_credentials grant with your client_id and client_secret.'
+    },
+    {
+      id: 'realtime-python-backend-filter',
+      label: 'Python (backend) — Filtered subscription',
+      codeTemplate: `# pip install websockets
+import asyncio, json, websockets
+
+ENDPOINT = "{REALTIME_ENDPOINT}"
+WORKSPACE_ID = "{WORKSPACE_ID}"
+SERVICE_ACCOUNT_TOKEN = "<YOUR_SERVICE_ACCOUNT_TOKEN>"
+
+async def subscribe():
+    uri = f"{ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect"
+    headers = {"Authorization": f"Bearer {SERVICE_ACCOUNT_TOKEN}"}
+    async with websockets.connect(uri, additional_headers=headers) as ws:
+        await ws.send(json.dumps({
+            "type": "subscribe",
+            "channelType": "{CHANNEL_TYPE}",
+            "filter": {"operation": "INSERT", "entity": "orders"}
+        }))
+        async for message in ws:
+            msg = json.loads(message)
+            if msg.get("type") == "event":
+                print("Filtered event:", msg["payload"])
+
+asyncio.run(subscribe())`,
+      secretTokens: ['<YOUR_SERVICE_ACCOUNT_TOKEN>'],
+      secretPlaceholderRef: 'Obtain a service-account token via Keycloak client_credentials grant.'
+    },
+    {
+      id: 'realtime-js-browser-reconnect',
+      label: 'JavaScript (browser) — Reconnection with backoff & token refresh',
+      codeTemplate: `const ENDPOINT = '{REALTIME_ENDPOINT}'
+const WORKSPACE_ID = '{WORKSPACE_ID}'
+
+let token = '<YOUR_ACCESS_TOKEN>'
+let attempt = 0
+const MAX_BACKOFF_MS = 30_000
+
+async function refreshToken() {
+  // Replace with your token-refresh logic (e.g., Keycloak refresh_token grant)
+  const resp = await fetch('/auth/refresh', { method: 'POST' })
+  const data = await resp.json()
+  return data.access_token
+}
+
+function connect() {
+  const ws = new WebSocket(
+    \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect?token=\${encodeURIComponent(token)}\`,
+    ['v1.atelier.realtime']
+  )
+
+  ws.addEventListener('open', () => {
+    attempt = 0
+    ws.send(JSON.stringify({ type: 'subscribe', channelType: '{CHANNEL_TYPE}', filter: {} }))
+  })
+
+  ws.addEventListener('message', (event) => {
+    const msg = JSON.parse(event.data)
+    if (msg.type === 'event') console.log('Event:', msg.payload)
+    if (msg.type === 'token_expired') {
+      ws.close(4001, 'token_expired')
+    }
+  })
+
+  ws.addEventListener('close', async (e) => {
+    const backoff = Math.min(1_000 * 2 ** attempt, MAX_BACKOFF_MS)
+    attempt++
+    if (e.code === 4001) {
+      token = await refreshToken()
+    }
+    setTimeout(connect, backoff)
+  })
+}
+
+connect()`,
+      secretTokens: ['<YOUR_ACCESS_TOKEN>'],
+      secretPlaceholderRef: 'Replace refreshToken() with your Keycloak token-refresh implementation.'
+    },
+    {
+      id: 'realtime-nodejs-backend-reconnect',
+      label: 'Node.js (backend) — Reconnection with backoff',
+      codeTemplate: `// npm install ws
+import WebSocket from 'ws'
+
+const ENDPOINT = '{REALTIME_ENDPOINT}'
+const WORKSPACE_ID = '{WORKSPACE_ID}'
+const SERVICE_ACCOUNT_TOKEN = '<YOUR_SERVICE_ACCOUNT_TOKEN>'
+let attempt = 0
+
+function connect() {
+  const ws = new WebSocket(
+    \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
+    { headers: { Authorization: \`Bearer \${SERVICE_ACCOUNT_TOKEN}\` } }
+  )
+
+  ws.on('open', () => {
+    attempt = 0
+    ws.send(JSON.stringify({ type: 'subscribe', channelType: '{CHANNEL_TYPE}', filter: {} }))
+  })
+
+  ws.on('message', (data) => {
+    const msg = JSON.parse(data.toString())
+    if (msg.type === 'event') {
+      console.log('Event:', msg.payload)
+    }
+  })
+
+  ws.on('close', (code) => {
+    // Rotate your service-account token via Keycloak client_credentials if you receive close code 4001
+    const delay = Math.min(1000 * 2 ** attempt, 30000)
+    attempt++
+    setTimeout(connect, delay)
+    if (code === 4001) {
+      console.warn('Service-account token should be rotated before reconnecting.')
+    }
+  })
+}
+
+connect()`,
+      secretTokens: ['<YOUR_SERVICE_ACCOUNT_TOKEN>'],
+      secretPlaceholderRef: 'Obtain a service-account token via Keycloak client_credentials grant with your client_id and client_secret.'
+    },
+    {
+      id: 'realtime-python-backend-reconnect',
+      label: 'Python (backend) — Reconnection with backoff',
+      codeTemplate: `# pip install websockets
+import asyncio, json, websockets
+
+ENDPOINT = "{REALTIME_ENDPOINT}"
+WORKSPACE_ID = "{WORKSPACE_ID}"
+SERVICE_ACCOUNT_TOKEN = "<YOUR_SERVICE_ACCOUNT_TOKEN>"
+
+async def connect_forever():
+    attempt = 0
+    while True:
+        try:
+            uri = f"{ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect"
+            headers = {"Authorization": f"Bearer {SERVICE_ACCOUNT_TOKEN}"}
+            async with websockets.connect(uri, additional_headers=headers) as ws:
+                attempt = 0
+                await ws.send(json.dumps({"type": "subscribe", "channelType": "{CHANNEL_TYPE}", "filter": {}}))
+                async for message in ws:
+                    msg = json.loads(message)
+                    if msg.get("type") == "event":
+                        print("Event:", msg["payload"])
+        except Exception as exc:
+            delay = min(1 * 2 ** attempt, 30)
+            attempt += 1
+            print(f"Realtime connection closed: {exc}")
+            # Rotate your service-account token via Keycloak client_credentials if you receive close code 4001.
+            await asyncio.sleep(delay)
+
+asyncio.run(connect_forever())`,
+      secretTokens: ['<YOUR_SERVICE_ACCOUNT_TOKEN>'],
+      secretPlaceholderRef: 'Obtain a service-account token via Keycloak client_credentials grant.'
+    }
+  ],
   'iam-client': [
     {
       id: 'iam-client-credentials-curl',

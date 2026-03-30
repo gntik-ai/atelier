@@ -9,7 +9,10 @@ const TOKEN_FALLBACKS: Record<string, string> = {
   '{RESOURCE_NAME}': '<RESOURCE_NAME>',
   '{RESOURCE_EXTRA_A}': '<RESOURCE_EXTRA_A>',
   '{RESOURCE_EXTRA_B}': '<RESOURCE_EXTRA_B>',
-  '{PASSWORD}': '<YOUR_SECRET>'
+  '{PASSWORD}': '<YOUR_SECRET>',
+  '{WORKSPACE_ID}': '<WORKSPACE_ID>',
+  '{REALTIME_ENDPOINT}': '<REALTIME_ENDPOINT>',
+  '{CHANNEL_TYPE}': '<CHANNEL_TYPE>'
 }
 
 function getTokenValue(token: string, context: SnippetContext): string {
@@ -26,13 +29,19 @@ function getTokenValue(token: string, context: SnippetContext): string {
       return context.resourceExtraB ?? TOKEN_FALLBACKS[token]
     case '{PASSWORD}':
       return '<YOUR_SECRET>'
+    case '{WORKSPACE_ID}':
+      return context.workspaceId ?? TOKEN_FALLBACKS[token]
+    case '{REALTIME_ENDPOINT}':
+      return context.resourceHost ?? TOKEN_FALLBACKS[token]
+    case '{CHANNEL_TYPE}':
+      return context.resourceExtraA ?? TOKEN_FALLBACKS[token]
     default:
       return token
   }
 }
 
 function fillTemplate(codeTemplate: string, context: SnippetContext): string {
-  return codeTemplate.replace(/\{HOST\}|\{PORT\}|\{RESOURCE_NAME\}|\{RESOURCE_EXTRA_A\}|\{RESOURCE_EXTRA_B\}|\{PASSWORD\}/g, (token) => getTokenValue(token, context))
+  return codeTemplate.replace(/\{HOST\}|\{PORT\}|\{RESOURCE_NAME\}|\{RESOURCE_EXTRA_A\}|\{RESOURCE_EXTRA_B\}|\{PASSWORD\}|\{WORKSPACE_ID\}|\{REALTIME_ENDPOINT\}|\{CHANNEL_TYPE\}/g, (token) => getTokenValue(token, context))
 }
 
 function hasMissingEndpointContext(context: SnippetContext): boolean {

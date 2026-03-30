@@ -67,4 +67,30 @@ describe('generateSnippets', () => {
     expect(snippets[0]?.notes.join(' ')).toMatch(/acceso externo/i)
     expect(snippets[0]?.notes.join(' ')).toMatch(/degraded/i)
   })
+
+  it('rellena los tokens realtime desde el contexto', () => {
+    const snippets = generateSnippets('realtime-subscription', {
+      ...baseContext,
+      resourceHost: 'wss://rt.example.com',
+      workspaceId: 'ws-123',
+      resourceExtraA: 'postgresql-changes'
+    })
+
+    expect(snippets[0]?.code).toContain("const ENDPOINT = 'wss://rt.example.com'")
+    expect(snippets[0]?.code).toContain("const WORKSPACE_ID = 'ws-123'")
+    expect(snippets[0]?.code).toContain("channelType: 'postgresql-changes'")
+  })
+
+  it('usa fallbacks realtime cuando faltan valores', () => {
+    const snippets = generateSnippets('realtime-subscription', {
+      ...baseContext,
+      resourceHost: undefined as unknown as null,
+      workspaceId: undefined as unknown as null,
+      resourceExtraA: null
+    })
+
+    expect(snippets[0]?.code).toContain('<REALTIME_ENDPOINT>')
+    expect(snippets[0]?.code).toContain('<WORKSPACE_ID>')
+    expect(snippets[0]?.code).toContain('<CHANNEL_TYPE>')
+  })
 })

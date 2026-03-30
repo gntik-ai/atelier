@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { generateSnippets } from '@/lib/snippets/snippet-generator'
-import type { ResourceType, SnippetContext } from '@/lib/snippets/snippet-types'
+import type { ResourceType, SnippetContext, SnippetEntry } from '@/lib/snippets/snippet-types'
 
 interface ConnectionSnippetsProps {
-  resourceType: ResourceType
-  context: SnippetContext
+  resourceType?: ResourceType
+  context?: SnippetContext
+  entries?: SnippetEntry[]
 }
 
-export function ConnectionSnippets({ resourceType, context }: ConnectionSnippetsProps) {
-  const entries = useMemo(() => generateSnippets(resourceType, context), [resourceType, context])
+export function ConnectionSnippets({ resourceType, context, entries: entriesProp }: ConnectionSnippetsProps) {
+  const generatedEntries = useMemo(
+    () => (resourceType && context ? generateSnippets(resourceType, context) : []),
+    [resourceType, context]
+  )
+  const entries = entriesProp ?? generatedEntries
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [clipboardUnavailableFor, setClipboardUnavailableFor] = useState<string | null>(null)
 
@@ -57,7 +62,10 @@ export function ConnectionSnippets({ resourceType, context }: ConnectionSnippets
             </div>
             <pre className="overflow-x-auto rounded-xl bg-muted/50 p-3 text-xs leading-6 text-foreground whitespace-pre-wrap select-text"><code>{entry.code}</code></pre>
             {clipboardUnavailableFor === entry.id ? (
-              <p className="mt-2 text-sm text-muted-foreground">Tu navegador no expone Clipboard API aquí; selecciona y copia el bloque manualmente.</p>
+              <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">Tu navegador no expone Clipboard API aquí; selecciona y copia el bloque manualmente.</p>
+            ) : null}
+            {copiedId === entry.id ? (
+              <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">Snippet copiado al portapapeles.</p>
             ) : null}
             {entry.notes.length > 0 ? (
               <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">

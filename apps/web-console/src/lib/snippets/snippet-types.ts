@@ -4,6 +4,7 @@ export type ResourceType =
   | 'storage-bucket'
   | 'serverless-function'
   | 'iam-client'
+  | 'realtime-subscription'
 
 export interface SnippetContext {
   tenantId: string | null
