@@ -1142,7 +1142,7 @@ bootstrap:
             port: 8080
         - routeId: "2012"
           name: public-api-pg-captures
-          uri: /v1/workspaces/*/pg-captures*
+          uri: /v1/workspaces/{workspaceId}/pg-captures/*
           methods: *a2
           priority: 228
           labels:
@@ -1158,7 +1158,7 @@ bootstrap:
             port: 8080
         - routeId: "2013"
           name: public-api-pg-capture-tenant-summary
-          uri: /v1/tenants/*/pg-captures/summary
+          uri: /v1/tenants/{tenantId}/pg-captures/summary/*
           methods: *a2
           priority: 227
           labels:
