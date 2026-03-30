@@ -1140,6 +1140,38 @@ bootstrap:
           upstream:
             component: controlPlane
             port: 8080
+        - routeId: "2012"
+          name: public-api-pg-captures
+          uri: /v1/workspaces/*/pg-captures*
+          methods: *a2
+          priority: 228
+          labels:
+            gateway.in-atelier.io/route-kind: product_api
+            gateway.in-atelier.io/family: pg-captures
+            gateway.in-atelier.io/tenant-binding: required
+            gateway.in-atelier.io/workspace-binding: required
+            gateway.in-atelier.io/plan-capabilities: data.openwhisk.actions
+            gateway.in-atelier.io/audit-required: "false"
+          plugins: *a3
+          upstream:
+            component: controlPlane
+            port: 8080
+        - routeId: "2013"
+          name: public-api-pg-capture-tenant-summary
+          uri: /v1/tenants/*/pg-captures/summary
+          methods: *a2
+          priority: 227
+          labels:
+            gateway.in-atelier.io/route-kind: product_api
+            gateway.in-atelier.io/family: pg-capture-tenant-summary
+            gateway.in-atelier.io/tenant-binding: required
+            gateway.in-atelier.io/workspace-binding: optional
+            gateway.in-atelier.io/plan-capabilities: data.openwhisk.actions
+            gateway.in-atelier.io/audit-required: "false"
+          plugins: *a3
+          upstream:
+            component: controlPlane
+            port: 8080
         - routeId: "3001"
           name: native-keycloak-admin
           uri: /_native/keycloak/admin/*

@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { CaptureConfig } from '../../../src/models/realtime/CaptureConfig.mjs';
+const base = { tenant_id: 't1', workspace_id: 'w1', data_source_ref: 'db1', table_name: 'orders', actor_identity: 'user' };
+test('valid attrs construct', () => assert.ok(new CaptureConfig(base)));
+test('missing tenant_id', () => assert.throws(() => new CaptureConfig({ ...base, tenant_id: null }), /CAPTURE_TENANT_ID_REQUIRED/));
+test('missing workspace_id', () => assert.throws(() => new CaptureConfig({ ...base, workspace_id: null }), /CAPTURE_WORKSPACE_ID_REQUIRED/));
+test('missing table_name', () => assert.throws(() => new CaptureConfig({ ...base, table_name: null }), /CAPTURE_TABLE_NAME_REQUIRED/));
+test('invalid status', () => assert.throws(() => new CaptureConfig({ ...base, status: 'bad' }), /INVALID_CAPTURE_STATUS/));
+test('qualifiedTable', () => assert.equal(new CaptureConfig(base).qualifiedTable(), 'public.orders'));
+test('fromRow', () => assert.ok(CaptureConfig.fromRow(base) instanceof CaptureConfig));
+test('defaults', () => { const c = new CaptureConfig(base); assert.equal(c.schema_name, 'public'); assert.equal(c.status, 'active'); });
