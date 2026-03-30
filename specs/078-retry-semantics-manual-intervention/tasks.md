@@ -25,7 +25,7 @@
 
 ## Dependencies Graph
 
-```
+```text
 Phase 1 (Setup)
   └─► Phase 2 (Foundation: migration, models, repos, events, schemas)
         ├─► Phase 3 [US1] (failure classification + action extension + tests)

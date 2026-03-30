@@ -696,6 +696,7 @@ Ver [data-model.md](./data-model.md) para DDL completo con comentarios y rollbac
 **Idempotencia**: Todos los statements usan `IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`. Seed con `ON CONFLICT DO NOTHING`.
 
 **Rollback**:
+
 ```sql
 DROP TABLE IF EXISTS retry_overrides;
 DROP TABLE IF EXISTS manual_intervention_flags;
