@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "operation-retry-event",
+  "title": "OperationRetryRequestedEvent",
+  "description": "Evento Kafka publicado cuando se solicita el reintento de una operación fallida.",
+  "type": "object",
+  "required": ["eventId", "eventType", "operationId", "tenantId", "actorId", "actorType", "attemptId", "attemptNumber", "previousCorrelationId", "newCorrelationId", "occurredAt"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "enum": ["async_operation.retry_requested"] },
+    "operationId": { "type": "string", "format": "uuid" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "actorType": { "type": "string", "enum": ["workspace_admin", "tenant_owner", "superadmin", "tenant_member"] },
+    "attemptId": { "type": "string", "format": "uuid" },
+    "attemptNumber": { "type": "integer", "minimum": 1 },
+    "previousCorrelationId": { "type": "string", "minLength": 1 },
+    "newCorrelationId": { "type": "string", "minLength": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" }
+  }
+}

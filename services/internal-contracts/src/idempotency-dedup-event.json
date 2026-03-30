@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "idempotency-dedup-event",
+  "title": "IdempotencyDeduplicationEvent",
+  "description": "Evento Kafka publicado cuando una solicitud es deduplicada por idempotency key.",
+  "type": "object",
+  "required": ["eventId", "eventType", "operationId", "tenantId", "actorId", "actorType", "idempotencyKey", "paramsMismatch", "occurredAt", "correlationId"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": { "type": "string", "format": "uuid" },
+    "eventType": { "type": "string", "enum": ["async_operation.deduplicated"] },
+    "operationId": { "type": "string", "format": "uuid" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "actorId": { "type": "string", "minLength": 1 },
+    "actorType": { "type": "string", "enum": ["workspace_admin", "tenant_owner", "superadmin", "tenant_member"] },
+    "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "paramsMismatch": { "type": "boolean" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 }
+  }
+}

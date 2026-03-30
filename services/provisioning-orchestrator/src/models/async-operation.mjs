@@ -8,8 +8,8 @@ const SENSITIVE_MESSAGE_PATTERNS = [
   /postgres(?:ql)?:\/\//i,
   /mongodb(?:\+srv)?:\/\//i,
   /(?:api[_-]?key|token|secret|password)\s*[=:]/i,
-  /(?:\/[^\s]+){2,}/,
-  /\bat\s+.+\(.+\)/
+  /(?:\/[^^\s]+){2,}/,
+  /at\s+.+\(.+\)/
 ];
 
 export function createOperation(input = {}) {
@@ -29,22 +29,34 @@ export function createOperation(input = {}) {
     });
   }
 
+  if (input.max_retries !== undefined && input.max_retries !== null) {
+    const maxRetries = Number(input.max_retries);
+    if (!Number.isInteger(maxRetries) || maxRetries < 1) {
+      throw Object.assign(new Error('max_retries must be an integer greater than or equal to 1'), {
+        code: 'VALIDATION_ERROR',
+        field: 'max_retries'
+      });
+    }
+  }
+
   const now = new Date().toISOString();
 
   return {
-    operation_id: randomUUID(),
+    operation_id: input.operation_id ?? randomUUID(),
     tenant_id: input.tenant_id,
     actor_id: input.actor_id,
     actor_type: input.actor_type,
     workspace_id: input.workspace_id ?? null,
     operation_type: input.operation_type,
-    status: 'pending',
-    error_summary: null,
+    status: input.status ?? 'pending',
+    error_summary: input.error_summary ?? null,
     correlation_id: input.correlation_id ?? generateCorrelationId(input.tenant_id),
     idempotency_key: input.idempotency_key ?? null,
     saga_id: input.saga_id ?? null,
-    created_at: now,
-    updated_at: now
+    attempt_count: Number.isInteger(input.attempt_count) ? input.attempt_count : 0,
+    max_retries: input.max_retries ?? null,
+    created_at: input.created_at ?? now,
+    updated_at: input.updated_at ?? now
   };
 }
 

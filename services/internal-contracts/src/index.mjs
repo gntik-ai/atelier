@@ -25,6 +25,8 @@ export { default as sagaContract } from './saga-contract.json' with { type: 'jso
 export { default as consoleWorkflowAuditPolicy } from './console-workflow-audit-policy.json' with { type: 'json' };
 export { default as asyncOperationStateChangedSchema } from './async-operation-state-changed.json' with { type: 'json' };
 export { default as asyncOperationQueryResponseSchema } from './async-operation-query-response.json' with { type: 'json' };
+export { default as idempotencyDedupEventSchema } from './idempotency-dedup-event.json' with { type: 'json' };
+export { default as operationRetryEventSchema } from './operation-retry-event.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;
