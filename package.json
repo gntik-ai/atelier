@@ -35,6 +35,8 @@
     "test:e2e:deployment": "node --test tests/e2e/deployment/*.test.mjs",
     "test:e2e:observability": "node --test tests/e2e/observability/*.test.mjs",
     "test:e2e:workflows": "node --test tests/e2e/workflows/*.test.mjs",
+    "test:e2e:realtime": "node --test --test-reporter=tap tests/e2e/realtime/**/*.test.mjs",
+    "test:unit:realtime": "node --test tests/unit/realtime/**/*.test.mjs",
     "test:resilience": "node --test tests/resilience/*.test.mjs",
     "test": "npm run test:unit && npm run test:adapters && npm run test:contracts && npm run test:e2e:console && npm run test:e2e:deployment && npm run test:e2e:observability && npm run test:resilience && npm run test:e2e:workflows",
     "test:snippets": "node --test scripts/lint-snippet-templates.test.mjs",
@@ -53,7 +55,11 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "12.1.0",
     "ajv": "8.17.1",
+    "kafkajs": "2.2.4",
     "markdownlint-cli2": "0.22.0",
+    "mongodb": "6.15.0",
+    "pg": "8.14.1",
+    "ws": "8.18.1",
     "yaml": "2.8.3"
   },
   "pnpm": {
