@@ -221,7 +221,7 @@ Once Phase 2 is complete, these stories can proceed in parallel with sufficient 
 
 ### Key Blocking Chains
 
-```
+```text
 T001 → T002 → T003 (Setup)
 T004 (migration) → T018 (management action)
 T005–T011 (pure modules) → T018, T023, T024, T027 (actions)
@@ -237,7 +237,7 @@ T024, T027, T028 → T036, T037 (delivery history)
 
 ### Phase 2: All foundational modules in parallel
 
-```
+```text
 Parallel group A — pure-functional modules:
   T005 event-catalogue.mjs
   T006 webhook-signing.mjs
@@ -260,7 +260,7 @@ T004 (migration) runs independently of groups A/B
 
 ### Phase 9: All polish tasks in parallel
 
-```
+```text
 T041 contract tests
 T042 E2E README
 T043 APISIX route manifest

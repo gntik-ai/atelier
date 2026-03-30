@@ -44,7 +44,7 @@ Out of scope for this task: scheduling/automation triggers (T02), per-workspace 
 
 ## 3. Architecture and Component Boundaries
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │  APISIX (API Gateway)                                            │
 │  Route: /v1/webhooks/**  →  webhook-management OpenWhisk action  │
@@ -248,6 +248,7 @@ Base path: `/v1/webhooks` (tenant/workspace context from JWT)
 Create a new subscription.
 
 **Request body**:
+
 ```json
 {
   "targetUrl": "https://example.com/hooks",
@@ -257,6 +258,7 @@ Create a new subscription.
 ```
 
 **Response 201**:
+
 ```json
 {
   "subscriptionId": "<uuid>",
@@ -281,6 +283,7 @@ List subscriptions for workspace (paginated).
 **Query params**: `status`, `cursor`, `limit` (max 100).
 
 **Response 200**:
+
 ```json
 {
   "items": [
@@ -331,11 +334,13 @@ Soft-delete. Sets `deleted_at`, cancels pending deliveries, emits audit event.
 Rotate the signing secret.
 
 **Request body** (optional):
+
 ```json
 { "gracePeriodSeconds": 86400 }
 ```
 
 **Response 200**:
+
 ```json
 {
   "newSigningSecret": "<plaintext — shown once>",
@@ -351,6 +356,7 @@ Paginated delivery history.
 **Query params**: `status` (`succeeded|failed|permanently_failed`), `from`, `to`, `cursor`, `limit` (max 100).
 
 **Response 200**:
+
 ```json
 {
   "items": [
@@ -373,6 +379,7 @@ Paginated delivery history.
 Delivery detail with attempt breakdown.
 
 **Response 200**:
+
 ```json
 {
   "deliveryId": "<uuid>",
@@ -395,6 +402,7 @@ Delivery detail with attempt breakdown.
 List available event types for subscription.
 
 **Response 200**:
+
 ```json
 {
   "eventTypes": [
@@ -420,6 +428,7 @@ List available event types for subscription.
 | `User-Agent` | `PlatformWebhook/1.0` |
 
 **Payload envelope**:
+
 ```json
 {
   "id": "<delivery-uuid>",
@@ -431,7 +440,8 @@ List available event types for subscription.
 ```
 
 **Signature computation**:
-```
+
+```text
 signature = HMAC-SHA256(key=signingSecret, message=rawRequestBody)
 header = "sha256=" + hex(signature)
 ```
@@ -445,7 +455,7 @@ header = "sha256=" + hex(signature)
 
 ### New files
 
-```
+```text
 services/webhook-engine/
   src/
     event-catalogue.mjs                    # Static event type catalogue
