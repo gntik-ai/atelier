@@ -9,6 +9,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-30
 - PostgreSQL access via `pg`, Kafka publication via `kafkajs`, OpenWhisk action wrappers for async operation lifecycle (073-async-job-status-model)
 - Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka broker), Apache OpenWhisk action wrapper patterns establecidos en T01/T02 (075-idempotent-retry-dedup)
 - PostgreSQL (idempotency_key_records, retry_attempts + extensión de async_operations), Kafka (eventos auditables) (075-idempotent-retry-dedup)
+- Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (existing `services/provisioning-orchestrator`), React 18 + Tailwind CSS + shadcn/ui (console) (089-api-key-rotation)
+- PostgreSQL (rotation state, policy, history), Keycloak (credential lifecycle), APISIX (gateway consumer key verification) (089-api-key-rotation)
 
 ## Project Structure
 
@@ -27,6 +29,7 @@ services/provisioning-orchestrator/src/{models,repositories,events,actions,migra
 Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning assets: Follow standard conventions
 
 ## Recent Changes
+- 089-api-key-rotation: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (existing `services/provisioning-orchestrator`), React 18 + Tailwind CSS + shadcn/ui (console)
 - 075-idempotent-retry-dedup: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka broker), Apache OpenWhisk action wrappers establecidos en T01/T02
 - 074-async-job-progress-ui: Added async operation query endpoints/contracts, log-entry migration, console operation tracking pages, and focused backend/frontend tests
 
