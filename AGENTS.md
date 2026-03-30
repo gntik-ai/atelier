@@ -29,7 +29,6 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 ## Recent Changes
 - 075-idempotent-retry-dedup: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka broker), Apache OpenWhisk action wrappers establecidos en T01/T02
 - 074-async-job-progress-ui: Added async operation query endpoints/contracts, log-entry migration, console operation tracking pages, and focused backend/frontend tests
-- 073-async-job-status-model: Added async operation domain model, PostgreSQL persistence, Kafka event contract, and OpenWhisk action wrappers
 
 ## Async Operation Idempotency & Retry
 

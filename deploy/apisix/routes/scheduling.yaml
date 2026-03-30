@@ -1,0 +1,18 @@
+routes:
+  - name: scheduling-management
+    uri: /v1/scheduling/*
+    methods:
+      - GET
+      - POST
+      - PATCH
+      - DELETE
+    plugins:
+      key-auth: {}
+      openid-connect:
+        bearer_only: true
+        discovery: ${KEYCLOAK_DISCOVERY_URL}
+        client_id: ${KEYCLOAK_CLIENT_ID}
+    upstream:
+      type: roundrobin
+      nodes:
+        "scheduling-management.openwhisk.svc.cluster.local:80": 1

@@ -1,0 +1,21 @@
+schedulingEngine:
+  enabled: true
+  env:
+    SCHEDULING_DEFAULT_MAX_ACTIVE_JOBS: "10"
+    SCHEDULING_DEFAULT_MIN_INTERVAL_SECONDS: "60"
+    SCHEDULING_DEFAULT_MAX_CONSECUTIVE_FAILURES: "5"
+    SCHEDULING_TRIGGER_INTERVAL_SECONDS: "60"
+    SCHEDULING_JOB_RUNNER_TIMEOUT_MS: "300000"
+    SCHEDULING_EXECUTION_HISTORY_MAX_DAYS: "30"
+    SCHEDULING_ENABLED_BY_DEFAULT: "false"
+    SCHEDULING_ENGINE_ENABLED: "true"
+  actions:
+    - name: scheduling-management
+      source: services/scheduling-engine/actions/scheduling-management.mjs
+    - name: scheduling-trigger
+      source: services/scheduling-engine/actions/scheduling-trigger.mjs
+    - name: scheduling-job-runner
+      source: services/scheduling-engine/actions/scheduling-job-runner.mjs
+  alarmFeed:
+    action: scheduling-trigger
+    intervalSeconds: 60

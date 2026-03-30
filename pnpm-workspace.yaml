@@ -2,4 +2,5 @@ packages:
   - apps/*
   - services/*
   - services/realtime-gateway
+  - services/scheduling-engine
   - tests/*

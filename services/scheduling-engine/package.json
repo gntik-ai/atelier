@@ -1,0 +1,16 @@
+{
+  "name": "scheduling-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test ../../tests/unit/*.test.mjs ../../tests/integration/*.test.mjs ../../tests/contracts/*.test.mjs",
+    "test:unit": "node --test ../../tests/unit/*.test.mjs",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "cron-parser": "^5.2.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.16.3"
+  }
+}
