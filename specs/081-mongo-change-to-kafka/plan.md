@@ -13,7 +13,7 @@
 
 ### 1.1 Component topology
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │  Workspace MongoDB Replica Set (or Sharded Cluster)              │
 │  ┌────────────────────────────────────────────────────────────┐  │
@@ -293,7 +293,7 @@ All actions follow existing patterns: ESM `.mjs`, Keycloak JWT validation from `
 
 **New service**: `services/mongo-cdc-bridge/`
 
-```
+```text
 services/mongo-cdc-bridge/
 ├── package.json              (type: "module", deps: mongodb, kafkajs, pg)
 ├── src/
@@ -364,7 +364,8 @@ Partition key: `{workspaceId}:{database_name}.{collection_name}` — ensures per
 Message value: CloudEvents JSON envelope (MongoChangeEvent schema, §2.2).
 
 Message headers:
-```
+
+```text
 ce-type:          console.mongo-capture.change
 ce-source:        /data-sources/{dataSourceRef}/collections/{database}.{collection}
 ce-tenantid:      {tenantId}
@@ -423,6 +424,7 @@ The per-workspace `mongo-changes` topic is created at workspace provisioning tim
 **POST `/workspaces/{workspaceId}/mongo-captures`**
 
 Request body:
+
 ```json
 {
   "data_source_ref": "string",
@@ -433,6 +435,7 @@ Request body:
 ```
 
 Response `201`:
+
 ```json
 {
   "id": "uuid",
@@ -468,7 +471,7 @@ Response `200`: `{ workspaces: [{ workspace_id, active_count, quota_max, collect
 
 ## 3. Data Model Summary
 
-```
+```text
 mongo_capture_configs
   id, tenant_id, workspace_id, data_source_ref,
   database_name, collection_name, capture_mode,
@@ -591,7 +594,7 @@ Scenarios:
 
 ### 6.2 Implementation sequence
 
-```
+```text
 Step 1 — Migration & models (no external deps)
   081-mongo-capture-config.sql
   MongoCaptureConfig.mjs, MongoChangeEvent.mjs
