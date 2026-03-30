@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "idempotency-dedup-event",
+  "title": "IdempotencyDeduplicationEvent",
+  "description": "Evento Kafka publicado cuando una solicitud de aprovisionamiento es deduplicada por idempotency key. Topic: console.async-operation.deduplicated",
+  "type": "object",
+  "required": ["eventId", "eventType", "operationId", "tenantId", "actorId", "actorType", "idempotencyKey", "paramsMismatch", "occurredAt", "correlationId"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del evento"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["async_operation.deduplicated"],
+      "description": "Tipo de evento"
+    },
+    "operationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Operación existente retornada por la deduplicación"
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tenant al que pertenece la operación"
+    },
+    "actorId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Actor que realizó la solicitud deduplicada"
+    },
+    "actorType": {
+      "type": "string",
+      "enum": ["workspace_admin", "tenant_owner", "superadmin", "tenant_member"],
+      "description": "Tipo de actor"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Idempotency key que produjo la deduplicación"
+    },
+    "paramsMismatch": {
+      "type": "boolean",
+      "description": "Indica si los parámetros de la solicitud difieren de los de la operación original"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp del evento de deduplicación"
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Correlation ID de la solicitud entrante que fue deduplicada"
+    }
+  }
+}
