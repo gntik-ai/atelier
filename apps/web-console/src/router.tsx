@@ -74,6 +74,16 @@ const ConsoleDocsPage = lazy(async () => {
   return { default: module.ConsoleDocsPage }
 })
 
+const ConsoleSecretsPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleSecretsPage')
+  return { default: module.ConsoleSecretsPage }
+})
+
+const ConsoleSecretRotationPage = lazy(async () => {
+  const module = await import('@/pages/ConsoleSecretRotationPage')
+  return { default: module.ConsoleSecretRotationPage }
+})
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -176,6 +186,14 @@ export const appRoutes = [
           {
             path: 'workspaces/:workspaceId/docs',
             element: <ConsoleDocsPage />
+          },
+          {
+            path: 'secrets',
+            element: <ConsoleSecretsPage />
+          },
+          {
+            path: 'secrets/:encodedSecretPath/rotate',
+            element: <ConsoleSecretRotationPage />
           },
           {
             path: 'profile',

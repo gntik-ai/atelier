@@ -2139,6 +2139,206 @@
           "workspace_service_account"
         ],
         "type": "string"
+      },
+      "SecretRotationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "gracePeriodSeconds",
+          "justification",
+          "newValue"
+        ],
+        "properties": {
+          "gracePeriodSeconds": {
+            "type": "integer",
+            "minimum": 300,
+            "maximum": 86400
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 1
+          },
+          "newValue": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "SecretRotationResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rotationId",
+          "vaultVersionNew",
+          "gracePeriodSeconds"
+        ],
+        "properties": {
+          "rotationId": {
+            "type": "string"
+          },
+          "vaultVersionNew": {
+            "type": "integer"
+          },
+          "vaultVersionOld": {
+            "type": "integer"
+          },
+          "gracePeriodSeconds": {
+            "type": "integer"
+          },
+          "graceExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SecretRevokeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "justification"
+        ],
+        "properties": {
+          "justification": {
+            "type": "string",
+            "minLength": 1
+          },
+          "forceRevoke": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SecretRevokeResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revokedVersion",
+          "effectiveAt"
+        ],
+        "properties": {
+          "revokedVersion": {
+            "type": "integer"
+          },
+          "effectiveAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RotationEventItem": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "eventType": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "vaultVersionNew": {
+            "type": "integer"
+          },
+          "vaultVersionOld": {
+            "type": "integer"
+          },
+          "gracePeriodSeconds": {
+            "type": "integer"
+          }
+        }
+      },
+      "RotationHistoryPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "total"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RotationEventItem"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "ConsumerStatusItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "consumer_id",
+          "reload_mechanism",
+          "state"
+        ],
+        "properties": {
+          "consumer_id": {
+            "type": "string"
+          },
+          "reload_mechanism": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "confirmedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timeoutAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ConsumerStatusPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "consumers"
+        ],
+        "properties": {
+          "consumers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConsumerStatusItem"
+            }
+          }
+        }
+      },
+      "SecretConsumerAckRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "consumerId",
+          "vaultVersion"
+        ],
+        "properties": {
+          "consumerId": {
+            "type": "string"
+          },
+          "vaultVersion": {
+            "type": "integer"
+          }
+        }
+      },
+      "SecretConsumerAckResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ack"
+        ],
+        "properties": {
+          "ack": {
+            "type": "boolean",
+            "const": true
+          }
+        }
       }
     }
   },
@@ -3676,6 +3876,519 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
         "x-resource-type": "platform_user",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/secrets/{domain}/{secretName}/rotate": {
+      "post": {
+        "operationId": "rotateSecret",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform",
+                "tenant",
+                "functions",
+                "gateway",
+                "iam"
+              ]
+            },
+            "description": "Secret domain."
+          },
+          {
+            "in": "path",
+            "name": "secretName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Secret name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretRotationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Secret rotation initiated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretRotationResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Rotation conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid grace period.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Vault write failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Rotate a secret version without service redeploy",
+        "tags": [
+          "Platform",
+          "Secrets"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "secret_rotation",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/secrets/{domain}/{secretName}/versions/{vaultVersion}/revoke": {
+      "post": {
+        "operationId": "revokeSecretVersion",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform",
+                "tenant",
+                "functions",
+                "gateway",
+                "iam"
+              ]
+            },
+            "description": "Secret domain."
+          },
+          {
+            "in": "path",
+            "name": "secretName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Secret name."
+          },
+          {
+            "in": "path",
+            "name": "vaultVersion",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Vault secret version."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretRevokeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Secret version revoked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretRevokeResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Version not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Revocation leaves no active version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Revoke one secret version",
+        "tags": [
+          "Platform",
+          "Secrets"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "secret_rotation",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/secrets/{domain}/{secretName}/history": {
+      "get": {
+        "operationId": "listSecretRotationHistory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform",
+                "tenant",
+                "functions",
+                "gateway",
+                "iam"
+              ]
+            },
+            "description": "Secret domain."
+          },
+          {
+            "in": "path",
+            "name": "secretName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Secret name."
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rotation history returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotationHistoryPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List secret rotation history",
+        "tags": [
+          "Platform",
+          "Secrets"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "secret_rotation",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/secrets/{domain}/{secretName}/consumer-status": {
+      "get": {
+        "operationId": "getSecretConsumerStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform",
+                "tenant",
+                "functions",
+                "gateway",
+                "iam"
+              ]
+            },
+            "description": "Secret domain."
+          },
+          {
+            "in": "path",
+            "name": "secretName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Secret name."
+          },
+          {
+            "in": "query",
+            "name": "vaultVersion",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consumer propagation status returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsumerStatusPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get consumer propagation status for one secret",
+        "tags": [
+          "Platform",
+          "Secrets"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "secret_rotation",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/secrets/{domain}/{secretName}/consumer-ack": {
+      "post": {
+        "operationId": "ackSecretConsumerReload",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "in": "path",
+            "name": "domain",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform",
+                "tenant",
+                "functions",
+                "gateway",
+                "iam"
+              ]
+            },
+            "description": "Secret domain."
+          },
+          {
+            "in": "path",
+            "name": "secretName",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Secret name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretConsumerAckRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Consumer reload acknowledged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretConsumerAckResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected control-plane error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Acknowledge consumer reload after secret propagation",
+        "tags": [
+          "Platform",
+          "Secrets"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-write",
+        "x-resource-type": "secret_rotation",
         "x-scope": "platform",
         "x-visibility": "public"
       }

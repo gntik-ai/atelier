@@ -65,4 +65,16 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New PostgreSQL table: `secret_metadata` for metadata-only inventory; never stores secret values.
 - New env vars: `VAULT_ADDR`, `VAULT_NAMESPACE`, `VAULT_SKIP_VERIFY`, `SECRET_AUDIT_KAFKA_TOPIC`, `SECRET_AUDIT_KAFKA_BROKERS`, `VAULT_UNSEAL_METHOD`, `VAULT_INIT_SHARES`, `VAULT_INIT_THRESHOLD`.
 - Vault KV path structure: `platform/`, `tenant/{tenantId}/`, `functions/`, `gateway/`, `iam/`.
+
+## Secure Secret Rotation (092-secret-rotation-no-redeploy)
+
+- New PostgreSQL tables: `secret_version_states`, `secret_consumer_registry`, `secret_propagation_events`, `secret_rotation_events`.
+- Migration file: `services/provisioning-orchestrator/src/migrations/092-secret-rotation.sql`.
+- New OpenWhisk actions: `secret-rotation-initiate`, `secret-rotation-revoke`, `secret-rotation-expiry-sweep`, `secret-rotation-propagation-timeout-sweep`, `secret-consumer-ack`, `secret-rotation-consumer-status`.
+- New Kafka topics: `console.secrets.rotation.initiated` (30d), `console.secrets.rotation.grace-started` (30d), `console.secrets.rotation.propagated` (30d), `console.secrets.rotation.grace-expired` (30d), `console.secrets.rotation.revoked` (90d), `console.secrets.consumer.reload-requested` (7d), `console.secrets.consumer.reload-confirmed` (30d), `console.secrets.consumer.reload-timeout` (30d).
+- New env vars: `SECRET_ROTATION_MIN_GRACE_SECONDS`, `SECRET_ROTATION_MAX_GRACE_SECONDS`, `SECRET_ROTATION_DEFAULT_GRACE_SECONDS`, `RELOAD_ACK_TIMEOUT_SECONDS`, `SECRET_ROTATION_SWEEP_BATCH_SIZE`.
+- New console pages: `ConsoleSecretsPage.tsx`, `ConsoleSecretRotationPage.tsx`.
+- Max two valid versions per secret path enforced via `UNIQUE INDEX uq_secret_active_version`.
+- Rotation is atomic: PostgreSQL TX committed before Vault write; rollback on Vault failure.
+- Vault KV v2 used for native versioning; soft-delete on grace expiry and revocation.
 <!-- MANUAL ADDITIONS END -->
