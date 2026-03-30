@@ -224,7 +224,7 @@ CREATE TABLE tenant_rotation_policies (
 
 Add `rotating_deprecated` to the existing enum:
 
-```
+```text
 "active" | "rotating_deprecated" | "rotation_due" | "revoked" | "expired"
 ```
 
@@ -357,6 +357,7 @@ New files:
 - `services/provisioning-orchestrator/src/repositories/tenant-rotation-policy-repo.mjs`
 
 Repository contract (key methods):
+
 ```js
 // credential-rotation-repo.mjs
 createRotationState({ tenantId, workspaceId, serviceAccountId, newCredentialId, oldCredentialId, rotationType, gracePeriodSeconds, initiatedBy })
@@ -392,6 +393,7 @@ Modify `apps/control-plane/src/workflows/wf-con-004-credential-generation.mjs`:
    g. Publish `console.credential-rotation.force-completed` Kafka event.
 
 New dependency injection points added to `defaultDependencies`:
+
 ```js
 writeRotationState, getInProgressRotation, completeRotation, getTenantRotationPolicy
 ```
@@ -554,7 +556,7 @@ Uses real PostgreSQL (test DB) and stub Keycloak adapter via dependency injectio
 
 ## Dependencies and Sequencing
 
-```
+```text
 Step 1 (DB migration)
   └─ Step 2 (models/repos)
        └─ Step 3 (WF-CON-004 extension)

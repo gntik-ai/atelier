@@ -189,7 +189,7 @@
 
 ### Critical Path
 
-```
+```text
 T001–T004 (Setup)
   → T005–T007 (Migration)
     → T008–T012 (Models + Repos)      ← parallel group
