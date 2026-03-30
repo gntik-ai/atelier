@@ -325,6 +325,7 @@ Idempotency-Key: <string 1-128 chars [a-zA-Z0-9_-]>
 Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 
 **Response 409** — conflict (misma key, tipo distinto):
+
 ```json
 {
   "error": "IDEMPOTENCY_KEY_CONFLICT",
@@ -334,6 +335,7 @@ Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 ```
 
 **Response 400** — idempotency key inválida:
+
 ```json
 {
   "error": "INVALID_IDEMPOTENCY_KEY",
@@ -346,12 +348,15 @@ Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 #### POST /operations/{operation_id}/retry (nuevo endpoint)
 
 **Request**:
+
 ```json
 {}
 ```
+
 *(sin body; los parámetros se preservan de la operación original)*
 
 **Response 200** — reintento creado:
+
 ```json
 {
   "attemptId": "uuid",
@@ -364,6 +369,7 @@ Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 ```
 
 **Response 409** — operación no está en estado `failed`:
+
 ```json
 {
   "error": "INVALID_OPERATION_STATE",
@@ -373,6 +379,7 @@ Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 ```
 
 **Response 422** — límite de reintentos alcanzado:
+
 ```json
 {
   "error": "MAX_RETRIES_EXCEEDED",
@@ -383,6 +390,7 @@ Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 ```
 
 **Response 403** — aislamiento multi-tenant:
+
 ```json
 {
   "error": "FORBIDDEN",
@@ -535,7 +543,7 @@ Todas las queries incluyen `tenant_id = $1` como filtro obligatorio. El reposito
 
 ### Secuencia recomendada (orden de implementación)
 
-```
+```text
 Paso 1: Migración 075 DDL
   └─ 075-idempotency-retry-tables.sql
 
