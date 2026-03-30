@@ -406,7 +406,7 @@ Nuevos CronJob manifests en `charts/in-atelier/templates/`:
 
 ### 4.7 Consola web — `apps/web-console/src/`
 
-#### Nuevas páginas:
+#### Nuevas páginas
 
 **`pages/ConsoleSecretsPage.tsx`**
 - Lista `secret_metadata` (de T01) enriquecida con estado actual de versión (`active`, `grace`, `expired`)
@@ -419,7 +419,7 @@ Nuevos CronJob manifests en `charts/in-atelier/templates/`:
 - Panel de consumidores: estado de propagación en tiempo real (polling cada 5 s)
 - Dialog de confirmación de revocación con aviso explícito si elimina última versión válida
 
-#### Nuevas acciones de consola:
+#### Nuevas acciones de consola
 
 **`actions/secretRotationActions.ts`**
 ```ts
@@ -429,7 +429,8 @@ export async function listRotationHistory(secretPath, { limit, offset }): Promis
 export async function getConsumerStatus(secretPath, vaultVersion?): Promise<ConsumerStatusPage>
 ```
 
-#### Router — `router.tsx`:
+#### Router — `router.tsx`
+
 Añadir rutas:
 ```ts
 { path: '/secrets', element: <ConsoleSecretsPage /> }

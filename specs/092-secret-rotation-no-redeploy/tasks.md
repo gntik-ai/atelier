@@ -141,6 +141,7 @@ Create the following tables exactly as specified in plan §3.1. No changes to ex
 - `CREATE INDEX idx_sre_path_time ON secret_rotation_events (secret_path, occurred_at DESC)`
 
 ### Acceptance check
+
 ```sql
 \d secret_version_states  -- shows table + both indexes
 SELECT indexname FROM pg_indexes WHERE tablename='secret_version_states';
@@ -343,7 +344,7 @@ Add the following path groups (schemas inlined or added to the file's `component
 
 ### Paths to add
 
-```
+```text
 POST   /v1/platform/secrets/{domain}/{secretName}/rotate
          → body: { gracePeriodSeconds, justification, newValue }
          → 200: { rotationId, vaultVersionNew, vaultVersionOld, gracePeriodSeconds, graceExpiresAt }
@@ -498,7 +499,7 @@ Use Vitest + React Testing Library (existing test framework in `apps/web-console
 
 Add to all relevant deployment configs (Helm values, `.env.example`, provisioning-orchestrator README):
 
-```
+```dotenv
 SECRET_ROTATION_MIN_GRACE_SECONDS=300
 SECRET_ROTATION_MAX_GRACE_SECONDS=86400
 SECRET_ROTATION_DEFAULT_GRACE_SECONDS=1800
