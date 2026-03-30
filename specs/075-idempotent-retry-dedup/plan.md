@@ -221,7 +221,7 @@ ALTER TABLE async_operations
 
 ### Arquitectura y Flujo
 
-```
+```text
 Actor/Console
     │
     ▼ POST /operations  (con o sin Idempotency-Key header)
@@ -296,11 +296,13 @@ OpenWhisk Action: async-operation-retry (NUEVO)
 #### POST /operations (extensión del contrato existente)
 
 **Request** — header adicional (opcional):
-```
+
+```text
 Idempotency-Key: <string 1-128 chars [a-zA-Z0-9_-]>
 ```
 
 **Response 200** — operación creada o deduplicada:
+
 ```json
 {
   "operationId": "uuid",
@@ -312,6 +314,7 @@ Idempotency-Key: <string 1-128 chars [a-zA-Z0-9_-]>
 ```
 
 **Response 200** — deduplicada (operación existente retornada):
+
 ```json
 {
   "operationId": "uuid",
@@ -322,6 +325,7 @@ Idempotency-Key: <string 1-128 chars [a-zA-Z0-9_-]>
   "paramsMismatch": false
 }
 ```
+
 Header adicional en respuesta deduplicada: `X-Idempotent-Replayed: true`
 
 **Response 409** — conflict (misma key, tipo distinto):

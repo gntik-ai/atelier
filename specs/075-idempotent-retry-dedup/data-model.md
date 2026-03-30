@@ -144,7 +144,7 @@ ALTER TABLE async_operations
 
 ### Deduplicación
 
-```
+```text
 Solicitud recibida con idempotency_key
   │
   ▼
@@ -170,7 +170,7 @@ SELECT FROM idempotency_key_records
 
 ### Reintento
 
-```
+```text
 POST /operations/{id}/retry
   │
   ▼
