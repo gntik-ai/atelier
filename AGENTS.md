@@ -146,4 +146,16 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - Regla operativa: jerarquía efectiva `override > plan > catalog default`; soft quota permite gracia hasta `effectiveLimit + graceMargin`; `-1` mantiene el sentinel de ilimitado.
 - Restricción de implementación para este branch: durante `speckit.implement`, leer de forma dirigida solo `plan.md`, `tasks.md` y el File Path Map de la feature; no abrir el OpenAPI completo.
 
+## Plan Boolean Capabilities (104-plan-boolean-capabilities)
+
+- New PostgreSQL table: `boolean_capability_catalog` (governed catalog of boolean platform features per plan).
+- Existing column `plans.capabilities JSONB` (from 097) is now validated against `boolean_capability_catalog` on all writes.
+- New OpenWhisk actions: `capability-catalog-list`, `plan-capability-set`, `plan-capability-profile-get`, `tenant-effective-capabilities-get`, `plan-capability-audit-query`.
+- New Kafka topics: `console.plan.capability.enabled` (30d), `console.plan.capability.disabled` (30d).
+- New env vars: `CAPABILITY_KAFKA_TOPIC_ENABLED` (default `console.plan.capability.enabled`), `CAPABILITY_KAFKA_TOPIC_DISABLED` (default `console.plan.capability.disabled`).
+- Initial catalog seed: 7 capabilities — `sql_admin_api`, `passthrough_admin`, `realtime`, `webhooks`, `public_functions`, `custom_domains`, `scheduled_functions` — all defaulting to `false`.
+- Capability enforcement (blocking access at gateway/UI) deferred to US-PLAN-02-T05.
+- `effective-entitlements-repository.mjs` enhanced: `toCapabilityList` now resolves display labels from catalog and includes all catalog capabilities (not just explicitly-set ones); backward-compatible fallback when table absent.
+- New `plan_audit_events.action_type` values: `plan.capability.enabled`, `plan.capability.disabled`.
+
 <!-- MANUAL ADDITIONS END -->
