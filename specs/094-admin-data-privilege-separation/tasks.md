@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD022 MD031 MD040 -->
 # Tasks — US-SEC-02-T04: Admin–Data Privilege Separation
 
 **Feature Branch**: `094-admin-data-privilege-separation`
