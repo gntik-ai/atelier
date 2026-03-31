@@ -161,7 +161,8 @@ CREATE UNIQUE INDEX uq_ttip_tenant_active
   WHERE completed_at IS NULL;
 ```
 
-### Notes
+### Notes on `tenant_transitions_in_progress`
+
 - The partial unique index is the concurrency guard.
 - `completed_at` must be written in a `finally` path to avoid stale locks.
 
@@ -198,7 +199,8 @@ CREATE UNIQUE INDEX uq_tgpr_tenant_dimension_active
   WHERE status = 'active';
 ```
 
-### Notes
+### Notes on `tenant_grace_period_records`
+
 - Only one active grace period per tenant and dimension is allowed.
 - Historical records are preserved after resolution or escalation.
 
@@ -236,7 +238,8 @@ CREATE UNIQUE INDEX uq_tolc_tenant_dimension_active
   WHERE evaluation_status = 'active';
 ```
 
-### Notes
+### Notes on `tenant_over_limit_conditions`
+
 - `block_transition` conditions may be recorded in audit detail even when no active row is persisted.
 - Active rows drive tenant communication and creation blocking.
 

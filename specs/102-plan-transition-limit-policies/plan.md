@@ -157,6 +157,7 @@ tests/
 #### New Tables
 
 **`plan_transition_compatibility_rules`**
+
 ```sql
 CREATE TABLE plan_transition_compatibility_rules (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -169,9 +170,11 @@ CREATE TABLE plan_transition_compatibility_rules (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
 Indexes: `idx_tcr_source_target`, `idx_tcr_target`, partial null indexes for wildcard lookups.
 
 **`plan_excess_policy_config`**
+
 ```sql
 CREATE TABLE plan_excess_policy_config (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
