@@ -56,6 +56,23 @@ jobs:
       - name: Resilience scaffolding
         run: pnpm test:resilience
 
+      - name: Plan Upgrade/Downgrade E2E Tests
+        run: node --test --test-reporter=tap tests/e2e/101-plan-upgrade-downgrade-tests/index.test.mjs
+        env:
+          TEST_API_BASE_URL: ${{ secrets.TEST_API_BASE_URL }}
+          TEST_SUPERADMIN_TOKEN: ${{ secrets.TEST_SUPERADMIN_TOKEN }}
+          TEST_PG_DSN: ${{ secrets.TEST_PG_DSN }}
+          KAFKA_ENABLED: 'true'
+          KAFKA_BROKERS: ${{ secrets.KAFKA_BROKERS }}
+          TEST_RESULT_OUTPUT_PATH: test-results/101-plan-upgrade-downgrade-tests-result.json
+
+      - name: Upload plan upgrade/downgrade test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-upgrade-downgrade-tests-result
+          path: test-results/101-plan-upgrade-downgrade-tests-result.json
+          if-no-files-found: ignore
+
       - name: Upload control-plane contract artifact
         uses: actions/upload-artifact@v4
         with:
