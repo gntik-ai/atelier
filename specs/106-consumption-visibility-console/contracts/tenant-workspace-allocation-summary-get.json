@@ -1,0 +1,77 @@
+{
+  "actionName": "tenant-workspace-allocation-summary-get",
+  "description": "Return, per quota dimension, how the tenant effective limit is distributed across workspace sub-quotas. For each dimension: total tenant effective limit, sum of all workspace sub-quotas, remaining unallocated capacity, and per-workspace breakdown. Unlimited dimensions (-1) show totalAllocated as the sum of finite sub-quotas; unallocated is null.",
+  "auth": { "actorType": "superadmin|tenant_owner" },
+  "input": {
+    "type": "object",
+    "required": ["tenantId"],
+    "properties": {
+      "tenantId": { "type": "string", "description": "Target tenant. Tenant owner may only request their own." }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["tenantId", "dimensions"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "dimensions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["dimensionKey", "displayLabel", "unit", "tenantEffectiveValue", "totalAllocated", "unallocated", "isFullyAllocated", "workspaces"],
+          "properties": {
+            "dimensionKey": { "type": "string" },
+            "displayLabel": { "type": "string" },
+            "unit": { "type": ["string", "null"] },
+            "tenantEffectiveValue": {
+              "type": "integer",
+              "description": "Resolved tenant limit. -1 = unlimited."
+            },
+            "totalAllocated": {
+              "type": "integer",
+              "description": "Sum of allocated_value across all workspace_sub_quotas for this tenant and dimension. 0 if no sub-quotas exist."
+            },
+            "unallocated": {
+              "type": ["integer", "null"],
+              "description": "tenantEffectiveValue - totalAllocated. null when tenantEffectiveValue = -1."
+            },
+            "isFullyAllocated": {
+              "type": "boolean",
+              "description": "true when unallocated = 0 and tenantEffectiveValue != -1"
+            },
+            "workspaces": {
+              "type": "array",
+              "description": "Per-workspace sub-quota breakdown. Empty array if no sub-quotas exist for this dimension.",
+              "items": {
+                "type": "object",
+                "required": ["workspaceId", "allocatedValue"],
+                "properties": {
+                  "workspaceId": { "type": "string" },
+                  "allocatedValue": { "type": "integer", "minimum": 0 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Actor cannot read allocation summary for that tenant" },
+    { "code": "TENANT_NOT_FOUND", "httpStatus": 404, "description": "Tenant not found" }
+  ],
+  "apisixRoutes": [
+    {
+      "method": "GET",
+      "path": "/v1/tenant/plan/allocation-summary",
+      "auth": "tenant_owner",
+      "description": "Tenant owner: workspace allocation summary for own tenant"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/tenants/{tenantId}/plan/allocation-summary",
+      "auth": "superadmin",
+      "description": "Superadmin: workspace allocation summary for any tenant"
+    }
+  ]
+}
