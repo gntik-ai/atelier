@@ -10,8 +10,14 @@ import { ConsoleAuthPage } from '@/pages/ConsoleAuthPage'
 import { ConsoleMembersPage } from '@/pages/ConsoleMembersPage'
 import { ConsolePlaceholderPage } from '@/pages/ConsolePlaceholderPage'
 import { ConsoleTenantsPage } from '@/pages/ConsoleTenantsPage'
+import { ConsolePlanCatalogPage } from '@/pages/ConsolePlanCatalogPage'
+import { ConsolePlanCreatePage } from '@/pages/ConsolePlanCreatePage'
+import { ConsolePlanDetailPage } from '@/pages/ConsolePlanDetailPage'
+import { ConsoleTenantPlanPage } from '@/pages/ConsoleTenantPlanPage'
+import { ConsoleTenantPlanOverviewPage } from '@/pages/ConsoleTenantPlanOverviewPage'
 import { ConsoleWorkspacesPage } from '@/pages/ConsoleWorkspacesPage'
 import { SignupPage } from '@/pages/SignupPage'
+import { readConsoleShellSession } from '@/lib/console-session'
 import { WelcomePage } from '@/pages/WelcomePage'
 
 const ConsolePostgresPage = lazy(async () => {
@@ -84,6 +90,13 @@ const ConsoleSecretRotationPage = lazy(async () => {
   return { default: module.ConsoleSecretRotationPage }
 })
 
+
+function RequireSuperadminRoute({ children }: { children: JSX.Element }) {
+  const session = readConsoleShellSession()
+  const roles = session?.principal?.platformRoles ?? []
+  return roles.includes('superadmin') ? children : <Navigate replace to="/console/my-plan" />
+}
+
 // T05 endurece la entrada a `/console/*` con guardas de sesión y refresh on-demand.
 export const appRoutes = [
   {
@@ -134,6 +147,27 @@ export const appRoutes = [
           {
             path: 'members',
             element: <ConsoleMembersPage />
+          },
+
+          {
+            path: 'plans',
+            element: <RequireSuperadminRoute><ConsolePlanCatalogPage /></RequireSuperadminRoute>
+          },
+          {
+            path: 'plans/new',
+            element: <RequireSuperadminRoute><ConsolePlanCreatePage /></RequireSuperadminRoute>
+          },
+          {
+            path: 'plans/:planId',
+            element: <RequireSuperadminRoute><ConsolePlanDetailPage /></RequireSuperadminRoute>
+          },
+          {
+            path: 'tenants/:tenantId/plan',
+            element: <RequireSuperadminRoute><ConsoleTenantPlanPage /></RequireSuperadminRoute>
+          },
+          {
+            path: 'my-plan',
+            element: <ConsoleTenantPlanOverviewPage />
           },
           {
             path: 'auth',

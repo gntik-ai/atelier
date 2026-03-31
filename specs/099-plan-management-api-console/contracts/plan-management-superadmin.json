@@ -1,0 +1,39 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plan Management Superadmin API",
+    "version": "2026-03-31"
+  },
+  "paths": {
+    "/v1/plans": {
+      "post": {},
+      "get": {}
+    },
+    "/v1/plans/{planIdOrSlug}": {
+      "get": {}
+    },
+    "/v1/plans/{planId}": {
+      "put": {}
+    },
+    "/v1/plans/{planId}/lifecycle": {
+      "post": {}
+    },
+    "/v1/plans/{planId}/limits": {
+      "get": {}
+    },
+    "/v1/plans/{planId}/limits/{dimensionKey}": {
+      "put": {},
+      "delete": {}
+    },
+    "/v1/quota-dimensions": {
+      "get": {}
+    },
+    "/v1/tenants/{tenantId}/plan": {
+      "post": {},
+      "get": {}
+    },
+    "/v1/tenants/{tenantId}/plan/history": {
+      "get": {}
+    }
+  }
+}

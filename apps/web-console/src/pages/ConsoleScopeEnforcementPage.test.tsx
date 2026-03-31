@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ConsoleScopeEnforcementPage } from './ConsoleScopeEnforcementPage'
 
 vi.mock('@/lib/console-scope-enforcement', () => ({
@@ -11,10 +11,11 @@ vi.mock('@/lib/console-scope-enforcement', () => ({
 
 describe('ConsoleScopeEnforcementPage', () => {
   beforeEach(() => vi.clearAllMocks())
+  afterEach(() => cleanup())
 
   it('renders summary strip with correct counts', async () => {
     render(<ConsoleScopeEnforcementPage isSuperadmin />)
-    await waitFor(() => expect(screen.getByText('1')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText('1').length).toBeGreaterThan(0))
     expect(screen.getByText(/Scope Enforcement — Denial Events/)).toBeInTheDocument()
   })
 

@@ -215,26 +215,33 @@ describe('ConsoleShellLayout', () => {
   })
 
   it('muestra reintento cuando falla la carga de tenants y se recupera al reintentar', async () => {
-    fetchMock
-      .mockImplementationOnce(async (input) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
-        if (url.startsWith('/v1/tenants')) {
+    let tenantRequestCount = 0
+
+    fetchMock.mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+      const parsedUrl = new URL(url, 'http://localhost')
+
+      if (parsedUrl.pathname === '/v1/tenants') {
+        tenantRequestCount += 1
+
+        if (tenantRequestCount === 1) {
           return createJsonResponse(500, { message: 'Tenants degradados' })
         }
+      }
 
-        return createJsonResponse(404, { message: 'Not found' })
-      })
-      .mockImplementation(createShellApiImplementation())
+      return createShellApiImplementation()(input)
+    })
     vi.stubGlobal('fetch', fetchMock)
     persistConsoleShellSession(baseSession)
     const user = userEvent.setup()
 
     renderShell('/console/overview')
 
-    const retryButton = await screen.findByRole('button', { name: /reintentar tenants/i })
+    const retryButtons = await screen.findAllByRole('button', { name: /reintentar tenants/i })
+    expect(retryButtons.length).toBeGreaterThan(0)
     expect(screen.getAllByText(/tenants degradados/i).length).toBeGreaterThan(0)
 
-    await user.click(retryButton)
+    await user.click(retryButtons[0])
 
     await waitFor(() => {
       expect(screen.getByTestId('console-context-tenant-select')).toHaveValue('ten_alpha')
@@ -517,3 +524,11 @@ function createJsonResponse(status: number, body: unknown) {
     json: async () => body
   } as Response
 }
+
+
+it('renderiza el ítem Plans en el sidebar', async () => {
+  stubShellApi()
+  persistConsoleShellSession(baseSession)
+  renderShell('/console/overview')
+  expect(await screen.findByRole('link', { name: /plans/i })).toBeInTheDocument()
+})

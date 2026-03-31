@@ -1,8 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
+import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { ScopeEnforcementDenialsTable } from './ScopeEnforcementDenialsTable'
 
 const rows = [{ tenant_id: 'tenant-1', actor_id: 'actor-1', actor_type: 'user', denial_type: 'SCOPE_INSUFFICIENT', http_method: 'POST', request_path: '/v1/functions/1/deploy', missing_scopes: ['functions:deploy'], correlation_id: 'corr-1', denied_at: '2026-03-31T00:00:00Z', source_ip: '127.0.0.1' }]
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('ScopeEnforcementDenialsTable', () => {
   beforeEach(() => {

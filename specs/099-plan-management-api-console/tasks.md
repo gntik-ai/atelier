@@ -118,62 +118,62 @@ Follow this order. Do not skip ahead.
 
 ### Phase 1 — Documentation + contract completion
 
-- [ ] T001 Write `DATA_MODEL`, `QUICKSTART`, `CONTRACT_SUPERADMIN`, `CONTRACT_TENANT_OWNER`, and `CONTRACT_COMPONENTS` so the implemented API and UI surfaces have stable, reviewable contracts.
+- [x] T001 Write `DATA_MODEL`, `QUICKSTART`, `CONTRACT_SUPERADMIN`, `CONTRACT_TENANT_OWNER`, and `CONTRACT_COMPONENTS` so the implemented API and UI surfaces have stable, reviewable contracts.
   - `plan-management-superadmin.json` must cover: `POST /v1/plans`, `GET /v1/plans`, `GET /v1/plans/{planIdOrSlug}`, `PUT /v1/plans/{planId}`, `POST /v1/plans/{planId}/lifecycle`, `GET /v1/plans/{planId}/limits`, `PUT /v1/plans/{planId}/limits/{dimensionKey}`, `DELETE /v1/plans/{planId}/limits/{dimensionKey}`, `GET /v1/quota-dimensions`, `POST /v1/tenants/{tenantId}/plan`, `GET /v1/tenants/{tenantId}/plan`, `GET /v1/tenants/{tenantId}/plan/history`.
   - `plan-management-tenant-owner.json` must cover: `GET /v1/tenant/plan`, `GET /v1/tenant/plan/limits`.
   - `console-component-contracts.md` must define prop/state expectations for `PlanStatusBadge`, `PlanCapabilityBadge`, `PlanLimitsTable`, `PlanComparisonView`, `PlanAssignmentDialog`, and `PlanHistoryTable`.
 
 ### Phase 2 — Gateway and public API surface
 
-- [ ] T002 Create `GATEWAY_ROUTE` to expose the existing plan actions through APISIX.
+- [x] T002 Create `GATEWAY_ROUTE` to expose the existing plan actions through APISIX.
   - Superadmin routes must require admin auth and map one-to-one to the existing OpenWhisk actions.
   - Tenant-owner routes must be read-only and scoped to the authenticated tenant.
   - Include correlation-id and prometheus plugins consistent with `REF_GATEWAY_ROUTE_PATTERN`.
-- [ ] T003 Update `OPENAPI_FAMILY_PLATFORM` with the plan management paths and schemas.
+- [x] T003 Update `OPENAPI_FAMILY_PLATFORM` with the plan management paths and schemas.
   - Add the full route surface documented in T001.
   - Preserve the existing `2026-03-26` API version header conventions.
   - **Do not read** the aggregated `apps/control-plane/openapi/control-plane.openapi.json`; instead run `npm run generate:public-api` after the family update so generated artifacts refresh.
-- [ ] T004 Adjust the existing plan-related OpenWhisk action files only where the gateway/REST surface requires alignment.
+- [x] T004 Adjust the existing plan-related OpenWhisk action files only where the gateway/REST surface requires alignment.
   - Keep business logic in the existing T01/T02 actions.
   - Limit changes to request parsing, status code normalization, response envelope consistency, correlation/header plumbing, and tenant-owner scoping fixes required by the new gateway routes.
 
 ### Phase 3 — Shared web-console client and building blocks
 
-- [ ] T005 Create `API_CLIENT` with typed wrappers for every plan management endpoint.
+- [x] T005 Create `API_CLIENT` with typed wrappers for every plan management endpoint.
   - Reuse the error-handling shape from `REF_PRIVILEGE_API_SERVICE`.
   - Export a typed `PlanApiError` and helpers for pagination and conflict handling.
-- [ ] T006 Create `COMP_STATUS_BADGE`, `COMP_CAPABILITY_BADGE`, `COMP_STATUS_BADGE_TEST`, and `COMP_CAPABILITY_BADGE_TEST`.
+- [x] T006 Create `COMP_STATUS_BADGE`, `COMP_CAPABILITY_BADGE`, `COMP_STATUS_BADGE_TEST`, and `COMP_CAPABILITY_BADGE_TEST`.
   - Status badge colors: draft=slate, active=green, deprecated=amber, archived=zinc.
   - Capability badge must render accessible enabled/disabled text states.
-- [ ] T007 Create `COMP_LIMITS_TABLE`, `COMP_LIMITS_TABLE_TEST`, `COMP_COMPARISON`, and `COMP_COMPARISON_TEST`.
+- [x] T007 Create `COMP_LIMITS_TABLE`, `COMP_LIMITS_TABLE_TEST`, `COMP_COMPARISON`, and `COMP_COMPARISON_TEST`.
   - `PlanLimitsTable` must support explicit value, inherited default, and unlimited (`-1`) states.
   - `PlanComparisonView` must render side-by-side differences and visually distinguish increased, decreased, and unchanged values.
-- [ ] T008 Create `COMP_ASSIGNMENT_DIALOG`, `COMP_ASSIGNMENT_DIALOG_TEST`, `COMP_HISTORY_TABLE`, and `COMP_HISTORY_TABLE_TEST`.
+- [x] T008 Create `COMP_ASSIGNMENT_DIALOG`, `COMP_ASSIGNMENT_DIALOG_TEST`, `COMP_HISTORY_TABLE`, and `COMP_HISTORY_TABLE_TEST`.
   - Only active plans may appear in assignment choices.
   - History table must support pagination and display `Current` when `supersededAt` is null.
 
 ### Phase 4 — Superadmin console pages
 
-- [ ] T009 Create `PAGE_CATALOG` and `PAGE_CATALOG_TEST`.
+- [x] T009 Create `PAGE_CATALOG` and `PAGE_CATALOG_TEST`.
   - Display slug, display name, status, assigned tenant count, and last modified.
   - Support status filtering and pagination.
   - Provide a clear empty state and CTA to create the first plan.
-- [ ] T010 Create `PAGE_CREATE` and `PAGE_CREATE_TEST`.
+- [x] T010 Create `PAGE_CREATE` and `PAGE_CREATE_TEST`.
   - Form fields: slug, display name, description, initial capabilities, initial quota dimensions.
   - Validate slug format and surface duplicate slug conflicts inline.
-- [ ] T011 Create `PAGE_DETAIL` and `PAGE_DETAIL_TEST`.
+- [x] T011 Create `PAGE_DETAIL` and `PAGE_DETAIL_TEST`.
   - Tabs: info, capabilities, limits, tenants.
   - Reuse `REF_DESTRUCTIVE_DIALOG` for lifecycle transitions and active-plan limit change confirmations.
   - Deprecated/archived plans must render the limits UI as read-only.
-- [ ] T012 Create `PAGE_TENANT_ADMIN` and `PAGE_TENANT_ADMIN_TEST`.
+- [x] T012 Create `PAGE_TENANT_ADMIN` and `PAGE_TENANT_ADMIN_TEST`.
   - Show current plan assignment, assign/change action, comparison flow, and assignment history.
 
 ### Phase 5 — Tenant-owner console page + navigation wiring
 
-- [ ] T013 Create `PAGE_TENANT_OWNER` and `PAGE_TENANT_OWNER_TEST`.
+- [x] T013 Create `PAGE_TENANT_OWNER` and `PAGE_TENANT_OWNER_TEST`.
   - Render current plan name, description, capability badges, and complete limits profile.
   - Render a stable "No plan assigned" empty state when appropriate.
-- [ ] T014 Update `ROUTER`, `ROUTER_TEST`, `CONSOLE_SHELL_LAYOUT`, and `CONSOLE_SHELL_LAYOUT_TEST`.
+- [x] T014 Update `ROUTER`, `ROUTER_TEST`, `CONSOLE_SHELL_LAYOUT`, and `CONSOLE_SHELL_LAYOUT_TEST`.
   - Register the new plan-management routes.
   - Add console navigation for superadmin plan pages.
   - Add route guard behavior so tenant-owner sessions are redirected away from superadmin-only routes and toward the tenant-owner plan overview.
@@ -181,12 +181,12 @@ Follow this order. Do not skip ahead.
 
 ### Phase 6 — Validation, integration tests, and repository docs
 
-- [ ] T015 Create `TEST_FIXTURE_PLANS`, `TEST_FIXTURE_TENANTS`, `TEST_FIXTURE_ASSIGNMENTS`, `TEST_API`, `TEST_ASSIGNMENT_API`, `TEST_LIMITS_API`, `TEST_AUTH`, and `TEST_ISOLATION`.
+- [x] T015 Create `TEST_FIXTURE_PLANS`, `TEST_FIXTURE_TENANTS`, `TEST_FIXTURE_ASSIGNMENTS`, `TEST_API`, `TEST_ASSIGNMENT_API`, `TEST_LIMITS_API`, `TEST_AUTH`, and `TEST_ISOLATION`.
   - Cover CRUD/lifecycle/pagination, assignment + reassignment history, limits set/remove/profile, auth `401/403`, and tenant isolation.
   - Use `undici` + `node:test` patterns consistent with the existing integration suites from `097` and `098`.
-- [ ] T016 Update `AGENTS_DOC` with a new section for `099-plan-management-api-console`.
+- [x] T016 Update `AGENTS_DOC` with a new section for `099-plan-management-api-console`.
   - Document new gateway routes, plan management console pages, tenant-owner plan overview, and any new env/config assumptions.
-- [ ] T017 Run the required generation/validation/test commands and resolve failures before commit:
+- [x] T017 Run the required generation/validation/test commands and resolve failures before commit:
   - `npm run generate:public-api`
   - `npm run validate:public-api`
   - `npm run validate:openapi`

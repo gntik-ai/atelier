@@ -1,6 +1,6 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import ConsolePrivilegeDomainPage from './ConsolePrivilegeDomainPage';
 import * as api from '../services/privilege-domain-api';
 
@@ -15,6 +15,10 @@ const assignment = {
   assignedAt: '2026-03-31T00:00:00Z',
   updatedAt: '2026-03-31T00:00:00Z'
 };
+
+afterEach(() => {
+  cleanup();
+});
 
 describe('ConsolePrivilegeDomainPage', () => {
   beforeEach(() => {

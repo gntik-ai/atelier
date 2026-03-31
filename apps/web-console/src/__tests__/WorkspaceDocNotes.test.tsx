@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { WorkspaceDocNotes } from '@/components/console/WorkspaceDocNotes'
+
+afterEach(() => cleanup())
 
 describe('WorkspaceDocNotes', () => {
   it('admin sees add button', () => {
