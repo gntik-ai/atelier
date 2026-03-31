@@ -86,19 +86,19 @@ tests/
 
 ### R-02 — Fixture plan design for reliable differential testing
 
-**Decision**: Define two well-known fixture plans — `test-starter` and `test-professional` — seeded at test setup time with deliberately contrasting limits:  
-  - `test-starter`: small bounded limits per dimension (e.g., 3 workspaces, 2 databases, 5 API keys) and a subset of boolean capabilities disabled.  
-  - `test-professional`: higher limits (e.g., 10 workspaces, 8 databases, 20 API keys) and additional boolean capabilities enabled.  
-  Both plans must be distinct from any production plans and removed after the suite completes.  
+**Decision**: Define two well-known fixture plans — `test-starter` and `test-professional` — seeded at test setup time with deliberately contrasting limits:
+- `test-starter`: small bounded limits per dimension (e.g., 3 workspaces, 2 databases, 5 API keys) and a subset of boolean capabilities disabled.
+- `test-professional`: higher limits (e.g., 10 workspaces, 8 databases, 20 API keys) and additional boolean capabilities enabled.
+Both plans must be distinct from any production plans and removed after the suite completes.
 **Rationale**: Controlled fixture plans make assertions predictable regardless of production plan evolution. Using catalog-driven limits means the suite can verify all registered dimensions without per-dimension hard-coding.
 
 ### R-03 — Resource seeding per quota dimension
 
-**Decision**: Seed each dimension's resources via the platform's existing resource management APIs (same APIs tenant users call) rather than direct DB insertion. This ensures resources are created in states the platform recognizes as valid and accessible.  
-Seed to the following rule per scenario:  
-  - **Upgrade scenario**: create resources at 100% of `test-starter` limits (e.g., exactly 3 workspaces, 5 API keys) so the upgrade effect is visible.  
-  - **Downgrade scenario**: create resources at 100% of `test-professional` limits before downgrading to `test-starter` to guarantee over-limit conditions on every dimension.  
-  - **Round-trip scenario**: create resources on `test-starter`, upgrade, create additional resources to reach `test-professional` limits, then downgrade.  
+**Decision**: Seed each dimension's resources via the platform's existing resource management APIs (same APIs tenant users call) rather than direct DB insertion. This ensures resources are created in states the platform recognizes as valid and accessible.
+Seed to the following rule per scenario:
+- **Upgrade scenario**: create resources at 100% of `test-starter` limits (e.g., exactly 3 workspaces, 5 API keys) so the upgrade effect is visible.
+- **Downgrade scenario**: create resources at 100% of `test-professional` limits before downgrading to `test-starter` to guarantee over-limit conditions on every dimension.
+- **Round-trip scenario**: create resources on `test-starter`, upgrade, create additional resources to reach `test-professional` limits, then downgrade.
 **Rationale**: Guarantees predictable pre-transition state with verifiable post-transition assertions.
 
 ### R-04 — Verification result shape interpretation
@@ -166,7 +166,7 @@ Test runner (node:test)
 
 #### Scenario S1 — Upgrade preserves existing resources and unlocks higher limits
 
-```
+```text
 Setup:  tenant "test-tenant-upgrade" on test-starter, resources at 100% starter limits
 Action: assign test-professional to test-tenant-upgrade
 Assert:
@@ -180,7 +180,7 @@ Teardown: delete resources, delete tenant
 
 #### Scenario S2 — Downgrade surfaces over-limit conditions without data loss
 
-```
+```text
 Setup:  tenant "test-tenant-downgrade" on test-professional, resources at 100% professional limits
 Action: assign test-starter to test-tenant-downgrade
 Assert:
@@ -195,7 +195,7 @@ Teardown: delete resources, delete tenant
 
 #### Scenario S3 — Audit trail captures full transition context
 
-```
+```text
 Setup:  reuse tenant from S1 or S2 (or create dedicated), perform an upgrade + a downgrade
 Assert:
   • plan change history entry exists within 30 s for each transition
@@ -208,7 +208,7 @@ Teardown: delete resources, delete tenant
 
 #### Scenario S4 — Multi-tenant isolation
 
-```
+```text
 Setup:  test-tenant-alpha (test-professional, resources at 50% of limits)
         test-tenant-beta (test-starter, resources at 50% of limits)
 Snapshot tenant-beta effective entitlements before change
@@ -222,7 +222,7 @@ Teardown: delete resources and both tenants
 
 #### Scenario S5 — Round-trip transition (upgrade → downgrade)
 
-```
+```text
 Setup:  test-tenant-roundtrip on test-starter, resources at 100% starter limits
 Action A: assign test-professional to test-tenant-roundtrip
           → create additional resources to reach professional limits (3 extra workspaces, etc.)
@@ -387,7 +387,7 @@ The Kafka consumer in `kafka-consumer.mjs` provides optional real-time event ass
 
 ### CI integration
 
-```
+```bash
 # Pseudo-CI step
 node --test \
   --test-reporter=tap \

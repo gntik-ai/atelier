@@ -135,7 +135,7 @@ Reference files (read as needed, targeted reads only):
 
 - [ ] T009 [S1] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/upgrade-preserves-resources.test.mjs` implementing Scenario S1 using `node:test`:
 
-  ```
+  ```text
   Setup:
     • create fixture tenant "test-tenant-upgrade-{runSuffix}" via platform API
     • assign test-starter plan
@@ -162,7 +162,7 @@ Reference files (read as needed, targeted reads only):
 
 - [ ] T010 [P] [S2] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/downgrade-surfaces-overlimit.test.mjs` implementing Scenario S2 using `node:test`:
 
-  ```
+  ```text
   Setup:
     • create fixture tenant "test-tenant-downgrade-{runSuffix}"
     • assign test-professional plan
@@ -192,7 +192,7 @@ Reference files (read as needed, targeted reads only):
 
 - [ ] T012 [S3] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/audit-trail-verification.test.mjs` implementing Scenario S3 using `node:test`:
 
-  ```
+  ```text
   Setup:
     • create fixture tenant "test-tenant-audit-{runSuffix}"
     • assign test-starter → seed resources to 100% starter limits
@@ -230,7 +230,7 @@ Reference files (read as needed, targeted reads only):
 
 - [ ] T013 [P] [S4] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/multitenant-isolation.test.mjs` implementing Scenario S4 using `node:test`:
 
-  ```
+  ```text
   Setup:
     • create "test-tenant-alpha-{runSuffix}" → assign test-professional → seedResourcesToFraction(tenantId, 'test-professional', 0.5, token)
     • create "test-tenant-beta-{runSuffix}" → assign test-starter → seedResourcesToFraction(tenantId, 'test-starter', 0.5, token)
@@ -254,7 +254,7 @@ Reference files (read as needed, targeted reads only):
 
 - [ ] T014 [P] [S5] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/round-trip-transition.test.mjs` implementing Scenario S5 using `node:test`:
 
-  ```
+  ```text
   Setup:
     • create "test-tenant-roundtrip-{runSuffix}" → assign test-starter
     • seedResourcesForPlan(tenantId, 'test-starter', token) — starter limits (phase-1 resources)
@@ -293,7 +293,7 @@ Reference files (read as needed, targeted reads only):
 - [ ] T015 [S6] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/edge-cases.test.mjs` implementing Scenario S6 as a `node:test` suite with six sub-tests:
 
   **EC-1 Zero-resource tenant**:
-  ```
+  ```text
   • create tenant, assign test-starter (no resources seeded)
   • assignPlan(tenantId, 'test-professional', token)
   • assertAllDimensionsAccessible(getEffectiveEntitlements) — zero over-limit flags
@@ -302,7 +302,7 @@ Reference files (read as needed, targeted reads only):
   ```
 
   **EC-2 Usage exactly at target limit (at_limit)**:
-  ```
+  ```text
   • create tenant on test-professional
   • seedResourcesToCount(tenantId, 'max_workspaces', starter_workspace_limit, token) — exactly 3 workspaces
   • assignPlan(tenantId, 'test-starter', token)
@@ -310,7 +310,8 @@ Reference files (read as needed, targeted reads only):
   ```
 
   **EC-3 Dimension present in source but not in target plan**:
-  ```
+
+  ```text
   • if quota_dimension_catalog has a dimension only in one fixture plan, verify post-change entitlements
     do not silently omit it; assert it appears with an appropriate status or effective value
   • if no such asymmetric dimension exists in the fixture plans, verify that entitlements response
@@ -318,7 +319,8 @@ Reference files (read as needed, targeted reads only):
   ```
 
   **EC-4 Usage temporarily unavailable**:
-  ```
+
+  ```text
   • use assertion-helpers.mjs assertDimensionStatus with a crafted response from mock-usage-unavailable.mjs
     that includes usage_unavailable for one dimension
   • assert suite records it as a warning (not FAIL) when MAX_UNKNOWN_DIMENSIONS_ALLOWED >= 1
@@ -326,7 +328,8 @@ Reference files (read as needed, targeted reads only):
   ```
 
   **EC-5 Concurrent plan change serialization**:
-  ```
+
+  ```text
   • create tenant, assign test-starter
   • fire two simultaneous undici requests: assignPlan(tenantId, 'test-professional') in parallel
   • wait for both to settle
@@ -336,7 +339,8 @@ Reference files (read as needed, targeted reads only):
   ```
 
   **EC-6 Override-governed dimension**:
-  ```
+
+  ```text
   • if the platform supports tenant-specific overrides above base plan limits:
     create tenant on test-starter; apply override for max_workspaces = 7 (above professional limit of 10? No — use 7 > starter 3)
     assignPlan(tenantId, 'test-professional', token)
