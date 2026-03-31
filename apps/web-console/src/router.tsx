@@ -15,6 +15,8 @@ import { ConsolePlanCreatePage } from '@/pages/ConsolePlanCreatePage'
 import { ConsolePlanDetailPage } from '@/pages/ConsolePlanDetailPage'
 import { ConsoleTenantPlanPage } from '@/pages/ConsoleTenantPlanPage'
 import { ConsoleTenantPlanOverviewPage } from '@/pages/ConsoleTenantPlanOverviewPage'
+import { ConsoleTenantAllocationSummaryPage } from '@/pages/ConsoleTenantAllocationSummaryPage'
+import { ConsoleWorkspaceDashboardPage } from '@/pages/ConsoleWorkspaceDashboardPage'
 import { ConsoleWorkspacesPage } from '@/pages/ConsoleWorkspacesPage'
 import { SignupPage } from '@/pages/SignupPage'
 import { readConsoleShellSession } from '@/lib/console-session'
@@ -168,6 +170,14 @@ export const appRoutes = [
           {
             path: 'my-plan',
             element: <ConsoleTenantPlanOverviewPage />
+          },
+          {
+            path: 'my-plan/allocation',
+            element: <ConsoleTenantAllocationSummaryPage />
+          },
+          {
+            path: 'workspaces/:workspaceId',
+            element: <ConsoleWorkspaceDashboardPage />
           },
           {
             path: 'auth',
