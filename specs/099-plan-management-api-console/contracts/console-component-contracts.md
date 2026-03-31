@@ -1,5 +1,7 @@
 # Console component contracts
 
+Reference contracts for the console-facing plan-management components.
+
 ## PlanStatusBadge
 
 - Props: `status: 'draft' | 'active' | 'deprecated' | 'archived'`

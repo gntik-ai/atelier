@@ -1,5 +1,7 @@
 # Quickstart — 099-plan-management-api-console
 
+Implementation checklist and verification entry points for this spec slice.
+
 ## Implemented surfaces
 
 - APISIX routes in `services/gateway-config/routes/plan-management-routes.yaml`
@@ -9,6 +11,8 @@
 - Tenant owner page in `apps/web-console/src/pages/ConsoleTenantPlanOverviewPage.tsx`
 
 ## Commands
+
+Run the following validation commands:
 
 ```bash
 npm run generate:public-api

@@ -1,5 +1,7 @@
 # Data model — 099-plan-management-api-console
 
+Reference structures for the plan-management API and console surfaces.
+
 ## Core entities
 
 ### Plan
@@ -35,6 +37,8 @@
 
 ### Paginated list
 
+Example payload:
+
 ```json
 {
   "items": [],
@@ -45,6 +49,8 @@
 ```
 
 ### Error envelope
+
+Example payload:
 
 ```json
 {
