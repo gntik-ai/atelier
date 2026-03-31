@@ -1,275 +1,267 @@
-# Feature Specification: US-BKP-01-T01 — Estado de Backup de Componentes Gestionados
+# Especificación — US-BKP-01-T01: Visibilidad del estado de backup de componentes gestionados
 
-**Feature Branch**: `109-backup-status-visibility`
-**Task**: US-BKP-01-T01
-**Epic**: EP-20 — Backup, recuperación y continuidad operativa
-**Story**: US-BKP-01 — Estado de backup/restore y flujos administrativos de recuperación
-**Story type**: Feature
-**Priority**: P1
-**Relative size**: M
-**Requirements traceability**: RF-BKP-001, RF-BKP-002, RF-BKP-005
-**Dependencies**: US-OBS-01 (observability metrics stack), US-DEP-03 (deployment topology and profiles)
-**Created**: 2026-03-31
-**Status**: Draft
-
----
-
-## 1. Objetivo y Problema que Resuelve
-
-La plataforma BaaS multi-tenant gestiona múltiples componentes de infraestructura —PostgreSQL, MongoDB, Kafka, S3-compatible storage, Keycloak, OpenWhisk— cada uno con sus propias capacidades y mecanismos de backup/restore nativos. Actualmente, los operadores (SRE, superadmin) no disponen de una superficie unificada dentro del producto para conocer el estado de backup de estos componentes. La consecuencia directa:
-
-1. **Opacidad operativa**: para conocer si un componente tiene backup activo, cuándo fue la última ejecución exitosa o si hay errores, el operador debe salir del producto y consultar cada subsistema por separado (consola de Kubernetes, herramientas nativas del proveedor de almacenamiento, logs de CronJobs, etc.).
-2. **Riesgo de indisponibilidad no detectada**: un fallo silencioso en la configuración o ejecución de backups puede pasar inadvertido durante días, comprometiendo la capacidad de recuperación.
-3. **Ausencia de base para flujos de recuperación**: sin visibilidad sobre el estado de backup, las tareas hermanas (T02–T06) que implementan flujos de restore, validación de integridad y políticas de retención no tienen una superficie sobre la que operar.
-
-Esta tarea resuelve exclusivamente el **primer escalón**: exponer, de forma consultable y auditable, el estado de backup de cada componente gestionado cuando la configuración de despliegue lo permita.
-
-No implementa la ejecución de backups, la restauración, la validación de integridad, ni la gestión de políticas de retención. Esos alcances pertenecen a T02–T06.
+| Campo               | Valor                                                                 |
+|---------------------|-----------------------------------------------------------------------|
+| **Task ID**         | US-BKP-01-T01                                                         |
+| **Epic**            | EP-20 — Backup, recuperación y continuidad operativa                  |
+| **Historia**        | US-BKP-01 — Estado de backup/restore y flujos administrativos de recuperación |
+| **Tipo**            | Feature                                                               |
+| **Prioridad**       | P1                                                                    |
+| **Tamaño**          | M                                                                     |
+| **RFs cubiertos**   | RF-BKP-001, RF-BKP-002, RF-BKP-005                                   |
+| **Dependencias**    | US-OBS-01, US-DEP-03                                                  |
 
 ---
 
-## 2. Actores y Consumidores
+## 1. Objetivo y problema que resuelve
 
-| Actor | Tipo | Valor que recibe |
-| --- | --- | --- |
-| SRE / Platform team | Interno (operador) | Vista unificada del estado de backup de todos los componentes gestionados sin salir del producto; detección temprana de fallos |
-| Superadmin | Interno (gobernanza) | Visibilidad transversal de la postura de backup de la plataforma para cumplimiento operativo y auditoría |
-| Tenant Owner | Externo (futuro) | **No es consumidor directo en T01**; la superficie expuesta aquí será la base para vistas tenant-scoped en tareas posteriores |
-| Console backend | Interno (sistema) | Modelo estructurado de estado de backup consumible por endpoints de API y vistas de consola |
-| Pipeline de auditoría (US-OBS-02) | Interno (sistema) | Eventos de consulta de estado de backup integrados en el stream de auditoría existente |
+### Problema
 
----
+La plataforma BaaS multi-tenant gestiona múltiples componentes de infraestructura (PostgreSQL, MongoDB, almacenamiento S3-compatible, Keycloak, Kafka, etc.) que, según el perfil de despliegue, pueden tener mecanismos de backup nativos o delegados al operador de Kubernetes. En la actualidad, **no existe un punto único dentro del producto donde un SRE, superadmin o tenant owner pueda consultar el estado de backup de los componentes que soportan su tenant**. Esto obliga a los equipos de operaciones a:
 
-## 3. Escenarios de Usuario y Criterios de Aceptación
+1. **Salir del producto** para consultar herramientas externas (consolas de Kubernetes, dashboards de Velero, paneles del proveedor de base de datos) y cruzar información manualmente.
+2. **Operar sin visibilidad** cuando los mecanismos de backup del despliegue no están instrumentados o no son accesibles al equipo que necesita la información.
+3. **Generar tickets innecesarios** al equipo de plataforma para verificar algo que debería ser observable desde la propia consola.
 
-### Escenario 1 — Consultar estado de backup de componentes gestionados (Prioridad: P1)
+### Objetivo de esta tarea
 
-Un operador (SRE o superadmin) solicita, a través de la API del control plane, el estado de backup de los componentes gestionados de la plataforma. El sistema responde con un resumen por componente.
+Exponer de forma unificada, dentro de la plataforma, el estado de backup de los componentes gestionados cuando el despliegue lo permita. La tarea se centra en **lectura y visibilidad**, no en iniciar, restaurar ni gestionar backups (eso corresponde a tareas hermanas).
 
-**Por qué esta prioridad**: es la capacidad central de la tarea; sin ella no hay visibilidad.
-
-**Verificación independiente**: se puede probar invocando el endpoint y verificando que la respuesta contiene un registro por cada componente gestionado con campos de estado definidos.
-
-**Criterios de aceptación**:
-
-1. **Given** un SRE autenticado con permisos de operador de plataforma, **When** consulta el estado de backup a través de la API del control plane, **Then** recibe una lista de componentes gestionados con su estado de backup actual (ver campos mínimos en sección 5).
-2. **Given** un componente gestionado cuyo despliegue no incluye configuración de backup (e.g., entorno `dev` sin backups habilitados), **When** el operador consulta el estado, **Then** el componente aparece con estado `not_configured` y no se presenta como error.
-3. **Given** un componente con backup configurado y última ejecución exitosa, **When** el operador consulta el estado, **Then** el registro muestra estado `healthy`, timestamp de última ejecución exitosa y destino de almacenamiento (sin exponer credenciales).
-4. **Given** un componente con backup configurado cuya última ejecución ha fallado, **When** el operador consulta el estado, **Then** el registro muestra estado `unhealthy`, timestamp del último fallo, y razón resumida del error.
+El resultado es que operaciones, superadmin y, opcionalmente, el tenant owner puedan ver desde la consola o la API si los backups de los componentes que soportan un tenant están configurados, cuándo fue el último backup exitoso, y si hay alguna anomalía, sin salir de la plataforma.
 
 ---
 
-### Escenario 2 — Estado condicionado al perfil de despliegue (Prioridad: P1)
+## 2. Usuarios y valor recibido
 
-La visibilidad de backup solo se activa cuando el perfil de despliegue (US-DEP-03) lo habilita. No todos los entornos tienen backup configurado, y la superficie debe reflejar eso con claridad en lugar de reportar falsos negativos.
-
-**Por qué esta prioridad**: sin esta lógica, la superficie genera ruido y falsas alarmas en entornos de desarrollo.
-
-**Verificación independiente**: se puede verificar desplegando con y sin la feature flag de backup habilitada y comprobando que la respuesta de la API refleja correctamente la configuración.
-
-**Criterios de aceptación**:
-
-1. **Given** un entorno de despliegue donde el perfil de backup está habilitado para PostgreSQL y MongoDB pero no para Kafka, **When** el operador consulta el estado, **Then** PostgreSQL y MongoDB aparecen con su estado real; Kafka aparece con estado `not_configured`.
-2. **Given** un entorno `dev` donde ningún componente tiene backup configurado, **When** el operador consulta el estado, **Then** todos los componentes aparecen con estado `not_configured` y la respuesta es exitosa (HTTP 200), no un error.
-3. **Given** un cambio en el perfil de despliegue que habilita backup para un componente que antes no lo tenía, **When** el operador consulta el estado después del redespliegue, **Then** el componente refleja su nuevo estado real en lugar de `not_configured`.
+| Actor | Relación con la capacidad | Valor que recibe |
+|---|---|---|
+| **SRE / Platform team** | Responsable de la operación y continuidad del servicio | Visibilidad centralizada del estado de backup de todos los tenants en un único panel, sin necesidad de herramientas externas. Detección temprana de anomalías. |
+| **Superadmin** | Administrador global de la plataforma | Puede verificar que la política de backup se cumple para cualquier tenant sin escalar al equipo de infraestructura. |
+| **Tenant owner** | Propietario del tenant | Obtiene confianza en que sus datos están respaldados (cuando el despliegue lo soporta) y puede detectar ausencia de backup antes de que sea un problema real. |
+| **Equipo de soporte** | Atiende incidencias de tenants | Puede responder preguntas del tipo "¿mis datos están respaldados?" sin escalar, usando la información expuesta en la consola. |
 
 ---
 
-### Escenario 3 — Aislamiento de visibilidad y seguridad de acceso (Prioridad: P1)
+## 3. Escenarios principales, edge cases y reglas de negocio
 
-La consulta de estado de backup es una operación privilegiada. Solo actores con roles de operador de plataforma (SRE) o superadmin pueden acceder a esta superficie.
+### 3.1 Escenarios principales
 
-**Por qué esta prioridad**: el aislamiento de seguridad es un requisito transversal P0 de la plataforma; sin él, la superficie no es desplegable.
+**E1 — Superadmin consulta el estado global de backup**
 
-**Verificación independiente**: se puede verificar intentando acceder al endpoint con diferentes roles y comprobando que solo los autorizados reciben datos.
+> El superadmin accede a la sección de backup en la consola administrativa. Ve un listado de componentes gestionados (PostgreSQL, MongoDB, S3, etc.) con el estado de backup de cada uno: último backup exitoso, fecha/hora, estado general (OK / Warning / Error / No configurado / No disponible). El listado es filtrable por tenant.
 
-**Criterios de aceptación**:
+**E2 — SRE consulta el estado de backup de un tenant específico**
 
-1. **Given** un tenant owner autenticado, **When** intenta consultar el estado de backup de la plataforma, **Then** la solicitud es rechazada con HTTP 403 (Forbidden).
-2. **Given** un workspace admin autenticado, **When** intenta consultar el estado de backup de la plataforma, **Then** la solicitud es rechazada con HTTP 403 (Forbidden).
-3. **Given** un usuario no autenticado, **When** intenta consultar el estado de backup, **Then** la solicitud es rechazada con HTTP 401 (Unauthorized).
-4. **Given** un SRE autenticado con rol de operador de plataforma, **When** consulta el estado de backup, **Then** recibe la información completa de todos los componentes gestionados.
-5. **Given** un superadmin autenticado, **When** consulta el estado de backup, **Then** recibe la misma información que el SRE.
+> El SRE selecciona un tenant. Ve los componentes del tenant con su estado de backup individual. Si un componente reporta que el último backup falló o lleva más de un umbral configurable sin backup exitoso, el estado se muestra como Warning o Error.
 
----
+**E3 — Tenant owner consulta su propio estado de backup**
 
-### Escenario 4 — Auditoría de consultas de estado de backup (Prioridad: P1)
+> El tenant owner, si el despliegue y los permisos lo permiten, accede a una vista resumida del estado de backup de los componentes que soportan su tenant. No ve detalles internos de infraestructura, sino un resumen funcional: "Tus datos están respaldados — último backup: hace 2 horas" o "Estado de backup no disponible en este despliegue".
 
-Cada consulta al estado de backup genera un evento de auditoría siguiendo el esquema canónico de auditoría de la plataforma (US-OBS-02-T02).
+**E4 — Componente sin soporte de backup en el despliegue**
 
-**Por qué esta prioridad**: la auditabilidad es un requisito explícito de la historia US-BKP-01 y un requisito transversal de la plataforma.
+> El despliegue actual no tiene habilitado un mecanismo de backup para MongoDB. La plataforma muestra explícitamente que la visibilidad de backup no está disponible para ese componente en este perfil de despliegue, en lugar de omitir el componente silenciosamente.
 
-**Verificación independiente**: se puede verificar consultando el estado de backup y comprobando que el pipeline de auditoría recibe el evento correspondiente.
+**E5 — Consulta de estado de backup vía API**
 
-**Criterios de aceptación**:
+> Un sistema de monitoreo externo o un script de operaciones consulta el estado de backup de los componentes del tenant mediante un endpoint API REST. Recibe un payload estandarizado con el mismo modelo de datos que consume la consola.
 
-1. **Given** un SRE consulta el estado de backup, **When** la respuesta se entrega exitosamente, **Then** se emite un evento de auditoría con: `actor` (identidad del operador), `scope` (platform), `resource` (backup_status), `action` (read), `result` (success), `correlation_id`, y `event_timestamp`.
-2. **Given** un actor no autorizado intenta consultar el estado de backup, **When** la solicitud es rechazada, **Then** se emite un evento de auditoría con `result` (denied) y el mismo conjunto de campos descriptivos.
-3. **Given** un evento de auditoría de consulta de backup, **When** se inspecciona el registro, **Then** no contiene credenciales, secretos ni rutas internas de almacenamiento de backup.
+### 3.2 Edge cases
 
----
+| Caso | Comportamiento esperado |
+|---|---|
+| Componente gestionado no tiene mecanismo de backup configurado | Se muestra como `not_configured`. No se muestra como error ni se omite. |
+| El despliegue no soporta ningún tipo de reporte de backup | La sección de backup está presente pero indica claramente que la funcionalidad de visibilidad no está disponible en el perfil de despliegue actual. |
+| El adaptador de backup de un componente no responde (timeout) | Se muestra el último estado conocido con una indicación de que la información puede estar desactualizada, junto con el timestamp de la última lectura exitosa. |
+| Tenant recién creado sin historial de backup | Se muestra como `pending` o `no_history`. No se marca como error. |
+| Componente con backup parcialmente exitoso (p. ej., base de datos OK, pero índices no) | El estado debe reflejar el detalle granular si el adaptador lo proporciona; de lo contrario, se reporta como `partial` o `warning` con el detalle disponible. |
+| Múltiples instancias del mismo componente para un tenant (p. ej., varias bases de datos PostgreSQL) | Cada instancia se lista individualmente con su propio estado de backup. |
+| Zona horaria del timestamp del backup | Todos los timestamps se almacenan y exponen en UTC (ISO 8601). La consola puede formatear en la zona horaria del usuario. |
 
-## 4. Casos Borde
+### 3.3 Reglas de negocio y gobierno
 
-| # | Caso borde | Comportamiento esperado |
-| --- | --- | --- |
-| E1 | Un componente gestionado está desplegado pero su mecanismo nativo de reporte de estado no responde (timeout) | El componente aparece con estado `unknown` y un campo `reason` indicando timeout. No bloquea la respuesta del resto de componentes. |
-| E2 | Se consulta el estado inmediatamente después de un despliegue inicial, antes de que cualquier backup haya ejecutado | Los componentes con backup configurado aparecen con estado `pending` (configurado, sin ejecución aún). |
-| E3 | Un componente es eliminado del despliegue (ya no está gestionado) | El componente desaparece de la respuesta. No se muestran componentes fantasma. |
-| E4 | Dos operadores consultan el estado de backup de forma concurrente | Ambos reciben respuestas consistentes y completas; la operación es de solo lectura y no requiere serialización. |
-| E5 | El servicio de observabilidad (US-OBS-01) no está disponible temporalmente | La consulta de estado de backup puede funcionar de forma degradada si la fuente de datos de estado es independiente del stack de métricas. Si depende completamente de él, devuelve HTTP 503 con mensaje descriptivo. |
-| E6 | Un componente tiene backup configurado pero el destino de almacenamiento es inalcanzable | El estado del componente refleja `unhealthy` con `reason` descriptivo referente al destino inalcanzable, sin exponer la URI completa del destino ni credenciales. |
+**RN-01 — La visibilidad es pasiva y de solo lectura**
+Esta tarea solo expone estado. No inicia, programa, cancela ni restaura backups. Las acciones de mutación corresponden a US-BKP-01-T02.
 
----
+**RN-02 — El estado debe reflejar la realidad del despliegue, no una aspiración**
+Si el despliegue no tiene backup configurado para un componente, la plataforma lo dice explícitamente. No se muestra un estado ficticio de "OK" ni se oculta la carencia.
 
-## 5. Reglas de Negocio
+**RN-03 — Modelo de adaptadores por componente**
+La visibilidad de backup se obtiene a través de un modelo de adaptadores (uno por tipo de componente gestionado). Cada adaptador sabe cómo consultar el estado de backup del componente al que representa. Si no existe adaptador para un componente, este aparece con estado `not_available`.
 
-### RN-1: Campos mínimos del estado de backup por componente
+**RN-04 — El estado de backup es por componente-instancia y por tenant**
+La granularidad mínima es: qué componente, qué instancia, para qué tenant, cuál es el estado. No se admite un estado global "todos los backups están OK" sin desglose.
 
-Cada registro de estado de backup debe incluir al menos:
+**RN-05 — Degradación informativa, no silenciosa**
+Cuando la consulta de estado falla o devuelve información incompleta, se muestra el último estado conocido con indicación de antigüedad. Nunca se oculta la sección ni se muestra "OK" por defecto.
 
-| Campo | Descripción | Ejemplo |
-| --- | --- | --- |
-| `component_kind` | Tipo canónico del componente gestionado | `postgresql`, `mongodb`, `kafka`, `storage_s3`, `keycloak`, `openwhisk` |
-| `component_id` | Identificador único de la instancia del componente en el despliegue | `pg-primary-prod-01` |
-| `backup_status` | Estado actual del backup | `healthy`, `unhealthy`, `pending`, `not_configured`, `unknown` |
-| `last_successful_at` | Timestamp ISO 8601 de la última ejecución exitosa | `2026-03-31T02:00:00Z` o `null` |
-| `last_failed_at` | Timestamp ISO 8601 del último fallo | `2026-03-31T02:15:00Z` o `null` |
-| `failure_reason` | Razón resumida del último fallo (sin secretos) | `"destination unreachable"` o `null` |
-| `destination_label` | Etiqueta legible del destino de backup (sin URIs ni credenciales) | `"s3-backup-primary"` |
-| `deployment_profile` | Perfil de despliegue que gobierna la configuración de backup | `prod`, `staging`, `dev` |
-
-### RN-2: Estados válidos de backup
-
-El campo `backup_status` solo admite los siguientes valores:
-
-- `healthy` — backup configurado, última ejecución exitosa dentro del umbral esperado.
-- `unhealthy` — backup configurado, última ejecución fallida o expiración del umbral de frescura.
-- `pending` — backup configurado, sin ejecución registrada aún.
-- `not_configured` — el perfil de despliegue no habilita backup para este componente.
-- `unknown` — no se puede determinar el estado (timeout, error de comunicación con el subsistema).
-
-### RN-3: No exposición de secretos
-
-Ningún campo de la respuesta de estado de backup puede contener:
-- URIs completas de destinos de almacenamiento de backup.
-- Credenciales, tokens, o claves de acceso.
-- Rutas internas del sistema de archivos del cluster.
-
-La redacción de destino se limita a una etiqueta configurada (`destination_label`).
-
-### RN-4: Lectura solamente
-
-Esta tarea expone una superficie de **solo lectura**. No permite iniciar, cancelar ni modificar backups. Esos flujos pertenecen a T02–T06.
-
-### RN-5: Degradación parcial
-
-Si el estado de un componente individual no puede ser determinado, el endpoint debe devolver el resultado del resto de componentes con normalidad. El componente problemático aparece con estado `unknown`. La respuesta global no falla por un componente individual.
+**RN-06 — Los nombres internos de componentes de infraestructura no se exponen a tenant owners**
+El tenant owner ve un resumen funcional ("Base de datos relacional", "Almacenamiento de objetos"), no nombres técnicos internos como "pg-cluster-12" o "minio-tenant-3". El superadmin y el SRE sí ven los identificadores técnicos.
 
 ---
 
-## 6. Requisitos Funcionales Detallados
+## 4. Requisitos funcionales y límites de alcance
 
-### RF-BKP-001 — Consulta de estado de backup
+### 4.1 Requisitos funcionales verificables
 
-El control plane expone un endpoint de solo lectura que retorna el estado de backup agregado de todos los componentes gestionados de la plataforma. La respuesta incluye los campos definidos en RN-1 para cada componente.
+**RF-T01-01 — Modelo de estado de backup unificado**
+Debe existir un modelo de datos que represente el estado de backup de un componente-instancia para un tenant. Como mínimo debe incluir: identificador del componente, tipo de componente, tenant asociado, estado del último backup (`success`, `failure`, `partial`, `in_progress`, `not_configured`, `not_available`, `pending`), timestamp del último backup exitoso, timestamp de la última consulta al adaptador, y detalle textual opcional.
 
-### RF-BKP-002 — Condicionamiento al perfil de despliegue
+**RF-T01-02 — Endpoint API de consulta de estado de backup**
+Debe existir un endpoint REST que, dado un `tenant_id`, devuelva el estado de backup de todos los componentes-instancia asociados a ese tenant. El endpoint debe ser consultable también sin filtro de tenant por parte del superadmin/SRE para obtener la vista global.
 
-El estado de backup reportado por cada componente está condicionado a la configuración de backup declarada en el perfil de despliegue activo (US-DEP-03). Si el perfil no habilita backup para un componente, el estado es `not_configured`.
+**RF-T01-03 — Modelo de adaptadores de backup**
+Debe existir un contrato/interfaz que defina cómo un adaptador de componente reporta su estado de backup. El sistema debe poder registrar adaptadores para cada tipo de componente gestionado. Los adaptadores concretos a implementar en esta tarea son los mínimos viables para demostrar la capacidad (al menos uno para un componente con backup observable).
 
-### RF-BKP-005 — Integración con el pipeline de auditoría
+**RF-T01-04 — Vista de estado de backup en consola (superadmin/SRE)**
+La consola administrativa debe incluir una vista que muestre el estado de backup de los componentes gestionados, filtrable por tenant, con indicadores visuales de estado (OK, Warning, Error, No configurado, No disponible).
 
-Toda consulta al estado de backup —exitosa o denegada— emite un evento de auditoría al pipeline canónico (US-OBS-02) siguiendo el esquema de evento definido en `observability-audit-event-schema.json`.
+**RF-T01-05 — Vista resumida de backup en consola (tenant owner)**
+La consola del tenant debe incluir un resumen del estado de backup de los componentes que soportan su tenant, con lenguaje funcional (no técnico), visible solo cuando el despliegue soporta la funcionalidad.
 
----
+**RF-T01-06 — Indicación explícita de funcionalidad no disponible**
+Cuando un componente o el despliegue completo no soporta visibilidad de backup, la consola y la API deben devolver un estado explícito (`not_available`) en lugar de omitir el componente o la sección.
 
-## 7. Límites de Alcance
+**RF-T01-07 — Refresco periódico del estado de backup**
+El sistema debe consultar el estado de backup de los componentes con una frecuencia configurable (no en tiempo real, sino con un ciclo de recolección). El resultado se almacena como snapshot consultable por la API y la consola.
 
-### En alcance (T01)
+**RF-T01-08 — Formato estandarizado del payload de estado**
+El endpoint API debe devolver un payload JSON con un esquema documentado y versionado, consumible tanto por la consola como por sistemas de monitoreo externo.
 
-- Modelo lógico del estado de backup por componente gestionado.
-- Endpoint de lectura en el control plane para operadores.
-- Condicionamiento de la respuesta al perfil de despliegue.
-- Emisión de eventos de auditoría por consulta.
-- Redacción de secretos en la superficie expuesta.
+### 4.2 Límites claros de alcance
 
-### Fuera de alcance (tareas hermanas T02–T06)
+**Incluido en US-BKP-01-T01:**
+- Modelo de datos de estado de backup.
+- Contrato/interfaz de adaptador de backup.
+- Al menos un adaptador concreto para un componente con backup observable.
+- Endpoint API REST de consulta de estado de backup (lectura).
+- Vista de backup en consola administrativa (superadmin/SRE).
+- Vista resumida en consola del tenant (tenant owner).
+- Indicación de funcionalidad no disponible cuando el despliegue no la soporte.
+- Ciclo de recolección periódica del estado.
 
-- **T02**: Ejecución manual o programada de backups.
-- **T03**: Flujo de restauración (restore) administrativa.
-- **T04**: Validación de integridad de backups.
-- **T05**: Gestión de políticas de retención.
-- **T06**: Vista de tenant owner sobre estado de backup de sus recursos.
-
-### Fuera de alcance (otras historias)
-
-- Backup de datos de usuario/tenant (scope de negocio, no de infraestructura).
-- Disaster recovery cross-region.
-- Automatización de backup basada en eventos (e.g., pre-upgrade).
-
----
-
-## 8. Permisos, Multi-tenancy y Auditoría
-
-### Permisos
-
-| Rol | Acceso a estado de backup (T01) |
-| --- | --- |
-| Superadmin | ✅ Lectura completa de todos los componentes |
-| SRE / Operador de plataforma | ✅ Lectura completa de todos los componentes |
-| Tenant Owner | ❌ Sin acceso en T01 (futuro en T06) |
-| Workspace Admin | ❌ Sin acceso |
-| Service Account | ❌ Sin acceso |
-| Usuario no autenticado | ❌ Sin acceso |
-
-La autorización se evalúa contra el modelo contextual de autorización de la plataforma (`contextual-authorization.md`). El recurso protegido es `backup_status` con acción `read` a nivel de scope `platform`.
-
-### Multi-tenancy
-
-En T01, la superficie de estado de backup opera a nivel de plataforma, no a nivel de tenant. No existe filtrado por tenant porque los componentes gestionados (PostgreSQL, MongoDB, etc.) son infraestructura compartida gestionada por el equipo de plataforma.
-
-La extensión a visibilidad tenant-scoped (e.g., "estado de backup de los recursos de mi workspace") pertenece a T06 y dependerá del mapeo entre `managed_resource` (del core domain model) y los componentes de infraestructura subyacentes.
-
-### Auditoría
-
-- Cada consulta exitosa genera un evento con `action: read`, `resource: backup_status`, `scope: platform`.
-- Cada intento denegado genera un evento con `result: denied`.
-- Los eventos siguen el esquema canónico de `observability-audit-event-schema.json`.
-- Los eventos no contienen datos sensibles (credenciales, rutas de almacenamiento).
+**Excluido (tareas hermanas):**
+- Iniciar o programar backups → **US-BKP-01-T02**
+- Auditoría de acciones de recuperación → **US-BKP-01-T03**
+- Confirmaciones y prechecks de restauración → **US-BKP-01-T04**
+- Pruebas y simulaciones de restore → **US-BKP-01-T05**
+- Documentación de alcance del soporte de backup por perfil → **US-BKP-01-T06**
 
 ---
 
-## 9. Riesgos y Supuestos
+## 5. Permisos, aislamiento multi-tenant, auditoría y seguridad
 
-### Supuestos
+### 5.1 Aislamiento multi-tenant
 
-| # | Supuesto |
-| --- | --- |
-| S1 | El perfil de despliegue (US-DEP-03) ya declara, por componente, si el backup está habilitado y con qué etiqueta de destino. Si esta declaración no existe aún, T01 la introduce como extensión mínima del contrato de despliegue. |
-| S2 | Cada componente gestionado que soporta backup expone de forma nativa algún mecanismo consultable para conocer el timestamp y resultado de la última ejecución de backup (e.g., CronJob status en Kubernetes, tabla de estado en el propio servicio, o archivo de estado en el destino de almacenamiento). |
-| S3 | El pipeline de auditoría (US-OBS-02) está operativo y acepta eventos con el esquema canónico. |
-| S4 | La autenticación y autorización del control plane (Keycloak + gateway) están operativas y soportan el rol de operador de plataforma. |
+- El estado de backup se almacena y se consulta siempre en el contexto de un `tenant_id`. Un tenant nunca puede ver el estado de backup de otro tenant.
+- La vista global (todos los tenants) solo está disponible para actores con rol superadmin o SRE.
+- Los adaptadores de backup consultan el estado del componente en el contexto del tenant; si el componente es compartido (multi-tenant sobre la misma instancia), el adaptador debe segregar el estado por tenant o, si no es posible, reportar el estado a nivel de instancia compartida solo a roles privilegiados (superadmin/SRE), nunca al tenant owner.
 
-### Riesgos
+### 5.2 Permisos de acceso
 
-| # | Riesgo | Mitigación |
-| --- | --- | --- |
-| R1 | Un componente gestionado no expone un mecanismo nativo consultable para conocer el estado de su backup. | Se introduce el estado `unknown` con `reason` descriptivo. La integración con ese componente se documenta como limitación conocida y se aborda en tareas posteriores. |
-| R2 | La latencia de consulta del estado de backup a múltiples subsistemas puede ser elevada si se realiza de forma síncrona en cada petición. | Se permite que el control plane mantenga un caché de estado con frescura configurable (TTL), consultando los subsistemas de forma periódica en lugar de bajo demanda. El campo `last_checked_at` puede añadirse para transparencia. |
-| R3 | Los perfiles de despliegue actuales (US-DEP-03) pueden no tener un campo explícito para habilitar/deshabilitar backup por componente. | T01 introduce la extensión mínima necesaria al contrato de despliegue, documentada como parte de esta tarea. |
-| R4 | Cambios en la lista de componentes gestionados entre versiones del despliegue podrían generar inconsistencias en la respuesta. | El endpoint refleja siempre el estado actual del despliegue activo; no persiste historial de componentes removidos. |
+| Actor | Puede consultar estado de backup de su tenant | Puede consultar estado global (todos los tenants) | Puede ver identificadores técnicos de infraestructura |
+|---|---|---|---|
+| Tenant owner | ✅ Sí (resumen funcional) | ❌ No | ❌ No |
+| Workspace admin | ✅ Sí (resumen funcional, si tiene permiso heredado) | ❌ No | ❌ No |
+| SRE / Platform team | ✅ Sí | ✅ Sí | ✅ Sí |
+| Superadmin | ✅ Sí | ✅ Sí | ✅ Sí |
+| Proceso interno (recolector de estado) | ✅ Sí (con credencial de servicio) | ✅ Sí (scope de recolección) | ✅ Sí |
+
+### 5.3 Auditoría
+
+- Las consultas al endpoint de estado de backup por parte de actores humanos deben generar un registro de acceso en el pipeline de auditoría estándar de la plataforma (ya existente por US-OBS-01).
+- Las consultas automatizadas del ciclo de recolección no generan eventos de auditoría individuales (para evitar volumen excesivo), pero sí se registra el resultado de cada ciclo de recolección como evento operacional.
+- Esta tarea no genera eventos de auditoría de acción de backup/restore (eso corresponde a US-BKP-01-T03), solo de consulta de estado.
+
+### 5.4 Seguridad
+
+- El endpoint API de estado de backup debe estar protegido con autenticación (token JWT de Keycloak). No es público.
+- Los adaptadores de backup que consultan sistemas externos deben usar credenciales de servicio con el menor privilegio posible (solo lectura de estado de backup, no capacidad de iniciar o restaurar backups).
+- La información de estado de backup no debe incluir credenciales, rutas internas de almacenamiento ni detalles de configuración de infraestructura en el payload de la API. Solo estado operacional.
+- Si un adaptador falla, el error interno no se propaga al consumidor. Se muestra un estado genérico de indisponibilidad.
+
+### 5.5 Trazabilidad con el backlog
+
+| Requisito funcional | RF del backlog |
+|---|---|
+| Modelo de estado y endpoint de consulta | RF-BKP-001 |
+| Vista de estado en consola | RF-BKP-002 |
+| Modelo de adaptadores y visibilidad por perfil de despliegue | RF-BKP-005 |
 
 ---
 
-## 10. Resumen de Criterios de Aceptación
+## 6. Criterios de aceptación
 
-| # | Criterio | Prioridad |
-| --- | --- | --- |
-| AC-1 | Un SRE o superadmin puede consultar el estado de backup de todos los componentes gestionados a través de la API del control plane y recibir los campos definidos en RN-1. | P1 |
-| AC-2 | Componentes sin backup configurado en el perfil de despliegue aparecen con estado `not_configured` (no como error). | P1 |
-| AC-3 | Componentes con backup configurado reflejan correctamente `healthy`, `unhealthy`, `pending` o `unknown` según el estado real. | P1 |
-| AC-4 | Actores sin rol de operador de plataforma o superadmin reciben HTTP 403. Usuarios no autenticados reciben HTTP 401. | P1 |
-| AC-5 | Cada consulta (exitosa o denegada) genera un evento de auditoría conforme al esquema canónico, sin secretos. | P1 |
-| AC-6 | La respuesta no contiene credenciales, URIs completas de destino ni rutas internas del sistema de archivos. | P1 |
-| AC-7 | Un fallo en la determinación de estado de un componente individual no bloquea la respuesta del resto (degradación parcial). | P1 |
+**CA-01 — Endpoint devuelve estado de backup por tenant**
+Dado un `tenant_id` con componentes gestionados que tienen backup configurado, cuando un superadmin consulta el endpoint de estado de backup, entonces recibe un payload JSON con al menos un componente cuyo estado es `success`, `failure` o `in_progress`, incluyendo timestamp del último backup exitoso.
+
+**CA-02 — Endpoint devuelve `not_configured` para componente sin backup**
+Dado un componente gestionado que no tiene mecanismo de backup configurado en el despliegue, cuando se consulta el estado de backup del tenant asociado, entonces ese componente aparece en la respuesta con estado `not_configured`.
+
+**CA-03 — Endpoint devuelve `not_available` para componente sin adaptador**
+Dado un tipo de componente para el cual no existe adaptador de backup registrado, cuando se consulta el estado de backup, entonces el componente aparece con estado `not_available`.
+
+**CA-04 — Aislamiento multi-tenant en la API**
+Dado un tenant owner autenticado, cuando consulta el endpoint de estado de backup, entonces solo recibe el estado de los componentes de su propio tenant. No recibe información de otros tenants.
+
+**CA-05 — Vista global solo para roles privilegiados**
+Dado un tenant owner autenticado, cuando intenta consultar el endpoint sin filtro de tenant (vista global), entonces recibe `HTTP 403`. Dado un superadmin, la misma consulta retorna el estado de todos los tenants.
+
+**CA-06 — Consola administrativa muestra estado de backup con indicadores visuales**
+Dado un superadmin que accede a la sección de backup en la consola, entonces ve un listado de componentes por tenant con indicadores de estado visual diferenciados (OK verde, Warning amarillo, Error rojo, No configurado gris, No disponible gris atenuado).
+
+**CA-07 — Consola del tenant muestra resumen funcional**
+Dado un tenant owner que accede a su consola, cuando el despliegue soporta visibilidad de backup, entonces ve un resumen con lenguaje funcional (p. ej., "Base de datos relacional — Último backup: hace 3 horas — Estado: OK"). No ve identificadores técnicos de infraestructura.
+
+**CA-08 — Indicación explícita cuando el despliegue no soporta backup**
+Dado un despliegue que no tiene backup configurado para ningún componente, cuando cualquier actor accede a la sección de backup, entonces la consola muestra un mensaje explícito indicando que la visibilidad de backup no está disponible en este perfil de despliegue.
+
+**CA-09 — Degradación informativa ante fallo de adaptador**
+Dado un adaptador de backup que no responde (timeout), cuando se consulta el estado, entonces se muestra el último estado conocido con el timestamp de la última lectura exitosa y una indicación de que la información puede estar desactualizada.
+
+**CA-10 — Ciclo de recolección actualiza el estado periódicamente**
+Dado un componente con backup configurado cuyo estado cambia (p. ej., un nuevo backup exitoso), cuando ha transcurrido el intervalo de recolección configurado, entonces el endpoint y la consola reflejan el estado actualizado.
+
+**CA-11 — Payload de la API no expone información sensible**
+Dado cualquier respuesta del endpoint de estado de backup, cuando se inspecciona el payload, entonces no contiene credenciales, rutas internas de almacenamiento, cadenas de conexión ni detalles de configuración de infraestructura.
+
+---
+
+## 7. Riesgos, supuestos y preguntas abiertas
+
+### 7.1 Riesgos
+
+| ID | Descripción | Probabilidad | Impacto | Mitigación sugerida |
+|---|---|---|---|---|
+| R-01 | Heterogeneidad de mecanismos de backup entre despliegues dificulta un modelo de estado unificado | Alta | Alto | Definir un modelo de estado mínimo común y permitir campos de detalle opcionales por tipo de adaptador. |
+| R-02 | Componentes compartidos multi-tenant no pueden segregar estado de backup por tenant | Media | Alto | El adaptador reporta estado a nivel de instancia solo a roles privilegiados. El tenant owner ve un estado derivado o "no disponible" si la segregación no es posible. |
+| R-03 | Frecuencia del ciclo de recolección demasiado alta genera carga innecesaria en los componentes | Media | Medio | Hacer la frecuencia configurable por componente y por despliegue. Valores conservadores por defecto. |
+| R-04 | Ausencia de un estándar de reporte de backup entre los componentes gestionados (PostgreSQL, MongoDB, S3, etc.) | Alta | Medio | El modelo de adaptadores absorbe la heterogeneidad. Cada adaptador traduce el formato nativo a la interfaz común. |
+
+### 7.2 Supuestos
+
+**S-01**: El sistema de observabilidad básico (US-OBS-01) ya está operativo y proporciona el pipeline de auditoría y eventos que esta tarea consume para registrar accesos.
+
+**S-02**: El modelo de despliegue (US-DEP-03) permite declarar qué componentes están presentes y si tienen mecanismo de backup habilitado. Esta tarea consume esa información para decidir qué adaptadores activar.
+
+**S-03**: Al menos un componente gestionado (PostgreSQL o MongoDB) tiene un mecanismo de backup observable en el entorno de referencia del proyecto, suficiente para implementar y validar al menos un adaptador concreto.
+
+**S-04**: El backend de la consola puede ejecutarse como función OpenWhisk y consultar el endpoint de estado de backup con credenciales de servicio.
+
+**S-05**: Los timestamps de backup de los componentes gestionados son consultables de alguna forma (API del operador, ficheros de estado, queries al sistema) sin necesidad de acceso directo al almacenamiento de backups.
+
+### 7.3 Preguntas abiertas
+
+**P-01 — ¿Qué componentes gestionados tienen prioridad para el primer adaptador?**
+Hay que decidir si el adaptador MVP se implementa para PostgreSQL, MongoDB, S3 u otro. La elección depende de cuál tiene el mecanismo de backup más observable en el entorno de referencia. No bloquea la especificación, pero sí el plan de implementación.
+
+**P-02 — ¿El tenant owner debe ver el estado de backup por defecto o es una capability del plan?**
+Si la visibilidad de backup para tenant owners depende del plan contratado (capability booleana), esta tarea debe coordinarse con el modelo de capabilities de US-PLAN-02. Si es universal para todos los tenants, no hay dependencia adicional.
+*Potencialmente bloquea*: la definición de permisos en la consola del tenant.
+
+**P-03 — ¿Cuál es la frecuencia de recolección aceptable por defecto?**
+Un ciclo de 5 minutos puede ser suficiente para operaciones. Un ciclo de 1 hora puede ser suficiente para tenant owners. La elección afecta la carga sobre los adaptadores y la frescura de la información. No bloquea la especificación, pero debe definirse antes de implementar.
+
+---
+
+*Documento generado para el stage `speckit.specify` — US-BKP-01-T01 | Rama: `109-backup-status-visibility`*
