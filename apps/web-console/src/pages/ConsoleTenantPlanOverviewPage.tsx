@@ -1,14 +1,21 @@
 import { useEffect, useState } from 'react'
+import { CapabilityStatusGrid } from '@/components/console/CapabilityStatusGrid'
 import { ConsolePageState } from '@/components/console/ConsolePageState'
-import { PlanCapabilityImpactTable } from '@/components/console/PlanCapabilityImpactTable'
-import { PlanQuotaImpactTable } from '@/components/console/PlanQuotaImpactTable'
+import { QuotaConsumptionTable } from '@/components/console/QuotaConsumptionTable'
 import * as api from '@/services/planManagementApi'
 
 export function ConsoleTenantPlanOverviewPage() {
   const [summary, setSummary] = useState<api.CurrentEffectiveEntitlementSummary | null>(null)
-  useEffect(() => { api.getEffectiveEntitlements().then(setSummary) }, [])
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.getEffectiveEntitlements(undefined, { includeConsumption: true }).then(setSummary).catch((err) => setError(err instanceof Error ? err.message : 'Failed to load plan overview'))
+  }, [])
+
+  if (error) return <ConsolePageState kind="error" title="Plan overview unavailable" description={error} />
   if (!summary) return <ConsolePageState kind="loading" title="Loading plan overview" description="Fetching current effective entitlements." />
-  if (summary.noAssignment) return <ConsolePageState kind="empty" title="No plan assigned" description="Your tenant does not currently have a plan assignment." />
+  if (summary.noAssignment) return <ConsolePageState kind="empty" title="No plan assigned" description="Your tenant does not currently have a plan assignment. Catalog defaults remain active." />
+
   const overLimitDimensionCount = summary.quotaDimensions.filter((item) => item.usageStatus === 'over_limit').length
   return (
     <main className="space-y-6">
@@ -19,8 +26,8 @@ export function ConsoleTenantPlanOverviewPage() {
         <p>Latest history entry: {summary.latestHistoryEntryId ?? '—'}</p>
       </header>
       {overLimitDimensionCount > 0 ? <section className="rounded-3xl border border-amber-500 bg-amber-50 p-4">{overLimitDimensionCount} dimensions are currently over limit.</section> : null}
-      <PlanQuotaImpactTable items={summary.quotaDimensions} title="Current effective quotas" />
-      <PlanCapabilityImpactTable items={summary.capabilities} title="Current capabilities" />
+      <QuotaConsumptionTable title="Current effective quotas" rows={summary.quotaDimensions.map((item) => ({ dimensionKey: item.dimensionKey, displayLabel: item.displayLabel ?? item.dimensionKey, unit: item.unit, effectiveValue: item.effectiveValue ?? -1, source: 'plan', currentUsage: item.observedUsage ?? null, usageStatus: item.usageStatus, usageUnknownReason: item.usageUnknownReason }))} />
+      <CapabilityStatusGrid capabilities={summary.capabilities.map((item) => ({ capabilityKey: item.capabilityKey, displayLabel: item.displayLabel ?? item.capabilityKey, enabled: item.enabled, source: 'plan' }))} />
     </main>
   )
 }

@@ -170,4 +170,19 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - Implement-read constraints for this slice: targeted file reads only, no full OpenAPI read, and only `plan.md` + `tasks.md` as spec context during `speckit.implement`.
 - Preserve unrelated untracked artifacts: `specs/070-saga-compensation-workflows/plan.md`, `specs/070-saga-compensation-workflows/tasks.md`, `specs/072-workflow-e2e-compensation/tasks.md`.
 
+## Consumption Visibility Console (106-consumption-visibility-console)
+
+- T04 is a read-only layer on top of T01–T03 data. No new PostgreSQL tables introduced.
+- New OpenWhisk actions: `tenant-consumption-snapshot-get`, `workspace-consumption-get`, `tenant-workspace-allocation-summary-get`.
+- `tenant-effective-entitlements-get` extended with `?include=consumption` query param (backwards compatible).
+- `consumption-repository.mjs` provides the dimension-to-table query registry with parallel execution and per-dimension graceful degradation.
+- New APISIX routes: 5 new consumption routes added to `plan-management-routes.yaml`.
+- New console components: `ConsumptionBar`, `QuotaConsumptionTable`, `CapabilityStatusGrid`, `OverrideIndicatorBadge`, `WorkspaceAllocationSummaryTable`.
+- New console pages: `ConsoleWorkspaceDashboardPage`, `ConsoleTenantAllocationSummaryPage`; extended: `ConsoleTenantPlanOverviewPage`, `ConsoleTenantPlanPage`.
+- `planManagementApi.ts` extended with `ConsumptionSnapshot`, `WorkspaceConsumptionResponse`, `AllocationSummary` types and 3 new fetch functions.
+- Progress bar thresholds: `< 80%` = green, `80–99%` = amber, `≥ 100%` = red; unlimited (`-1`) suppresses bar.
+- Consumption unavailability degrades per-dimension to `usageStatus: 'unknown'`; row is never hidden (FR-018).
+- No Kafka events emitted; pure read path.
+- Implement-read constraints: targeted file reads only, no full control-plane OpenAPI reads, family OpenAPI only, no broad browsing.
+
 <!-- MANUAL ADDITIONS END -->

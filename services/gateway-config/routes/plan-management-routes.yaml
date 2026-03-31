@@ -255,6 +255,102 @@ routes:
       nodes:
         provisioning-orchestrator: 1
 
+  - name: self-tenant-plan-consumption
+    uri: /v1/tenant/plan/consumption
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: tenant-plan-consumption
+    uri: /v1/tenants/:tenantId/plan/consumption
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: self-tenant-plan-allocation-summary
+    uri: /v1/tenant/plan/allocation-summary
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: tenant-plan-allocation-summary
+    uri: /v1/tenants/:tenantId/plan/allocation-summary
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: workspace-consumption-self
+    uri: /v1/workspaces/:workspaceId/consumption
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: workspace-consumption-superadmin
+    uri: /v1/tenants/:tenantId/workspaces/:workspaceId/consumption
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
   - name: self-tenant-plan-limits-get
     uri: /v1/tenant/plan/limits
     methods:

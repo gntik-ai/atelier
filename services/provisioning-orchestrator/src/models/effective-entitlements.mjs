@@ -1,6 +1,6 @@
 export class QuantitativeLimitEntry {
-  constructor({ dimensionKey, displayLabel, unit, effectiveValue, source, quotaType = 'hard', graceMargin = 0 } = {}) {
-    Object.assign(this, { dimensionKey, displayLabel, unit, effectiveValue, source, quotaType, graceMargin });
+  constructor({ dimensionKey, displayLabel, unit, effectiveValue, source, quotaType = 'hard', graceMargin = 0, currentUsage = undefined, usageStatus = undefined, usageUnknownReason = undefined } = {}) {
+    Object.assign(this, { dimensionKey, displayLabel, unit, effectiveValue, source, quotaType, graceMargin, currentUsage, usageStatus, usageUnknownReason });
   }
 }
 

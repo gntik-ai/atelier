@@ -1,4 +1,4 @@
-import { resolveTenantConsumption, resolveUnifiedEntitlements } from '../repositories/effective-entitlements-repository.mjs';
+import { resolveTenantConsumption } from '../repositories/effective-entitlements-repository.mjs';
 
 const ERROR_STATUS_CODES = { FORBIDDEN: 403, TENANT_NOT_FOUND: 404 };
 
@@ -19,15 +19,13 @@ export async function main(params = {}, overrides = {}) {
   const db = overrides.db ?? params.db;
   try {
     const tenantId = resolveTenantId(params);
-    const includeTokens = String(params.include ?? '').split(',').map((token) => token.trim()).filter(Boolean);
-    const profile = includeTokens.includes('consumption')
-      ? await resolveTenantConsumption(db, tenantId)
-      : await resolveUnifiedEntitlements({ tenantId }, db);
+    const profile = await resolveTenantConsumption(db, tenantId);
     return {
       statusCode: 200,
       body: {
-        ...profile,
-        capabilities: profile.capabilities.map(({ capabilityKey, displayLabel, effectiveState, source }) => ({ capabilityKey, displayLabel, enabled: effectiveState, source }))
+        tenantId,
+        snapshotAt: new Date().toISOString(),
+        dimensions: profile.quantitativeLimits.map(({ dimensionKey, displayLabel, unit, currentUsage, usageStatus, usageUnknownReason }) => ({ dimensionKey, displayLabel, unit, currentUsage, usageStatus, usageUnknownReason }))
       }
     };
   } catch (error) {

@@ -1,5 +1,6 @@
 import { normalizeEffectiveValue } from '../models/effective-entitlement-snapshot.mjs';
 import { CapabilityEntry, EffectiveEntitlementProfile, QuantitativeLimitEntry, WorkspaceLimitEntry, isInconsistentSubQuota, resolveSource } from '../models/effective-entitlements.mjs';
+import { resolveDimensionCounts } from './consumption-repository.mjs';
 
 export function toCapabilityList(planCapabilities = {}, catalogRows = []) {
   return catalogRows.map((row) => ({
@@ -143,6 +144,54 @@ export async function resolveWorkspaceLimits({ tenantId, workspaceId }, pgClient
     [tenantId, workspaceId]
   );
   return rows.map((row) => new WorkspaceLimitEntry({ dimensionKey: row.dimension_key, tenantEffectiveValue: Number(row.tenant_effective_value), tenantSource: row.tenant_source, workspaceLimit: row.workspace_limit === null || row.workspace_limit === undefined ? null : Number(row.workspace_limit), workspaceSource: row.workspace_limit === null || row.workspace_limit === undefined ? 'tenant_shared_pool' : 'workspace_sub_quota', isInconsistent: isInconsistentSubQuota(row.workspace_limit === null || row.workspace_limit === undefined ? null : Number(row.workspace_limit), Number(row.tenant_effective_value)) }));
+}
+
+export async function resolveTenantConsumption(pgClient, tenantId) {
+  const profile = await resolveUnifiedEntitlements({ tenantId }, pgClient);
+  const counts = await resolveDimensionCounts(pgClient, tenantId, profile.quantitativeLimits.map((entry) => ({ dimensionKey: entry.dimensionKey, effectiveValue: entry.effectiveValue })));
+  return new EffectiveEntitlementProfile({
+    tenantId: profile.tenantId,
+    planSlug: profile.planSlug,
+    planStatus: profile.planStatus,
+    quantitativeLimits: profile.quantitativeLimits.map((entry) => new QuantitativeLimitEntry({
+      dimensionKey: entry.dimensionKey,
+      displayLabel: entry.displayLabel,
+      unit: entry.unit,
+      effectiveValue: entry.effectiveValue,
+      source: entry.source,
+      quotaType: entry.quotaType,
+      graceMargin: entry.graceMargin,
+      currentUsage: counts.get(entry.dimensionKey)?.currentUsage ?? null,
+      usageStatus: counts.get(entry.dimensionKey)?.usageStatus ?? 'unknown',
+      usageUnknownReason: counts.get(entry.dimensionKey)?.usageUnknownReason ?? null
+    })),
+    capabilities: profile.capabilities
+  });
+}
+
+export async function resolveWorkspaceConsumption(pgClient, tenantId, workspaceId) {
+  const [workspaceLimits, profile] = await Promise.all([
+    resolveWorkspaceLimits({ tenantId, workspaceId }, pgClient),
+    resolveUnifiedEntitlements({ tenantId }, pgClient)
+  ]);
+  const dimensionMeta = new Map(profile.quantitativeLimits.map((entry) => [entry.dimensionKey, entry]));
+  const counts = await resolveDimensionCounts(pgClient, tenantId, workspaceLimits.map((entry) => ({ dimensionKey: entry.dimensionKey, effectiveValue: entry.workspaceLimit ?? entry.tenantEffectiveValue })), workspaceId);
+  return {
+    tenantId,
+    workspaceId,
+    quantitativeLimits: workspaceLimits.map((entry) => ({
+      dimensionKey: entry.dimensionKey,
+      displayLabel: dimensionMeta.get(entry.dimensionKey)?.displayLabel ?? entry.dimensionKey,
+      unit: dimensionMeta.get(entry.dimensionKey)?.unit ?? null,
+      tenantEffectiveValue: entry.tenantEffectiveValue,
+      workspaceLimit: entry.workspaceLimit,
+      workspaceSource: entry.workspaceSource,
+      currentUsage: counts.get(entry.dimensionKey)?.currentUsage ?? null,
+      usageStatus: counts.get(entry.dimensionKey)?.usageStatus ?? 'unknown',
+      usageUnknownReason: counts.get(entry.dimensionKey)?.usageUnknownReason ?? null
+    })),
+    capabilities: profile.capabilities
+  };
 }
 
 export async function resolveEffectiveEntitlements(client, tenantId, planId) {

@@ -2,7 +2,57 @@ export type PlanStatus = 'draft' | 'active' | 'deprecated' | 'archived'
 export type EffectiveValueKind = 'bounded' | 'unlimited' | 'missing'
 export type QuotaComparison = 'increased' | 'decreased' | 'unchanged' | 'added' | 'removed'
 export type CapabilityComparison = 'enabled' | 'disabled' | 'unchanged'
-export type UsageStatus = 'within_limit' | 'at_limit' | 'over_limit' | 'unknown'
+export type UsageStatus = 'within_limit' | 'approaching_limit' | 'at_limit' | 'over_limit' | 'unknown'
+
+export interface ConsumptionDimension {
+  dimensionKey: string
+  displayLabel: string
+  unit?: string | null
+  currentUsage: number | null
+  usageStatus: UsageStatus
+  usageUnknownReason?: string | null
+}
+
+export interface ConsumptionSnapshot {
+  tenantId: string
+  snapshotAt: string
+  dimensions: ConsumptionDimension[]
+}
+
+export interface WorkspaceConsumptionDimension extends ConsumptionDimension {
+  tenantEffectiveValue: number
+  workspaceLimit: number | null
+  workspaceSource: 'workspace_sub_quota' | 'tenant_shared_pool'
+}
+
+export interface WorkspaceConsumptionResponse {
+  tenantId: string
+  workspaceId: string
+  snapshotAt: string
+  dimensions: WorkspaceConsumptionDimension[]
+  capabilities?: Array<{
+    capabilityKey: string
+    displayLabel?: string
+    enabled: boolean
+    source?: 'plan' | 'catalog_default'
+  }>
+}
+
+export interface AllocationSummaryDimension {
+  dimensionKey: string
+  displayLabel: string
+  unit?: string | null
+  tenantEffectiveValue: number
+  totalAllocated: number
+  unallocated: number | null
+  workspaces: Array<{ workspaceId: string; allocatedValue: number }>
+  isFullyAllocated: boolean
+}
+
+export interface AllocationSummary {
+  tenantId: string
+  dimensions: AllocationSummaryDimension[]
+}
 
 export interface PlanRecord {
   id: string
@@ -168,8 +218,21 @@ export function getTenantCurrentPlan(tenantId: string) { return request(`/v1/ten
 export function getTenantPlanHistory(tenantId: string, params: { page?: number; pageSize?: number } = {}) { return request<PaginationEnvelope<AssignmentRecord>>(withSearch(`/v1/tenants/${tenantId}/plan/history`, { page: params.page ?? 1, pageSize: params.pageSize ?? 20 })) }
 export function getMyPlan() { return request('/v1/tenant/plan') }
 export function getMyPlanLimits() { return request<{ tenantId?: string; noAssignment?: boolean; profile: LimitProfileRow[] }>('/v1/tenant/plan/limits') }
-export function getEffectiveEntitlements(tenantId?: string): Promise<CurrentEffectiveEntitlementSummary> {
-  return request<CurrentEffectiveEntitlementSummary>(tenantId ? `/v1/tenants/${tenantId}/plan/effective-entitlements` : '/v1/tenant/plan/effective-entitlements')
+export function getEffectiveEntitlements(tenantId?: string, options: { includeConsumption?: boolean } = {}): Promise<CurrentEffectiveEntitlementSummary> {
+  const baseUrl = tenantId ? `/v1/tenants/${tenantId}/plan/effective-entitlements` : '/v1/tenant/plan/effective-entitlements'
+  return request<CurrentEffectiveEntitlementSummary>(withSearch(baseUrl, { include: options.includeConsumption ? 'consumption' : undefined }))
+}
+
+export function getTenantConsumption(tenantId?: string): Promise<ConsumptionSnapshot> {
+  return request<ConsumptionSnapshot>(tenantId ? `/v1/tenants/${tenantId}/plan/consumption` : '/v1/tenant/plan/consumption')
+}
+
+export function getWorkspaceConsumption(workspaceId: string, tenantId?: string): Promise<WorkspaceConsumptionResponse> {
+  return request<WorkspaceConsumptionResponse>(tenantId ? `/v1/tenants/${tenantId}/workspaces/${workspaceId}/consumption` : `/v1/workspaces/${workspaceId}/consumption`)
+}
+
+export function getTenantAllocationSummary(tenantId?: string): Promise<AllocationSummary> {
+  return request<AllocationSummary>(tenantId ? `/v1/tenants/${tenantId}/plan/allocation-summary` : '/v1/tenant/plan/allocation-summary')
 }
 export function getPlanChangeHistory(tenantId: string, params: { page?: number; pageSize?: number; actorId?: string; from?: string; to?: string } = {}): Promise<PaginationEnvelope<PlanChangeHistoryEntry>> {
   return request<PaginationEnvelope<PlanChangeHistoryEntry>>(withSearch(`/v1/tenants/${tenantId}/plan/history-impact`, { page: params.page ?? 1, pageSize: params.pageSize ?? 20, actorId: params.actorId, from: params.from, to: params.to }))
