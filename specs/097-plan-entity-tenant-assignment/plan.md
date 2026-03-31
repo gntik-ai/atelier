@@ -101,27 +101,33 @@ tests/
 ## Phase 0: Research Findings
 
 ### R-01 — Concurrent Assignment Serialization
+
 **Decision**: Use `SELECT FOR UPDATE` on the `tenant_plan_assignments` row (or a per-tenant advisory lock) within a single PostgreSQL transaction that atomically updates `superseded_at` on the current assignment and inserts the new row.  
 **Rationale**: Consistent with the established pattern in `075-idempotent-retry-dedup` for concurrent operation protection. `SELECT FOR UPDATE` on a tenant-scoped index scan avoids full table locks.  
 **Alternatives considered**: Application-level mutex (rejected: not safe across multiple OpenWhisk activations), optimistic locking with retry (acceptable but adds retry complexity; `FOR UPDATE` is simpler for this write pattern).
 
 ### R-02 — Plan Immutability on Archive
+
 **Decision**: Once a plan transitions to `archived`, all UPDATE operations are rejected at the repository layer before reaching PostgreSQL. The migration adds a CHECK constraint: `status = 'archived'` blocks further status updates via trigger.  
 **Rationale**: Prevents accidental mutation of archived plans without requiring application-level guards everywhere.
 
 ### R-03 — Slug Uniqueness Enforcement
+
 **Decision**: PostgreSQL UNIQUE INDEX on `plans(slug)` (case-insensitive, normalized to lowercase). Application normalizes slug to lowercase before insert.  
 **Rationale**: FR-003 requires uniqueness across all lifecycle states including archived.
 
 ### R-04 — Audit Event Strategy
+
 **Decision**: Audit events are emitted to Kafka after a successful DB transaction commit. The Kafka publish is fire-and-forget (aligned with 093/096 pattern). A `plan_audit_events` table in PostgreSQL serves as the queryable audit log (mirrors the established `scope_enforcement_denials` pattern).  
 **Rationale**: Decouples audit persistence from request latency. Kafka provides durability; PostgreSQL provides queryability (SC-004).
 
 ### R-05 — Capabilities and Quota Dimensions Schema
+
 **Decision**: Store capabilities as `JSONB` column `capabilities` (map of `string → boolean`) and quota dimensions as `JSONB` column `quota_dimensions` (map of `string → numeric`). No separate junction tables at this stage.  
 **Rationale**: Declarative metadata only (FR-013, FR-014); schema flexibility needed as dimension keys are defined per product tier without a fixed catalog. Downstream enforcement tasks will validate keys.
 
 ### R-06 — No New Infrastructure
+
 **Decision**: No new Kafka topics beyond what is defined in this plan; no new Helm chart changes; reuse existing `provisioning-orchestrator` deployment.  
 **Rationale**: Incremental delivery (Constitution Principle II).
 
@@ -182,7 +188,7 @@ tests/
 
 ### Plan Lifecycle State Machine
 
-```
+```text
 draft ──► active ──► deprecated ──► archived
          (only forward transitions; no rollback)
 ```
@@ -202,6 +208,7 @@ Enforced by:
 | `console.plan.assignment.superseded` | 30d | Old assignment marked superseded |
 
 All events follow the platform audit event envelope:
+
 ```json
 {
   "eventType": "console.plan.created",
@@ -221,6 +228,7 @@ All events follow the platform audit event envelope:
 Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignment/contracts/`.
 
 ### `plan-create`
+
 - **Method**: OpenWhisk action invocation (POST via APISIX → OW)
 - **Auth**: superadmin JWT
 - **Input**: `{ slug, displayName, description?, capabilities?, quotaDimensions? }`
@@ -228,6 +236,7 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 - **Errors**: `409 PLAN_SLUG_CONFLICT`, `400 INVALID_SLUG`, `403 FORBIDDEN`
 
 ### `plan-update`
+
 - **Auth**: superadmin JWT
 - **Input**: `{ planId, displayName?, description?, capabilities?, quotaDimensions? }`
 - **Constraint**: Rejected if plan status is `archived`
@@ -235,6 +244,7 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 - **Errors**: `404 PLAN_NOT_FOUND`, `409 PLAN_ARCHIVED`, `403 FORBIDDEN`
 
 ### `plan-lifecycle`
+
 - **Auth**: superadmin JWT
 - **Input**: `{ planId, targetStatus }`
 - **Constraint**: Forward transitions only; `archived` blocked if tenants still assigned (FR-008)
@@ -242,16 +252,19 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 - **Errors**: `409 INVALID_TRANSITION`, `409 PLAN_HAS_ACTIVE_ASSIGNMENTS`, `403 FORBIDDEN`
 
 ### `plan-list`
+
 - **Auth**: superadmin JWT
 - **Input**: `{ status?, page?, pageSize? }`
 - **Output (200)**: `{ plans: [...], total, page, pageSize }`
 
 ### `plan-get`
+
 - **Auth**: superadmin or tenant owner JWT
 - **Input**: `{ planId? | slug? }`
 - **Output (200)**: Full plan object including capabilities and quota dimensions
 
 ### `plan-assign`
+
 - **Auth**: superadmin JWT
 - **Input**: `{ tenantId, planId, assignedBy, assignmentMetadata? }`
 - **Constraint**: Target plan must be `active`; atomic supersede of previous assignment
@@ -259,11 +272,13 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 - **Errors**: `409 PLAN_NOT_ACTIVE`, `409 CONCURRENT_ASSIGNMENT_CONFLICT`, `404 TENANT_NOT_FOUND`
 
 ### `plan-assignment-get`
+
 - **Auth**: superadmin or tenant owner JWT (tenant owner sees only their own)
 - **Input**: `{ tenantId }`
 - **Output (200)**: Current assignment + plan metadata; `{ noAssignment: true }` if none
 
 ### `plan-assignment-history`
+
 - **Auth**: superadmin JWT
 - **Input**: `{ tenantId, page?, pageSize? }`
 - **Output (200)**: Chronological list of all assignments with `effectiveFrom`, `supersededAt`, `assignedBy`
@@ -273,10 +288,12 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 ## Testing Strategy
 
 ### Unit Tests
+
 - `plan.mjs` model validation: slug format, capability value types, quota dimension value types, lifecycle transition guard
 - `plan-assignment.mjs` model: null `superseded_at` = current, immutability checks
 
 ### Integration Tests (node:test)
+
 - `plan-catalog.test.mjs`: CRUD lifecycle, slug conflict (FR-001, FR-003), JSONB capability/quota round-trip (FR-013, FR-014), pagination (FR-017)
 - `plan-assignment.test.mjs`: assign to unassigned tenant, reassign (previous superseded), concurrent assignment with `SELECT FOR UPDATE` (SC-006), reject draft/deprecated/archived plan assignment (FR-007)
 - `plan-lifecycle.test.mjs`: full state machine traversal, backward transition rejection, archive guard with blocking tenants (FR-008)
@@ -284,10 +301,12 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 - `plan-isolation.test.mjs`: tenant owner cannot read another tenant's assignment (FR-016)
 
 ### Contract Tests
+
 - Validate OpenWhisk action response shapes against JSON schemas in `contracts/`
 - Verify error codes for each rejection scenario
 
 ### Observability Validation
+
 - Kafka event emission verified in integration tests via `kafkajs` consumer with timeout
 - `plan_audit_events` rows verified via `pg` direct query in test assertions
 
@@ -308,14 +327,17 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 ## Dependencies & Sequencing
 
 ### Prerequisites
+
 - **US-DOM-02** (tenant domain model): Tenant identifier must be resolvable. Assumed satisfied per spec assumptions.
 - **Migration ordering**: This migration (`097`) must run after `096-security-hardening-tests` has been applied.
 
 ### Parallelizable Work
+
 - DDL migration + model/repository layer can be developed in parallel with contract schema definitions
 - Integration test fixtures can be developed independently once migration is applied locally
 
 ### Recommended Implementation Sequence
+
 1. Write and apply migration `097-plan-entity-tenant-assignment.sql`
 2. Implement `plan.mjs` model + `plan-repository.mjs` (core CRUD, lifecycle, slug uniqueness)
 3. Implement `plan-assignment.mjs` model + `plan-assignment-repository.mjs` (atomic swap, history)
@@ -327,6 +349,7 @@ Full JSON contract files are generated in `specs/097-plan-entity-tenant-assignme
 9. Update `AGENTS.md` with new env vars and Kafka topics
 
 ### New Environment Variables
+
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `PLAN_KAFKA_TOPIC_CREATED` | `console.plan.created` | Kafka topic for plan.created events |

@@ -3,6 +3,7 @@
 ## Tables
 
 ### plans
+
 - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
 - `slug VARCHAR(64) NOT NULL`, unique via `uq_plans_slug_lower` on `LOWER(slug)`
 - `display_name VARCHAR(255) NOT NULL`
@@ -24,6 +25,7 @@ Triggers:
 - `trg_plans_enforce_status_forward_only`
 
 ### tenant_plan_assignments
+
 - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
 - `tenant_id VARCHAR(255) NOT NULL`
 - `plan_id UUID NOT NULL REFERENCES plans(id)`
@@ -38,6 +40,7 @@ Indexes:
 - `idx_tenant_plan_assignments_plan_id`
 
 ### plan_audit_events
+
 - `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
 - `action_type VARCHAR(64) NOT NULL`
 - `actor_id VARCHAR(255) NOT NULL`
@@ -54,11 +57,13 @@ Indexes:
 - `idx_plan_audit_events_action_created`
 
 ## Lifecycle
+
 `draft -> active -> deprecated -> archived`
 
 Both the application layer and a PostgreSQL trigger reject backward or skip transitions.
 
 ## JSONB Conventions
+
 - `capabilities`: flat boolean map, example `{ "webhooks_enabled": true }`
 - `quota_dimensions`: flat numeric map, example `{ "max_workspaces": 5 }`
 - `assignment_metadata`: freeform object for reason/ticket context

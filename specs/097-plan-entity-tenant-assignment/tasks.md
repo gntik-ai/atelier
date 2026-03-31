@@ -143,7 +143,7 @@
 
 ## Dependencies
 
-```
+```text
 T001, T002 (docs) → no blocking deps, run immediately in parallel
 
 T003 (migration) → T006, T007 (repositories need schema)
@@ -177,13 +177,14 @@ T031 → T032 (AGENTS.md final)
 
 **After T003–T009 complete (foundation ready)**:
 
-```
+```text
 Group A (US1):   T010, T011, T012, T013 in parallel → then T014 → T015, T016, T017 in parallel → T018
 Group B (US2):   T019 → T020 → T021
 Group C (US3):   T022 → T023 → T024
 Group D (US4):   T025 → T026 → T027
 Group E (US5):   T028 → T029 → T030
 ```
+
 Groups B–E can start once T003–T009 are done regardless of Group A status.
 
 **Immediately parallelizable (no deps)**:

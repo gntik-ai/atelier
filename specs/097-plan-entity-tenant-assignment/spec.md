@@ -147,6 +147,7 @@ A superadmin updates plan metadata (display name, description) and manages plan 
 ## Scope Boundaries
 
 ### In Scope
+
 - Plan entity design (attributes, lifecycle, constraints)
 - Plan assignment and reassignment contracts
 - Plan catalog listing with status filtering
@@ -157,6 +158,7 @@ A superadmin updates plan metadata (display name, description) and manages plan 
 - Multi-tenant isolation for plan reads
 
 ### Out of Scope
+
 - Quota enforcement based on plan limits (US-PLAN-01-T02)
 - API and console implementation for plan management (US-PLAN-01-T03)
 - Historical impact analysis of plan changes on effective quotas (US-PLAN-01-T04)
