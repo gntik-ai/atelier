@@ -128,7 +128,8 @@
    - Return `Map<dimensionKey, { currentUsage: number|null, usageStatus, usageUnknownReason }>`.
 
 **`usageStatus` computation** (performed in this repository):
-```
+
+```text
 if currentUsage === null → 'unknown'
 if effectiveLimit === -1 → 'within_limit'  (unlimited)
 if currentUsage > effectiveLimit → 'over_limit'
@@ -203,6 +204,7 @@ else → 'within_limit'
 3. Validate `tenantId` scope — tenant owner must only access own tenant; superadmin may specify any.
 4. Call `resolveTenantConsumption(client, tenantId)` from TASK-02.
 5. Return response shape:
+
    ```json
    {
      "tenantId": "<string>",
@@ -219,6 +221,7 @@ else → 'within_limit'
      ]
    }
    ```
+
 6. Return HTTP 200 on success; HTTP 404 if tenant not found; HTTP 403 on scope violation.
 7. No Kafka events emitted (pure read).
 
@@ -729,7 +732,7 @@ Add nav links in relevant sidebar/breadcrumb sections (follow existing nav patte
 
 ## Execution Order
 
-```
+```text
 TASK-01  (consumption-repository.mjs)
   └── TASK-02  (extend effective-entitlements-repository)
         ├── TASK-03  (tenant-consumption-snapshot-get action)       ─┐
