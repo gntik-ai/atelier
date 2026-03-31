@@ -293,6 +293,7 @@ Reference files (read as needed, targeted reads only):
 - [ ] T015 [S6] Create `tests/e2e/101-plan-upgrade-downgrade-tests/scenarios/edge-cases.test.mjs` implementing Scenario S6 as a `node:test` suite with six sub-tests:
 
   **EC-1 Zero-resource tenant**:
+
   ```text
   • create tenant, assign test-starter (no resources seeded)
   • assignPlan(tenantId, 'test-professional', token)
@@ -302,6 +303,7 @@ Reference files (read as needed, targeted reads only):
   ```
 
   **EC-2 Usage exactly at target limit (at_limit)**:
+
   ```text
   • create tenant on test-professional
   • seedResourcesToCount(tenantId, 'max_workspaces', starter_workspace_limit, token) — exactly 3 workspaces
