@@ -20,6 +20,7 @@ psql -U $PGUSER -d $PGDATABASE -f \
 ```
 
 Verify:
+
 ```bash
 psql -c "\d quota_overrides"
 psql -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'plans' AND column_name = 'quota_type_config'"

@@ -53,7 +53,7 @@ CREATE INDEX idx_quota_overrides_dimension
 
 ### Status Transitions
 
-```
+```text
 active → superseded  (when a new override is created for same tenant+dimension)
 active → revoked     (when a superadmin explicitly revokes)
 active → expired     (when expires_at passes and sweep runs, or detected at query time)
@@ -173,7 +173,7 @@ ORDER BY c.dimension_key;
 
 ## Enforcement Decision Logic
 
-```
+```text
 function enforce(effectiveValue, quotaType, graceMargin, currentUsage):
   if effectiveValue == -1:
     return { allowed: true, decision: "unlimited" }

@@ -117,6 +117,7 @@ tests/
 **Decision**: Resolution is computed at query time with a single SQL query joining `quota_dimension_catalog`, `plans`, `tenant_plan_assignments`, and `quota_overrides`. Resolution order: active override value (if exists) > plan explicit value (from `plans.quota_dimensions`) > catalog default value (from `quota_dimension_catalog.default_value`). Quota type resolution follows the same hierarchy: override quota type > plan quota type config > default hard.
 **Rationale**: No materialized view needed given ≤50 dimensions × ≤200 tenants. The join is straightforward and sub-20ms for a single tenant's profile.
 **Resolution SQL pattern**:
+
 ```sql
 SELECT
   c.dimension_key,
@@ -148,6 +149,7 @@ LEFT JOIN quota_overrides o ON o.tenant_id = $1
   AND o.status = 'active'
   AND (o.expires_at IS NULL OR o.expires_at > NOW())
 ```
+
 **Alternatives considered**: (1) Cache effective limits in a materialized view — rejected per incremental delivery; can be added if performance requires. (2) Redis cache layer — rejected: premature optimization for the expected scale.
 
 ### R-04 — Enforcement Decision Flow
