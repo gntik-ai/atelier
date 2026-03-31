@@ -150,6 +150,7 @@ See [data-model.md](./data-model.md) for full DDL and entity reference.
 ### Effective Resolution Queries (computed, not persisted)
 
 **Tenant unified entitlements** (single SQL join):
+
 ```sql
 -- Quantitative: override > plan > catalog default
 SELECT
@@ -182,6 +183,7 @@ ORDER BY c.sort_order;
 ```
 
 **Workspace-level effective limits** (adds sub-quota layer on top of tenant resolution):
+
 ```sql
 SELECT
   ent.*,                               -- tenant effective limit from above
@@ -202,6 +204,7 @@ LEFT JOIN workspace_sub_quotas wsq
 ```
 
 **Sub-quota allocation sum check** (inside SERIALIZABLE transaction):
+
 ```sql
 SELECT COALESCE(SUM(allocated_value), 0)
 FROM workspace_sub_quotas
@@ -233,6 +236,7 @@ FOR UPDATE;
 ## Actions (OpenWhisk)
 
 ### `tenant-effective-entitlements-get`
+
 **Purpose**: Unified tenant entitlement profile (quantitative limits + boolean capabilities).
 **Auth**: `superadmin` or `tenant_owner` scoped to same tenant.
 **Input**: `{ tenantId: string }`
@@ -244,6 +248,7 @@ FOR UPDATE;
 4. If tenant has no plan assignment, all quantitative limits default to catalog defaults (source: `catalog_default`), all capabilities default to catalog defaults.
 
 ### `workspace-sub-quota-set`
+
 **Purpose**: Allocate or modify the sub-quota for a specific workspace + dimension.
 **Auth**: `superadmin`, `tenant_owner`, or `workspace_admin` (workspace_admin scoped to own workspace only).
 **Input**: `{ tenantId, workspaceId, dimensionKey, allocatedValue: integer ≥ 0 }`
@@ -260,6 +265,7 @@ FOR UPDATE;
 6. Persist audit record to `plan_audit_events` (action_type: `quota.sub_quota.set`).
 
 ### `workspace-sub-quota-remove`
+
 **Purpose**: Remove an existing sub-quota (workspace reverts to shared tenant pool).
 **Auth**: `superadmin`, `tenant_owner`, or `workspace_admin` (own workspace).
 **Input**: `{ tenantId, workspaceId, dimensionKey }`
@@ -271,12 +277,14 @@ FOR UPDATE;
 4. Persist audit record (`action_type: quota.sub_quota.removed`).
 
 ### `workspace-sub-quota-list`
+
 **Purpose**: List all sub-quotas for a tenant, optionally filtered by workspace.
 **Auth**: `superadmin` or `tenant_owner`; `workspace_admin` (own workspace only).
 **Input**: `{ tenantId, workspaceId?: string, dimensionKey?: string, limit?: int, offset?: int }`
 **Output**: `{ items: [...], total, limit, offset }`
 
 ### `workspace-effective-limits-get`
+
 **Purpose**: Resolve effective limits for a specific workspace, combining tenant-level resolution with sub-quota layer.
 **Auth**: `superadmin`, `tenant_owner`, `workspace_admin` (own workspace).
 **Input**: `{ tenantId, workspaceId }`
@@ -293,6 +301,7 @@ FOR UPDATE;
 ## Strategy de Pruebas
 
 ### Unit Tests (inline with `node:test`)
+
 - `workspace-sub-quota.mjs` model validation: negative values rejected, -1 rejected, non-catalog dimension keys rejected.
 - `effective-entitlements.mjs`: override > plan > catalog precedence logic.
 - Inconsistency detection function: all edge cases (unlimited tenant, zero tenant limit, plan downgrade scenario).
@@ -310,10 +319,12 @@ FOR UPDATE;
 | `isolation.test.mjs` | workspace_admin cannot read/write sub-quotas for another tenant's workspaces |
 
 ### Contract Tests
+
 - Each action contract JSON validated by existing contract-validation script.
 - `tenant-effective-entitlements-get` contract tested for both "with plan" and "no plan" scenarios.
 
 ### Operational Validations (done criterion evidence)
+
 - Sub-quota sum never exceeds tenant effective limit under concurrent load (verified by `concurrency.test.mjs`).
 - Inconsistency events appear in Kafka within 5s of resolution query that detects them (SC-004).
 - `workspace-effective-limits-get` response includes `isInconsistent: true` for any dimension where sub-quota > tenant limit.
@@ -331,15 +342,18 @@ FOR UPDATE;
 | `quota_dimension_catalog` not including `dimension_key` as text FK | Low | Low | Migration verifies foreign key exists; action validates dimension before insert |
 
 ### Rollback
+
 - The migration adds one new table. Rolling back drops `workspace_sub_quotas`. No existing tables are modified.
 - New actions can be undeployed without affecting existing T01/T02 actions.
 - Kafka topics can be retained or cleaned up independently.
 
 ### Idempotency
+
 - `workspace-sub-quota-set` is an upsert — calling it twice with the same value is a no-op (no duplicate audit/Kafka event if value unchanged).
 - `workspace-sub-quota-remove` on a non-existent record returns `404` — callers can safely retry after a timeout.
 
 ### Observability
+
 - All sub-quota lifecycle events are on dedicated Kafka topics (grep-friendly).
 - Inconsistency events surface the exact dimension, workspace, and limit delta.
 - Integration test file `inconsistency-detection.test.mjs` is the canonical operational smoke test.
@@ -348,7 +362,7 @@ FOR UPDATE;
 
 ## Dependencies & Sequencing
 
-```
+```text
 T01 (103-hard-soft-quota-overrides)   ←──┐
 T02 (104-plan-boolean-capabilities)   ←──┤── T03 (105-effective-limit-resolution) ←── T04 (console visualization)
                                           │                                        ←── T05 (gateway enforcement)

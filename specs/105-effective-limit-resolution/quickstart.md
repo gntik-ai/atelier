@@ -3,6 +3,7 @@
 ## Prerequisites
 
 Ensure T01 and T02 migrations are applied:
+
 ```bash
 # From repo root
 psql $DATABASE_URL -f services/provisioning-orchestrator/src/migrations/103-hard-soft-quota-overrides.sql
@@ -11,6 +12,7 @@ psql $DATABASE_URL -f services/provisioning-orchestrator/src/migrations/105-effe
 ```
 
 Verify prerequisites:
+
 ```bash
 psql $DATABASE_URL -c "\dt quota_dimension_catalog quota_overrides boolean_capability_catalog workspace_sub_quotas"
 # All four tables must be present

@@ -166,6 +166,7 @@ New `action_type` values:
 | `console.quota.sub_quota.inconsistency_detected` | Workspace sub-quota exceeds tenant effective limit (warning) |
 
 **Event envelope** (consistent with platform audit event pattern):
+
 ```json
 {
   "eventId": "<uuid>",
@@ -185,7 +186,7 @@ New `action_type` values:
 
 ## Entity Relationships (this feature in context)
 
-```
+```text
 quota_dimension_catalog ──< workspace_sub_quotas >── workspace (logical)
                         ──< quota_overrides       >── tenant
                         

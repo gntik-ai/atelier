@@ -108,6 +108,7 @@ specs/105-effective-limit-resolution/contracts/workspace-effective-limits-get.js
   **Pattern reference**: `services/provisioning-orchestrator/src/migrations/104-plan-boolean-capabilities.sql` (first 40 lines — `CREATE TABLE IF NOT EXISTS`, trigger wire-up)
 
   **DDL to implement**:
+
   ```sql
   CREATE TABLE IF NOT EXISTS workspace_sub_quotas (
     id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -258,6 +259,7 @@ specs/105-effective-limit-resolution/contracts/workspace-effective-limits-get.js
   4. No Kafka event (resolution is read-only; high-frequency paths are not audited per spec FR).
 
   **Output shape** (matches `specs/105-effective-limit-resolution/contracts/tenant-effective-entitlements-get.json`):
+
   ```json
   {
     "tenantId": "...",
@@ -401,6 +403,7 @@ specs/105-effective-limit-resolution/contracts/workspace-effective-limits-get.js
   5. Boolean capabilities are resolved at tenant level only — this action does NOT include per-workspace capability overrides (FR-010).
 
   **Output shape** (matches `specs/105-effective-limit-resolution/contracts/workspace-effective-limits-get.json`):
+
   ```json
   {
     "tenantId": "acme-corp",
