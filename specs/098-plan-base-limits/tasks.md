@@ -169,6 +169,7 @@ Implement and export:
   - Topic: `process.env.PLAN_LIMITS_KAFKA_TOPIC_UPDATED ?? 'console.plan.limit_updated'`
   - Only call this function for `active` plan mutations (guard at action layer)
   - Envelope (matches platform pattern from T01):
+
     ```json
     {
       "eventType": "console.plan.limit_updated",
@@ -181,6 +182,7 @@ Implement and export:
       "newState": { "dimensionKey": "<key>", "newValue": "<v>" }
     }
     ```
+
   - Fire-and-forget: log emit errors, do not throw (platform pattern)
 
 ---
@@ -451,7 +453,7 @@ Append a new section `## Plan Base Limits (098-plan-base-limits)` to the `<!-- M
 
 ## Execution Order
 
-```
+```text
 T01  (migration SQL)
  └─► T02  (model: quota-dimension.mjs)
       ├─► T03  (catalog repository)

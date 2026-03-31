@@ -1,0 +1,31 @@
+{
+  "action": "plan-limits-remove",
+  "auth": { "role": "superadmin" },
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["planId", "dimensionKey"],
+    "properties": {
+      "planId": { "type": "string", "minLength": 1 },
+      "dimensionKey": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["planId", "dimensionKey", "removedValue", "effectiveValue", "source"],
+    "properties": {
+      "planId": { "type": "string" },
+      "dimensionKey": { "type": "string" },
+      "removedValue": { "type": "integer", "minimum": -1 },
+      "effectiveValue": { "type": "integer", "minimum": -1 },
+      "source": { "type": "string", "const": "default" }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Superadmin access is required." },
+    { "code": "INVALID_DIMENSION_KEY", "httpStatus": 400, "description": "The dimension key is malformed or not registered in the catalog." },
+    { "code": "PLAN_NOT_FOUND", "httpStatus": 404, "description": "The target plan does not exist." },
+    { "code": "LIMIT_NOT_SET", "httpStatus": 404, "description": "The plan does not define an explicit value for the dimension." },
+    { "code": "PLAN_LIMITS_FROZEN", "httpStatus": 409, "description": "Deprecated or archived plans cannot be mutated." }
+  ]
+}

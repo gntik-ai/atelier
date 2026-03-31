@@ -230,6 +230,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - **Auth**: superadmin JWT
 - **Input**: `{}` (no pagination needed — catalog is bounded)
 - **Output (200)**:
+
   ```json
   {
     "dimensions": [
@@ -244,6 +245,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
     "total": 8
   }
   ```
+
 - **Errors**: `403 FORBIDDEN`
 
 ### `plan-limits-set`
@@ -254,6 +256,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - **Catalog guard**: Rejected if `dimensionKey` not in `quota_dimension_catalog`
 - **Value guard**: Rejected if `value < -1` or non-integer
 - **Output (200)**:
+
   ```json
   {
     "planId": "<uuid>",
@@ -263,6 +266,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
     "source": "explicit"
   }
   ```
+
 - **Errors**: `404 PLAN_NOT_FOUND`, `409 PLAN_LIMITS_FROZEN`, `400 INVALID_DIMENSION_KEY`, `400 INVALID_LIMIT_VALUE`, `403 FORBIDDEN`
 
 ### `plan-limits-remove`
@@ -272,6 +276,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - **Lifecycle guard**: Rejected if plan status is `deprecated` or `archived`
 - **Catalog guard**: Rejected if `dimensionKey` not in catalog
 - **Output (200)**:
+
   ```json
   {
     "planId": "<uuid>",
@@ -281,6 +286,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
     "source": "default"
   }
   ```
+
 - **Errors**: `404 PLAN_NOT_FOUND`, `409 PLAN_LIMITS_FROZEN`, `400 INVALID_DIMENSION_KEY`, `404 LIMIT_NOT_SET`, `403 FORBIDDEN`
 
 ### `plan-limits-profile-get`
@@ -288,6 +294,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - **Auth**: superadmin JWT
 - **Input**: `{ planId }`
 - **Output (200)**: Full computed profile across all catalog dimensions:
+
   ```json
   {
     "planId": "<uuid>",
@@ -313,6 +320,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
     ]
   }
   ```
+
 - **Errors**: `404 PLAN_NOT_FOUND`, `403 FORBIDDEN`
 
 ### `plan-limits-tenant-get`
@@ -320,6 +328,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - **Auth**: Tenant owner JWT (reads own tenant's current plan only)
 - **Input**: `{ tenantId }` (from JWT claim; action validates caller owns the tenant)
 - **Output (200)**:
+
   ```json
   {
     "tenantId": "acme-corp",
@@ -337,6 +346,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
     ]
   }
   ```
+
 - **No-plan case**: `{ "tenantId": "acme-corp", "noAssignment": true, "profile": [] }`
 - **Isolation**: Action validates `tenantId` matches JWT; returns `403 FORBIDDEN` otherwise
 - **Errors**: `403 FORBIDDEN`, `404 TENANT_NOT_FOUND`
@@ -352,12 +362,14 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 ### Integration Tests (node:test)
 
 #### `catalog.test.mjs`
+
 - Catalog list returns all 8 seeded dimensions with correct keys, labels, units, defaults (FR-001, FR-002, FR-015)
 - Catalog is queryable and returns consistent structure for comparison across plans (US-2)
 - Attempting `plan-limits-set` with an unrecognized key returns `400 INVALID_DIMENSION_KEY` (FR-004, SC-005)
 - Catalog supports adding a 9th dimension without affecting existing plans (FR-012)
 
 #### `plan-limits-set.test.mjs`
+
 - Set explicit limit on draft plan: persisted, no Kafka event emitted (FR-003, FR-005)
 - Set explicit limit on active plan: persisted, Kafka event emitted on `console.plan.limit_updated` (FR-003, FR-005, FR-011)
 - Update existing limit on active plan: previous value captured in audit event (FR-011)
@@ -370,6 +382,7 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - Concurrent set for same plan/dimension: exactly one value wins; no partial update (R-03)
 
 #### `plan-limits-profile.test.mjs`
+
 - Full profile for plan with all 8 explicit limits: all 8 dimensions returned with `source: "explicit"` (FR-009, SC-002)
 - Profile for plan with 0 explicit limits: all 8 dimensions returned with `source: "default"` and catalog default values (FR-007)
 - Profile for plan with mix: explicit dimensions show correct values, absent dimensions show catalog defaults (FR-007, FR-009)
@@ -380,19 +393,23 @@ Full JSON contract files are generated in `specs/098-plan-base-limits/contracts/
 - Tenant with no plan assigned returns `noAssignment: true` (US-3 scenario 2)
 
 #### `plan-limits-audit.test.mjs`
+
 - Every `plan-limits-set` on active plan produces `plan_audit_events` row with correct `action_type`, `previous_state`, `new_state`, `actor_id`, `correlation_id` (FR-011, SC-004)
 - Every `plan-limits-remove` on active plan produces `plan_audit_events` row + Kafka event (FR-011, SC-004)
 - Mutations on draft plan produce `plan_audit_events` row but NO Kafka event (FR-005)
 
 #### `plan-limits-isolation.test.mjs`
+
 - JWT for tenant A cannot query plan limits for tenant B (FR-013, SC-003)
 - Tenant owner sees no internal metadata (no `created_by`, no `actor_id` fields) in profile response (FR-010)
 
 ### Contract Tests
+
 - Validate OpenWhisk action response shapes against JSON schemas in `contracts/`
 - Verify error codes for all rejection scenarios
 
 ### Observability Validation
+
 - Kafka event emission verified in integration tests via `kafkajs` consumer with 5s timeout
 - `plan_audit_events` rows verified via `pg` direct query assertions
 
