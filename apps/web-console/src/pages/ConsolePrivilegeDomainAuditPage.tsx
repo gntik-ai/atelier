@@ -17,14 +17,26 @@ export default function ConsolePrivilegeDomainAuditPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(true);
-      queryPrivilegeDomainDenials(filters)
-        .then((response) => { setRows(response.denials); setTotal(response.total); setError(null); })
-        .catch((err) => setError(err?.message ?? 'Failed to load denials'))
-        .finally(() => setLoading(false));
-    }, 300);
-    return () => clearTimeout(timer);
+    let active = true;
+    setLoading(true);
+    queryPrivilegeDomainDenials(filters)
+      .then((response) => {
+        if (!active) return;
+        setRows(response.denials);
+        setTotal(response.total);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err?.message ?? 'Failed to load denials');
+      })
+      .finally(() => {
+        if (!active) return;
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [filters]);
 
   const last24hCount = useMemo(() => rows.filter((row) => Date.now() - new Date(row.deniedAt).getTime() <= 24 * 60 * 60 * 1000).length, [rows]);

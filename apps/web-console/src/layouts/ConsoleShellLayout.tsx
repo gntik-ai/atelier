@@ -60,6 +60,12 @@ const consoleNavigationItems = [
     description: 'Miembros, roles y permisos del realm IAM del tenant activo.'
   },
   {
+    label: 'Plans',
+    to: '/console/plans',
+    icon: FolderKanban,
+    description: 'Gestión del catálogo de planes, límites base y asignaciones por tenant.'
+  },
+  {
     label: 'Auth',
     to: '/console/auth',
     icon: Shield,
@@ -536,6 +542,8 @@ function ConsoleContextStatusPanel() {
     activeTenant,
     activeWorkspace,
     operationalAlerts,
+    reloadTenants,
+    reloadWorkspaces,
     tenantsError,
     tenantsLoading,
     workspacesError,
@@ -583,7 +591,14 @@ function ConsoleContextStatusPanel() {
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
             {tenantsLoading && !activeTenant ? 'Cargando el estado del tenant seleccionado…' : tenantStatus.description}
           </p>
-          {tenantsError ? <p className="mt-2 text-sm text-destructive">{tenantsError}</p> : null}
+          {tenantsError ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-destructive">{tenantsError}</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => void reloadTenants()}>
+                Reintentar tenants
+              </Button>
+            </div>
+          ) : null}
         </article>
 
         <article
@@ -616,7 +631,14 @@ function ConsoleContextStatusPanel() {
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
             {workspacesLoading && !activeWorkspace ? 'Cargando el estado del workspace seleccionado…' : workspaceStatus.description}
           </p>
-          {workspacesError ? <p className="mt-2 text-sm text-destructive">{workspacesError}</p> : null}
+          {workspacesError ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-destructive">{workspacesError}</p>
+              <Button type="button" variant="outline" size="sm" onClick={() => void reloadWorkspaces()}>
+                Reintentar workspaces
+              </Button>
+            </div>
+          ) : null}
         </article>
       </div>
 

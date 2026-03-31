@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { WorkspaceDocAuthSection } from '@/components/console/WorkspaceDocAuthSection'
 import { WorkspaceDocNotes } from '@/components/console/WorkspaceDocNotes'
 import { WorkspaceDocSections } from '@/components/console/WorkspaceDocSections'
@@ -10,24 +9,43 @@ const FALLBACK_TOKEN = ''
 
 export function ConsoleDocsPage() {
   const { workspaceId = '' } = useParams()
-  const queryClient = useQueryClient()
   const [notesOverride, setNotesOverride] = useState<WorkspaceDocNote[] | null>(null)
+  const [data, setData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isError, setIsError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
   const token = FALLBACK_TOKEN
   const isAdmin = true
 
-  const query = useQuery({
-    queryKey: ['workspace-docs', workspaceId],
-    staleTime: 20_000,
-    queryFn: () => fetchWorkspaceDocs(workspaceId, token)
-  })
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(true)
+    setIsError(false)
+    fetchWorkspaceDocs(workspaceId, token)
+      .then((result) => {
+        if (cancelled) return
+        setData(result)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setIsError(true)
+      })
+      .finally(() => {
+        if (cancelled) return
+        setIsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [workspaceId, token, reloadKey])
 
-  const notes = useMemo(() => notesOverride ?? query.data?.customNotes ?? [], [notesOverride, query.data])
+  const notes = useMemo(() => notesOverride ?? data?.customNotes ?? [], [notesOverride, data])
 
-  if (query.isLoading) {
+  if (isLoading) {
     return <div data-testid="docs-loading">Loading workspace docs…</div>
   }
 
-  if (query.isError || !query.data) {
+  if (isError || !data) {
     return <div data-testid="docs-error">No se pudo cargar la documentación del workspace.</div>
   }
 
@@ -36,28 +54,28 @@ export function ConsoleDocsPage() {
       <header className="space-y-2">
         <nav>Console / Workspaces / {workspaceId} / Documentation</nav>
         <h1 className="text-2xl font-bold">Documentación del workspace</h1>
-        <p>Base URL: {query.data.baseUrl}</p>
-        <p>Última generación: {new Date(query.data.generatedAt).toLocaleString()}</p>
-        <button type="button" className="rounded border px-3 py-2" onClick={() => queryClient.invalidateQueries({ queryKey: ['workspace-docs', workspaceId] })}>Refresh</button>
+        <p>Base URL: {data.baseUrl}</p>
+        <p>Última generación: {new Date(data.generatedAt).toLocaleString()}</p>
+        <button type="button" className="rounded border px-3 py-2" onClick={() => setReloadKey((value) => value + 1)}>Refresh</button>
       </header>
 
-      <WorkspaceDocAuthSection authInstructions={query.data.authInstructions} />
-      <WorkspaceDocSections enabledServices={query.data.enabledServices} />
+      <WorkspaceDocAuthSection authInstructions={data.authInstructions} />
+      <WorkspaceDocSections enabledServices={data.enabledServices} />
       <WorkspaceDocNotes
         workspaceId={workspaceId}
         notes={notes}
         isAdmin={isAdmin}
         onCreate={async (content) => {
           const created = await createDocNote(workspaceId, content, token)
-          setNotesOverride([...(notesOverride ?? query.data.customNotes), created])
+          setNotesOverride([...(notesOverride ?? data.customNotes), created])
         }}
         onUpdate={async (noteId, content) => {
           const updated = await updateDocNote(workspaceId, noteId, content, token)
-          setNotesOverride((notesOverride ?? query.data.customNotes).map((note) => note.noteId === noteId ? updated : note))
+          setNotesOverride((notesOverride ?? data.customNotes).map((note) => note.noteId === noteId ? updated : note))
         }}
         onDelete={async (noteId) => {
           await deleteDocNote(workspaceId, noteId, token)
-          setNotesOverride((notesOverride ?? query.data.customNotes).filter((note) => note.noteId !== noteId))
+          setNotesOverride((notesOverride ?? data.customNotes).filter((note) => note.noteId !== noteId))
         }}
       />
     </div>

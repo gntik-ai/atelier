@@ -1,0 +1,224 @@
+routes:
+  - name: plans-create
+    uri: /v1/plans
+    methods:
+      - POST
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-list
+    uri: /v1/plans
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-get
+    uri: /v1/plans/:planIdOrSlug
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-update
+    uri: /v1/plans/:planId
+    methods:
+      - PUT
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-lifecycle
+    uri: /v1/plans/:planId/lifecycle
+    methods:
+      - POST
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-limits-profile
+    uri: /v1/plans/:planId/limits
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-limits-set
+    uri: /v1/plans/:planId/limits/:dimensionKey
+    methods:
+      - PUT
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: plans-limits-remove
+    uri: /v1/plans/:planId/limits/:dimensionKey
+    methods:
+      - DELETE
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: quota-dimensions-list
+    uri: /v1/quota-dimensions
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: tenant-plan-assign
+    uri: /v1/tenants/:tenantId/plan
+    methods:
+      - POST
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: tenant-plan-get
+    uri: /v1/tenants/:tenantId/plan
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: tenant-plan-history
+    uri: /v1/tenants/:tenantId/plan/history
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: self-tenant-plan-get
+    uri: /v1/tenant/plan
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1
+
+  - name: self-tenant-plan-limits-get
+    uri: /v1/tenant/plan/limits
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+    upstream:
+      type: roundrobin
+      nodes:
+        provisioning-orchestrator: 1

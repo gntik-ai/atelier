@@ -12,8 +12,10 @@ export async function main(params = {}, overrides = {}) {
   const db = overrides.db ?? params.db;
   try {
     requireAuthorized(params);
-    if ((params.planId && params.slug) || (!params.planId && !params.slug)) throw Object.assign(new Error('Provide either planId or slug'), { code: 'VALIDATION_ERROR' });
-    const plan = params.planId ? await planRepository.findById(db, params.planId) : await planRepository.findBySlug(db, params.slug);
+    const candidate = params.planIdOrSlug ?? params.planId ?? params.slug;
+    if (!candidate) throw Object.assign(new Error('Provide either planId or slug'), { code: 'VALIDATION_ERROR' });
+    const looksLikeId = /^pln_|^[0-9a-fA-F-]{8,}$/.test(candidate);
+    const plan = looksLikeId ? await planRepository.findById(db, candidate) : await planRepository.findBySlug(db, candidate);
     if (!plan) throw Object.assign(new Error('Plan not found'), { code: 'PLAN_NOT_FOUND' });
     return { statusCode: 200, body: plan };
   } catch (error) {

@@ -122,4 +122,14 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New env vars: `PLAN_LIMITS_KAFKA_TOPIC_UPDATED` (default `console.plan.limit_updated`), `PLAN_LIMITS_LOCK_TIMEOUT_MS` (default `5000`).
 - Unlimited sentinel behavior: `-1` means unlimited, `0` means explicitly zero, missing key inherits the platform default from the catalog.
 
+
+## Plan Management API & Console (099-plan-management-api-console)
+
+- New APISIX route file: `services/gateway-config/routes/plan-management-routes.yaml` covering `/v1/plans`, `/v1/quota-dimensions`, `/v1/tenants/{tenantId}/plan*`, and `/v1/tenant/plan*`.
+- Public platform OpenAPI family now describes the plan-management REST surface and tenant-owner self-service plan routes.
+- New console pages: `ConsolePlanCatalogPage.tsx`, `ConsolePlanCreatePage.tsx`, `ConsolePlanDetailPage.tsx`, `ConsoleTenantPlanPage.tsx`, `ConsoleTenantPlanOverviewPage.tsx`.
+- New shared console components: `PlanStatusBadge`, `PlanCapabilityBadge`, `PlanLimitsTable`, `PlanComparisonView`, `PlanAssignmentDialog`, `PlanHistoryTable`.
+- New web-console API service: `apps/web-console/src/services/planManagementApi.ts`.
+- Tenant-owner sessions are redirected toward `/console/my-plan` when attempting superadmin-only plan routes.
+
 <!-- MANUAL ADDITIONS END -->
