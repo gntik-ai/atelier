@@ -21,7 +21,8 @@
 
 ### Read-only reference files (pattern/context — targeted slices only)
 
-```
+```text
+
 services/provisioning-orchestrator/src/models/quota-dimension.mjs           ← key/validation pattern
 services/provisioning-orchestrator/src/models/plan.mjs                       ← Plan class, validateBooleanMap
 services/provisioning-orchestrator/src/repositories/quota-dimension-catalog-repository.mjs  ← catalog query pattern
@@ -35,11 +36,13 @@ services/provisioning-orchestrator/src/events/plan-limit-events.mjs          ←
 services/provisioning-orchestrator/src/migrations/098-plan-base-limits.sql   ← catalog DDL + seed + trigger pattern
 tests/integration/103-hard-soft-quota-overrides/fixtures/seed-plans-with-quota-types.mjs  ← fakeDb pattern (imports + first case only)
 tests/integration/103-hard-soft-quota-overrides/quota-override-crud.test.mjs             ← test structure (imports + first case only)
-```
+
+```text
 
 ### New files to create
 
-```
+```text
+
 services/provisioning-orchestrator/src/migrations/104-plan-boolean-capabilities.sql
 services/provisioning-orchestrator/src/models/boolean-capability.mjs
 services/provisioning-orchestrator/src/repositories/boolean-capability-catalog-repository.mjs
@@ -63,15 +66,18 @@ specs/104-plan-boolean-capabilities/contracts/plan-capability-set.json
 specs/104-plan-boolean-capabilities/contracts/plan-capability-profile-get.json
 specs/104-plan-boolean-capabilities/contracts/tenant-effective-capabilities-get.json
 specs/104-plan-boolean-capabilities/contracts/plan-capability-audit-query.json
-```
+
+```text
 
 ### Files to modify
 
-```
+```text
+
 services/provisioning-orchestrator/src/repositories/effective-entitlements-repository.mjs  ← enhance toCapabilityList with catalog join
 services/provisioning-orchestrator/src/actions/plan-create.mjs                             ← add catalog key validation for capabilities
 services/provisioning-orchestrator/src/actions/plan-update.mjs                             ← add catalog key validation + per-capability audit events
-```
+
+```text
 
 ---
 
@@ -84,7 +90,9 @@ services/provisioning-orchestrator/src/actions/plan-update.mjs                  
 **Pattern reference**: `services/provisioning-orchestrator/src/migrations/098-plan-base-limits.sql` (first 40 lines — catalog DDL + seed + trigger pattern)
 
 **DDL**:
+
 ```sql
+
 CREATE TABLE IF NOT EXISTS boolean_capability_catalog (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   capability_key VARCHAR(64)  NOT NULL UNIQUE,
@@ -105,7 +113,8 @@ CREATE TRIGGER trg_boolean_capability_catalog_updated_at
 BEFORE UPDATE ON boolean_capability_catalog
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at_timestamp();
-```
+
+```text
 
 **Seed** (7 rows, `ON CONFLICT (capability_key) DO NOTHING`):
 
@@ -134,6 +143,7 @@ EXECUTE FUNCTION set_updated_at_timestamp();
 **Exports**:
 
 ```js
+
 // Regex: snake_case, starts with letter, 1–64 chars
 const CAPABILITY_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 
@@ -157,7 +167,8 @@ export function buildTenantCapabilityView(planCapabilitiesJsonb, activeCatalogEn
 // Detects which keys in toSet differ from current plan state.
 // Returns { changed: [{capabilityKey, previousState, newState}], unchanged: [capabilityKey] }
 export function diffCapabilities(currentJsonb, toSet) { ... }
-```
+
+```text
 
 **Key rules**:
 - `isValidCapabilityKey`: string, matches `CAPABILITY_KEY_PATTERN`
@@ -177,6 +188,7 @@ export function diffCapabilities(currentJsonb, toSet) { ... }
 **Exports**:
 
 ```js
+
 // Returns BooleanCapability[] ordered by sort_order ASC
 export async function listActiveCatalog(pgClient) { ... }
 
@@ -192,15 +204,19 @@ export async function capabilityKeyExists(pgClient, capabilityKey) { ... }
 // Validates all keys in a Set/Array against active catalog.
 // Returns { valid: true } or throws { code: 'INVALID_CAPABILITY_KEY', invalidKeys: [...] }
 export async function validateCapabilityKeys(pgClient, capabilityKeys) { ... }
-```
+
+```text
 
 **SQL for `listActiveCatalog`**:
+
 ```sql
+
 SELECT capability_key, display_label, description, platform_default, is_active, sort_order
   FROM boolean_capability_catalog
  WHERE is_active = true
  ORDER BY sort_order ASC, capability_key ASC
-```
+
+```text
 
 **Acceptance**: `listActiveCatalog` returns 7 entries; `capabilityKeyExists('nonexistent')` → false; `validateCapabilityKeys(['realtime', 'bad_key'])` → throws with `invalidKeys: ['bad_key']`.
 
@@ -215,6 +231,7 @@ SELECT capability_key, display_label, description, platform_default, is_active, 
 **Exports**:
 
 ```js
+
 // Read-only: returns { id, status, slug, displayName, capabilities } or null
 export async function getPlanCapabilities(pgClient, planId) { ... }
 
@@ -224,7 +241,8 @@ export async function getPlanCapabilities(pgClient, planId) { ... }
 // No-op detection: skips DB write + audit for keys where value is unchanged
 // Returns { planId, planSlug, changed, unchanged, effectiveCapabilities, planStatus }
 export async function setCapabilities(pgClient, { planId, capabilitiesToSet, actorId, correlationId }) { ... }
-```
+
+```text
 
 **`setCapabilities` algorithm**:
 1. `BEGIN`; `SET LOCAL lock_timeout`
@@ -242,9 +260,12 @@ export async function setCapabilities(pgClient, { planId, capabilitiesToSet, act
 10. On `error.code === '55P03'` → throw `{ code: 'CONCURRENT_CAPABILITY_CONFLICT' }`; always `ROLLBACK` on error
 
 **`getPlanCapabilities` SQL**:
+
 ```sql
+
 SELECT id, status, slug, display_name, capabilities FROM plans WHERE id = $1
-```
+
+```text
 
 **Acceptance**: `setCapabilities` with all-no-op input returns `changed: []` with zero DB writes; archived plan throws `PLAN_ARCHIVED`; concurrent lock timeout throws `CONCURRENT_CAPABILITY_CONFLICT`.
 
@@ -259,16 +280,20 @@ SELECT id, status, slug, display_name, capabilities FROM plans WHERE id = $1
 **Exports**:
 
 ```js
+
 const TOPIC_ENABLED  = process.env.CAPABILITY_KAFKA_TOPIC_ENABLED  ?? 'console.plan.capability.enabled';
 const TOPIC_DISABLED = process.env.CAPABILITY_KAFKA_TOPIC_DISABLED ?? 'console.plan.capability.disabled';
 
 // Emits one Kafka message per changed capability (fire-and-forget; logs warn on failure).
 // changedItems: [{ capabilityKey, displayLabel, previousState, newState }]
 export async function emitCapabilityEvents(kafkaProducer, { planId, planSlug, changedItems, actorId, correlationId, timestamp }, options = {}) { ... }
-```
+
+```text
 
 **Event envelope** (per changed capability):
+
 ```json
+
 {
   "eventType": "console.plan.capability.enabled",
   "correlationId": "<uuid>",
@@ -283,7 +308,8 @@ export async function emitCapabilityEvents(kafkaProducer, { planId, planSlug, ch
     "newState": true
   }
 }
-```
+
+```text
 
 - Topic: `TOPIC_ENABLED` when `newState === true`; `TOPIC_DISABLED` when `newState === false`
 - Message key: `planId`
@@ -307,7 +333,9 @@ export async function emitCapabilityEvents(kafkaProducer, { planId, planSlug, ch
 4. Return `{ statusCode: 200, body: { capabilities: [...mapped], total: capabilities.length } }`
 
 **Response shape per entry**:
+
 ```json
+
 {
   "capabilityKey": "sql_admin_api",
   "displayLabel": "SQL Admin API",
@@ -316,7 +344,8 @@ export async function emitCapabilityEvents(kafkaProducer, { planId, planSlug, ch
   "isActive": true,
   "sortOrder": 10
 }
-```
+
+```text
 
 **Error codes**: `FORBIDDEN → 403`
 
@@ -345,7 +374,9 @@ export async function emitCapabilityEvents(kafkaProducer, { planId, planSlug, ch
    - Resolve display labels from `catalogRepository.listActiveCatalog(db)` for changed keys
    - `await emitCapabilityEvents(producer, { planId, planSlug, changedItems: result.changed (enriched with displayLabel), actorId, correlationId, timestamp: new Date().toISOString() })`
 8. Return:
+
 ```json
+
 {
   "statusCode": 200,
   "body": {
@@ -356,10 +387,13 @@ export async function emitCapabilityEvents(kafkaProducer, { planId, planSlug, ch
     "effectiveCapabilities": { "sql_admin_api": true, "realtime": true, ... }
   }
 }
-```
+
+```text
 
 **Error map**:
+
 ```js
+
 const ERROR_STATUS_CODES = {
   FORBIDDEN: 403,
   INVALID_CAPABILITY_KEY: 400,
@@ -369,7 +403,8 @@ const ERROR_STATUS_CODES = {
   PLAN_ARCHIVED: 409,
   CONCURRENT_CAPABILITY_CONFLICT: 409
 };
-```
+
+```text
 
 **Acceptance**: Enable 2 capabilities → `changed.length === 2`; no-op → `changed: [], unchanged: [key]`; archived plan → 409; unknown key → 400.
 
@@ -388,7 +423,9 @@ const ERROR_STATUS_CODES = {
 4. `const profile = buildCapabilityProfile(plan.capabilities, activeCatalog)` → array of `{ capabilityKey, displayLabel, description, enabled, source, platformDefault }`
 5. Extract orphans from profile (entries with `status: 'orphaned'`) into `orphanedCapabilities`
 6. Return:
+
 ```json
+
 {
   "statusCode": 200,
   "body": {
@@ -409,7 +446,8 @@ const ERROR_STATUS_CODES = {
     "orphanedCapabilities": []
   }
 }
-```
+
+```text
 
 **`source`**: `"explicit"` when key is present in `plan.capabilities` JSONB; `"platform_default"` otherwise.
 
@@ -434,7 +472,9 @@ const ERROR_STATUS_CODES = {
 6. `const capabilities = buildTenantCapabilityView(plan.capabilities, activeCatalog)`
    - Returns `{ displayLabel, enabled }[]` only — no keys, no descriptions, no source
 7. Return:
+
 ```json
+
 {
   "statusCode": 200,
   "body": {
@@ -446,7 +486,8 @@ const ERROR_STATUS_CODES = {
     ]
   }
 }
-```
+
+```text
 
 **Error map**: `{ FORBIDDEN: 403, TENANT_NOT_FOUND: 404 }`
 
@@ -465,7 +506,9 @@ const ERROR_STATUS_CODES = {
 **Input params**: `{ planId?, capabilityKey?, actorId?, fromDate?, toDate?, page? = 1, pageSize? = 50 }`
 
 **SQL** (against `plan_audit_events`):
+
 ```sql
+
 SELECT event_id, plan_id, action_type, previous_state, new_state, actor_id, created_at
   FROM plan_audit_events
  WHERE action_type IN ('plan.capability.enabled', 'plan.capability.disabled')
@@ -476,12 +519,15 @@ SELECT event_id, plan_id, action_type, previous_state, new_state, actor_id, crea
    AND ($5::timestamptz IS NULL OR created_at <= $5)
  ORDER BY created_at ASC
  LIMIT $6 OFFSET $7
-```
+
+```text
 
 Count query mirrors the WHERE clause with `SELECT COUNT(*)`.
 
 **Response shape**:
+
 ```json
+
 {
   "statusCode": 200,
   "body": {
@@ -503,7 +549,8 @@ Count query mirrors the WHERE clause with `SELECT COUNT(*)`.
     "pageSize": 50
   }
 }
-```
+
+```text
 
 Extract `capabilityKey` from `previous_state->>'capabilityKey'` or `new_state->>'capabilityKey'`.
 
@@ -522,7 +569,9 @@ Extract `capabilityKey` from `previous_state->>'capabilityKey'` or `new_state->>
 **Change**: Replace `toCapabilityList` internal function with a version that uses the `boolean_capability_catalog` to resolve display labels and include capabilities not explicitly set on the plan (with platform defaults).
 
 **New `toCapabilityList` behavior**:
+
 ```js
+
 // catalogRows: rows from boolean_capability_catalog (active only)
 // planCapabilities: plan.capabilities JSONB object
 function toCapabilityList(planCapabilities = {}, catalogRows = []) {
@@ -534,16 +583,20 @@ function toCapabilityList(planCapabilities = {}, catalogRows = []) {
       : Boolean(row.platform_default)
   })).sort((a, b) => a.capabilityKey.localeCompare(b.capabilityKey));
 }
-```
+
+```text
 
 Add catalog query to the existing `Promise.all` in `resolveEffectiveEntitlements`:
+
 ```js
+
 const [catalogResult, boolCatalogResult, planResult] = await Promise.all([
   client.query('SELECT dimension_key, display_label, unit, default_value FROM quota_dimension_catalog ORDER BY dimension_key ASC'),
   client.query('SELECT capability_key, display_label, platform_default FROM boolean_capability_catalog WHERE is_active = true ORDER BY sort_order ASC, capability_key ASC'),
   client.query('SELECT id, slug, display_name, quota_dimensions, capabilities FROM plans WHERE id = $1', [planId])
 ]);
-```
+
+```text
 
 Update `toCapabilityList` call: `toCapabilityList(plan.capabilities ?? {}, boolCatalogResult.rows)`.
 
@@ -562,11 +615,14 @@ Update `toCapabilityList` call: `toCapabilityList(plan.capabilities ?? {}, boolC
 **Read**: full file (small)
 
 **Change**: After `Plan` constructor validation (which validates boolean map), add:
+
 ```js
+
 if (Object.keys(plan.capabilities).length > 0) {
   await catalogRepository.validateCapabilityKeys(db, Object.keys(plan.capabilities));
 }
-```
+
+```text
 
 Import `boolean-capability-catalog-repository.mjs` as `catalogRepository`.
 
@@ -606,6 +662,7 @@ This validates that any capability keys provided at plan creation time exist in 
 **Exports**:
 
 ```js
+
 export const CATALOG_SEED = [
   { capability_key: 'sql_admin_api', display_label: 'SQL Admin API', description: '...', platform_default: false, is_active: true, sort_order: 10 },
   { capability_key: 'passthrough_admin', display_label: 'Passthrough Admin Proxy', description: '...', platform_default: false, is_active: true, sort_order: 20 },
@@ -626,7 +683,8 @@ export function createFakeDb() {
   // _planAuditEvents: []
   // query(sql, params): handles all SQL patterns needed by T06–T10
 }
-```
+
+```text
 
 **SQL patterns the fakeDb must handle** (add to `query` switch):
 - `FROM boolean_capability_catalog WHERE is_active = true ORDER BY sort_order` → return active catalog rows
@@ -648,6 +706,7 @@ export function createFakeDb() {
 **Exports**:
 
 ```js
+
 // Seeds the fakeDb with a standard set of test plans
 export function seedPlans(db) {
   // plan-draft: status='draft', capabilities={}
@@ -665,7 +724,8 @@ export function seedAssignments(db) {
   // tenant-full → plan-active-full
   // tenant-none → no assignment
 }
-```
+
+```text
 
 ---
 
@@ -674,13 +734,16 @@ export function seedAssignments(db) {
 **File**: `tests/integration/104-plan-boolean-capabilities/capability-catalog.test.mjs`
 
 **Imports**:
+
 ```js
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { main as catalogList } from '../../../services/provisioning-orchestrator/src/actions/capability-catalog-list.mjs';
 import { createFakeDb, createFakeProducer } from './fixtures/seed-capability-catalog.mjs';
 import { CATALOG_SEED } from './fixtures/seed-capability-catalog.mjs';
-```
+
+```text
 
 **Test cases**:
 1. `catalog query returns all 7 active capabilities` — assert `body.total === 7`; verify each has `capabilityKey`, `displayLabel`, `description`, `platformDefault`, `isActive`, `sortOrder`
@@ -696,13 +759,16 @@ import { CATALOG_SEED } from './fixtures/seed-capability-catalog.mjs';
 **File**: `tests/integration/104-plan-boolean-capabilities/plan-capability-crud.test.mjs`
 
 **Imports**:
+
 ```js
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { main as setCapability } from '../../../services/provisioning-orchestrator/src/actions/plan-capability-set.mjs';
 import { createFakeDb, createFakeProducer } from './fixtures/seed-capability-catalog.mjs';
 import { seedPlans } from './fixtures/seed-plans-with-capabilities.mjs';
-```
+
+```text
 
 **Test cases** (covering FR-003, FR-005, FR-010, FR-011, SC-001, SC-005, SC-008):
 1. `enable realtime and webhooks on draft plan — both persisted and in changed` — assert `changed.length === 2`, `effectiveCapabilities.realtime === true`
@@ -723,13 +789,16 @@ import { seedPlans } from './fixtures/seed-plans-with-capabilities.mjs';
 **File**: `tests/integration/104-plan-boolean-capabilities/plan-capability-profile.test.mjs`
 
 **Imports**:
+
 ```js
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { main as profileGet } from '../../../services/provisioning-orchestrator/src/actions/plan-capability-profile-get.mjs';
 import { createFakeDb, createFakeProducer } from './fixtures/seed-capability-catalog.mjs';
 import { seedPlans } from './fixtures/seed-plans-with-capabilities.mjs';
-```
+
+```text
 
 **Test cases** (covering FR-004, FR-006, FR-017, SC-006):
 1. `profile contains all 7 active catalog entries` — use `plan-active-full`; assert `capabilityProfile.length === 7`
@@ -746,13 +815,16 @@ import { seedPlans } from './fixtures/seed-plans-with-capabilities.mjs';
 **File**: `tests/integration/104-plan-boolean-capabilities/tenant-effective-capabilities.test.mjs`
 
 **Imports**:
+
 ```js
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { main as tenantCaps } from '../../../services/provisioning-orchestrator/src/actions/tenant-effective-capabilities-get.mjs';
 import { createFakeDb, createFakeProducer } from './fixtures/seed-capability-catalog.mjs';
 import { seedPlans, seedAssignments } from './fixtures/seed-plans-with-capabilities.mjs';
-```
+
+```text
 
 **Test cases** (covering FR-007, FR-008, SC-002, SC-007):
 1. `tenant on full plan sees correct capabilities` — use `tenant-full`; assert all 7 capabilities present; assert `sql_admin_api` enabled; assert `custom_domains` disabled
@@ -768,14 +840,17 @@ import { seedPlans, seedAssignments } from './fixtures/seed-plans-with-capabilit
 **File**: `tests/integration/104-plan-boolean-capabilities/capability-audit.test.mjs`
 
 **Imports**:
+
 ```js
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { main as setCapability } from '../../../services/provisioning-orchestrator/src/actions/plan-capability-set.mjs';
 import { main as auditQuery } from '../../../services/provisioning-orchestrator/src/actions/plan-capability-audit-query.mjs';
 import { createFakeDb, createFakeProducer } from './fixtures/seed-capability-catalog.mjs';
 import { seedPlans } from './fixtures/seed-plans-with-capabilities.mjs';
-```
+
+```text
 
 **Test cases** (covering FR-009, FR-010, FR-013, SC-003):
 1. `enable webhooks — audit event has correct actor, timestamp, plan, key, previousState null, newState true` — enable `webhooks` on plan with no prior capability; assert `db._planAuditEvents[0]` shape
@@ -793,14 +868,17 @@ import { seedPlans } from './fixtures/seed-plans-with-capabilities.mjs';
 **File**: `tests/integration/104-plan-boolean-capabilities/capability-isolation.test.mjs`
 
 **Imports**:
+
 ```js
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { main as tenantCaps } from '../../../services/provisioning-orchestrator/src/actions/tenant-effective-capabilities-get.mjs';
 import { main as setCapability } from '../../../services/provisioning-orchestrator/src/actions/plan-capability-set.mjs';
 import { createFakeDb, createFakeProducer } from './fixtures/seed-capability-catalog.mjs';
 import { seedPlans, seedAssignments } from './fixtures/seed-plans-with-capabilities.mjs';
-```
+
+```text
 
 **Test cases** (covering FR-014, FR-015, SC-007):
 1. `tenant-a capabilities invisible to tenant-b — separate responses` — both tenants on different plans; assert respective capabilities match only their own plan
@@ -840,6 +918,7 @@ Files:
 **Content to add**:
 
 ```markdown
+
 ## Plan Boolean Capabilities (104-plan-boolean-capabilities)
 
 - New PostgreSQL table: `boolean_capability_catalog` (governed catalog of boolean platform features per plan).
@@ -851,7 +930,8 @@ Files:
 - Capability enforcement (blocking access at gateway/UI) deferred to US-PLAN-02-T05.
 - `effective-entitlements-repository.mjs` enhanced: `toCapabilityList` now resolves display labels from catalog and includes all catalog capabilities (not just explicitly-set ones); backward-compatible fallback when table absent.
 - New `plan_audit_events.action_type` values: `plan.capability.enabled`, `plan.capability.disabled`.
-```
+
+```text
 
 ---
 
@@ -859,7 +939,8 @@ Files:
 
 Execute tasks in this order (respects dependencies):
 
-```
+```text
+
 T01  →  T02  →  T03  →  T04  →  T05
                                   ↓
                 T06  ←────────────┤
@@ -878,7 +959,8 @@ T16–T21 (integration tests — parallel per file)
                   ↓
 T22 (contracts)
 T23 (AGENTS.md)
-```
+
+```text
 
 Parallel groups:
 - **Group A** (independent): T02, T03 after T01
