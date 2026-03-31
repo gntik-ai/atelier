@@ -1,0 +1,179 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plan Transition Rules API",
+    "version": "1.0.0",
+    "description": "Contract for transition compatibility rule management."
+  },
+  "paths": {
+    "/v1/admin/plan-transition-rules": {
+      "post": {
+        "summary": "Create a transition compatibility rule",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTransitionRuleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransitionRuleResponse"
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "409": { "description": "Duplicate exact rule" }
+        }
+      },
+      "get": {
+        "summary": "List transition compatibility rules",
+        "parameters": [
+          {
+            "name": "sourcePlanId",
+            "in": "query",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "targetPlanId",
+            "in": "query",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "default": 1 }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated rule list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTransitionRulesResponse"
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/admin/plan-transition-rules/{id}": {
+      "delete": {
+        "summary": "Delete a transition compatibility rule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "format": "uuid" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Rule deleted" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Rule not found" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Disposition": {
+        "type": "string",
+        "enum": ["allowed", "allowed_with_approval", "blocked"]
+      },
+      "TransitionRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "sourcePlanId",
+          "targetPlanId",
+          "disposition",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "sourcePlanId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Null means any source plan."
+          },
+          "targetPlanId": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "Null means any target plan."
+          },
+          "disposition": { "$ref": "#/components/schemas/Disposition" },
+          "justification": { "type": ["string", "null"], "maxLength": 4000 },
+          "createdBy": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "additionalProperties": false
+      },
+      "CreateTransitionRuleRequest": {
+        "type": "object",
+        "required": ["disposition"],
+        "properties": {
+          "sourcePlanId": { "type": ["string", "null"], "format": "uuid" },
+          "targetPlanId": { "type": ["string", "null"], "format": "uuid" },
+          "disposition": { "$ref": "#/components/schemas/Disposition" },
+          "justification": { "type": "string", "maxLength": 4000 }
+        },
+        "additionalProperties": false
+      },
+      "TransitionRuleResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/TransitionRule" }
+        },
+        "additionalProperties": false
+      },
+      "Pagination": {
+        "type": "object",
+        "required": ["page", "pageSize", "total"],
+        "properties": {
+          "page": { "type": "integer", "minimum": 1 },
+          "pageSize": { "type": "integer", "minimum": 1 },
+          "total": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": false
+      },
+      "ListTransitionRulesResponse": {
+        "type": "object",
+        "required": ["data", "pagination"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TransitionRule" }
+          },
+          "pagination": { "$ref": "#/components/schemas/Pagination" }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

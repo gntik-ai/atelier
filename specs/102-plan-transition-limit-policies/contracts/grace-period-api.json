@@ -1,0 +1,145 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Grace Period & Over-Limit Status API",
+    "version": "1.0.0",
+    "description": "Contracts for grace period inspection and tenant-visible over-limit status."
+  },
+  "paths": {
+    "/v1/admin/tenants/{tenantId}/grace-periods": {
+      "get": {
+        "summary": "List grace periods for a tenant",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["active", "expired_escalated", "resolved"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grace period records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListGracePeriodsResponse"
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Tenant not found" }
+        }
+      }
+    },
+    "/v1/tenant/plan/over-limit-status": {
+      "get": {
+        "summary": "Return active over-limit conditions for the authenticated tenant",
+        "responses": {
+          "200": {
+            "description": "Tenant over-limit view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverLimitStatusResponse"
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "GracePeriodRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "tenantId",
+          "dimensionKey",
+          "transitionId",
+          "effectiveLimit",
+          "observedConsumption",
+          "startedAt",
+          "expiresAt",
+          "status"
+        ],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "tenantId": { "type": "string" },
+          "dimensionKey": { "type": "string", "maxLength": 64 },
+          "transitionId": { "type": "string", "format": "uuid" },
+          "effectiveLimit": { "type": "integer" },
+          "observedConsumption": { "type": "integer" },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "status": {
+            "type": "string",
+            "enum": ["active", "expired_escalated", "resolved"]
+          },
+          "resolvedAt": { "type": ["string", "null"], "format": "date-time" },
+          "escalatedAt": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "additionalProperties": false
+      },
+      "ListGracePeriodsResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/GracePeriodRecord" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "OverLimitDimensionStatus": {
+        "type": "object",
+        "required": [
+          "dimensionKey",
+          "effectiveLimit",
+          "observedConsumption",
+          "policyMode",
+          "suggestedAction"
+        ],
+        "properties": {
+          "dimensionKey": { "type": "string", "maxLength": 64 },
+          "effectiveLimit": { "type": "integer" },
+          "observedConsumption": { "type": "integer" },
+          "policyMode": {
+            "type": "string",
+            "enum": ["grace_period", "block_creation", "block_transition"]
+          },
+          "gracePeriodExpiresAt": { "type": ["string", "null"], "format": "date-time" },
+          "suggestedAction": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      },
+      "OverLimitStatusResponse": {
+        "type": "object",
+        "required": ["tenantId", "data"],
+        "properties": {
+          "tenantId": { "type": "string" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OverLimitDimensionStatus" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

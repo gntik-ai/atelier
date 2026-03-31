@@ -1,0 +1,227 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Plan Excess Policy API",
+    "version": "1.0.0",
+    "description": "Contracts for platform default, transition override, dimension override, and dry-run evaluation."
+  },
+  "paths": {
+    "/v1/admin/excess-policy": {
+      "put": {
+        "summary": "Create or update an excess policy configuration",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExcessPolicyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Policy saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetExcessPolicyResponse"
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      },
+      "get": {
+        "summary": "List excess policy configuration rows",
+        "parameters": [
+          {
+            "name": "scopeType",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ScopeType"
+            }
+          },
+          {
+            "name": "sourcePlanId",
+            "in": "query",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "targetPlanId",
+            "in": "query",
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "dimensionKey",
+            "in": "query",
+            "schema": { "type": "string", "maxLength": 64 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching policies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListExcessPoliciesResponse"
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    },
+    "/v1/admin/excess-policy/evaluate": {
+      "post": {
+        "summary": "Dry-run effective policy resolution for a hypothetical transition",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateExcessPolicyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evaluation result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluateExcessPolicyResponse"
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ScopeType": {
+        "type": "string",
+        "enum": ["platform_default", "transition", "dimension"]
+      },
+      "PolicyMode": {
+        "type": "string",
+        "enum": ["grace_period", "block_creation", "block_transition"]
+      },
+      "GoverningLayer": {
+        "type": "string",
+        "enum": ["dimension_override", "transition_override", "platform_default", "built_in_fallback"]
+      },
+      "ExcessPolicy": {
+        "type": "object",
+        "required": ["id", "scopeType", "policyMode"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "scopeType": { "$ref": "#/components/schemas/ScopeType" },
+          "sourcePlanId": { "type": ["string", "null"], "format": "uuid" },
+          "targetPlanId": { "type": ["string", "null"], "format": "uuid" },
+          "dimensionKey": { "type": ["string", "null"], "maxLength": 64 },
+          "policyMode": { "$ref": "#/components/schemas/PolicyMode" },
+          "gracePeriodDays": { "type": ["integer", "null"], "minimum": 1 },
+          "warning": { "type": ["string", "null"] },
+          "createdBy": { "type": ["string", "null"], "maxLength": 255 },
+          "createdAt": { "type": ["string", "null"], "format": "date-time" },
+          "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+        },
+        "additionalProperties": false
+      },
+      "SetExcessPolicyRequest": {
+        "type": "object",
+        "required": ["scopeType", "policyMode"],
+        "properties": {
+          "scopeType": { "$ref": "#/components/schemas/ScopeType" },
+          "sourcePlanId": { "type": ["string", "null"], "format": "uuid" },
+          "targetPlanId": { "type": ["string", "null"], "format": "uuid" },
+          "dimensionKey": { "type": ["string", "null"], "maxLength": 64 },
+          "policyMode": { "$ref": "#/components/schemas/PolicyMode" },
+          "gracePeriodDays": { "type": "integer", "minimum": 1 }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": { "policyMode": { "const": "grace_period" } },
+              "required": ["policyMode"]
+            },
+            "then": { "required": ["gracePeriodDays"] }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "SetExcessPolicyResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/ExcessPolicy" }
+        },
+        "additionalProperties": false
+      },
+      "ListExcessPoliciesResponse": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ExcessPolicy" }
+          }
+        },
+        "additionalProperties": false
+      },
+      "EvaluateExcessPolicyRequest": {
+        "type": "object",
+        "required": ["sourcePlanId", "targetPlanId"],
+        "properties": {
+          "sourcePlanId": { "type": ["string", "null"], "format": "uuid" },
+          "targetPlanId": { "type": "string", "format": "uuid" },
+          "tenantId": {
+            "type": ["string", "null"],
+            "description": "Optional simulated tenant context for usage-aware dry runs."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResolvedExcessPolicy": {
+        "type": "object",
+        "required": ["dimensionKey", "governingLayer", "policyMode"],
+        "properties": {
+          "dimensionKey": { "type": "string", "maxLength": 64 },
+          "governingLayer": { "$ref": "#/components/schemas/GoverningLayer" },
+          "policyMode": { "$ref": "#/components/schemas/PolicyMode" },
+          "gracePeriodDays": { "type": ["integer", "null"], "minimum": 1 },
+          "matchedPolicyId": { "type": ["string", "null"], "format": "uuid" },
+          "matchedScope": { "$ref": "#/components/schemas/ScopeType" },
+          "sourcePlanId": { "type": ["string", "null"], "format": "uuid" },
+          "targetPlanId": { "type": ["string", "null"], "format": "uuid" }
+        },
+        "additionalProperties": false
+      },
+      "EvaluateExcessPolicyResponse": {
+        "type": "object",
+        "required": ["sourcePlanId", "targetPlanId", "data"],
+        "properties": {
+          "sourcePlanId": { "type": ["string", "null"], "format": "uuid" },
+          "targetPlanId": { "type": "string", "format": "uuid" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ResolvedExcessPolicy" }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
