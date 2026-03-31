@@ -1,0 +1,49 @@
+{
+  "actionName": "workspace-effective-limits-get",
+  "description": "Resolve the effective quantitative limits for a specific workspace. For each dimension: returns the workspace sub-quota if set, otherwise indicates the workspace uses the tenant shared pool. Flags inconsistencies where sub-quota exceeds the current tenant effective limit. Boolean capabilities are not workspace-scoped and are not included here; use tenant-effective-entitlements-get for capabilities.",
+  "auth": { "actorType": "superadmin|tenant_owner|workspace_admin" },
+  "input": {
+    "type": "object",
+    "required": ["tenantId", "workspaceId"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["tenantId", "workspaceId", "dimensions", "inconsistentDimensions"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string" },
+      "dimensions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["dimensionKey", "displayLabel", "unit", "tenantEffectiveValue", "tenantSource", "quotaType", "graceMargin", "workspaceLimit", "workspaceSource", "isInconsistent"],
+          "properties": {
+            "dimensionKey": { "type": "string" },
+            "displayLabel": { "type": "string" },
+            "unit": { "type": "string" },
+            "tenantEffectiveValue": { "type": "integer", "description": "Tenant-level resolved limit (-1 = unlimited)" },
+            "tenantSource": { "type": "string", "enum": ["override", "plan", "catalog_default"] },
+            "quotaType": { "type": "string", "enum": ["hard", "soft"] },
+            "graceMargin": { "type": "integer", "minimum": 0 },
+            "workspaceLimit": { "type": ["integer", "null"], "description": "null = workspace uses shared tenant pool" },
+            "workspaceSource": { "type": "string", "enum": ["workspace_sub_quota", "tenant_shared_pool"] },
+            "isInconsistent": { "type": "boolean", "description": "true when workspaceLimit > tenantEffectiveValue and tenantEffectiveValue != -1" }
+          }
+        }
+      },
+      "inconsistentDimensions": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of dimensionKey values where isInconsistent = true. Empty array means no inconsistencies."
+      }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Actor cannot read limits for that tenant/workspace" },
+    { "code": "TENANT_NOT_FOUND", "httpStatus": 404, "description": "Tenant not found" }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "actionName": "workspace-sub-quota-set",
+  "description": "Allocate or modify a sub-quota for a specific workspace and quota dimension. Rejects if the new allocation would cause the total across all workspaces in the tenant to exceed the tenant's effective limit for that dimension.",
+  "auth": { "actorType": "superadmin|tenant_owner|workspace_admin" },
+  "input": {
+    "type": "object",
+    "required": ["tenantId", "workspaceId", "dimensionKey", "allocatedValue", "actor"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string" },
+      "dimensionKey": { "type": "string", "description": "Must exist in quota_dimension_catalog" },
+      "allocatedValue": { "type": "integer", "minimum": 0, "description": "Finite non-negative integer; -1 is not permitted at workspace level" },
+      "actor": { "type": "string", "description": "Identifier of the requesting actor for audit" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["subQuotaId", "tenantId", "workspaceId", "dimensionKey", "allocatedValue", "changed", "updatedAt"],
+    "properties": {
+      "subQuotaId": { "type": "string" },
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string" },
+      "dimensionKey": { "type": "string" },
+      "allocatedValue": { "type": "integer" },
+      "changed": { "type": "boolean", "description": "false if value was already equal to requested value (no-op)" },
+      "createdBy": { "type": "string" },
+      "updatedBy": { "type": "string" },
+      "createdAt": { "type": "string", "format": "date-time" },
+      "updatedAt": { "type": "string", "format": "date-time" }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Actor cannot manage sub-quotas for that tenant/workspace" },
+    { "code": "INVALID_SUB_QUOTA_VALUE", "httpStatus": 400, "description": "allocatedValue is -1 or negative" },
+    { "code": "DIMENSION_NOT_FOUND", "httpStatus": 404, "description": "dimensionKey not in quota_dimension_catalog" },
+    { "code": "SUB_QUOTA_EXCEEDS_TENANT_LIMIT", "httpStatus": 422, "description": "Allocation would cause total workspace sub-quotas to exceed tenant's effective limit for this dimension" },
+    { "code": "LOCK_TIMEOUT", "httpStatus": 503, "description": "Serializable lock acquisition timed out; caller should retry" }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "actionName": "workspace-sub-quota-list",
+  "description": "List sub-quotas for a tenant, optionally filtered by workspace or dimension.",
+  "auth": { "actorType": "superadmin|tenant_owner|workspace_admin" },
+  "input": {
+    "type": "object",
+    "required": ["tenantId"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string", "description": "Filter to a specific workspace. workspace_admin must always provide their own workspaceId." },
+      "dimensionKey": { "type": "string", "description": "Optional: filter to a specific dimension" },
+      "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+      "offset": { "type": "integer", "minimum": 0, "default": 0 }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["items", "total", "limit", "offset"],
+    "properties": {
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["subQuotaId", "tenantId", "workspaceId", "dimensionKey", "allocatedValue", "createdBy", "updatedBy", "createdAt", "updatedAt"],
+          "properties": {
+            "subQuotaId": { "type": "string" },
+            "tenantId": { "type": "string" },
+            "workspaceId": { "type": "string" },
+            "dimensionKey": { "type": "string" },
+            "allocatedValue": { "type": "integer" },
+            "createdBy": { "type": "string" },
+            "updatedBy": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "updatedAt": { "type": "string", "format": "date-time" }
+          }
+        }
+      },
+      "total": { "type": "integer" },
+      "limit": { "type": "integer" },
+      "offset": { "type": "integer" }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Actor cannot list sub-quotas for that tenant/workspace" }
+  ]
+}

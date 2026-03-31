@@ -1,0 +1,30 @@
+{
+  "actionName": "workspace-sub-quota-remove",
+  "description": "Remove a workspace sub-quota for a given dimension. The workspace reverts to consuming from the tenant-level shared pool for that dimension.",
+  "auth": { "actorType": "superadmin|tenant_owner|workspace_admin" },
+  "input": {
+    "type": "object",
+    "required": ["tenantId", "workspaceId", "dimensionKey", "actor"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string" },
+      "dimensionKey": { "type": "string" },
+      "actor": { "type": "string" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["removed", "tenantId", "workspaceId", "dimensionKey", "previousValue"],
+    "properties": {
+      "removed": { "type": "boolean", "const": true },
+      "tenantId": { "type": "string" },
+      "workspaceId": { "type": "string" },
+      "dimensionKey": { "type": "string" },
+      "previousValue": { "type": "integer" }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Actor cannot manage sub-quotas for that tenant/workspace" },
+    { "code": "SUB_QUOTA_NOT_FOUND", "httpStatus": 404, "description": "No sub-quota exists for this workspace + dimension" }
+  ]
+}

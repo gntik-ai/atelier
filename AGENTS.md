@@ -17,6 +17,7 @@ Auto-generated from all feature plans. Last updated: 2026-03-31
 - PostgreSQL (`tenant_plan_assignments`, `plans`, `quota_dimension_catalog`, `plan_audit_events` + new history/snapshot tables), optional read-only usage collectors backed by PostgreSQL/MongoDB/service APIs, Kafka for audit fan-out (100-plan-change-impact-history)
 - Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (established in `services/provisioning-orchestrator`) (103-hard-soft-quota-overrides)
 - PostgreSQL — extends `plans` and `quota_dimension_catalog` from 097/098; new tables `quota_overrides`, `quota_enforcement_log` (103-hard-soft-quota-overrides)
+- PostgreSQL — depends on `quota_dimension_catalog`, `quota_overrides`, `plans`, `tenant_plan_assignments` (T01) and `boolean_capability_catalog` (T02); new table `workspace_sub_quotas` (105-effective-limit-resolution)
 
 ## Project Structure
 
@@ -35,9 +36,9 @@ services/provisioning-orchestrator/src/{models,repositories,events,actions,migra
 Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning assets: Follow standard conventions
 
 ## Recent Changes
+- 105-effective-limit-resolution: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (established in `services/provisioning-orchestrator`)
 - 103-hard-soft-quota-overrides: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (established in `services/provisioning-orchestrator`)
 - 100-plan-change-impact-history: Added Node.js 20+ ESM (`"type": "module"`), React 18 + TypeScript for console integrations + `pg` (PostgreSQL), `kafkajs` (audit events), `undici` (integration/API tests), React Testing Library + vitest (console tests), Apache OpenWhisk action wrappers, existing APISIX + Keycloak auth layers
-- 096-security-hardening-tests: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `node:test` (test runner nativo Node 20), `node:assert`, `undici` (cliente HTTP para llamadas a APISIX/API), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y auditoría), cliente Vault HTTP (`node-vault` o `undici` directo), `@in-atelier/internal-contracts` (schemas de contratos de auditoría)
 
 ## Async Operation Idempotency & Retry
 

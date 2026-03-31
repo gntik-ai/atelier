@@ -1,0 +1,54 @@
+{
+  "actionName": "tenant-effective-entitlements-get",
+  "description": "Resolve unified effective entitlements (quantitative limits + boolean capabilities) for a tenant. Precedence: active override > plan base limit > catalog default.",
+  "auth": { "actorType": "superadmin|tenant_owner" },
+  "input": {
+    "type": "object",
+    "required": ["tenantId"],
+    "properties": {
+      "tenantId": { "type": "string", "description": "Target tenant identifier" }
+    }
+  },
+  "output": {
+    "type": "object",
+    "required": ["tenantId", "planSlug", "planStatus", "quantitativeLimits", "capabilities"],
+    "properties": {
+      "tenantId": { "type": "string" },
+      "planSlug": { "type": ["string", "null"], "description": "null when no plan is assigned" },
+      "planStatus": { "type": ["string", "null"] },
+      "quantitativeLimits": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["dimensionKey", "displayLabel", "unit", "effectiveValue", "source", "quotaType", "graceMargin"],
+          "properties": {
+            "dimensionKey": { "type": "string" },
+            "displayLabel": { "type": "string" },
+            "unit": { "type": "string" },
+            "effectiveValue": { "type": "integer", "description": "-1 = unlimited, 0 = blocked, positive = limit" },
+            "source": { "type": "string", "enum": ["override", "plan", "catalog_default"] },
+            "quotaType": { "type": "string", "enum": ["hard", "soft"] },
+            "graceMargin": { "type": "integer", "minimum": 0 }
+          }
+        }
+      },
+      "capabilities": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["capabilityKey", "displayLabel", "enabled", "source"],
+          "properties": {
+            "capabilityKey": { "type": "string" },
+            "displayLabel": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "source": { "type": "string", "enum": ["plan", "catalog_default"] }
+          }
+        }
+      }
+    }
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Actor cannot read entitlements for that tenant" },
+    { "code": "TENANT_NOT_FOUND", "httpStatus": 404, "description": "Tenant identifier not found" }
+  ]
+}
