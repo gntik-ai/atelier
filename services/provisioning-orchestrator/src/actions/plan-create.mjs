@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Plan } from '../models/plan.mjs';
 import * as planRepository from '../repositories/plan-repository.mjs';
+import * as catalogRepository from '../repositories/boolean-capability-catalog-repository.mjs';
 import { emitPlanEvent } from '../events/plan-events.mjs';
 
-const ERROR_STATUS_CODES = { INVALID_SLUG: 400, VALIDATION_ERROR: 400, PLAN_SLUG_CONFLICT: 409, FORBIDDEN: 403 };
+const ERROR_STATUS_CODES = { INVALID_SLUG: 400, VALIDATION_ERROR: 400, INVALID_CAPABILITY_KEY: 400, PLAN_SLUG_CONFLICT: 409, FORBIDDEN: 403 };
 
 function requireSuperadmin(params) {
   const actor = params.callerContext?.actor;
@@ -33,6 +34,9 @@ export async function main(params = {}, overrides = {}) {
       createdBy: actor.id,
       updatedBy: actor.id
     });
+    if (Object.keys(plan.capabilities).length > 0) {
+      await catalogRepository.validateCapabilityKeys(db, Object.keys(plan.capabilities));
+    }
     const created = await planRepository.create(db, plan);
     const correlationId = params.correlationId ?? randomUUID();
     await insertAudit(db, { actionType: 'plan.created', actorId: actor.id, planId: created.id, newState: created, correlationId });
