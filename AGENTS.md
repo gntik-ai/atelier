@@ -1,6 +1,6 @@
 # atelier Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-03-30
+Auto-generated from all feature plans. Last updated: 2026-03-31
 
 ## Active Technologies
 - Node.js 20+ (ESM modules), aligned with existing project standard (072-workflow-e2e-compensation)
@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-03-30
 - PostgreSQL (idempotency_key_records, retry_attempts + extensión de async_operations), Kafka (eventos auditables) (075-idempotent-retry-dedup)
 - Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (existing `services/provisioning-orchestrator`), React 18 + Tailwind CSS + shadcn/ui (console) (089-api-key-rotation)
 - PostgreSQL (rotation state, policy, history), Keycloak (credential lifecycle), APISIX (gateway consumer key verification) (089-api-key-rotation)
+- Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `node:test` (test runner nativo Node 20), `node:assert`, `undici` (cliente HTTP para llamadas a APISIX/API), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y auditoría), cliente Vault HTTP (`node-vault` o `undici` directo), `@in-atelier/internal-contracts` (schemas de contratos de auditoría) (096-security-hardening-tests)
+- PostgreSQL (lectura de tablas de auditoría: `scope_enforcement_denials`, `privilege_domain_denials`, `secret_version_states`), Kafka (consumo de audit topics para verificar emisión), Vault (API HTTP para bootstrap de secretos en fixtures) (096-security-hardening-tests)
 
 ## Project Structure
 
@@ -29,9 +31,9 @@ services/provisioning-orchestrator/src/{models,repositories,events,actions,migra
 Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning assets: Follow standard conventions
 
 ## Recent Changes
+- 096-security-hardening-tests: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `node:test` (test runner nativo Node 20), `node:assert`, `undici` (cliente HTTP para llamadas a APISIX/API), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y auditoría), cliente Vault HTTP (`node-vault` o `undici` directo), `@in-atelier/internal-contracts` (schemas de contratos de auditoría)
 - 089-api-key-rotation: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (existing `services/provisioning-orchestrator`), React 18 + Tailwind CSS + shadcn/ui (console)
 - 075-idempotent-retry-dedup: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka broker), Apache OpenWhisk action wrappers establecidos en T01/T02
-- 074-async-job-progress-ui: Added async operation query endpoints/contracts, log-entry migration, console operation tracking pages, and focused backend/frontend tests
 
 ## Async Operation Idempotency & Retry
 

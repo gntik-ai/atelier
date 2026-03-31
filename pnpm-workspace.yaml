@@ -4,3 +4,4 @@ packages:
   - services/realtime-gateway
   - services/scheduling-engine
   - tests/*
+  - tests/hardening

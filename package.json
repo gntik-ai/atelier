@@ -38,6 +38,7 @@
     "test:e2e:realtime": "node --test --test-reporter=tap tests/e2e/realtime/**/*.test.mjs",
     "test:unit:realtime": "node --test tests/unit/realtime/**/*.test.mjs",
     "test:resilience": "node --test tests/resilience/*.test.mjs",
+    "test:hardening": "node tests/hardening/run.mjs",
     "test": "npm run test:unit && npm run test:adapters && npm run test:contracts && npm run test:e2e:console && npm run test:e2e:deployment && npm run test:e2e:observability && npm run test:resilience && npm run test:e2e:workflows",
     "test:snippets": "node --test scripts/lint-snippet-templates.test.mjs",
     "test:workspace-docs-service": "node --test services/workspace-docs-service/tests/*.test.mjs",
