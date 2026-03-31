@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ScopeEnforcementDenialQueryResponse",
+  "type": "object",
+  "required": ["denials", "next_cursor", "total_in_window"],
+  "properties": {
+    "denials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tenant_id", "actor_id", "actor_type", "denial_type", "http_method", "request_path", "correlation_id", "denied_at"],
+        "properties": {
+          "tenant_id": { "type": "string" },
+          "workspace_id": { "type": ["string", "null"] },
+          "actor_id": { "type": "string" },
+          "actor_type": { "type": "string" },
+          "denial_type": { "type": "string" },
+          "http_method": { "type": "string" },
+          "request_path": { "type": "string" },
+          "required_scopes": { "type": "array", "items": { "type": "string" } },
+          "presented_scopes": { "type": "array", "items": { "type": "string" } },
+          "missing_scopes": { "type": "array", "items": { "type": "string" } },
+          "required_entitlement": { "type": ["string", "null"] },
+          "current_plan_id": { "type": ["string", "null"] },
+          "source_ip": { "type": ["string", "null"] },
+          "correlation_id": { "type": "string" },
+          "denied_at": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_cursor": { "type": ["string", "null"] },
+    "total_in_window": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

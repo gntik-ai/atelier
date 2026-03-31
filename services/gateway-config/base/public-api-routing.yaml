@@ -464,6 +464,12 @@ spec:
         - X-RateLimit-Reset
       allowCredentials: true
       maxAgeSeconds: 3600
+  plugins:
+    - name: scope-enforcement
+      enabled: ${SCOPE_ENFORCEMENT_ENABLED:-false}
+      config:
+        requirementsCacheTtlSeconds: ${SCOPE_ENFORCEMENT_REQUIREMENTS_CACHE_TTL_SECONDS:-60}
+        planCacheTtlSeconds: ${SCOPE_ENFORCEMENT_PLAN_CACHE_TTL_SECONDS:-30}
   publicRoutes:
     - id: health
       path: /health

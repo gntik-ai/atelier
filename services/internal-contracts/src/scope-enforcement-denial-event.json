@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ScopeEnforcementDenialEvent",
+  "type": "object",
+  "required": ["event_id", "event_type", "tenant_id", "actor_id", "actor_type", "denial_type", "http_method", "request_path", "presented_scopes", "source_ip", "correlation_id", "denied_at"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "type": "string", "enum": ["SCOPE_INSUFFICIENT", "PLAN_ENTITLEMENT_DENIED", "WORKSPACE_SCOPE_MISMATCH", "CONFIG_ERROR"] },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "workspace_id": { "type": ["string", "null"], "format": "uuid" },
+    "actor_id": { "type": "string" },
+    "actor_type": { "type": "string" },
+    "denial_type": { "type": "string", "enum": ["SCOPE_INSUFFICIENT", "PLAN_ENTITLEMENT_DENIED", "WORKSPACE_SCOPE_MISMATCH", "CONFIG_ERROR"] },
+    "http_method": { "type": "string" },
+    "request_path": { "type": "string" },
+    "required_scopes": { "type": "array", "items": { "type": "string" } },
+    "presented_scopes": { "type": "array", "items": { "type": "string" } },
+    "missing_scopes": { "type": "array", "items": { "type": "string" } },
+    "required_entitlement": { "type": ["string", "null"] },
+    "current_plan_id": { "type": ["string", "null"] },
+    "source_ip": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "denied_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": true
+}

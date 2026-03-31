@@ -40,6 +40,8 @@ export { default as openapiSpecUpdatedEvent } from './openapi-spec-updated-event
 export { default as sdkGenerationCompletedEvent } from './sdk-generation-completed-event.json' with { type: 'json' };
 export { default as workspaceCapabilityCatalogResponse } from './workspace-capability-catalog-response.json' with { type: 'json' };
 export { default as workspaceCapabilityCatalogAccessedEvent } from './workspace-capability-catalog-accessed-event.json' with { type: 'json' };
+export { default as scopeEnforcementDenialEventSchema } from './scope-enforcement-denial-event.json' with { type: 'json' };
+export { default as scopeEnforcementDenialQueryResponseSchema } from './scope-enforcement-denial-query-response.json' with { type: 'json' };
 
 let cachedInternalServiceMap;
 let cachedDeploymentTopology;

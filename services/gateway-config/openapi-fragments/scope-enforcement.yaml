@@ -1,0 +1,39 @@
+plugin:
+  name: scope-enforcement
+  version: 0.1.0
+  schema:
+    required_scopes:
+      type: array
+      items:
+        type: string
+    required_entitlements:
+      type: array
+      items:
+        type: string
+    workspace_scoped:
+      type: boolean
+      default: true
+  examples:
+    functions:
+      route: /v1/functions/**
+      config:
+        required_scopes: [functions:deploy]
+        workspace_scoped: true
+    db:
+      route: /v1/db/**
+      config:
+        required_scopes: [db:read]
+        workspace_scoped: true
+    realtime:
+      route: /v1/realtime/**
+      config:
+        required_scopes: [realtime:subscribe]
+        required_entitlements: [realtime:subscribe]
+    workspaces:
+      route: /v1/workspaces/**
+      config:
+        required_scopes: [workspace:read]
+cache:
+  requirementsTtlSecondsEnv: SCOPE_ENFORCEMENT_REQUIREMENTS_CACHE_TTL_SECONDS
+  planTtlSecondsEnv: SCOPE_ENFORCEMENT_PLAN_CACHE_TTL_SECONDS
+featureFlagEnv: SCOPE_ENFORCEMENT_ENABLED

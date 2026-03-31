@@ -77,4 +77,14 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - Max two valid versions per secret path enforced via `UNIQUE INDEX uq_secret_active_version`.
 - Rotation is atomic: PostgreSQL TX committed before Vault write; rollback on Vault failure.
 - Vault KV v2 used for native versioning; soft-delete on grace expiry and revocation.
+
+## Scope Enforcement (093-scope-enforcement-blocking)
+
+- New PostgreSQL tables: `scope_enforcement_denials`, `endpoint_scope_requirements`.
+- New Kafka topics: `console.security.scope-denied` (30d), `console.security.plan-denied` (30d), `console.security.workspace-mismatch` (30d), `console.security.config-error` (7d).
+- New APISIX plugin: `services/gateway-config/plugins/scope-enforcement.lua`.
+- New OpenWhisk actions: `scope-enforcement-audit-query`, `scope-enforcement-event-recorder`.
+- New console page: `ConsoleScopeEnforcementPage.tsx`.
+- New env vars: `SCOPE_ENFORCEMENT_PLAN_CACHE_TTL_SECONDS` (default 30), `SCOPE_ENFORCEMENT_REQUIREMENTS_CACHE_TTL_SECONDS` (default 60), `SCOPE_ENFORCEMENT_AUDIT_QUERY_MAX_DAYS` (default 30), `SCOPE_ENFORCEMENT_KAFKA_TOPIC_SCOPE_DENIED`, `SCOPE_ENFORCEMENT_KAFKA_TOPIC_PLAN_DENIED`, `SCOPE_ENFORCEMENT_KAFKA_TOPIC_WORKSPACE_MISMATCH`, `SCOPE_ENFORCEMENT_KAFKA_TOPIC_CONFIG_ERROR`, `SCOPE_ENFORCEMENT_ENABLED` (default false).
+- Enforcement model: APISIX plugin `access` phase denies before backend routing, emits Kafka audit events fire-and-forget, persists queryable denials in PostgreSQL, and fails closed when endpoint requirements are missing.
 <!-- MANUAL ADDITIONS END -->
