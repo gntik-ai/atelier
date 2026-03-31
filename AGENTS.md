@@ -103,4 +103,13 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New console page: `ConsoleScopeEnforcementPage.tsx`.
 - New env vars: `SCOPE_ENFORCEMENT_PLAN_CACHE_TTL_SECONDS` (default 30), `SCOPE_ENFORCEMENT_REQUIREMENTS_CACHE_TTL_SECONDS` (default 60), `SCOPE_ENFORCEMENT_AUDIT_QUERY_MAX_DAYS` (default 30), `SCOPE_ENFORCEMENT_KAFKA_TOPIC_SCOPE_DENIED`, `SCOPE_ENFORCEMENT_KAFKA_TOPIC_PLAN_DENIED`, `SCOPE_ENFORCEMENT_KAFKA_TOPIC_WORKSPACE_MISMATCH`, `SCOPE_ENFORCEMENT_KAFKA_TOPIC_CONFIG_ERROR`, `SCOPE_ENFORCEMENT_ENABLED` (default false).
 - Enforcement model: APISIX plugin `access` phase denies before backend routing, emits Kafka audit events fire-and-forget, persists queryable denials in PostgreSQL, and fails closed when endpoint requirements are missing.
+## Plan Entity & Tenant Plan Assignment (097-plan-entity-tenant-assignment)
+
+- New PostgreSQL tables: `plans`, `tenant_plan_assignments`, `plan_audit_events`.
+- Key constraints: case-insensitive unique plan slug index, partial unique current assignment index on tenant, forward-only lifecycle trigger, `updated_at` trigger on plans.
+- New Kafka topics (30d defaults): `console.plan.created`, `console.plan.updated`, `console.plan.lifecycle_transitioned`, `console.plan.assignment.created`, `console.plan.assignment.superseded`.
+- New env vars: `PLAN_KAFKA_TOPIC_CREATED`, `PLAN_KAFKA_TOPIC_UPDATED`, `PLAN_KAFKA_TOPIC_LIFECYCLE`, `PLAN_KAFKA_TOPIC_ASSIGNMENT_CREATED`, `PLAN_KAFKA_TOPIC_ASSIGNMENT_SUPERSEDED`, `PLAN_ASSIGNMENT_LOCK_TIMEOUT_MS`.
+- New OpenWhisk actions: `plan-create`, `plan-update`, `plan-lifecycle`, `plan-list`, `plan-get`, `plan-assign`, `plan-assignment-get`, `plan-assignment-history`.
+- Scope/quota enforcement remains out of scope for this slice and is deferred to follow-on tasks.
+
 <!-- MANUAL ADDITIONS END -->
