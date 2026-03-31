@@ -1,0 +1,52 @@
+{
+  "action": "plan-limits-tenant-get",
+  "auth": { "role": "tenant-owner" },
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["tenantId"],
+    "properties": {
+      "tenantId": { "type": "string", "minLength": 1 }
+    }
+  },
+  "output": {
+    "oneOf": [
+      {
+        "type": "object",
+        "required": ["tenantId", "noAssignment", "profile"],
+        "properties": {
+          "tenantId": { "type": "string" },
+          "noAssignment": { "type": "boolean", "const": true },
+          "profile": { "type": "array", "maxItems": 0 }
+        }
+      },
+      {
+        "type": "object",
+        "required": ["tenantId", "planSlug", "planStatus", "profile"],
+        "properties": {
+          "tenantId": { "type": "string" },
+          "planSlug": { "type": "string" },
+          "planStatus": { "type": "string", "enum": ["draft", "active", "deprecated", "archived"] },
+          "profile": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["dimensionKey", "displayLabel", "unit", "effectiveValue", "source", "unlimitedSentinel"],
+              "properties": {
+                "dimensionKey": { "type": "string" },
+                "displayLabel": { "type": "string" },
+                "unit": { "type": "string", "enum": ["count", "bytes"] },
+                "effectiveValue": { "type": "integer", "minimum": -1 },
+                "source": { "type": "string", "enum": ["explicit", "default"] },
+                "unlimitedSentinel": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "errors": [
+    { "code": "FORBIDDEN", "httpStatus": 403, "description": "Tenant owners may only view their own tenant plan profile." }
+  ]
+}

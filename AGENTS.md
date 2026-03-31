@@ -112,4 +112,14 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New OpenWhisk actions: `plan-create`, `plan-update`, `plan-lifecycle`, `plan-list`, `plan-get`, `plan-assign`, `plan-assignment-get`, `plan-assignment-history`.
 - Scope/quota enforcement remains out of scope for this slice and is deferred to follow-on tasks.
 
+## Plan Base Limits (098-plan-base-limits)
+
+- New PostgreSQL table: `quota_dimension_catalog` with 8 initial seeded dimensions.
+- `plans.quota_dimensions` semantics are formalized: absent key = inherit catalog default, `0` = explicit zero, positive integer = explicit bounded limit, `-1` = unlimited.
+- New `plan_audit_events.action_type` values: `plan.limit.set`, `plan.limit.removed`.
+- New Kafka topic: `console.plan.limit_updated` (30d retention target).
+- New OpenWhisk actions: `quota-dimension-catalog-list`, `plan-limits-set`, `plan-limits-remove`, `plan-limits-profile-get`, `plan-limits-tenant-get`.
+- New env vars: `PLAN_LIMITS_KAFKA_TOPIC_UPDATED` (default `console.plan.limit_updated`), `PLAN_LIMITS_LOCK_TIMEOUT_MS` (default `5000`).
+- Unlimited sentinel behavior: `-1` means unlimited, `0` means explicitly zero, missing key inherits the platform default from the catalog.
+
 <!-- MANUAL ADDITIONS END -->
