@@ -131,7 +131,7 @@
 
 ## Dependency Graph
 
-```
+```text
 T001 (migration)
 T002 (model: history-entry)        ┐
 T003 (model: entitlement-snapshot) ┤→ T004, T005, T006, T007, T008

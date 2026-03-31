@@ -3,6 +3,7 @@
 ## Core entities
 
 ### PlanChangeHistoryEntry
+
 Immutable header record for one committed tenant plan change.
 
 - `id`: UUID
@@ -22,6 +23,7 @@ Immutable header record for one committed tenant plan change.
 - `createdAt`: persistence timestamp
 
 ### QuotaImpactLineItem
+
 Point-in-time per-dimension comparison within a history entry.
 
 - `historyEntryId`
@@ -41,6 +43,7 @@ Point-in-time per-dimension comparison within a history entry.
 - `isHardDecrease`: boolean helper flag for UI/analytics
 
 ### CapabilityImpactLineItem
+
 Point-in-time per-capability comparison within a history entry.
 
 - `historyEntryId`
@@ -51,6 +54,7 @@ Point-in-time per-capability comparison within a history entry.
 - `comparison`: `enabled | disabled | unchanged`
 
 ### CurrentEffectiveEntitlementSummary
+
 Live read model for the tenant-owner and superadmin summary endpoint.
 
 - `tenantId`
@@ -67,6 +71,7 @@ Live read model for the tenant-owner and superadmin summary endpoint.
 ## Suggested PostgreSQL tables
 
 ### `tenant_plan_change_history`
+
 Header table.
 
 | Column | Type | Constraints |
@@ -94,6 +99,7 @@ Header table.
 - optional `(new_plan_id, effective_at DESC)` for analytics
 
 ### `tenant_plan_quota_impacts`
+
 Immutable per-dimension rows.
 
 | Column | Type | Constraints |
@@ -121,6 +127,7 @@ Immutable per-dimension rows.
 - `(dimension_key, usage_status, history_entry_id)` for downgrade analytics
 
 ### `tenant_plan_capability_impacts`
+
 Immutable per-capability rows.
 
 | Column | Type | Constraints |
@@ -139,6 +146,7 @@ Immutable per-capability rows.
 ## Query/read model notes
 
 ### History query ordering
+
 Use:
 - primary sort: `effective_at DESC`
 - tiebreaker: `id DESC`
@@ -146,6 +154,7 @@ Use:
 This guarantees stable pagination even when multiple plan changes happen close together.
 
 ### Current entitlement summary computation
+
 Derive current summary from:
 1. current `tenant_plan_assignments` row,
 2. resolved plan limits (`plans.quota_dimensions` + `quota_dimension_catalog.default_value`),

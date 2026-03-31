@@ -203,11 +203,13 @@ Read paths
 ### Proposed implementation phases
 
 #### Phase A — Persistence and domain helpers
+
 - Add migration `100-plan-change-impact-history.sql`.
 - Add domain models/helpers for value normalization, diff classification, usage status classification, and immutable serialization.
 - Add repository methods for inserting/querying history and for collecting observed usage.
 
 #### Phase B — Assignment flow integration
+
 - Update `plan-assign.mjs` / repository transaction to:
   - resolve previous and target effective entitlements,
   - collect usage snapshots,
@@ -216,11 +218,13 @@ Read paths
 - Preserve existing semantics for no-op/equivalent plan changes: still record a change if the assignment changes, but mark quota/capability items as `unchanged` when effective values do not differ.
 
 #### Phase C — Query/API surface
+
 - Add `plan-change-history-query` action and gateway route(s).
 - Add `plan-effective-entitlements-get` action for tenant/self-service and superadmin views.
 - Update public contracts and API client typing.
 
 #### Phase D — UI and observability
+
 - Add timeline/history tab and drilldown components in admin console.
 - Extend tenant-owner summary view with effective entitlements and over-limit indicators.
 - Add metrics, dashboards, alerts, and operational runbook notes.
@@ -267,12 +271,14 @@ Read paths
 ## Test strategy
 
 ### Unit
+
 - Value normalization helpers for bounded/unlimited/missing comparisons.
 - Diff classification for quota/capability line items.
 - Usage status mapping: `within_limit`, `at_limit`, `over_limit`, `unknown`.
 - Data masking helpers for logs/events.
 
 ### Integration
+
 - Successful upgrade writes exactly one history entry and event.
 - Successful downgrade with over-limit usage flags affected dimensions correctly.
 - Equivalent effective entitlements still create a record with all `unchanged` deltas.
@@ -281,17 +287,20 @@ Read paths
 - Old snapshots remain unchanged after editing plan defaults/definitions later.
 
 ### Contract / API
+
 - `GET /v1/tenants/{tenantId}/plan/history-impact` (or chosen path) pagination, filters, auth errors.
 - `GET /v1/tenant/plan/effective-entitlements` response shape and isolation.
 - Stable ordering and envelope structure for up to 500 rows.
 
 ### UI
+
 - History timeline filters (actor/date), empty/loading/error states.
 - Drilldown tables show unchanged, increased, decreased, added, removed dimensions distinctly.
 - Tenant summary indicates over-limit dimensions without implying enforced blocking.
 - Accessibility checks for badges/tables and long snapshot rendering.
 
 ### Operational validation
+
 - Kafka event observed on `console.plan.change-impact-recorded` for every committed change.
 - Dashboard panels show write success rate, query latency, unknown-usage ratio, downgrade-over-limit count.
 - Structured logs correlate assignment id, history id, tenant id, actor id, correlation id.
@@ -299,6 +308,7 @@ Read paths
 ## Risks, compatibility, rollback, and safety
 
 ### Main risks
+
 1. **Usage collection latency or inconsistency** could slow plan changes.
    - Mitigation: bounded per-source timeouts, partial `unknown` handling, per-source metrics.
 2. **Schema/query bloat** if snapshots are stored only as large JSON documents.
@@ -309,19 +319,23 @@ Read paths
    - Mitigation: explicit auth scopes, tenant-owner route separation, isolation tests.
 
 ### Migration / compatibility
+
 - Backward compatible with T01/T03 assignment APIs if history creation is added behind the existing action response envelope.
 - No backfill required for this task unless product wants legacy assignments represented; if needed later, a one-off backfill must mark entries as `source=backfill` and may have `usageStatus=unknown`.
 - Query endpoints should be additive and versioned within the existing plan-management API family.
 
 ### Rollback
+
 - Safe rollback path: revert gateway/UI routes first, then backend action reads, then stop emitting the new Kafka topic, while preserving already-written immutable data.
 - DB rollback should not delete valid audit history in production; if code rollback is needed, leave tables in place and disable usage.
 
 ### Idempotency
+
 - `UNIQUE(plan_assignment_id)` on history header prevents duplicate snapshot rows for the same committed assignment.
 - Event emission should derive from persisted history id; producer retries must use the same event key to prevent consumer duplication issues.
 
 ### Security / privacy
+
 - Enforce actor authorization using existing superadmin / tenant-owner separation.
 - Never expose another tenant’s history to tenant owners.
 - Mask internal note fields or resource identifiers in logs/events where not strictly needed.
@@ -330,6 +344,7 @@ Read paths
 ## Observability plan
 
 ### Metrics
+
 - `plan_change_history_write_total{result=success|failure}`
 - `plan_change_history_write_duration_ms`
 - `plan_change_history_query_duration_ms`
@@ -338,6 +353,7 @@ Read paths
 - `plan_change_history_event_publish_total{result}`
 
 ### Logs
+
 Structured fields:
 - `correlationId`
 - `tenantId`
@@ -351,10 +367,12 @@ Structured fields:
 - `changeDirection` (`upgrade|downgrade|lateral|equivalent`)
 
 ### Dashboards / alerts
+
 - **Dashboard panels**: write success %, p95 write latency, history query p95, over-limit downgrade count per day, unknown-usage rate by dimension/source.
 - **Alerts**: write failure ratio > 1% over 15 min, unknown usage spike > baseline for mandatory dimensions, query latency p95 > 5 s, event publish failure backlog.
 
 ### Observable success criteria
+
 - Every committed plan change can be correlated across DB row, Kafka event, and structured log via `historyEntryId` / `correlationId`.
 - Downgrade-over-limit events are countable without manual SQL reconstruction.
 - No sensitive resource-level identifiers appear in default logs/events.
@@ -362,12 +380,14 @@ Structured fields:
 ## Dependencies, sequencing, and parallelization
 
 ### Preconditions
+
 - T01 schema/actions for plans and assignments are merged.
 - T02 quota catalog/default semantics are merged.
 - T03 API/console plan management flow is merged so assignment UI exists.
 - Authoritative usage sources per quota dimension are discoverable, even if some return `unknown`.
 
 ### Recommended sequence
+
 1. Migration + domain models/helpers.
 2. Effective entitlement resolver + usage snapshot repository.
 3. Assignment transaction integration and idempotency guard.
@@ -378,6 +398,7 @@ Structured fields:
 8. Integration/contract/UI test completion and operational smoke checks.
 
 ### Parallelizable work
+
 - UI components can start once contracts/view models are stable.
 - Observability/dashboard work can proceed after event schema is fixed.
 - Contract tests and backend implementation can progress in parallel after migration + route naming freeze.
