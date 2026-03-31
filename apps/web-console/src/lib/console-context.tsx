@@ -9,6 +9,7 @@ import {
 } from 'react'
 
 import { type ConsoleShellSession, requestConsoleSessionJson } from '@/lib/console-session'
+import { getEffectiveCapabilities } from '@/services/planManagementApi'
 
 const CONSOLE_ACTIVE_CONTEXT_STORAGE_KEY = 'in-atelier.console-active-context'
 
@@ -182,6 +183,9 @@ export interface ConsoleContextValue {
   selectWorkspace: (workspaceId: string | null) => void
   reloadTenants: () => Promise<void>
   reloadWorkspaces: () => Promise<void>
+  capabilities: Record<string, boolean>
+  capabilitiesLoading: boolean
+  refreshCapabilities: () => void
 }
 
 const ConsoleContext = createContext<ConsoleContextValue | null>(null)
@@ -201,7 +205,10 @@ const emptyConsoleContextValue: ConsoleContextValue = {
   selectTenant: () => undefined,
   selectWorkspace: () => undefined,
   reloadTenants: async () => undefined,
-  reloadWorkspaces: async () => undefined
+  reloadWorkspaces: async () => undefined,
+  capabilities: {},
+  capabilitiesLoading: false,
+  refreshCapabilities: () => undefined
 }
 
 export function ConsoleContextProvider({
@@ -230,6 +237,13 @@ export function ConsoleContextProvider({
   const [workspacesError, setWorkspacesError] = useState<string | null>(null)
   const [tenantReloadKey, setTenantReloadKey] = useState(0)
   const [workspaceReloadKey, setWorkspaceReloadKey] = useState(0)
+  const [capabilities, setCapabilities] = useState<Record<string, boolean>>({})
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(true)
+  const [capabilityReloadKey, setCapabilityReloadKey] = useState(0)
+
+  const refreshCapabilities = useCallback(() => {
+    setCapabilityReloadKey((current) => current + 1)
+  }, [])
 
   const persistSelection = useCallback(
     (tenantId: string | null, workspaceId: string | null) => {
@@ -250,6 +264,9 @@ export function ConsoleContextProvider({
       setWorkspaces([])
       setWorkspacesError(null)
       setWorkspaceReloadKey(0)
+      setCapabilities({})
+      setCapabilitiesLoading(true)
+      setCapabilityReloadKey((current) => current + 1)
       persistSelection(tenantId, null)
     },
     [persistSelection]
@@ -390,6 +407,37 @@ export function ConsoleContextProvider({
     }
   }, [activeTenantId, persistSelection, userId, workspaceIds, workspaceReloadKey])
 
+  useEffect(() => {
+    if (!activeTenantId) {
+      setCapabilities({})
+      setCapabilitiesLoading(false)
+      return
+    }
+    let cancelled = false
+    setCapabilitiesLoading(true)
+
+    async function loadCapabilities() {
+      try {
+        const result = await getEffectiveCapabilities()
+        if (!cancelled) {
+          setCapabilities(result.capabilities ?? {})
+          setCapabilitiesLoading(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setCapabilities({})
+          setCapabilitiesLoading(false)
+        }
+      }
+    }
+
+    void loadCapabilities()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTenantId, capabilityReloadKey])
+
   const activeTenant = useMemo(
     () => tenants.find((tenant) => tenant.tenantId === activeTenantId) ?? null,
     [activeTenantId, tenants]
@@ -419,14 +467,20 @@ export function ConsoleContextProvider({
       selectTenant,
       selectWorkspace,
       reloadTenants,
-      reloadWorkspaces
+      reloadWorkspaces,
+      capabilities,
+      capabilitiesLoading,
+      refreshCapabilities
     }),
     [
       activeTenant,
       activeTenantId,
       activeWorkspace,
       activeWorkspaceId,
+      capabilities,
+      capabilitiesLoading,
       operationalAlerts,
+      refreshCapabilities,
       reloadTenants,
       reloadWorkspaces,
       selectTenant,

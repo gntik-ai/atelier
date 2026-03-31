@@ -237,3 +237,18 @@ export function getTenantAllocationSummary(tenantId?: string): Promise<Allocatio
 export function getPlanChangeHistory(tenantId: string, params: { page?: number; pageSize?: number; actorId?: string; from?: string; to?: string } = {}): Promise<PaginationEnvelope<PlanChangeHistoryEntry>> {
   return request<PaginationEnvelope<PlanChangeHistoryEntry>>(withSearch(`/v1/tenants/${tenantId}/plan/history-impact`, { page: params.page ?? 1, pageSize: params.pageSize ?? 20, actorId: params.actorId, from: params.from, to: params.to }))
 }
+
+export interface EffectiveCapabilities {
+  tenantId: string
+  planId: string | null
+  resolvedAt: string
+  capabilities: Record<string, boolean>
+  ttlHint: number
+}
+
+export function getEffectiveCapabilities(tenantId?: string): Promise<EffectiveCapabilities> {
+  const url = tenantId
+    ? `/v1/tenants/${tenantId}/effective-capabilities`
+    : '/v1/tenant/effective-capabilities'
+  return request<EffectiveCapabilities>(url)
+}

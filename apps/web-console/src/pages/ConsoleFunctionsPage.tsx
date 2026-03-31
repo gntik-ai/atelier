@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ConnectionSnippets } from '@/components/console/ConnectionSnippets'
+import { CapabilityGate } from '@/components/console/CapabilityGate'
 import { PublishFunctionWizard } from '@/components/console/wizards/PublishFunctionWizard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -707,7 +708,9 @@ export function ConsoleFunctionsPage() {
         </div>
       </header>
 
-      {publishWizardOpen ? <PublishFunctionWizard open={publishWizardOpen} onOpenChange={setPublishWizardOpen} /> : null}
+      <CapabilityGate capability="functions_public" mode="disable">
+        {publishWizardOpen ? <PublishFunctionWizard open={publishWizardOpen} onOpenChange={setPublishWizardOpen} /> : null}
+      </CapabilityGate>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(320px,420px)_1fr]">
         <section className="space-y-4 rounded-xl border border-border p-4">

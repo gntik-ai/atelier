@@ -16,7 +16,8 @@
     "specs/072-workflow-e2e-compensation/tasks.md",
     "specs/082-realtime-auth-scope-filters/plan.md",
     "specs/082-realtime-auth-scope-filters/spec.md",
-    "specs/082-realtime-auth-scope-filters/tasks.md"
+    "specs/082-realtime-auth-scope-filters/tasks.md",
+    "specs/107-capability-enforcement/tasks.md"
   ],
   "globs": [
     "README.md",

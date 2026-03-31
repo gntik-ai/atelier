@@ -1,0 +1,43 @@
+# Capability-gated route map
+#
+# Each entry maps (method, path_pattern) to the boolean capability key
+# that must be enabled for the tenant to access the route.
+# Path patterns use APISIX radixtree syntax.
+#
+# To add a new gated route:
+#   1. Add an entry under the appropriate capability block
+#   2. Set `method` to a specific HTTP method or "*" for all methods
+#   3. Set `path` using APISIX radixtree wildcard syntax (e.g. /v1/workspaces/*/resource)
+#
+# This file is deployed as a ConfigMap and mounted in the APISIX pod.
+# Changes require a Helm re-deploy (routing changes are product releases, not operations).
+
+capability_gates:
+  - capability: webhooks
+    routes:
+      - { method: "*", path: "/v1/workspaces/*/webhooks" }
+      - { method: "*", path: "/v1/workspaces/*/webhooks/*" }
+
+  - capability: realtime
+    routes:
+      - { method: "*", path: "/v1/workspaces/*/realtime" }
+      - { method: "*", path: "/v1/workspaces/*/realtime/*" }
+      - { method: "GET", path: "/v1/events/subscribe" }
+
+  - capability: sql_admin_api
+    routes:
+      - { method: "*", path: "/v1/workspaces/*/sql" }
+      - { method: "*", path: "/v1/workspaces/*/sql/*" }
+      - { method: "*", path: "/v1/workspaces/*/admin/sql" }
+      - { method: "*", path: "/v1/workspaces/*/admin/sql/*" }
+
+  - capability: passthrough_admin
+    routes:
+      - { method: "*", path: "/v1/workspaces/*/admin/passthrough" }
+      - { method: "*", path: "/v1/workspaces/*/admin/passthrough/*" }
+
+  - capability: functions_public
+    routes:
+      - { method: "POST", path: "/v1/functions/*/invoke" }
+      - { method: "*", path: "/v1/workspaces/*/functions/public" }
+      - { method: "*", path: "/v1/workspaces/*/functions/public/*" }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
+import { CapabilityGate } from '@/components/console/CapabilityGate'
 import { RealtimeSnippetsPanel } from '@/components/console/snippets/RealtimeSnippetsPanel'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -88,18 +89,20 @@ export function ConsoleRealtimePage() {
   }
 
   return (
-    <main className="space-y-6">
-      <header className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Realtime del workspace</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Ejemplos de suscripción en tiempo real para browser y backend.</p>
-      </header>
-      <RealtimeSnippetsPanel
-        workspaceId={workspaceId}
-        realtimeEndpoint={data?.realtimeEndpointUrl ?? null}
-        channelTypes={channelTypes}
-        realtimeEnabled={data?.features?.realtime === true}
-      />
-    </main>
+    <CapabilityGate capability="realtime" mode="disable">
+      <main className="space-y-6">
+        <header className="rounded-3xl border border-border bg-card/70 p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Realtime del workspace</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Ejemplos de suscripción en tiempo real para browser y backend.</p>
+        </header>
+        <RealtimeSnippetsPanel
+          workspaceId={workspaceId}
+          realtimeEndpoint={data?.realtimeEndpointUrl ?? null}
+          channelTypes={channelTypes}
+          realtimeEnabled={data?.features?.realtime === true}
+        />
+      </main>
+    </CapabilityGate>
   )
 }
 
