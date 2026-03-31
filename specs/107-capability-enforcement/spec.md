@@ -174,7 +174,7 @@ El mecanismo de enforcement no debe depender de datos de capabilities obsoletos 
 
 Cada evento de rechazo por enforcement debe registrarse con:
 
-```
+```text
 tenant_id        : UUID del tenant
 workspace_id     : UUID del workspace si aplica, null si es operación a nivel tenant
 actor_id         : identificador del usuario o token de servicio
@@ -185,7 +185,7 @@ channel          : gateway | console | internal_api
 resource_path    : ruta del recurso solicitado
 timestamp        : ISO 8601 UTC
 request_id       : identificador de correlación del request
-```
+```text
 
 Los eventos de auditoría de enforcement se tratan como eventos de seguridad y deben tener mayor retención que los eventos operacionales ordinarios.
 
