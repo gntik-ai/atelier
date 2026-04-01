@@ -1,966 +1,496 @@
 # Tasks — US-BKP-01-T04: Confirmaciones reforzadas y prechecks antes de restauraciones destructivas
 
-| Campo            | Valor                                               |
-|------------------|-----------------------------------------------------|
-| **Task ID**      | US-BKP-01-T04                                       |
-| **Spec**         | `specs/112-backup-restore-confirmations/spec.md`    |
-| **Plan**         | `specs/112-backup-restore-confirmations/plan.md`    |
-| **Rama**         | `112-backup-restore-confirmations`                  |
-| **Generado**     | 2026-04-01                                          |
+| Campo              | Valor                                                              |
+|--------------------|--------------------------------------------------------------------|
+| **Task ID**        | US-BKP-01-T04                                                      |
+| **Spec**           | `specs/112-backup-restore-confirmations/spec.md`                   |
+| **Plan**           | `specs/112-backup-restore-confirmations/plan.md`                   |
+| **Rama**           | `112-backup-restore-confirmations`                                 |
+| **Servicio**       | `services/backup-status` (`@in-atelier/backup-status`)             |
+| **Frontend**       | `apps/web-console`                                                 |
+| **Dependencias**   | PR#156 (T01), PR#157 (T02), PR#158 (T03) — todas merged           |
 
 ---
 
-## Reglas de lectura para el agente de implementación
+## Fase 1 — Migración de base de datos
 
-> ⚠️ **OBLIGATORIO**: El agente que implemente estas tareas **solo debe leer** los archivos explícitamente referenciados en cada tarea o en este documento. **Está prohibido** navegar el repositorio libremente, leer OpenAPI specs completos o leer archivos no mencionados aquí.
->
-> Archivos de referencia global autorizados (leer solo cuando se indique):
-> - `specs/112-backup-restore-confirmations/spec.md`
-> - `specs/112-backup-restore-confirmations/plan.md`
-> - `services/backup-status/package.json` (solo para verificar dependencias disponibles)
-> - `services/backup-status/src/db/migrations/003_*.sql` (solo para entender la estructura existente del ENUM `backup_audit_event_type`)
-> - `services/backup-status/src/audit/audit-trail.ts` (solo para entender la firma de `emitAuditEvent`)
-> - `services/backup-status/src/operations/trigger-restore.action.ts` (solo en TASK-06 y TASK-07)
-> - `apps/web-console/src/hooks/useTriggerRestore.ts` (solo en TASK-10)
-> - `apps/web-console/src/services/backupOperationsApi.ts` (solo en TASK-09)
-> - `apps/web-console/src/components/backup/BackupStatusDetail.tsx` (solo en TASK-11)
+- [ ] T-01 Crear el archivo de migración SQL `services/backup-status/src/db/migrations/004_restore_confirmations.sql` con:
+  - Extensión del ENUM `backup_audit_event_type` con los cuatro nuevos valores: `restore.confirmation_pending`, `restore.confirmed`, `restore.aborted`, `restore.confirmation_expired`.
+  - Definición del ENUM `restore_confirmation_status` (`pending_confirmation`, `confirmed`, `aborted`, `expired`, `rejected`).
+  - Definición del ENUM `restore_risk_level` (`normal`, `elevated`, `critical`).
+  - Definición del ENUM `restore_confirmation_decision` (`confirmed`, `aborted`, `expired`).
+  - Creación de la tabla `restore_confirmation_requests` con todas las columnas especificadas en la sección 2 del plan (incluyendo `id`, `token_hash`, `tenant_id`, `component_type`, `instance_id`, `snapshot_id`, `requester_id`, `requester_role`, `scope`, `risk_level`, `status`, `prechecks_result`, `warnings_shown`, `available_second_factors`, `decision`, `decision_at`, `second_factor_type`, `second_actor_id`, `operation_id`, `expires_at`, `created_at`).
+  - Índices: `idx_rcr_token_hash`, `idx_rcr_tenant_pending`, `idx_rcr_requester`, `idx_rcr_expires_pending`.
+  - Comentario de rollback documentado al final del archivo.
 
----
+- [ ] T-02 Ejecutar la migración `004_restore_confirmations.sql` en el entorno de desarrollo local y verificar que la tabla y los tipos se crean correctamente sin errores.
 
-## TASK-01 — Migración de base de datos: tabla `restore_confirmation_requests` y nuevos tipos de auditoría
-
-**Dependencias:** ninguna
-
-**Archivos a crear:**
-- `services/backup-status/src/db/migrations/004_restore_confirmations.sql`
-
-**Archivos a leer antes de implementar:**
-- `services/backup-status/src/db/migrations/003_*.sql` (para entender el ENUM existente `backup_audit_event_type` y el estilo de migraciones del proyecto)
-- `specs/112-backup-restore-confirmations/plan.md` — sección 2 (Migración de base de datos)
-
-**Qué hacer:**
-
-Crear el archivo `services/backup-status/src/db/migrations/004_restore_confirmations.sql` con el contenido exacto definido en `plan.md` sección 2. El archivo debe:
-
-1. Añadir al ENUM `backup_audit_event_type` los cuatro nuevos valores con `ALTER TYPE ... ADD VALUE IF NOT EXISTS`:
-   - `'restore.confirmation_pending'`
-   - `'restore.confirmed'`
-   - `'restore.aborted'`
-   - `'restore.confirmation_expired'`
-
-2. Crear los tres nuevos tipos ENUM:
-   - `restore_confirmation_status` con valores: `'pending_confirmation'`, `'confirmed'`, `'aborted'`, `'expired'`, `'rejected'`
-   - `restore_risk_level` con valores: `'normal'`, `'elevated'`, `'critical'`
-   - `restore_confirmation_decision` con valores: `'confirmed'`, `'aborted'`, `'expired'`
-
-3. Crear la tabla `restore_confirmation_requests` con todas las columnas especificadas en `plan.md` sección 2 (incluyendo `id`, `token_hash`, `tenant_id`, `component_type`, `instance_id`, `snapshot_id`, `requester_id`, `requester_role`, `scope`, `risk_level`, `status`, `prechecks_result`, `warnings_shown`, `available_second_factors`, `decision`, `decision_at`, `second_factor_type`, `second_actor_id`, `operation_id`, `expires_at`, `created_at`).
-
-4. Crear los cuatro índices: `idx_rcr_token_hash`, `idx_rcr_tenant_pending`, `idx_rcr_requester`, `idx_rcr_expires_pending`.
-
-5. Incluir al final el bloque de rollback comentado tal como aparece en `plan.md` sección 9.2.
-
-**Criterios de aceptación referenciados:** CA-02, CA-07, CA-09
-**No hacer:** no ejecutar la migración; no modificar otros archivos.
+- [ ] T-03 Actualizar el registro de migraciones del servicio (p.ej., `services/backup-status/src/db/migrations/index.ts` o el fichero equivalente que lista las migraciones conocidas) para incluir la entrada `004_restore_confirmations`.
 
 ---
 
-## TASK-02 — Tipos TypeScript del módulo de confirmaciones
+## Fase 2 — Tipos TypeScript
 
-**Dependencias:** TASK-01 (los tipos reflejan el esquema de DB)
+- [ ] T-04 Crear `services/backup-status/src/confirmations/precheck.types.ts` con:
+  - Tipo `PrecheckResultCode` (unión de todos los códigos posibles: `active_restore_check`, `snapshot_exists_check`, `snapshot_age_check`, `newer_snapshots_check`, `active_connections_check`, `operational_hours_check`, `precheck_timeout`).
+  - Interfaz `PrecheckResult` con campos `result: 'ok' | 'warning' | 'blocking_error'`, `code: PrecheckResultCode`, `message: string`, `metadata?: Record<string, unknown>`.
+  - Tipo `PrecheckSummary` (array de `PrecheckResult`).
 
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/confirmations.types.ts`
-- `services/backup-status/src/confirmations/prechecks/precheck.types.ts`
-
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — secciones 1, 3 y 4 (estructura de módulos y contrato de API)
-- `specs/112-backup-restore-confirmations/spec.md` — sección 4 (RFs) y sección 6 (CAs)
-
-**Qué hacer:**
-
-**`confirmations.types.ts`** — Definir y exportar los siguientes tipos TypeScript:
-
-```typescript
-// Nivel de riesgo
-export type RiskLevel = 'normal' | 'elevated' | 'critical';
-
-// Estado de la solicitud de confirmación
-export type ConfirmationStatus =
-  | 'pending_confirmation'
-  | 'confirmed'
-  | 'aborted'
-  | 'expired'
-  | 'rejected';
-
-// Decisión del actor
-export type ConfirmationDecision = 'confirmed' | 'aborted' | 'expired';
-
-// Alcance del restore
-export type RestoreScope = 'partial' | 'full';
-
-// Segundo factor disponible
-export type SecondFactorType = 'otp' | 'second_actor';
-
-// Registro de solicitud de confirmación (representa una fila de restore_confirmation_requests)
-export interface ConfirmationRequest {
-  id: string;
-  tokenHash: string;
-  tenantId: string;
-  componentType: string;
-  instanceId: string;
-  snapshotId: string;
-  requesterId: string;
-  requesterRole: string;
-  scope: RestoreScope;
-  riskLevel: RiskLevel;
-  status: ConfirmationStatus;
-  prechecksResult: PrecheckResult[];          // importado de precheck.types.ts
-  warningsShown: string[];
-  availableSecondFactors: SecondFactorType[];
-  decision?: ConfirmationDecision;
-  decisionAt?: Date;
-  secondFactorType?: SecondFactorType;
-  secondActorId?: string;
-  operationId?: string;
-  expiresAt: Date;
-  createdAt: Date;
-}
-
-// Datos de destino del restore (para presentar al actor)
-export interface RestoreTarget {
-  tenantId: string;
-  tenantName: string;
-  componentType: string;
-  instanceId: string;
-  snapshotId: string;
-  snapshotCreatedAt: Date;
-  snapshotAgeHours: number;
-}
-
-// Respuesta del Paso 1 (initiate)
-export interface InitiateRestoreResponse {
-  schemaVersion: '2';
-  confirmationToken: string;
-  confirmationRequestId: string;
-  expiresAt: Date;
-  ttlSeconds: number;
-  riskLevel: RiskLevel;
-  availableSecondFactors: SecondFactorType[];
-  prechecks: PrecheckResult[];
-  warnings: string[];
-  target: RestoreTarget;
-}
-
-// Body para confirmar (Paso 2)
-export interface ConfirmRestoreBody {
-  confirmationToken: string;
-  confirmed: boolean;
-  tenantNameConfirmation?: string;
-  acknowledgeWarnings?: boolean;
-  secondFactorType?: SecondFactorType;
-  otpCode?: string;
-  secondActorToken?: string;
-}
-```
-
-**`precheck.types.ts`** — Definir y exportar:
-
-```typescript
-export type PrecheckResultStatus = 'ok' | 'warning' | 'blocking_error';
-
-export type PrecheckCode =
-  | 'active_restore_check'
-  | 'snapshot_exists_check'
-  | 'snapshot_age_check'
-  | 'newer_snapshots_check'
-  | 'active_connections_check'
-  | 'operational_hours_check'
-  | 'precheck_timeout';
-
-export interface PrecheckResult {
-  code: PrecheckCode | string;
-  result: PrecheckResultStatus;
-  message: string;
-  metadata?: Record<string, unknown>;
-}
-
-// Función de precheck: firma estándar
-export type PrecheckFn = (ctx: PrecheckContext) => Promise<PrecheckResult>;
-
-export interface PrecheckContext {
-  tenantId: string;
-  componentType: string;
-  instanceId: string;
-  snapshotId: string;
-  scope: RestoreScope;   // importado de confirmations.types.ts
-  requestedAt: Date;
-}
-```
-
-**Criterios de aceptación referenciados:** CA-01 a CA-12 (los tipos sustentan toda la implementación)
-**No hacer:** no implementar lógica; solo tipos e interfaces.
+- [ ] T-05 Crear `services/backup-status/src/confirmations/confirmations.types.ts` con:
+  - Tipo `RiskLevel`: `'normal' | 'elevated' | 'critical'`.
+  - Tipo `ConfirmationStatus`: `'pending_confirmation' | 'confirmed' | 'aborted' | 'expired' | 'rejected'`.
+  - Tipo `ConfirmationDecision`: `'confirmed' | 'aborted' | 'expired'`.
+  - Tipo `SecondFactorType`: `'otp' | 'second_actor'`.
+  - Interfaz `RestoreConfirmationRequest` que modela la fila completa de `restore_confirmation_requests`.
+  - Interfaz `InitiateRestorePayload` (body del Paso 1: `tenant_id`, `component_type`, `instance_id`, `snapshot_id`, `scope?`).
+  - Interfaz `InitiateRestoreResponse` (respuesta 202 del Paso 1 tal como está definida en la sección 4.1 del plan, incluyendo `schema_version`, `confirmation_token`, `confirmation_request_id`, `expires_at`, `ttl_seconds`, `risk_level`, `available_second_factors`, `prechecks`, `warnings`, `target`).
+  - Interfaz `ConfirmRestorePayload` con todos los campos del Paso 2 (incluyendo variantes para OTP, segundo actor y abort).
+  - Interfaz `ConfirmRestoreResponse` (respuesta 202 de confirmación exitosa y 200 de abort).
+  - Interfaz `ConfirmationStatusResponse` (respuesta del GET de estado de solicitud pendiente).
+  - Interfaz `RiskCalculatorInput` con `scope`, `precheckResults`, `snapshotAgeMs`, `requestedAt`, `config`.
+  - Interfaz `RiskCalculatorConfig` con `snapshotAgeWarningMs`, `criticalMultiWarningThreshold`, `operationalHoursEnabled`, `operationalHoursStart`, `operationalHoursEnd`.
 
 ---
 
-## TASK-03 — Prechecks individuales y orquestador de prechecks
+## Fase 3 — Repositorio
 
-**Dependencias:** TASK-02
-
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/prechecks/active-restore.precheck.ts`
-- `services/backup-status/src/confirmations/prechecks/snapshot-exists.precheck.ts`
-- `services/backup-status/src/confirmations/prechecks/snapshot-age.precheck.ts`
-- `services/backup-status/src/confirmations/prechecks/newer-snapshots.precheck.ts`
-- `services/backup-status/src/confirmations/prechecks/active-connections.precheck.ts`
-- `services/backup-status/src/confirmations/prechecks/operational-hours.precheck.ts`
-- `services/backup-status/src/confirmations/prechecks/index.ts`
-
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — secciones 1.3, 5.1 (variables de entorno) y 3 (estructura de módulos)
-- `specs/112-backup-restore-confirmations/spec.md` — sección 3 (reglas de negocio RN-02, RN-07) y sección 4 (RF-T04-01)
-
-**Qué hacer:**
-
-Cada precheck individual exporta una función con la firma `PrecheckFn` definida en TASK-02. Todos los mensajes descriptivos deben estar en español.
-
-**`active-restore.precheck.ts`**
-- Consulta la tabla `backup_operations` (o `restore_confirmation_requests` según el modelo existente de T02) para verificar si hay una operación de restore activa (estado `in_progress` o similar) para el mismo `tenantId + componentType + instanceId`.
-- Retorna `blocking_error` con código `active_restore_check` si existe conflicto, incluyendo en `metadata` el `conflict_operation_id`.
-- Retorna `ok` si no hay conflicto.
-- El acceso a la DB debe hacerse a través de un repositorio o pool inyectado (no instanciar conexiones directamente).
-
-**`snapshot-exists.precheck.ts`**
-- Verifica que el `snapshotId` existe, está en estado disponible (`available` o equivalente) y pertenece al `tenantId + componentType + instanceId` de la solicitud.
-- Retorna `blocking_error` con código `snapshot_exists_check` si el snapshot no existe, no está disponible o no pertenece al target.
-- Retorna `ok` en caso contrario.
-- Si el adaptador no puede ser consultado (error de red, timeout), retorna `warning` con código `snapshot_exists_check` y mensaje indicando que la verificación no pudo completarse.
-
-**`snapshot-age.precheck.ts`**
-- Obtiene el `created_at` del snapshot e calcula la antigüedad en horas: `(Date.now() - snapshot.createdAt.getTime()) / 3600_000`.
-- Lee el umbral de `process.env.PRECHECK_SNAPSHOT_AGE_WARNING_HOURS` (default `48`).
-- Retorna `warning` con código `snapshot_age_check` si `ageHours > threshold`, incluyendo en `metadata`: `{ age_hours, threshold_hours }`.
-- Retorna `ok` si está dentro del umbral.
-
-**`newer-snapshots.precheck.ts`**
-- Consulta si existen snapshots con `created_at > snapshotId.created_at` para el mismo `tenantId + componentType + instanceId`.
-- Retorna `warning` con código `newer_snapshots_check` e incluye en `metadata`: `{ newer_count }` si existen snapshots más recientes.
-- Retorna `ok` si el snapshot seleccionado es el más reciente.
-
-**`active-connections.precheck.ts`**
-- Consulta al adaptador del componente si hay operaciones activas (conexiones, jobs). Implementar como llamada HTTP al adaptador con timeout de 3 segundos.
-- Si el adaptador no está disponible o falla, retorna `warning` con código `active_connections_check` y mensaje "Verificación de conexiones activas no disponible para este componente." (degradado gracioso, RN-07).
-- Retorna `warning` con código `active_connections_check` si hay conexiones activas, con `metadata`: `{ active_connections_count }`.
-- Retorna `ok` si no hay conexiones activas.
-
-**`operational-hours.precheck.ts`**
-- Lee `process.env.PRECHECK_OPERATIONAL_HOURS_ENABLED` (default `true`), `PRECHECK_OPERATIONAL_HOURS_START` (default `"08:00"`) y `PRECHECK_OPERATIONAL_HOURS_END` (default `"20:00"`).
-- Si el flag está deshabilitado, retorna `ok` directamente.
-- Compara `requestedAt` (UTC) con el rango de horas operativas.
-- Retorna `warning` con código `operational_hours_check` si la solicitud está fuera del horario configurado.
-- Retorna `ok` si está dentro del horario.
-
-**`prechecks/index.ts`** — Orquestador `runAllPrechecks`:
-- Exporta la función `runAllPrechecks(ctx: PrecheckContext, deps: PrecheckDeps): Promise<PrecheckResult[]>`.
-- Ejecuta todos los prechecks en paralelo con `Promise.allSettled`.
-- Aplica un timeout global configurable desde `process.env.PRECHECK_TIMEOUT_MS` (default `10000` ms) usando `Promise.race` contra un temporizador.
-- Cualquier precheck cuya promesa no resuelva dentro del timeout se registra como `{ code: 'precheck_timeout', result: 'warning', message: 'El precheck no respondió dentro del tiempo límite configurado.' }`.
-- Retorna el array de `PrecheckResult[]` con todos los resultados (resueltos + timeouts).
-
-**Criterios de aceptación referenciados:** CA-01, CA-02, CA-03, CA-04, CA-11
-**No hacer:** no conectar a DB directamente; usar repositorios inyectados. No hardcodear umbrales.
+- [ ] T-06 Crear `services/backup-status/src/confirmations/confirmations.repository.ts` con los métodos:
+  - `create(data: Omit<RestoreConfirmationRequest, 'id' | 'created_at'>): Promise<RestoreConfirmationRequest>` — inserta una nueva fila en `restore_confirmation_requests`.
+  - `findByTokenHash(tokenHash: string): Promise<RestoreConfirmationRequest | null>` — busca por `token_hash`.
+  - `findById(id: string): Promise<RestoreConfirmationRequest | null>` — busca por `id` (UUID).
+  - `updateStatus(id: string, patch: Partial<Pick<RestoreConfirmationRequest, 'status' | 'decision' | 'decision_at' | 'second_factor_type' | 'second_actor_id' | 'operation_id'>>): Promise<void>` — actualiza estado y campos de decisión.
+  - `findExpiredPending(now: Date): Promise<RestoreConfirmationRequest[]>` — retorna todas las filas con `status = 'pending_confirmation'` y `expires_at < now`.
+  - `countPendingByTenantAndComponent(tenantId: string, componentType: string, instanceId: string): Promise<number>` — usado por el precheck de restore activo concurrente.
 
 ---
 
-## TASK-04 — Calculadora de nivel de riesgo
+## Fase 4 — Módulo de prechecks
 
-**Dependencias:** TASK-02
+- [ ] T-07 Crear `services/backup-status/src/confirmations/prechecks/active-restore.precheck.ts`:
+  - Función `activeRestorePrecheck(tenantId, componentType, instanceId, repo)` que consulta operaciones activas de restore para el mismo componente-instancia-tenant.
+  - Retorna `blocking_error` con código `active_restore_check` si existe una operación activa, `ok` en caso contrario.
+  - El campo `metadata` incluye `conflict_operation_id` cuando hay bloqueo.
 
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/risk-calculator.ts`
+- [ ] T-08 Crear `services/backup-status/src/confirmations/prechecks/snapshot-exists.precheck.ts`:
+  - Función `snapshotExistsPrecheck(tenantId, componentType, instanceId, snapshotId, adapterClient)` que valida que el snapshot existe y está en estado disponible.
+  - Retorna `blocking_error` con código `snapshot_exists_check` si no existe o no está disponible, `ok` si existe.
+  - Si el adaptador no responde, retorna `warning` con código `snapshot_exists_check` y mensaje descriptivo (degradación).
 
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — sección 1.4 (Cálculo del nivel de riesgo)
-- `specs/112-backup-restore-confirmations/spec.md` — sección 3.3 (RN-03, RN-04)
+- [ ] T-09 Crear `services/backup-status/src/confirmations/prechecks/snapshot-age.precheck.ts`:
+  - Función `snapshotAgePrecheck(snapshotCreatedAt, thresholdMs)` que calcula la antigüedad del snapshot.
+  - Retorna `warning` con código `snapshot_age_check` si la antigüedad supera el umbral, `ok` en caso contrario.
+  - El campo `metadata` incluye `age_hours` y `threshold_hours`.
 
-**Qué hacer:**
+- [ ] T-10 Crear `services/backup-status/src/confirmations/prechecks/newer-snapshots.precheck.ts`:
+  - Función `newerSnapshotsPrecheck(tenantId, componentType, instanceId, snapshotId, snapshotCreatedAt, adapterClient)` que detecta snapshots más recientes que el seleccionado.
+  - Retorna `warning` con código `newer_snapshots_check` si existen snapshots más recientes, `ok` en caso contrario.
+  - El campo `metadata` incluye `newer_count`.
 
-Implementar la función pura `calculateRiskLevel` (sin efectos secundarios, sin acceso a DB ni a variables de entorno — todos los parámetros se pasan explícitamente):
+- [ ] T-11 Crear `services/backup-status/src/confirmations/prechecks/active-connections.precheck.ts`:
+  - Función `activeConnectionsPrecheck(tenantId, componentType, instanceId, adapterClient)` que consulta al adaptador las operaciones activas o conexiones del componente.
+  - Retorna `warning` con código `active_connections_check` si se detectan conexiones inusuales, `ok` si no hay.
+  - Si el adaptador no responde, retorna `warning` con mensaje de degradación (no bloquea).
 
-```typescript
-export interface RiskCalculatorConfig {
-  criticalMultiWarningThreshold: number;   // process.env.CRITICAL_RISK_MULTI_WARNING_THRESHOLD, default 3
-  snapshotAgeWarningHours: number;         // process.env.PRECHECK_SNAPSHOT_AGE_WARNING_HOURS, default 48
-}
+- [ ] T-12 Crear `services/backup-status/src/confirmations/prechecks/operational-hours.precheck.ts`:
+  - Función `operationalHoursPrecheck(requestedAt, config)` que verifica si la solicitud se realiza dentro del horario operativo configurado.
+  - Retorna `warning` con código `operational_hours_check` si está fuera del horario, `ok` si está dentro o si el feature está desactivado (`PRECHECK_OPERATIONAL_HOURS_ENABLED=false`).
 
-export function calculateRiskLevel(
-  scope: RestoreScope,
-  precheckResults: PrecheckResult[],
-  snapshotAgeHours: number,
-  isOutsideOperationalHours: boolean,
-  config: RiskCalculatorConfig,
-): RiskLevel
-```
-
-Lógica de clasificación (en este orden de prioridad):
-
-1. **`critical`**: si `scope === 'full'` O si el número de advertencias (`result === 'warning'`) es ≥ `config.criticalMultiWarningThreshold`.
-2. **`elevated`**: si `snapshotAgeHours > config.snapshotAgeWarningHours` O si hay al menos una advertencia (`result === 'warning'`) O si `isOutsideOperationalHours === true` O si algún resultado es `precheck_timeout`.
-3. **`normal`**: todo lo demás (solo si no se cumplen las condiciones anteriores).
-
-Exportar también la función auxiliar `hasBlockingErrors(results: PrecheckResult[]): boolean` que retorna `true` si algún resultado tiene `result === 'blocking_error'`.
-
-Exportar `extractWarnings(results: PrecheckResult[]): string[]` que retorna los mensajes de los prechecks con `result === 'warning'` o `result === 'blocking_error'`.
-
-**Criterios de aceptación referenciados:** CA-01, CA-02, CA-03, CA-04, CA-06
-**No hacer:** no leer variables de entorno dentro de la función; recibirlas como parámetro `config`.
+- [ ] T-13 Crear `services/backup-status/src/confirmations/prechecks/index.ts`:
+  - Función `runAllPrechecks(input, deps)` que ejecuta todos los prechecks en paralelo con `Promise.allSettled`.
+  - Aplica un timeout global configurable (`PRECHECK_TIMEOUT_MS`). Si un precheck no resuelve antes del timeout, se registra como `warning` con código `precheck_timeout`.
+  - Retorna `PrecheckSummary` (array de `PrecheckResult`) con el resultado de todos los prechecks ejecutados.
 
 ---
 
-## TASK-05 — Repositorio de solicitudes de confirmación
+## Fase 5 — Calculador de nivel de riesgo
 
-**Dependencias:** TASK-01, TASK-02
-
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/confirmations.repository.ts`
-
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — sección 2 (esquema DB) y sección 1.2 (persistencia del token)
-- `services/backup-status/src/audit/audit-trail.ts` (solo para ver el patrón de acceso a DB utilizado en el proyecto — leer solo las primeras 60 líneas)
-
-**Qué hacer:**
-
-Implementar el repositorio con las siguientes operaciones (usar el pool de DB del proyecto, no crear conexiones nuevas):
-
-```typescript
-export class ConfirmationsRepository {
-  // Crear una nueva solicitud pendiente de confirmación
-  create(data: CreateConfirmationRequestDto): Promise<ConfirmationRequest>
-
-  // Buscar solicitud por hash del token (SHA-256 hex del token en texto plano)
-  findByTokenHash(tokenHash: string): Promise<ConfirmationRequest | null>
-
-  // Buscar solicitud por ID
-  findById(id: string): Promise<ConfirmationRequest | null>
-
-  // Actualizar el estado y la decisión de una solicitud
-  updateDecision(
-    id: string,
-    decision: ConfirmationDecision,
-    updates: Partial<Pick<ConfirmationRequest, 'operationId' | 'secondFactorType' | 'secondActorId'>>
-  ): Promise<ConfirmationRequest>
-
-  // Obtener todas las solicitudes expiradas pendientes (para el job de expiración)
-  findExpiredPending(): Promise<ConfirmationRequest[]>
-
-  // Obtener solicitudes pendientes de un tenant (para prechecks de conflicto activo)
-  findActivePendingByTarget(
-    tenantId: string, componentType: string, instanceId: string
-  ): Promise<ConfirmationRequest[]>
-}
-```
-
-Implementación de seguridad del token (sección 1.2 del plan):
-- El token en texto plano **nunca** se almacena en DB.
-- La función `hashToken(token: string): string` debe calcular `SHA-256` del token y retornarlo en hexadecimal.
-- Al crear una solicitud, la llamada recibe el token en texto plano, calcula el hash y almacena solo el hash.
-- Al buscar por token, la llamada recibe el token en texto plano, calcula el hash y busca por él.
-
-`CreateConfirmationRequestDto` debe incluir todos los campos requeridos para insertar en `restore_confirmation_requests` (sin `id` ni `created_at`, que se generan en DB).
-
-**Criterios de aceptación referenciados:** CA-02, CA-07, CA-08, CA-09, CA-10
-**No hacer:** no exponer el token en texto plano en ningún log ni error.
+- [ ] T-14 Crear `services/backup-status/src/confirmations/risk-calculator.ts`:
+  - Función pura `calculateRiskLevel(input: RiskCalculatorInput): RiskLevel` sin dependencias de DB ni de red.
+  - Implementar la lógica de clasificación especificada en la sección 1.4 del plan:
+    - `critical`: alcance `full` (todos los componentes de un tenant) **o** ≥ `CRITICAL_RISK_MULTI_WARNING_THRESHOLD` advertencias simultáneas.
+    - `elevated`: snapshot más antiguo que `snapshotAgeWarningMs`, ≥ 1 advertencia, solicitud fuera del horario operativo, o prechecks incompletos por timeout.
+    - `normal`: todo lo demás.
+  - La función debe ser determinista y testeable sin efectos secundarios.
 
 ---
 
-## TASK-06 — Verificadores de segundo factor (OTP y segundo actor)
+## Fase 6 — Verificadores de segundo factor
 
-**Dependencias:** TASK-02
+- [ ] T-15 Crear `services/backup-status/src/confirmations/second-factor/otp-verifier.ts`:
+  - Función `verifyOtp(requesterId, otpCode, keycloakConfig)` que valida el código OTP contra el endpoint de Keycloak configurado en `KEYCLOAK_OTP_VERIFY_URL`.
+  - Retorna `{ valid: true }` si el OTP es correcto.
+  - Retorna `{ valid: false, detail: 'otp_invalid' | 'keycloak_unavailable' }` en caso de fallo.
+  - Si `MFA_ENABLED=false`, la función lanza un error de configuración indicando que OTP no está disponible.
 
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/second-factor/otp-verifier.ts`
-- `services/backup-status/src/confirmations/second-factor/second-actor-verifier.ts`
-
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — sección 1.6 (Riesgo crítico — segundo actor) y sección 5.1 (variables de entorno)
-- `specs/112-backup-restore-confirmations/spec.md` — sección 5.1 (permisos) y sección 7.2 (supuestos)
-
-**Qué hacer:**
-
-**`otp-verifier.ts`**
-
-```typescript
-export interface OtpVerificationResult {
-  valid: boolean;
-  error?: 'otp_invalid' | 'keycloak_unavailable' | 'mfa_not_enabled';
-}
-
-export async function verifyOtp(
-  otpCode: string,
-  requesterId: string,
-  keycloakOtpVerifyUrl: string,   // process.env.KEYCLOAK_OTP_VERIFY_URL
-  mfaEnabled: boolean,            // process.env.MFA_ENABLED
-): Promise<OtpVerificationResult>
-```
-
-- Si `mfaEnabled === false`, retornar `{ valid: false, error: 'mfa_not_enabled' }` inmediatamente.
-- Llamar al endpoint de Keycloak `keycloakOtpVerifyUrl` con el OTP code. Implementar con `fetch` nativo (Node 18+) o el cliente HTTP disponible en el proyecto.
-- Timeout de 5 segundos. Si Keycloak no responde, retornar `{ valid: false, error: 'keycloak_unavailable' }`.
-- Si el código es inválido, retornar `{ valid: false, error: 'otp_invalid' }`.
-- Si el código es válido, retornar `{ valid: true }`.
-
-**`second-actor-verifier.ts`**
-
-```typescript
-export interface SecondActorVerificationResult {
-  valid: boolean;
-  secondActorId?: string;
-  error?: 'invalid_token' | 'insufficient_role' | 'same_actor' | 'no_tenant_access';
-}
-
-export async function verifySecondActor(
-  secondActorToken: string,   // JWT Bearer del segundo actor
-  requesterId: string,        // ID del actor que inició la solicitud (no puede ser el mismo)
-  tenantId: string,           // Tenant sobre el que opera la restauración
-): Promise<SecondActorVerificationResult>
-```
-
-- Verificar que el JWT es válido (firma, expiración).
-- Extraer el `sub` (actor ID) y los roles del JWT.
-- Si `sub === requesterId`, retornar `{ valid: false, error: 'same_actor' }`.
-- Si el actor no tiene rol `superadmin`, retornar `{ valid: false, error: 'insufficient_role' }`.
-- Si el actor no tiene acceso al `tenantId` (verificar en los claims del JWT), retornar `{ valid: false, error: 'no_tenant_access' }`.
-- Si todo es correcto, retornar `{ valid: true, secondActorId: sub }`.
-- Para la verificación de firma del JWT, usar la librería de verificación JWT ya disponible en el proyecto (no añadir dependencias nuevas; usar la misma que usa `backup-status.auth.ts`).
-
-**Criterios de aceptación referenciados:** CA-06
-**No hacer:** no loguear el contenido del OTP ni del token JWT. No añadir dependencias nuevas.
+- [ ] T-16 Crear `services/backup-status/src/confirmations/second-factor/second-actor-verifier.ts`:
+  - Función `verifySecondActor(requesterId, secondActorToken, tenantId)` que valida el JWT del segundo actor.
+  - Verifica que el JWT es válido, que el actor tiene rol superadmin, y que el `second_actor_id` es distinto del `requesterId`.
+  - Verifica que el segundo actor tiene permisos sobre `tenantId`.
+  - Retorna `{ valid: true, secondActorId: string }` si la validación es correcta.
+  - Retorna `{ valid: false, detail: 'same_actor' | 'insufficient_role' | 'token_invalid' | 'no_tenant_access' }` en caso de fallo.
 
 ---
 
-## TASK-07 — Servicio de confirmaciones (orquestador principal)
+## Fase 7 — Servicio de confirmaciones (orquestador)
 
-**Dependencias:** TASK-02, TASK-03, TASK-04, TASK-05, TASK-06
-
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/confirmations.service.ts`
-
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — secciones 1.1 a 1.9 (todas las decisiones de arquitectura)
-- `specs/112-backup-restore-confirmations/spec.md` — secciones 3.3 (todas las RN) y 4 (todos los RFs)
-- `services/backup-status/src/audit/audit-trail.ts` (completo: necesario para saber cómo llamar a `emitAuditEvent`)
-- `services/backup-status/src/operations/trigger-restore.action.ts` (completo: necesario para entender cómo despachar al adaptador tras la confirmación)
-
-**Qué hacer:**
-
-Implementar la clase `ConfirmationsService` con los siguientes métodos:
-
-```typescript
-export class ConfirmationsService {
-  constructor(
-    private readonly repo: ConfirmationsRepository,
-    private readonly auditTrail: AuditTrail,         // servicio de auditoría existente
-    private readonly adapterDispatcher: AdapterDispatcher,  // despachador al adaptador (de T02)
-    private readonly config: ConfirmationsConfig,
-  )
-
-  // Paso 1: ejecutar prechecks, calcular riesgo, crear solicitud pendiente, retornar token
-  async initiate(body: InitiateRestoreBody, actor: Actor): Promise<InitiateRestoreResponse>
-
-  // Paso 2: confirmar o abortar una solicitud pendiente
-  async confirm(body: ConfirmRestoreBody, actor: Actor): Promise<ConfirmRestoreResult>
-
-  // Marcar como expiradas las solicitudes vencidas (para el job de expiración)
-  async expireStale(): Promise<number>  // retorna el número de solicitudes expiradas
-}
-```
-
-**Implementación de `initiate()`:**
-
-1. Ejecutar `runAllPrechecks(ctx, deps)`.
-2. Si algún resultado es `blocking_error`, emitir evento de auditoría `restore.confirmation_pending` con `decision: null` y `blocking_checks` en el `detail`, y **lanzar error** (no generar token). Retornar respuesta 422 al endpoint.
-3. Calcular el nivel de riesgo con `calculateRiskLevel()`.
-4. Generar token: `crypto.randomBytes(32)` → `base64url`. Calcular hash SHA-256 del token.
-5. Determinar `availableSecondFactors`: si `config.mfaEnabled`, incluir `'otp'`; siempre incluir `'second_actor'`.
-6. Persistir solicitud en DB con `repo.create(...)`.
-7. Emitir evento de auditoría `restore.confirmation_pending` con todos los campos del plan (sección 5.3 de spec.md).
-8. Retornar `InitiateRestoreResponse` con el token en texto plano (solo esta vez), los prechecks, advertencias, nivel de riesgo y target.
-
-**Implementación de `confirm()`:**
-
-1. Calcular hash del token recibido. Buscar solicitud en DB con `repo.findByTokenHash(hash)`.
-2. Si no existe → error 404.
-3. Si `status !== 'pending_confirmation'` → error 409 con el status actual.
-4. Si `expiresAt < new Date()` → actualizar status a `expired`, emitir evento `restore.confirmation_expired`, retornar error 410.
-5. Si `body.confirmed === false` → abortar: actualizar status a `aborted`, emitir evento `restore.aborted` con las advertencias que se mostraron, retornar 200.
-6. Si `body.confirmed === true`:
-   a. Validar que `body.tenantNameConfirmation` coincide exactamente con el nombre del tenant de la solicitud → si no coincide, error 422 `tenant_name_confirmation_mismatch`.
-   b. Si `riskLevel === 'elevated'` o `critical`, validar que `body.acknowledgeWarnings === true`.
-   c. Si `riskLevel === 'critical'`, verificar segundo factor:
-      - Si `body.secondFactorType === 'otp'`: llamar a `verifyOtp()`. Si falla → error 422.
-      - Si `body.secondFactorType === 'second_actor'`: llamar a `verifySecondActor()`. Si falla → error 422.
-      - Si no se proporcionó ningún segundo factor → error 422.
-   d. **Revalidar snapshot**: llamar a `snapshot-exists.precheck` con el contexto original. Si retorna `blocking_error` → error 422 `snapshot_no_longer_available`.
-   e. Despachar operación al adaptador (usando el `adapterDispatcher` de T02).
-   f. Actualizar solicitud en DB con `decision: 'confirmed'`, `operationId`, `secondFactorType`, `secondActorId` si aplica.
-   g. Emitir evento de auditoría `restore.confirmed` con todos los campos requeridos (plan sección 5.3).
-   h. Retornar 202 con `{ operation_id, status: 'accepted', accepted_at }`.
-
-**Implementación de `expireStale()`:**
-
-1. Obtener todas las solicitudes con `status = 'pending_confirmation'` y `expires_at < NOW()` usando `repo.findExpiredPending()`.
-2. Para cada solicitud: actualizar `status = 'expired'`, emitir evento `restore.confirmation_expired`.
-3. Retornar el número de solicitudes procesadas.
-
-**Criterios de aceptación referenciados:** CA-01 a CA-12
-**No hacer:** no importar lógica de adaptadores directamente; usar el `adapterDispatcher` inyectado. No hardcodear nombres de tenant.
+- [ ] T-17 Crear `services/backup-status/src/confirmations/confirmations.service.ts` con los métodos:
+  - `initiate(payload: InitiateRestorePayload, actor: ActorContext): Promise<InitiateRestoreResponse>`:
+    - Ejecuta `runAllPrechecks()`.
+    - Si hay `blocking_error`, rechaza con 422 sin generar token.
+    - Calcula `risk_level` con `calculateRiskLevel()`.
+    - Genera el token con `crypto.randomBytes(32)` codificado en base64url.
+    - Almacena el hash SHA-256 del token en `restore_confirmation_requests` (TTL = `CONFIRMATION_TTL_SECONDS`).
+    - Emite evento de auditoría `restore.confirmation_pending`.
+    - Determina `available_second_factors` según `MFA_ENABLED` y `risk_level`.
+    - Retorna la respuesta 202 con el token en texto plano (única vez).
+  - `confirm(payload: ConfirmRestorePayload, actor: ActorContext): Promise<ConfirmRestoreResponse>`:
+    - Busca la solicitud por hash del token recibido.
+    - Valida que el estado es `pending_confirmation` y que no ha expirado (→ 409/410 si falla).
+    - Valida que `tenant_id` del actor coincide con el de la solicitud (o actor es superadmin con acceso global).
+    - Si `confirmed: false`, delega a `abort()`.
+    - Valida `tenant_name_confirmation` (coincidencia exacta) → 422 si no coincide.
+    - Si `risk_level === 'elevated'`, valida `acknowledge_warnings: true`.
+    - Si `risk_level === 'critical'`, llama a `verifyOtp()` o `verifySecondActor()` según `second_factor_type` → 422 si falla.
+    - Revalida snapshot con `snapshotExistsPrecheck()` → 422 si ya no existe.
+    - Crea la operación en `backup_operations` y despacha al adaptador.
+    - Actualiza `restore_confirmation_requests` con `status='confirmed'`, `decision_at`, `operation_id`.
+    - Emite evento de auditoría `restore.confirmed`.
+    - Retorna respuesta 202 con `operation_id`.
+  - `abort(confirmationRequestId: string, actor: ActorContext): Promise<void>`:
+    - Valida que la solicitud existe y está en estado `pending_confirmation`.
+    - Actualiza `status='aborted'`, `decision='aborted'`, `decision_at=NOW()`.
+    - Emite evento de auditoría `restore.aborted` con `warnings_shown`.
+  - `expireStale(now: Date): Promise<number>`:
+    - Llama a `confirmations.repository.findExpiredPending(now)`.
+    - Para cada solicitud expirada, actualiza `status='expired'`, `decision='expired'`, `decision_at=now`.
+    - Emite evento de auditoría `restore.confirmation_expired` por cada una.
+    - Retorna el número de solicitudes expiradas procesadas.
+  - `getStatus(confirmationRequestId: string, actor: ActorContext): Promise<ConfirmationStatusResponse>`:
+    - Busca la solicitud por ID.
+    - Valida que el actor es el solicitante o un superadmin con acceso al tenant.
+    - Retorna `ConfirmationStatusResponse`.
 
 ---
 
-## TASK-08 — Endpoints HTTP: initiate-restore y confirm-restore
+## Fase 8 — Endpoints API
 
-**Dependencias:** TASK-07
+- [ ] T-18 Crear `services/backup-status/src/api/initiate-restore.action.ts`:
+  - Handler para `POST /v1/backup/restore` (Paso 1 del flujo de dos pasos).
+  - Valida el body de la request contra el schema definido (campos: `tenant_id`, `component_type`, `instance_id`, `snapshot_id`, `scope?`).
+  - Extrae el contexto de actor desde el token de autenticación (rol, ID, `tenant_id`).
+  - Llama a `confirmations.service.initiate()`.
+  - Retorna 202 con `InitiateRestoreResponse` si prechecks OK.
+  - Retorna 422 con `blocking_checks` si hay precheck bloqueante.
+  - Retorna 400/401/403/500 según corresponda.
 
-**Archivos a crear:**
-- `services/backup-status/src/api/initiate-restore.action.ts`
-- `services/backup-status/src/api/confirm-restore.action.ts`
+- [ ] T-19 Crear `services/backup-status/src/api/confirm-restore.action.ts`:
+  - Handler para `POST /v1/backup/restore/confirm` (Paso 2 del flujo).
+  - Valida el body de la request (campos: `confirmation_token`, `confirmed`, `tenant_name_confirmation?`, `acknowledge_warnings?`, `second_factor_type?`, `otp_code?`, `second_actor_token?`).
+  - Llama a `confirmations.service.confirm()`.
+  - Retorna 202 si confirmación exitosa, 200 si abort.
+  - Retorna 409 si token ya utilizado o no en estado `pending_confirmation`.
+  - Retorna 410 si token expirado.
+  - Retorna 422 si revalidación falla, nombre de tenant incorrecto, o segundo factor inválido.
 
-**Archivos a modificar:**
-- `services/backup-status/src/audit/audit-trail.types.ts` — añadir los 4 nuevos `AuditEventType`
+- [ ] T-20 Crear o extender el handler para `GET /v1/backup/restore/confirm/:confirmation_request_id`:
+  - Valida que el actor tiene acceso a la solicitud (solicitante o superadmin con acceso al tenant).
+  - Llama a `confirmations.service.getStatus()`.
+  - Retorna 200 con `ConfirmationStatusResponse`.
+  - Retorna 403/404 según corresponda.
 
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — sección 4 (contrato completo de API: request/response bodies, códigos HTTP, schema_version)
-- `services/backup-status/src/api/backup-status.action.ts` (solo las primeras 40 líneas: patrón de endpoint del proyecto)
-- `services/backup-status/src/api/backup-status.schema.ts` (solo para verificar el patrón de validación de esquemas utilizado)
+- [ ] T-21 Modificar `services/backup-status/src/operations/trigger-restore.action.ts` para delegar a `confirmations.service.initiate()` en lugar de despachar directamente al adaptador. El flujo de despacho directo se mueve al `confirmations.service.confirm()`. Añadir soporte para el feature flag `RESTORE_CONFIRMATION_ENABLED`: si `false`, mantener el comportamiento de T02 y registrar `confirmation_bypassed: true` en auditoría.
 
-**Qué hacer:**
+- [ ] T-22 Actualizar el router de la API (p.ej., `services/backup-status/src/api/router.ts` o el fichero equivalente) para registrar las nuevas rutas:
+  - `POST /v1/backup/restore` → `initiate-restore.action.ts`
+  - `POST /v1/backup/restore/confirm` → `confirm-restore.action.ts`
+  - `GET /v1/backup/restore/confirm/:confirmation_request_id` → handler de estado
 
-**`audit-trail.types.ts`** — Modificar añadiendo los 4 nuevos valores al tipo `AuditEventType` (o al enum equivalente):
-- `'restore.confirmation_pending'`
-- `'restore.confirmed'`
-- `'restore.aborted'`
-- `'restore.confirmation_expired'`
-
-**`initiate-restore.action.ts`** — Endpoint `POST /v1/backup/restore`:
-
-- Validar el body de entrada con el esquema correspondiente (campos: `tenant_id`, `component_type`, `instance_id`, `snapshot_id`, `scope?`).
-- Verificar autenticación/autorización: solo roles `sre` y `superadmin` (mismo modelo de permisos que T02).
-- Llamar a `confirmationsService.initiate(body, actor)`.
-- Si hay `blocking_error` → responder 422 con el formato definido en `plan.md` sección 4.1.
-- Si éxito → responder 202 con `InitiateRestoreResponse` serializada con `schema_version: "2"` y fechas en ISO 8601.
-- Manejar errores 400 (validación), 401, 403, 500.
-
-**`confirm-restore.action.ts`** — Endpoint `POST /v1/backup/restore/confirm`:
-
-- Validar el body de entrada: `confirmation_token` (requerido), `confirmed` (boolean, requerido), y campos opcionales según el nivel de riesgo.
-- Verificar autenticación: el actor debe estar autenticado (el token de confirmación está vinculado al solicitante original — validar en el servicio).
-- Llamar a `confirmationsService.confirm(body, actor)`.
-- Mapear los errores del servicio a los códigos HTTP correctos:
-  - `status_not_pending` → 409
-  - `token_expired` → 410
-  - `snapshot_no_longer_available` → 422
-  - `tenant_name_confirmation_mismatch` → 422
-  - `second_factor_verification_failed` → 422
-- Si abort (`confirmed: false`) → responder 200.
-- Si confirmación exitosa → responder 202 con `{ schema_version: "2", operation_id, status: "accepted", accepted_at }`.
-
-Añadir también el endpoint `GET /v1/backup/restore/confirm/:confirmation_request_id` (plan sección 4.3):
-- Verificar que el actor es el solicitante original o un superadmin con acceso al tenant.
-- Retornar el estado actual de la solicitud (solo campos públicos: `id`, `status`, `risk_level`, `expires_at`, `created_at`).
-
-**Criterios de aceptación referenciados:** CA-01, CA-02, CA-03, CA-04, CA-05, CA-06, CA-07, CA-08, CA-09, CA-10
-**No hacer:** no leer el archivo completo de OpenAPI ni los archivos de rutas existentes; solo los archivos de referencia listados arriba.
+- [ ] T-23 Actualizar el schema de validación de la API (`services/backup-status/src/api/backup-status.schema.ts` o fichero equivalente) con los schemas Zod/Joi/JSON Schema para los nuevos bodies de request y response de los endpoints de Paso 1 y Paso 2. Incluir el campo `schema_version: "2"` en las respuestas.
 
 ---
 
-## TASK-09 — Modificar `trigger-restore.action.ts` y actualizar `backupOperationsApi.ts`
+## Fase 9 — Auditoría y tipos de auditoría
 
-**Dependencias:** TASK-08
-
-**Archivos a modificar:**
-- `services/backup-status/src/operations/trigger-restore.action.ts`
-- `apps/web-console/src/services/backupOperationsApi.ts`
-
-**Archivos a leer antes de implementar:**
-- `services/backup-status/src/operations/trigger-restore.action.ts` (completo)
-- `apps/web-console/src/services/backupOperationsApi.ts` (completo)
-- `specs/112-backup-restore-confirmations/plan.md` — sección 3 (estructura de módulos) y sección 4 (contratos de API)
-
-**Qué hacer:**
-
-**`trigger-restore.action.ts`** — Refactorizar para delegar al flujo de confirmación:
-- El handler ya **no** despacha directamente al adaptador.
-- En lugar de eso, extrae los parámetros de la solicitud y llama a `confirmationsService.initiate(body, actor)`.
-- Retorna la respuesta `InitiateRestoreResponse` (202) o el error 422 si hay precheck bloqueante.
-- Mantener los mismos permisos y validaciones de entrada que tenía antes.
-- Si la variable de entorno `RESTORE_CONFIRMATION_ENABLED=false`, mantener el comportamiento original (bypass de emergencia, plan sección 9.3). En ese caso, añadir `confirmation_bypassed: true` al evento de auditoría.
-- **No eliminar** el archivo; modificarlo in-situ para que actúe como adaptador hacia el nuevo servicio.
-
-**`backupOperationsApi.ts`** — Añadir los nuevos métodos de cliente:
-
-```typescript
-// Nuevo: Paso 1 — iniciar solicitud de restore (ya no despacha directamente)
-initiateRestore(body: InitiateRestoreBody, authToken: string): Promise<InitiateRestoreResponse>
-
-// Nuevo: Paso 2 — confirmar o abortar
-confirmRestore(body: ConfirmRestoreBody, authToken: string): Promise<ConfirmRestoreResult>
-
-// Nuevo: abort explícito (shorthand de confirmRestore con confirmed: false)
-abortRestore(confirmationToken: string, authToken: string): Promise<void>
-
-// Nuevo: consultar estado de solicitud pendiente
-getConfirmationStatus(confirmationRequestId: string, authToken: string): Promise<ConfirmationStatusResponse>
-```
-
-- Mantener los métodos existentes sin cambios.
-- Los tipos de los cuerpos de request/response deben coincidir con los tipos definidos en TASK-02 (importar desde el paquete compartido o definir localmente si no hay paquete compartido — seguir el patrón del proyecto).
-
-**Criterios de aceptación referenciados:** CA-01, CA-02, CA-12
-**No hacer:** no modificar `trigger-backup.action.ts` (CA-12 requiere que los backups no pasen por el flujo de confirmación).
+- [ ] T-24 Modificar `services/backup-status/src/audit/audit-trail.types.ts` para añadir los cuatro nuevos `AuditEventType`:
+  - `'restore.confirmation_pending'`
+  - `'restore.confirmed'`
+  - `'restore.aborted'`
+  - `'restore.confirmation_expired'`
+  - Añadir interfaz o tipo `RestoreConfirmationAuditDetail` con los campos adicionales del plan sección 5.3: `prechecks_result`, `risk_level`, `warnings_shown`, `confirmation_decision`, `confirmation_timestamp`, `second_factor_method?`, `second_actor_id?`, `confirmation_bypassed?`.
 
 ---
 
-## TASK-10 — Hooks de React: `useTriggerRestore`, `useConfirmRestore`, `useAbortRestore`
+## Fase 10 — Job de expiración
 
-**Dependencias:** TASK-09
-
-**Archivos a modificar:**
-- `apps/web-console/src/hooks/useTriggerRestore.ts`
-
-**Archivos a crear:**
-- `apps/web-console/src/hooks/useConfirmRestore.ts`
-- `apps/web-console/src/hooks/useAbortRestore.ts`
-
-**Archivos a leer antes de implementar:**
-- `apps/web-console/src/hooks/useTriggerRestore.ts` (completo)
-- `specs/112-backup-restore-confirmations/plan.md` — sección 6.6 (modificación de `useTriggerRestore.ts`)
-
-**Qué hacer:**
-
-**`useTriggerRestore.ts`** — Refactorizar para manejar el flujo de dos pasos:
-
-Exponer la interfaz definida en `plan.md` sección 6.6:
-
-```typescript
-interface UseTriggerRestoreResult {
-  initiate: (body: InitiateRestoreBody, token: string) => Promise<void>
-  confirm: (opts: ConfirmRestoreOpts) => Promise<void>
-  abort: () => Promise<void>
-  phase: 'idle' | 'loading' | 'pending_confirmation' | 'confirming' | 'dispatched' | 'error'
-  precheckResponse: InitiateRestoreResponse | null
-  operationId: string | null
-  error: Error | null
-}
-```
-
-- `initiate()` llama a `backupOperationsApi.initiateRestore()`, pone el estado en `pending_confirmation` y almacena el `precheckResponse` (que contiene el token).
-- `confirm()` llama a `backupOperationsApi.confirmRestore()` con el token almacenado internamente (no exponer el token al componente directamente; el hook lo gestiona).
-- `abort()` llama a `backupOperationsApi.abortRestore()` con el token almacenado.
-- El token en texto plano **solo existe en memoria dentro del hook** durante el tiempo de vida de la solicitud. No persistir en `localStorage` ni en estado global.
-
-**`useConfirmRestore.ts`** — Hook dedicado para el Paso 2 (alternativa si se prefiere separar responsabilidades):
-
-```typescript
-export function useConfirmRestore(confirmationToken: string | null): {
-  confirm: (opts: ConfirmRestoreOpts) => Promise<ConfirmRestoreResult>
-  abort: () => Promise<void>
-  isLoading: boolean
-  error: Error | null
-}
-```
-
-**`useAbortRestore.ts`** — Hook simple para abortar desde contextos sin acceso al hook principal:
-
-```typescript
-export function useAbortRestore(): {
-  abort: (confirmationToken: string) => Promise<void>
-  isLoading: boolean
-  error: Error | null
-}
-```
-
-**Criterios de aceptación referenciados:** CA-01, CA-05, CA-10
-**No hacer:** no persistir el token fuera de la memoria del hook. No exponer el token raw a los componentes de UI.
+- [ ] T-25 Crear `services/backup-status/src/confirmations/expiry-job.action.ts`:
+  - Handler OpenWhisk/serverless para la acción `backup-status/expire-restore-confirmations`.
+  - Respeta el feature flag `EXPIRY_JOB_ENABLED`: si `false`, retorna sin hacer nada.
+  - Llama a `confirmations.service.expireStale(new Date())`.
+  - Registra en log el número de solicitudes expiradas.
+  - Maneja errores sin crashear el job (retorna error en el payload de respuesta).
 
 ---
 
-## TASK-11 — Componentes React del modal de confirmación
+## Fase 11 — Infraestructura (Helm / APISIX / Keycloak)
 
-**Dependencias:** TASK-10
+- [ ] T-26 Actualizar el chart Helm `helm/backup-status/` (o el chart unificado equivalente) para añadir las nuevas variables de entorno en el bloque `env` del deployment:
+  - `CONFIRMATION_TTL_SECONDS` (valor por defecto: `300`)
+  - `PRECHECK_TIMEOUT_MS` (valor por defecto: `10000`)
+  - `PRECHECK_SNAPSHOT_AGE_WARNING_HOURS` (valor por defecto: `48`)
+  - `PRECHECK_OPERATIONAL_HOURS_START` (valor por defecto: `"08:00"`)
+  - `PRECHECK_OPERATIONAL_HOURS_END` (valor por defecto: `"20:00"`)
+  - `PRECHECK_OPERATIONAL_HOURS_ENABLED` (valor por defecto: `"true"`)
+  - `MFA_ENABLED` (valor por defecto: `"true"`)
+  - `EXPIRY_JOB_ENABLED` (valor por defecto: `"true"`)
+  - `EXPIRY_JOB_INTERVAL_SECONDS` (valor por defecto: `60`)
+  - `CRITICAL_RISK_MULTI_WARNING_THRESHOLD` (valor por defecto: `3`)
+  - `RESTORE_CONFIRMATION_ENABLED` (valor por defecto: `"true"`)
+  - Las variables sensibles (p.ej., `KEYCLOAK_OTP_VERIFY_URL` si contiene credenciales) deben referenciarse desde un `Secret` de Kubernetes, no hardcodeadas en el ConfigMap.
 
-**Archivos a crear:**
-- `apps/web-console/src/components/backup/RestoreConfirmationDialog.tsx`
-- `apps/web-console/src/components/backup/PrecheckResultList.tsx`
-- `apps/web-console/src/components/backup/RiskLevelBadge.tsx`
-- `apps/web-console/src/components/backup/TenantNameInput.tsx`
-- `apps/web-console/src/components/backup/CriticalConfirmationPanel.tsx`
+- [ ] T-27 Registrar la acción de expiración en el manifiesto del scheduling-engine con schedule `*/1 * * * *`:
+  - Acción: `backup-status/expire-restore-confirmations`
+  - Schedule: cada minuto
+  - Verificar que el patrón sigue la convención existente del scheduling-engine (similar a `collector.action.ts`).
 
-**Archivos a modificar:**
-- `apps/web-console/src/components/backup/BackupStatusDetail.tsx`
-
-**Archivos a leer antes de implementar:**
-- `apps/web-console/src/components/backup/BackupStatusDetail.tsx` (completo)
-- `specs/112-backup-restore-confirmations/plan.md` — secciones 6.1 a 6.7 (especificaciones detalladas de cada componente)
-- `specs/112-backup-restore-confirmations/spec.md` — sección 4 (RF-T04-03, RF-T04-06) y sección 6 (CA-01, CA-03, CA-04, CA-05, CA-06)
-
-**Qué hacer:**
-
-**`RiskLevelBadge.tsx`**
-- Props: `riskLevel: RiskLevel`
-- `normal` → badge gris/verde sin icono de alerta
-- `elevated` → badge naranja/ámbar con icono ⚠️
-- `critical` → badge rojo con icono 🚫
-- Usar el sistema de diseño/componentes existente en el proyecto (no importar librerías UI nuevas).
-
-**`PrecheckResultList.tsx`**
-- Props: `prechecks: PrecheckResult[]`
-- Cada ítem muestra: icono de estado (✅ OK / ⚠️ warning / 🚫 blocking_error), mensaje localizado del precheck, y metadata adicional cuando esté presente (p.ej., "72 horas / umbral 48 horas").
-- Los ítems con `result: 'blocking_error'` se destacan visualmente (fondo rojo claro o borde rojo).
-- Todos los textos en español.
-
-**`TenantNameInput.tsx`**
-- Props: `tenantName: string` (nombre esperado), `value: string`, `onChange: (v: string) => void`, `disabled?: boolean`
-- Muestra un campo de texto controlado.
-- Valida en tiempo real si `value === tenantName` (comparación exacta, case-sensitive).
-- Muestra un icono ✅ verde cuando coincide, sin icono o icono ❌ cuando no coincide.
-- El `placeholder` debe indicar al usuario qué debe escribir (p.ej., "Escribe el nombre del tenant para confirmar").
-
-**`CriticalConfirmationPanel.tsx`**
-- Props: `availableSecondFactors: SecondFactorType[]`, `onOtpChange: (v: string) => void`, `onSecondActorTokenChange: (v: string) => void`, `otpValue: string`, `secondActorTokenValue: string`
-- Solo se renderiza si `riskLevel === 'critical'`.
-- Si `availableSecondFactors` incluye `'otp'`: mostrar tab "Código MFA (OTP)" con un campo numérico de 6 dígitos.
-- Siempre mostrar tab "Aprobación de segundo administrador" con un campo de texto para el token JWT del segundo actor.
-- Instrucciones en español explicando qué debe hacer el actor.
-
-**`RestoreConfirmationDialog.tsx`**
-- Props: `precheckResponse: InitiateRestoreResponse`, `onConfirm: (opts: ConfirmRestoreOpts) => Promise<void>`, `onAbort: () => Promise<void>`, `isConfirming: boolean`
-- Modal bloqueante (no se puede cerrar con click fuera o Escape hasta tomar una decisión).
-- **Cabecera**: "Confirmar restauración destructiva" + `<RiskLevelBadge>`.
-- **Bloque de objetivo**: tenant, componente, instancia, snapshot con timestamp en formato legible, antigüedad en horas.
-- **Bloque de prechecks**: `<PrecheckResultList>`.
-- **Bloque de confirmación**:
-  - Siempre: `<TenantNameInput>` con `tenantName = precheckResponse.target.tenant_name`
-  - Si `riskLevel !== 'normal'`: checkbox "He revisado y entiendo las advertencias mostradas"
-  - Si `riskLevel === 'critical'`: `<CriticalConfirmationPanel>`
-- **Pie**:
-  - Botón "Cancelar" → llama `onAbort()` (siempre activo).
-  - Botón "Confirmar restauración" → deshabilitado mientras:
-    - hay algún `result === 'blocking_error'` en los prechecks
-    - el nombre del tenant no coincide exactamente
-    - si `riskLevel !== 'normal'`: el checkbox de advertencias no está marcado
-    - si `riskLevel === 'critical'`: no se ha introducido OTP o token de segundo actor
-
-**`BackupStatusDetail.tsx`** — Modificación mínima:
-- Importar `useTriggerRestore` refactorizado y `RestoreConfirmationDialog`.
-- Cuando el hook exponga `phase === 'pending_confirmation'`, renderizar `<RestoreConfirmationDialog>` superpuesto al contenido existente.
-- Cuando `phase === 'dispatched'`, cerrar el modal y mostrar notificación de éxito con el `operationId`.
-- No modificar ninguna otra lógica de navegación o estado del componente.
-
-**Criterios de aceptación referenciados:** CA-01, CA-03, CA-04, CA-05, CA-06, CA-10, CA-12
-**No hacer:** no añadir librerías UI externas. No modificar `TriggerBackupButton.tsx`.
+- [ ] T-28 Verificar/actualizar la configuración de APISIX (si aplica) para que las nuevas rutas `POST /v1/backup/restore/confirm` y `GET /v1/backup/restore/confirm/:id` estén expuestas con las mismas políticas de autenticación (Keycloak JWT) que las rutas existentes del servicio `backup-status`. No deben ser accesibles sin autenticación válida.
 
 ---
 
-## TASK-12 — Job de expiración de solicitudes pendientes
+## Fase 12 — Frontend: servicios y hooks
 
-**Dependencias:** TASK-07
+- [ ] T-29 Modificar `apps/web-console/src/services/backupOperationsApi.ts` para añadir los tres nuevos métodos:
+  - `initiateRestore(body: InitiateRestorePayload, token: string): Promise<InitiateRestoreResponse>` — llama a `POST /v1/backup/restore`.
+  - `confirmRestore(body: ConfirmRestorePayload, token: string): Promise<ConfirmRestoreResponse>` — llama a `POST /v1/backup/restore/confirm`.
+  - `abortRestore(confirmationToken: string, authToken: string): Promise<void>` — llama a `POST /v1/backup/restore/confirm` con `confirmed: false`.
 
-**Archivos a crear:**
-- `services/backup-status/src/confirmations/expiry-job.action.ts`
+- [ ] T-30 Refactorizar `apps/web-console/src/hooks/useTriggerRestore.ts` para manejar el flujo de dos pasos. El hook debe exponer la interfaz `UseTriggerRestoreResult` definida en la sección 6.6 del plan, incluyendo:
+  - `initiate(body, token)`: llama a `initiateRestore()`, actualiza `phase` a `pending_confirmation` y almacena `precheckResponse`.
+  - `confirm(opts)`: llama a `confirmRestore()`, actualiza `phase` a `dispatched` y almacena `operationId`.
+  - `abort()`: llama a `abortRestore()`, resetea el estado a `idle`.
+  - Estados del ciclo de vida: `'idle' | 'loading' | 'pending_confirmation' | 'confirming' | 'dispatched' | 'error'`.
 
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — secciones 1.7 y 5.3 (job de expiración y configuración del scheduling-engine)
-- Cualquier archivo `*.action.ts` existente en `services/backup-status/src/` que sea un job periódico (para seguir el mismo patrón — leer solo el primero que encuentres, máximo 50 líneas)
+- [ ] T-31 Crear `apps/web-console/src/hooks/useConfirmRestore.ts` (si se extrae como hook independiente del refactoring de T-30):
+  - Encapsula la llamada a `confirmRestore()`.
+  - Gestiona estado de carga y error para el Paso 2.
 
-**Qué hacer:**
-
-Implementar `expiry-job.action.ts` como una acción OpenWhisk compatible con el patrón del proyecto:
-
-```typescript
-// Handler principal de la acción OpenWhisk
-export async function main(params: Record<string, unknown>) {
-  const expiredCount = await confirmationsService.expireStale();
-  return {
-    statusCode: 200,
-    body: { expired_count: expiredCount, executed_at: new Date().toISOString() }
-  };
-}
-```
-
-- Instanciar `ConfirmationsService` con las dependencias necesarias al inicio de la función (o usar inyección de dependencias si el proyecto lo soporta).
-- Leer `process.env.EXPIRY_JOB_ENABLED` (default `true`). Si es `false`, retornar inmediatamente sin hacer nada.
-- Manejar errores internamente: si `expireStale()` lanza, capturar el error, loguearlo y retornar `{ statusCode: 500, body: { error: message } }`.
-
-**No hace falta** registrar el job en el scheduling-engine en este ticket; eso se documenta como paso operativo en el CHANGELOG.
-
-**Criterios de aceptación referenciados:** CA-07, CA-09
-**No hacer:** no modificar archivos del scheduling-engine.
+- [ ] T-32 Crear `apps/web-console/src/hooks/useAbortRestore.ts` (si se extrae como hook independiente):
+  - Encapsula la llamada a `abortRestore()`.
+  - Gestiona estado de carga y error para el abort.
 
 ---
 
-## TASK-13 — Tests: unitarios, de integración y E2E
+## Fase 13 — Frontend: componentes
 
-**Dependencias:** TASK-03, TASK-04, TASK-05, TASK-06, TASK-07, TASK-08, TASK-11
+- [ ] T-33 Crear `apps/web-console/src/components/backup/RiskLevelBadge.tsx`:
+  - Componente que acepta `riskLevel: RiskLevel` como prop.
+  - Renderiza badge de color verde/gris para `normal`, naranja/ámbar para `elevated`, y rojo con icono de advertencia para `critical`.
+  - Debe ser accesible (texto alternativo o `aria-label` descriptivo).
 
-**Archivos a crear:**
+- [ ] T-34 Crear `apps/web-console/src/components/backup/PrecheckResultList.tsx`:
+  - Componente que acepta `prechecks: PrecheckResult[]` como prop.
+  - Renderiza cada precheck con: icono de estado (✅ `ok` / ⚠️ `warning` / 🚫 `blocking_error`), código localizado, mensaje descriptivo, y metadata adicional si existe.
+  - Los ítems con `result: 'blocking_error'` se destacan con fondo rojo claro.
+  - Los ítems con `result: 'warning'` se destacan con fondo ámbar claro.
 
-*Tests unitarios (backend):*
-- `services/backup-status/test/confirmations/risk-calculator.test.ts`
-- `services/backup-status/test/confirmations/prechecks/active-restore.test.ts`
-- `services/backup-status/test/confirmations/prechecks/snapshot-exists.test.ts`
-- `services/backup-status/test/confirmations/prechecks/snapshot-age.test.ts`
-- `services/backup-status/test/confirmations/prechecks/newer-snapshots.test.ts`
-- `services/backup-status/test/confirmations/prechecks/operational-hours.test.ts`
-- `services/backup-status/test/confirmations/prechecks/index.test.ts`
-- `services/backup-status/test/confirmations/confirmations.service.test.ts`
-- `services/backup-status/test/confirmations/second-factor/otp-verifier.test.ts`
-- `services/backup-status/test/confirmations/second-factor/second-actor-verifier.test.ts`
+- [ ] T-35 Crear `apps/web-console/src/components/backup/TenantNameInput.tsx`:
+  - Input controlado que acepta `expectedName: string` y `value: string` y `onChange` como props.
+  - Valida en tiempo real si el texto introducido coincide exactamente con `expectedName` (case-sensitive, coincidencia exacta según RN-04).
+  - Muestra un check verde cuando coincide, sin indicador cuando está vacío, y sin indicador negativo mientras se escribe (para no ser agresivo).
+  - Expone prop `onMatch(isMatch: boolean)` para que el padre pueda habilitar/deshabilitar el botón de confirmación.
 
-*Tests de integración (backend):*
-- `services/backup-status/test/integration/restore-confirmation-flow.test.ts`
+- [ ] T-36 Crear `apps/web-console/src/components/backup/CriticalConfirmationPanel.tsx`:
+  - Panel visible sólo cuando `riskLevel === 'critical'`.
+  - Acepta `availableSecondFactors: string[]` como prop para determinar qué tabs mostrar.
+  - Tab "Código MFA (OTP)": input numérico de 6 dígitos, visible solo si `availableSecondFactors` incluye `'otp'`.
+  - Tab "Aprobación de segundo administrador": instrucciones + campo para que el segundo actor introduzca su JWT activo.
+  - Expone `onSecondFactorReady(type: SecondFactorType, value: string)` cuando el factor está completo.
+  - Expone `onSecondFactorClear()` cuando se limpia el campo.
 
-*Tests E2E (frontend):*
-- `apps/web-console/test/e2e/restore-confirmation-dialog.spec.ts`
+- [ ] T-37 Crear `apps/web-console/src/components/backup/RestoreConfirmationDialog.tsx`:
+  - Modal bloqueante (overlay) que se muestra cuando `phase === 'pending_confirmation'`.
+  - Acepta como props: `precheckResponse: InitiateRestoreResponse`, `onConfirm: (opts: ConfirmRestoreOpts) => void`, `onAbort: () => void`.
+  - Estructura interna según la sección 6.1 del plan:
+    - Cabecera: título + `<RiskLevelBadge riskLevel={...} />`.
+    - Bloque de objetivo: tenant, componente, instancia, snapshot (timestamp + antigüedad en horas legible).
+    - Bloque de prechecks: `<PrecheckResultList prechecks={...} />`.
+    - Bloque de confirmación deliberada: `<TenantNameInput />` siempre visible + checkbox de reconocimiento de advertencias si `riskLevel !== 'normal'` + `<CriticalConfirmationPanel />` si `riskLevel === 'critical'`.
+    - Pie: botón "Cancelar" (siempre activo, llama `onAbort`) + botón "Confirmar restauración" (lógica de deshabilitado según condiciones de la sección 6.1).
+  - El botón de confirmación permanece deshabilitado mientras:
+    - existan prechecks con `result: 'blocking_error'`,
+    - `TenantNameInput` no indique coincidencia exacta,
+    - el checkbox de advertencias no esté marcado cuando `riskLevel !== 'normal'`,
+    - el campo de segundo factor esté incompleto cuando `riskLevel === 'critical'`.
 
-**Archivos a leer antes de implementar:**
-- `specs/112-backup-restore-confirmations/plan.md` — sección 7 (estrategia de tests completa: 7.1, 7.2, 7.3, 7.4)
-- `specs/112-backup-restore-confirmations/spec.md` — sección 6 (criterios de aceptación CA-01 a CA-12)
-
-**Qué hacer:**
-
-### Tests unitarios
-
-**`risk-calculator.test.ts`** — Cubrir `calculateRiskLevel()` y helpers:
-- `scope='full'` → siempre `critical` (CA-06)
-- `warnings >= threshold` → `critical`
-- `snapshotAgeHours > threshold` → `elevated`
-- `isOutsideOperationalHours=true` → `elevated`
-- Sin ninguna condición de riesgo → `normal`
-- `hasBlockingErrors()` con y sin blocking errors (CA-03)
-- `extractWarnings()` extrae solo los mensajes de warning/blocking
-
-**`active-restore.test.ts`** — Mockear el repositorio:
-- Sin restore activo → `ok`
-- Con restore activo → `blocking_error` con `conflict_operation_id` en metadata (CA-03)
-
-**`snapshot-exists.test.ts`**:
-- Snapshot existe y pertenece al tenant → `ok` (CA-02)
-- Snapshot no existe → `blocking_error` (CA-03, CA-08)
-- Snapshot de otro tenant → `blocking_error` (CA-11)
-- Adaptador no disponible → `warning` (RN-07)
-
-**`snapshot-age.test.ts`**:
-- Antigüedad < umbral → `ok`
-- Antigüedad > umbral → `warning` con `age_hours` y `threshold_hours` en metadata (CA-04)
-
-**`newer-snapshots.test.ts`**:
-- Sin snapshots más recientes → `ok`
-- Con snapshots más recientes → `warning` con `newer_count` (CA-04)
-
-**`operational-hours.test.ts`**:
-- Dentro del horario → `ok`
-- Fuera del horario → `warning` (CA-04)
-- Feature flag desactivado → `ok` siempre
-
-**`prechecks/index.test.ts`**:
-- Todos los prechecks resuelven → array completo de resultados
-- Un precheck hace timeout → se registra como `warning` con código `precheck_timeout` (edge case de plan sección 3.2)
-
-**`confirmations.service.test.ts`** — Mockear repo, auditTrail y adapterDispatcher:
-- `initiate()` con prechecks ok → crea solicitud pendiente, retorna token y prechecks (CA-02)
-- `initiate()` con blocking_error → no crea solicitud, no retorna token (CA-03)
-- `confirm()` con token válido, nombre correcto → despacha operación (CA-01, CA-02)
-- `confirm()` con token expirado → error token_expired (CA-07)
-- `confirm()` con nombre de tenant incorrecto → error tenant_name_mismatch (CA-05)
-- `confirm()` con riesgo critical sin segundo factor → error (CA-06)
-- `confirm()` con abort → decision=aborted, emit auditoría (CA-10)
-- `expireStale()` → marca expiradas las solicitudes vencidas, emite auditoría (CA-07, CA-09)
-
-**`otp-verifier.test.ts`**:
-- MFA deshabilitado → `mfa_not_enabled`
-- OTP válido → `valid: true` (CA-06)
-- OTP inválido → `otp_invalid`
-- Keycloak no disponible → `keycloak_unavailable`
-
-**`second-actor-verifier.test.ts`**:
-- Segundo actor válido → `valid: true, secondActorId` (CA-06)
-- Mismo actor → `same_actor`
-- Rol insuficiente → `insufficient_role`
-- Sin acceso al tenant → `no_tenant_access` (CA-11)
+- [ ] T-38 Modificar `apps/web-console/src/components/backup/BackupStatusDetail.tsx` (o el componente equivalente que contiene el botón de restore):
+  - Importar y usar el hook `useTriggerRestore` refactorizado.
+  - Cuando `phase === 'pending_confirmation'`, renderizar `<RestoreConfirmationDialog>` superpuesto al contenido existente.
+  - Cuando `phase === 'dispatched'`, cerrar el modal y mostrar la notificación de éxito con el `operationId`.
+  - Cuando `phase === 'error'`, mostrar el mensaje de error sin romper el resto de la UI.
+  - No modificar la lógica de navegación existente ni otros botones del componente.
 
 ---
 
-### Tests de integración
+## Fase 14 — Tests unitarios
 
-**`restore-confirmation-flow.test.ts`** — Requiere PostgreSQL de test. Cubrir los escenarios de la sección 7.2 del plan:
+- [ ] T-39 Crear `services/backup-status/test/confirmations/risk-calculator.test.ts`:
+  - Tests para `calculateRiskLevel()` con todas las combinaciones de parámetros relevantes:
+    - Scope `full` → `critical` independientemente de las advertencias.
+    - ≥ `criticalMultiWarningThreshold` advertencias → `critical`.
+    - Snapshot antiguo → `elevated`.
+    - Advertencia presente → `elevated`.
+    - Solicitud fuera del horario operativo → `elevated`.
+    - Prechecks incompletos por timeout → `elevated`.
+    - Todos los parámetros "normales" → `normal`.
 
-Cada escenario de test debe:
-1. Preparar el estado de la DB (insertar datos de test).
-2. Ejecutar las llamadas HTTP al servicio.
-3. Verificar el estado resultante en DB y los eventos de auditoría.
-4. Limpiar los datos de test.
+- [ ] T-40 Crear `services/backup-status/test/confirmations/prechecks/active-restore.test.ts`:
+  - Test: no hay restore activo → `ok`.
+  - Test: hay restore activo → `blocking_error` con `conflict_operation_id` en metadata.
 
-Escenarios requeridos (mapeo a CAs):
+- [ ] T-41 Crear `services/backup-status/test/confirmations/prechecks/snapshot-exists.test.ts`:
+  - Test: snapshot existe y disponible → `ok`.
+  - Test: snapshot no existe → `blocking_error`.
+  - Test: snapshot existe pero no disponible → `blocking_error`.
+  - Test: adaptador no responde → `warning` (degradación).
 
-| Escenario | CAs cubiertos |
-|-----------|--------------|
-| Flujo completo: initiate → confirm (riesgo normal) — verificar que la operación se despacha | CA-01, CA-02, CA-05 |
-| Initiate con precheck bloqueante (restore activo) → 422 sin token | CA-03 |
-| Initiate con snapshot antiguo → advertencia, confirm con `acknowledge_warnings=true` | CA-04 |
-| Confirm con token expirado → 410 `confirmation_token_expired` | CA-07 |
-| Confirm → eliminar snapshot entre Paso 1 y Paso 2 → 422 `snapshot_no_longer_available` | CA-08 |
-| Flujo completo con riesgo critical (scope=full) → confirm requiere segundo factor | CA-06 |
-| Initiate → abort (`confirmed: false`) → auditoría con `decision: 'aborted'` y warnings | CA-10 |
-| Verificar que los prechecks de tenant A no revelan datos de tenant B | CA-11 |
-| Trigger backup bajo demanda → no genera token de confirmación | CA-12 |
-| Flujo completo → verificar que el evento de auditoría contiene: `prechecks_result`, `risk_level`, `warnings_shown`, `confirmation_decision`, `confirmation_timestamp` | CA-09 |
+- [ ] T-42 Crear `services/backup-status/test/confirmations/prechecks/snapshot-age.test.ts`:
+  - Test: antigüedad < umbral → `ok`.
+  - Test: antigüedad = umbral → `ok` (límite no bloqueante).
+  - Test: antigüedad > umbral → `warning` con `age_hours` y `threshold_hours` en metadata.
+
+- [ ] T-43 Crear `services/backup-status/test/confirmations/prechecks/newer-snapshots.test.ts`:
+  - Test: no hay snapshots más recientes → `ok`.
+  - Test: hay 1 snapshot más reciente → `warning` con `newer_count: 1`.
+  - Test: hay múltiples snapshots más recientes → `warning` con `newer_count` correcto.
+
+- [ ] T-44 Crear `services/backup-status/test/confirmations/prechecks/operational-hours.test.ts`:
+  - Test: solicitud dentro del horario operativo → `ok`.
+  - Test: solicitud fuera del horario operativo → `warning`.
+  - Test: `PRECHECK_OPERATIONAL_HOURS_ENABLED=false` → `ok` independientemente de la hora.
+
+- [ ] T-45 Crear `services/backup-status/test/confirmations/prechecks/index.test.ts`:
+  - Test: todos los prechecks resuelven antes del timeout → retorna resultados correctos.
+  - Test: un precheck excede el timeout → ese precheck aparece como `warning` con código `precheck_timeout`; los demás se procesan normalmente.
+  - Test: precheck lanza excepción → se captura y se reporta como `warning`.
+
+- [ ] T-46 Crear `services/backup-status/test/confirmations/second-factor/otp-verifier.test.ts`:
+  - Test: OTP válido → `{ valid: true }`.
+  - Test: OTP inválido → `{ valid: false, detail: 'otp_invalid' }`.
+  - Test: Keycloak no disponible → `{ valid: false, detail: 'keycloak_unavailable' }`.
+  - Test: `MFA_ENABLED=false` → la función lanza error de configuración.
+
+- [ ] T-47 Crear `services/backup-status/test/confirmations/second-factor/second-actor.test.ts`:
+  - Test: JWT válido de superadmin distinto del solicitante con acceso al tenant → `{ valid: true, secondActorId }`.
+  - Test: mismo actor como segundo factor → `{ valid: false, detail: 'same_actor' }`.
+  - Test: actor sin rol superadmin → `{ valid: false, detail: 'insufficient_role' }`.
+  - Test: JWT inválido o expirado → `{ valid: false, detail: 'token_invalid' }`.
+  - Test: actor sin acceso al tenant → `{ valid: false, detail: 'no_tenant_access' }`.
+
+- [ ] T-48 Crear `services/backup-status/test/confirmations/confirmations.service.test.ts` con mocks de repositorio, auditoría, prechecks y segundo factor:
+  - Test `initiate()`: prechecks OK → retorna token y respuesta 202, emite evento de auditoría.
+  - Test `initiate()`: precheck bloqueante → lanza error, no genera token.
+  - Test `confirm()`: confirmación exitosa (riesgo normal) → despacha operación, emite evento de auditoría.
+  - Test `confirm()`: token expirado → lanza error 410.
+  - Test `confirm()`: token ya utilizado → lanza error 409.
+  - Test `confirm()`: nombre de tenant incorrecto → lanza error 422.
+  - Test `confirm()`: riesgo crítico sin segundo factor → rechaza.
+  - Test `confirm()`: riesgo crítico con OTP válido → despacha.
+  - Test `confirm()`: riesgo crítico con segundo actor válido → despacha.
+  - Test `abort()`: solicitud en estado `pending_confirmation` → actualiza estado, emite auditoría.
+  - Test `expireStale()`: varias solicitudes expiradas → las marca, emite eventos de auditoría por cada una, retorna recuento.
 
 ---
 
-### Tests E2E
+## Fase 15 — Tests de integración
 
-**`restore-confirmation-dialog.spec.ts`** — Usar MSW (o el mock de API del proyecto) para simular respuestas de prechecks:
-
-| Escenario | CAs cubiertos |
-|-----------|--------------|
-| Iniciar restore → modal aparece antes del despacho (verificar que el adaptador no fue llamado) | CA-01 |
-| Campo de nombre de tenant vacío → botón "Confirmar" deshabilitado | CA-05 |
-| Campo de nombre de tenant incorrecto → botón sigue deshabilitado | CA-05 |
-| Campo de nombre de tenant correcto → botón se habilita | CA-05 |
-| Respuesta con `blocking_error` → botón "Confirmar" deshabilitado, error visible | CA-03 |
-| Respuesta con warnings → advertencias visibles, se puede proceder tras marcar checkbox | CA-04 |
-| Click en "Cancelar" → modal se cierra, se llama al endpoint de abort | CA-10 |
-| Abort → evento de auditoría registrado (verificar en la respuesta del mock) | CA-10 |
-| Iniciar backup bajo demanda → modal de confirmación NO aparece | CA-12 |
-
----
-
-### Cobertura mínima requerida
-
-- Módulo `confirmations/` (backend): ≥ 90% de líneas
-- Módulo `api/` (endpoints nuevos, backend): ≥ 85% de líneas
-- Componentes React nuevos (`RestoreConfirmationDialog`, `PrecheckResultList`, `RiskLevelBadge`, `TenantNameInput`, `CriticalConfirmationPanel`): ≥ 80% de líneas
-
-**Criterios de aceptación referenciados:** CA-01, CA-02, CA-03, CA-04, CA-05, CA-06, CA-07, CA-08, CA-09, CA-10, CA-11, CA-12
-**No hacer:** no leer archivos de test existentes no relacionados. No modificar tests de T01, T02 o T03.
+- [ ] T-49 Crear `services/backup-status/test/integration/restore-confirmation-flow.test.ts` con instancia PostgreSQL de test (Docker Compose):
+  - Escenario: flujo completo `initiate → confirm` (riesgo normal) — cubre CA-01, CA-02, CA-05.
+  - Escenario: `initiate` con precheck bloqueante → no se genera token — cubre CA-03.
+  - Escenario: `initiate` con advertencias → `confirm` con `acknowledge_warnings: true` — cubre CA-04.
+  - Escenario: `confirm` con token expirado → error 410 — cubre CA-07.
+  - Escenario: `confirm` → revalidación falla (snapshot eliminado entre pasos) → error 422 — cubre CA-08.
+  - Escenario: flujo completo (riesgo crítico, OTP) — cubre CA-06.
+  - Escenario: flujo completo (riesgo crítico, segundo actor) — cubre CA-06.
+  - Escenario: `initiate → abort` → evento de auditoría con `decision='aborted'` — cubre CA-10.
+  - Escenario: aislamiento multi-tenant → prechecks no revelan datos de otro tenant — cubre CA-11.
+  - Escenario: trigger backup bajo demanda → no pasa por flujo de confirmación — cubre CA-12.
+  - Escenario: cada decisión (confirm, abort, expire) genera evento de auditoría con todos los campos obligatorios — cubre CA-09.
 
 ---
 
-## Resumen de orden de implementación
+## Fase 16 — Tests E2E (frontend)
 
-| Orden | Task    | Puede comenzar tras     |
-|-------|---------|-------------------------|
-| 1     | TASK-01 | —                       |
-| 2     | TASK-02 | TASK-01                 |
-| 3     | TASK-03 | TASK-02                 |
-| 4     | TASK-04 | TASK-02                 |
-| 5     | TASK-05 | TASK-01, TASK-02        |
-| 6     | TASK-06 | TASK-02                 |
-| 7     | TASK-07 | TASK-03, TASK-04, TASK-05, TASK-06 |
-| 8     | TASK-08 | TASK-07                 |
-| 9     | TASK-09 | TASK-08                 |
-| 10    | TASK-10 | TASK-09                 |
-| 11    | TASK-11 | TASK-10                 |
-| 12    | TASK-12 | TASK-07                 |
-| 13    | TASK-13 | TASK-03, TASK-04, TASK-05, TASK-06, TASK-07, TASK-08, TASK-11 |
+- [ ] T-50 Crear o extender suite Playwright/Cypress en `tests/e2e/`:
+  - Test E2E: iniciar restore desde `BackupStatusDetail` → verificar que el diálogo de confirmación aparece antes de cualquier despacho — cubre CA-01.
+  - Test E2E: campo `TenantNameInput` con texto incorrecto → botón de confirmación deshabilitado — cubre CA-05.
+  - Test E2E: precheck de advertencia → advertencia visible en `PrecheckResultList`, flujo puede continuar tras marcar acknowledge — cubre CA-04.
+  - Test E2E: precheck bloqueante → botón de confirmación deshabilitado, mensaje de error visible — cubre CA-03.
+  - Test E2E: abort desde modal → evento de auditoría visible en consola de auditoría — cubre CA-10.
+  - Test E2E: iniciar backup bajo demanda → no aparece modal de confirmación — cubre CA-12.
+  - Los tests usan mocks de API REST (MSW o equivalent) para simular respuestas de prechecks con distintos niveles de riesgo.
 
-Las tareas TASK-03, TASK-04, TASK-05 y TASK-06 pueden desarrollarse en paralelo (todas dependen solo de TASK-02). TASK-12 puede desarrollarse en paralelo con TASK-08 a TASK-11.
+---
+
+## Fase 17 — Tests de componentes React
+
+- [ ] T-51 Crear `apps/web-console/src/components/backup/__tests__/RiskLevelBadge.test.tsx`:
+  - Renderiza correctamente para `normal`, `elevated` y `critical`.
+  - Verifica clases CSS o estilos de color asociados a cada nivel.
+
+- [ ] T-52 Crear `apps/web-console/src/components/backup/__tests__/PrecheckResultList.test.tsx`:
+  - Renderiza correctamente la lista de prechecks OK, warning y blocking_error.
+  - Los ítems blocking_error tienen el estilo de fondo rojo claro.
+  - El metadata adicional se muestra cuando existe.
+
+- [ ] T-53 Crear `apps/web-console/src/components/backup/__tests__/TenantNameInput.test.tsx`:
+  - Input vacío → no muestra indicador de match ni de error.
+  - Input con texto incorrecto → `onMatch(false)`.
+  - Input con texto exacto → `onMatch(true)` y check verde.
+  - La comparación es case-sensitive (coincidencia exacta).
+
+- [ ] T-54 Crear `apps/web-console/src/components/backup/__tests__/CriticalConfirmationPanel.test.tsx`:
+  - Renderiza tab OTP cuando `availableSecondFactors` incluye `'otp'`.
+  - No renderiza tab OTP cuando `availableSecondFactors` no incluye `'otp'`.
+  - Input OTP de 6 dígitos completo → llama `onSecondFactorReady('otp', '123456')`.
+  - Campo segundo actor con JWT → llama `onSecondFactorReady('second_actor', token)`.
+
+- [ ] T-55 Crear `apps/web-console/src/components/backup/__tests__/RestoreConfirmationDialog.test.tsx`:
+  - Botón de confirmación deshabilitado si hay `blocking_error` en prechecks.
+  - Botón habilitado solo cuando todas las condiciones están satisfechas (nombre correcto + checkbox marcado si elevated/critical + segundo factor si critical).
+  - Clic en "Cancelar" llama `onAbort`.
+  - Clic en "Confirmar restauración" (cuando habilitado) llama `onConfirm` con los campos correctos.
+
+---
+
+## Fase 18 — Documentación y CHANGELOG
+
+- [ ] T-56 Añadir entrada en `services/backup-status/CHANGELOG.md` (o crear el fichero si no existe) documentando el breaking change de esta tarea:
+  - `POST /v1/backup/restore` ya no despacha directamente: ahora devuelve `schema_version: "2"` con token de confirmación. Los consumidores que esperaban `operation_id` en la respuesta 202 directa deben actualizarse para usar el flujo de dos pasos.
+  - Nuevas rutas disponibles: `POST /v1/backup/restore/confirm` y `GET /v1/backup/restore/confirm/:id`.
+  - Feature flag de emergencia `RESTORE_CONFIRMATION_ENABLED=false` para recuperación operativa.
+
+---
+
+## Criterios de aceptación → cobertura de tareas
+
+| CA    | Cubierto por                                                                                             |
+|-------|----------------------------------------------------------------------------------------------------------|
+| CA-01 | T-21, T-37, T-38, T-50                                                                                   |
+| CA-02 | T-18, T-19, T-49                                                                                         |
+| CA-03 | T-07, T-13, T-17, T-18, T-37, T-48, T-49, T-50                                                          |
+| CA-04 | T-13, T-17, T-35, T-37, T-49, T-50                                                                       |
+| CA-05 | T-17, T-35, T-37, T-49, T-50, T-53                                                                       |
+| CA-06 | T-15, T-16, T-17, T-36, T-37, T-46, T-47, T-48, T-49                                                    |
+| CA-07 | T-17, T-19, T-25, T-48, T-49                                                                             |
+| CA-08 | T-08, T-17, T-19, T-41, T-49                                                                             |
+| CA-09 | T-17, T-24, T-49                                                                                         |
+| CA-10 | T-17, T-29, T-32, T-37, T-38, T-48, T-49, T-50                                                          |
+| CA-11 | T-07, T-17, T-49                                                                                         |
+| CA-12 | T-21, T-49, T-50                                                                                         |
+
+## Cobertura mínima esperada
+
+| Módulo                              | Cobertura mínima |
+|-------------------------------------|-----------------|
+| `confirmations/` (backend)          | ≥ 90% líneas    |
+| `api/` endpoints nuevos (backend)   | ≥ 85% líneas    |
+| Componentes React nuevos (frontend) | ≥ 80% líneas    |
