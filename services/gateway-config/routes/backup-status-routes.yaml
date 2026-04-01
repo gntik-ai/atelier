@@ -1,0 +1,42 @@
+routes:
+  - name: backup-status-get
+    uri: /v1/backup/status
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+        required_scopes:
+          - backup-status:read:own
+      correlation-id:
+        header_name: X-Correlation-Id
+      prometheus:
+        prefer_name: true
+      response-rewrite:
+        headers:
+          set:
+            Cache-Control: "no-store"
+      limit-req:
+        rate: 10
+        burst: 20
+        key: consumer_name
+    upstream:
+      type: roundrobin
+      nodes:
+        openwhisk-backup-status: 1
+
+  - name: backup-status-method-not-allowed
+    uri: /v1/backup/status
+    methods:
+      - POST
+      - PUT
+      - DELETE
+      - PATCH
+    plugins:
+      response-rewrite:
+        status_code: 405
+        body: '{"error":"Method not allowed"}'
+        headers:
+          set:
+            Content-Type: "application/json"
+            Allow: "GET"

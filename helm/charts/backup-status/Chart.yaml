@@ -1,0 +1,6 @@
+apiVersion: v2
+name: backup-status
+description: Backup status visibility for managed components (US-BKP-01-T01)
+version: 0.1.0
+appVersion: 1.0.0
+type: application
