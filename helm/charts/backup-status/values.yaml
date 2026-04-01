@@ -35,5 +35,20 @@ operations:
   max_active_operations_per_instance: 1
   kafka_topic: "platform.backup.operation.events"
 
+audit:
+  enabled: true
+  kafka_topic: "platform.backup.audit.events"
+  alert_topic: "platform.audit.alerts"
+  fallback:
+    retry_interval_seconds: 60
+    max_attempts: 5
+    base_backoff_ms: 60000
+  query:
+    max_range_days: 90
+    default_limit: 50
+    max_limit: 200
+  detail:
+    max_bytes: 4096
+
 secret:
   name: backup-status-credentials

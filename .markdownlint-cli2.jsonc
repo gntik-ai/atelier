@@ -20,7 +20,10 @@
     "specs/107-capability-enforcement/tasks.md",
     "specs/108-plan-enforcement-tests/tasks.md",
     "specs/109-backup-status-visibility/plan.md",
-    "specs/109-backup-status-visibility/tasks.md"
+    "specs/109-backup-status-visibility/tasks.md",
+    "specs/111-backup-audit-trail/plan.md",
+    "specs/111-backup-audit-trail/spec.md",
+    "specs/111-backup-audit-trail/tasks.md"
   ],
   "globs": [
     "README.md",
