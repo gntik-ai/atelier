@@ -22,6 +22,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-01
 - PostgreSQL (lock + auditoría); artefacto procesado en memoria; dependencias externas Keycloak, Kafka, MongoDB, S3-compatible, OpenWhisk (117-tenant-reprovision-from-export)
 - Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `node:test`, `node:assert`, `undici` (cliente HTTP para llamadas a APISIX), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y seed), credenciales de `service_account` con scope `platform:admin:config:export` y `platform:admin:config:reprovision` (119-sandbox-restore-functional-tests)
 - PostgreSQL (consultas de fixture/seed y verificación de auditoría); los tenants de referencia y destino se crean/destruyen vía APIs del producto — sin acceso directo a las bases de datos internas de los subsistemas (119-sandbox-restore-functional-tests)
+- N/A — artefacto de documentación puro (Markdown) + Ninguna dependencia de runtime; referencia cruzada con especificaciones de T01–T05 como fuente de verdad (120-config-vs-data-restore-differences)
 
 ## Project Structure
 
@@ -40,9 +41,9 @@ services/provisioning-orchestrator/src/{models,repositories,events,actions,migra
 Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning assets: Follow standard conventions
 
 ## Recent Changes
+- 120-config-vs-data-restore-differences: Added N/A — artefacto de documentación puro (Markdown) + Ninguna dependencia de runtime; referencia cruzada con especificaciones de T01–T05 como fuente de verdad
 - 119-sandbox-restore-functional-tests: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `node:test`, `node:assert`, `undici` (cliente HTTP para llamadas a APISIX), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y seed), credenciales de `service_account` con scope `platform:admin:config:export` y `platform:admin:config:reprovision`
 - 117-tenant-reprovision-from-export: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + React 18 + TypeScript en consola + `pg`, `kafkajs`, `undici`, `ajv`, React + Tailwind CSS + shadcn/ui
-- 105-effective-limit-resolution: Added Node.js 20+ ESM (`"type": "module"`, pnpm workspaces) + `pg` (PostgreSQL), `kafkajs` (Kafka), Apache OpenWhisk action patterns (established in `services/provisioning-orchestrator`)
 
 ## Async Operation Idempotency & Retry
 
