@@ -1,0 +1,10 @@
+{{- if .Values.collector.enabled }}
+apiVersion: openwhisk.apache.org/v1
+kind: Trigger
+metadata:
+  name: backup-status-collector-trigger
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: trigger
+spec: {}
+{{- end }}

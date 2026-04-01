@@ -18,7 +18,9 @@
     "specs/082-realtime-auth-scope-filters/spec.md",
     "specs/082-realtime-auth-scope-filters/tasks.md",
     "specs/107-capability-enforcement/tasks.md",
-    "specs/108-plan-enforcement-tests/tasks.md"
+    "specs/108-plan-enforcement-tests/tasks.md",
+    "specs/109-backup-status-visibility/plan.md",
+    "specs/109-backup-status-visibility/tasks.md"
   ],
   "globs": [
     "README.md",

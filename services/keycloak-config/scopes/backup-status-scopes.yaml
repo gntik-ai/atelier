@@ -1,0 +1,26 @@
+scopes:
+  - name: backup-status:read:own
+    description: Read backup status for the authenticated tenant
+  - name: backup-status:read:global
+    description: Read backup status for all tenants (SRE/superadmin)
+  - name: backup-status:read:technical
+    description: View technical infrastructure identifiers in backup status responses
+
+role_mappings:
+  tenant_owner:
+    - backup-status:read:own
+  workspace_admin:
+    - backup-status:read:own
+  sre:
+    - backup-status:read:own
+    - backup-status:read:global
+    - backup-status:read:technical
+  superadmin:
+    - backup-status:read:own
+    - backup-status:read:global
+    - backup-status:read:technical
+
+service_accounts:
+  service_account_collector:
+    description: Internal collector service account — no public API scopes
+    scopes: []

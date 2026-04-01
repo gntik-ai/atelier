@@ -1,0 +1,31 @@
+collector:
+  enabled: true
+  schedule: "*/5 * * * *"
+  stale_threshold_minutes: 15
+  adapter_timeout_ms: 10000
+  adapters:
+    postgresql:
+      enabled: true
+      strategy: "auto"
+    mongodb:
+      enabled: false
+    s3:
+      enabled: false
+    keycloak:
+      enabled: false
+    kafka:
+      enabled: false
+
+api:
+  enabled: true
+  stale_threshold_ms: 900000
+
+env:
+  DB_URL: ""
+  KAFKA_BROKERS: ""
+  KEYCLOAK_JWKS_URL: ""
+  K8S_NAMESPACE: "default"
+  DEPLOYMENT_PROFILE_SLUG: "default"
+
+secret:
+  name: backup-status-credentials

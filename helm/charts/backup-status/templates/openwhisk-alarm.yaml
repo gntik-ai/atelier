@@ -1,0 +1,12 @@
+{{- if .Values.collector.enabled }}
+apiVersion: openwhisk.apache.org/v1
+kind: Alarm
+metadata:
+  name: backup-status-collector-alarm
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: alarm
+spec:
+  cron: {{ .Values.collector.schedule | quote }}
+  trigger: backup-status-collector-trigger
+{{- end }}

@@ -1,0 +1,68 @@
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: backup-status-collector
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: collector
+spec:
+  runtime: nodejs:20
+  main: collector.action.main
+  code:
+    source: services/backup-status/src/collector/collector.action.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+    - name: KAFKA_BROKERS
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: KAFKA_BROKERS
+    - name: K8S_NAMESPACE
+      value: {{ .Values.env.K8S_NAMESPACE | quote }}
+    - name: DEPLOYMENT_PROFILE_SLUG
+      value: {{ .Values.env.DEPLOYMENT_PROFILE_SLUG | quote }}
+    - name: BACKUP_ADAPTER_TIMEOUT_MS
+      value: {{ .Values.collector.adapter_timeout_ms | quote }}
+    - name: BACKUP_STALE_THRESHOLD_MINUTES
+      value: {{ .Values.collector.stale_threshold_minutes | quote }}
+    - name: BACKUP_ADAPTER_POSTGRESQL_ENABLED
+      value: {{ .Values.collector.adapters.postgresql.enabled | quote }}
+    - name: BACKUP_ADAPTER_MONGODB_ENABLED
+      value: {{ .Values.collector.adapters.mongodb.enabled | quote }}
+    - name: BACKUP_ADAPTER_S3_ENABLED
+      value: {{ .Values.collector.adapters.s3.enabled | quote }}
+    - name: BACKUP_ADAPTER_KEYCLOAK_ENABLED
+      value: {{ .Values.collector.adapters.keycloak.enabled | quote }}
+    - name: BACKUP_ADAPTER_KAFKA_ENABLED
+      value: {{ .Values.collector.adapters.kafka.enabled | quote }}
+---
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: backup-status-api
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: api
+spec:
+  runtime: nodejs:20
+  main: backup-status.action.main
+  web: true
+  code:
+    source: services/backup-status/src/api/backup-status.action.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+    - name: KEYCLOAK_JWKS_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: KEYCLOAK_JWKS_URL
+    - name: BACKUP_STALE_THRESHOLD_MS
+      value: {{ .Values.api.stale_threshold_ms | quote }}
