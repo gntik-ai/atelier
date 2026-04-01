@@ -1,0 +1,58 @@
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: backup-query-audit
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: audit
+spec:
+  runtime: nodejs:20
+  main: query-audit.action.main
+  web: true
+  code:
+    source: services/backup-status/src/operations/query-audit.action.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+    - name: KEYCLOAK_JWKS_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: KEYCLOAK_JWKS_URL
+    - name: AUDIT_KAFKA_TOPIC
+      value: {{ .Values.audit.kafka_topic | quote }}
+    - name: AUDIT_MAX_RANGE_DAYS
+      value: {{ .Values.audit.query.max_range_days | quote }}
+---
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: backup-audit-fallback
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: audit-fallback
+spec:
+  runtime: nodejs:20
+  main: audit-trail.fallback.retryPendingAuditEvents
+  code:
+    source: services/backup-status/src/audit/audit-trail.fallback.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+    - name: KAFKA_BROKERS
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: KAFKA_BROKERS
+    - name: AUDIT_KAFKA_TOPIC
+      value: {{ .Values.audit.kafka_topic | quote }}
+    - name: ALERT_TOPIC
+      value: {{ .Values.audit.alert_topic | quote }}
+    - name: MAX_PUBLISH_ATTEMPTS
+      value: {{ .Values.audit.fallback.max_attempts | quote }}

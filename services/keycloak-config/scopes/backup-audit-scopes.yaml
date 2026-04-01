@@ -1,0 +1,15 @@
+scopes:
+  - name: backup-audit:read:global
+    description: >-
+      Read access to the complete backup audit trail across all tenants.
+      Includes session context fields (IP, user-agent, session ID).
+    roles:
+      - sre
+      - superadmin
+
+  - name: backup-audit:read:own
+    description: >-
+      Read access to the backup audit trail for the authenticated tenant only.
+      Sensitive fields (session context, technical rejection reasons) are omitted.
+    roles:
+      - tenant_owner

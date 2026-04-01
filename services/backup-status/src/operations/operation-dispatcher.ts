@@ -6,6 +6,8 @@
 import * as repo from './operations.repository.js'
 import { adapterRegistry, isActionAdapter } from '../adapters/registry.js'
 import type { AdapterContext, BackupActionAdapter } from '../adapters/types.js'
+import { emitAuditEvent } from '../audit/audit-trail.js'
+import type { AuditEventType } from '../audit/audit-trail.types.js'
 
 const KAFKA_BROKERS = process.env.KAFKA_BROKERS
 const DISPATCHER_TIMEOUT_S = parseInt(process.env.DISPATCHER_TIMEOUT_SECONDS ?? '300', 10)
@@ -52,6 +54,21 @@ export async function dispatch(operationId: string): Promise<void> {
   // Transition to in_progress
   await repo.updateStatus(operationId, 'in_progress')
 
+  // Audit: started
+  void emitAuditEvent({
+    eventType: `${operation.type}.started` as AuditEventType,
+    operationId: operation.id,
+    tenantId: operation.tenantId,
+    componentType: operation.componentType,
+    instanceId: operation.instanceId,
+    snapshotId: operation.snapshotId,
+    actorId: operation.requesterId,
+    actorRole: operation.requesterRole,
+    sessionContext: { status: 'not_applicable' },
+    result: 'started',
+    destructive: operation.type === 'restore',
+  })
+
   const adapter = adapterRegistry.get(operation.componentType)
   if (!isActionAdapter(adapter)) {
     await repo.updateStatus(operationId, 'failed', {
@@ -93,6 +110,21 @@ export async function dispatch(operationId: string): Promise<void> {
       adapterOperationId: result.adapterOperationId,
     })
 
+    // Audit: completed
+    void emitAuditEvent({
+      eventType: `${operation.type}.completed` as AuditEventType,
+      operationId: operation.id,
+      tenantId: operation.tenantId,
+      componentType: operation.componentType,
+      instanceId: operation.instanceId,
+      snapshotId: operation.snapshotId,
+      actorId: operation.requesterId,
+      actorRole: operation.requesterRole,
+      sessionContext: { status: 'not_applicable' },
+      result: 'completed',
+      destructive: operation.type === 'restore',
+    })
+
     await emitKafkaEvent({
       type: `backup_operation_completed`,
       operation_id: operationId,
@@ -106,6 +138,23 @@ export async function dispatch(operationId: string): Promise<void> {
     await repo.updateStatus(operationId, 'failed', {
       failureReason: message,
       failureReasonPublic: GENERIC_FAILURE_MESSAGE,
+    })
+
+    // Audit: failed
+    void emitAuditEvent({
+      eventType: `${operation.type}.failed` as AuditEventType,
+      operationId: operation.id,
+      tenantId: operation.tenantId,
+      componentType: operation.componentType,
+      instanceId: operation.instanceId,
+      snapshotId: operation.snapshotId,
+      actorId: operation.requesterId,
+      actorRole: operation.requesterRole,
+      sessionContext: { status: 'not_applicable' },
+      result: 'failed',
+      rejectionReason: message,
+      rejectionReasonPublic: GENERIC_FAILURE_MESSAGE,
+      destructive: operation.type === 'restore',
     })
 
     await emitKafkaEvent({
