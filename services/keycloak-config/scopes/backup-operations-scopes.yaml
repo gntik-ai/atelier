@@ -1,0 +1,15 @@
+scopes:
+  - name: backup:write:own
+    description: Initiate on-demand backup for the authenticated tenant
+  - name: backup:write:global
+    description: Initiate on-demand backup for any tenant (SRE/superadmin)
+  - name: backup:restore:global
+    description: Request snapshot restoration for any tenant (SRE/superadmin only)
+
+role_mappings:
+  sre:
+    - backup:write:global
+    - backup:restore:global
+  superadmin:
+    - backup:write:global
+    - backup:restore:global

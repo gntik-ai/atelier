@@ -27,5 +27,13 @@ env:
   K8S_NAMESPACE: "default"
   DEPLOYMENT_PROFILE_SLUG: "default"
 
+operations:
+  enabled: true
+  allow_tenant_owner_backup: false
+  dispatcher_timeout_seconds: 300
+  restore_timeout_seconds: 600
+  max_active_operations_per_instance: 1
+  kafka_topic: "platform.backup.operation.events"
+
 secret:
   name: backup-status-credentials

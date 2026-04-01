@@ -1,0 +1,105 @@
+{{- if .Values.operations.enabled }}
+---
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: backup-trigger
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: operations
+spec:
+  runtime: nodejs:20
+  main: trigger-backup.action.main
+  code:
+    source: services/backup-status/src/operations/trigger-backup.action.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+    - name: KAFKA_BROKERS
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: KAFKA_BROKERS
+    - name: K8S_NAMESPACE
+      value: {{ .Values.env.K8S_NAMESPACE | quote }}
+    - name: DEPLOYMENT_PROFILE_SLUG
+      value: {{ .Values.env.DEPLOYMENT_PROFILE_SLUG | quote }}
+    - name: DISPATCHER_TIMEOUT_SECONDS
+      value: {{ .Values.operations.dispatcher_timeout_seconds | quote }}
+    - name: KAFKA_TOPIC
+      value: {{ .Values.operations.kafka_topic | quote }}
+    - name: BACKUP_ENABLED
+      value: {{ .Values.operations.enabled | quote }}
+---
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: backup-restore
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: operations
+spec:
+  runtime: nodejs:20
+  main: trigger-restore.action.main
+  code:
+    source: services/backup-status/src/operations/trigger-restore.action.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+    - name: KAFKA_BROKERS
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: KAFKA_BROKERS
+    - name: K8S_NAMESPACE
+      value: {{ .Values.env.K8S_NAMESPACE | quote }}
+    - name: DEPLOYMENT_PROFILE_SLUG
+      value: {{ .Values.env.DEPLOYMENT_PROFILE_SLUG | quote }}
+    - name: RESTORE_TIMEOUT_SECONDS
+      value: {{ .Values.operations.restore_timeout_seconds | quote }}
+    - name: KAFKA_TOPIC
+      value: {{ .Values.operations.kafka_topic | quote }}
+---
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: get-operation
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: operations
+spec:
+  runtime: nodejs:20
+  main: get-operation.action.main
+  code:
+    source: services/backup-status/src/operations/get-operation.action.ts
+  env:
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.secret.name }}
+          key: DB_URL
+---
+apiVersion: openwhisk.apache.org/v1
+kind: Action
+metadata:
+  name: list-snapshots
+  labels:
+    app.kubernetes.io/name: backup-status
+    app.kubernetes.io/component: operations
+spec:
+  runtime: nodejs:20
+  main: list-snapshots.action.main
+  code:
+    source: services/backup-status/src/operations/list-snapshots.action.ts
+  env:
+    - name: K8S_NAMESPACE
+      value: {{ .Values.env.K8S_NAMESPACE | quote }}
+    - name: DEPLOYMENT_PROFILE_SLUG
+      value: {{ .Values.env.DEPLOYMENT_PROFILE_SLUG | quote }}
+{{- end }}

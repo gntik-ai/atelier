@@ -3,7 +3,15 @@
  * Multi-level detection strategy: Velero VolumeSnapshot → Barman API → K8s Annotation → fallback.
  */
 
-import type { BackupAdapter, BackupCheckResult, AdapterContext } from './types.js'
+import type {
+  BackupAdapter,
+  BackupActionAdapter,
+  BackupCheckResult,
+  AdapterContext,
+  AdapterCapabilities,
+  SnapshotInfo,
+  TriggerResult,
+} from './types.js'
 
 const BACKUP_STALENESS_HOURS = parseInt(process.env.BACKUP_STALENESS_HOURS ?? '25', 10)
 
@@ -106,9 +114,152 @@ async function tryAnnotation(namespace: string, token: string, timeoutMs: number
   return null
 }
 
-export const postgresqlAdapter: BackupAdapter = {
+async function detectCnpgAvailable(namespace: string, token: string): Promise<boolean> {
+  const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/clusters`
+  const res = await fetchJson(url, token, 3000)
+  return res.ok
+}
+
+export const postgresqlAdapter: BackupActionAdapter = {
   componentType: 'postgresql',
   instanceLabel: 'Base de datos relacional',
+
+  capabilities(): AdapterCapabilities {
+    // Capabilities are declared statically; runtime availability is checked in trigger methods
+    return { triggerBackup: true, triggerRestore: true, listSnapshots: true }
+  },
+
+  async triggerBackup(
+    instanceId: string,
+    _tenantId: string,
+    context: AdapterContext,
+  ): Promise<TriggerResult> {
+    const namespace = context.k8sNamespace ?? 'default'
+    const token = context.serviceAccountToken ?? ''
+
+    const cnpgAvailable = await detectCnpgAvailable(namespace, token)
+    if (!cnpgAvailable) {
+      const err = new Error('No backup mechanism available for this PostgreSQL instance')
+      ;(err as Error & { code: string }).code = 'adapter_no_backup_mechanism'
+      throw err
+    }
+
+    const backupName = `backup-${instanceId}-${Date.now()}`
+    const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/backups`
+    const body = {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Backup',
+      metadata: { name: backupName, namespace },
+      spec: { cluster: { name: instanceId } },
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10000)
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      }
+      if (token) headers.Authorization = `Bearer ${token}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        throw new Error(`K8s API returned ${res.status} when creating Backup`)
+      }
+    } finally {
+      clearTimeout(timer)
+    }
+
+    return { adapterOperationId: backupName }
+  },
+
+  async triggerRestore(
+    instanceId: string,
+    _tenantId: string,
+    snapshotId: string,
+    context: AdapterContext,
+  ): Promise<TriggerResult> {
+    const namespace = context.k8sNamespace ?? 'default'
+    const token = context.serviceAccountToken ?? ''
+
+    const cnpgAvailable = await detectCnpgAvailable(namespace, token)
+    if (!cnpgAvailable) {
+      const err = new Error('No restore mechanism available for this PostgreSQL instance')
+      ;(err as Error & { code: string }).code = 'adapter_no_restore_mechanism'
+      throw err
+    }
+
+    const restoreClusterName = `${instanceId}-restore-${Date.now()}`
+    const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/clusters`
+    const body = {
+      apiVersion: 'postgresql.cnpg.io/v1',
+      kind: 'Cluster',
+      metadata: { name: restoreClusterName, namespace },
+      spec: {
+        instances: 1,
+        bootstrap: { recovery: { backup: { name: snapshotId } } },
+      },
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10000)
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      }
+      if (token) headers.Authorization = `Bearer ${token}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        throw new Error(`K8s API returned ${res.status} when creating recovery Cluster`)
+      }
+    } finally {
+      clearTimeout(timer)
+    }
+
+    return { adapterOperationId: restoreClusterName }
+  },
+
+  async listSnapshots(
+    instanceId: string,
+    _tenantId: string,
+    context: AdapterContext,
+  ): Promise<SnapshotInfo[]> {
+    const namespace = context.k8sNamespace ?? 'default'
+    const token = context.serviceAccountToken ?? ''
+
+    const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/backups?labelSelector=cnpg.io/cluster=${instanceId}`
+    const res = await fetchJson(url, token, 5000)
+    if (!res.ok) return []
+
+    const items = (res.data as {
+      items?: {
+        metadata?: { name?: string; creationTimestamp?: string }
+        status?: { phase?: string; startedAt?: string; stoppedAt?: string }
+      }[]
+    })?.items
+
+    if (!items) return []
+
+    return items.map((item) => {
+      const phase = item.status?.phase ?? ''
+      return {
+        snapshotId: item.metadata?.name ?? '',
+        createdAt: new Date(item.metadata?.creationTimestamp ?? item.status?.startedAt ?? ''),
+        available: phase === 'completed',
+        label: phase === 'completed' ? 'Backup completado' : `Backup (${phase})`,
+      }
+    })
+  },
 
   async check(_instanceId: string, _tenantId: string, context: AdapterContext): Promise<BackupCheckResult> {
     const namespace = context.k8sNamespace ?? 'default'

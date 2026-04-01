@@ -1,0 +1,79 @@
+routes:
+  - name: backup-trigger-post
+    uri: /v1/backup/trigger
+    methods:
+      - POST
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+        required_scopes:
+          - backup:write:own
+      limit-req:
+        rate: 5
+        burst: 10
+        key: consumer_name
+      response-rewrite:
+        headers:
+          set:
+            Cache-Control: "no-store"
+    upstream:
+      type: roundrobin
+      nodes:
+        openwhisk-backup-trigger: 1
+
+  - name: backup-restore-post
+    uri: /v1/backup/restore
+    methods:
+      - POST
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+        required_scopes:
+          - backup:restore:global
+      limit-req:
+        rate: 2
+        burst: 5
+        key: consumer_name
+      response-rewrite:
+        headers:
+          set:
+            Cache-Control: "no-store"
+    upstream:
+      type: roundrobin
+      nodes:
+        openwhisk-backup-restore: 1
+
+  - name: backup-operation-get
+    uri: /v1/backup/operations/*
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+        required_scopes: []
+      limit-req:
+        rate: 20
+        burst: 40
+        key: consumer_name
+    upstream:
+      type: roundrobin
+      nodes:
+        openwhisk-get-operation: 1
+
+  - name: backup-snapshots-get
+    uri: /v1/backup/snapshots
+    methods:
+      - GET
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+        required_scopes:
+          - backup-status:read:global
+      limit-req:
+        rate: 10
+        burst: 20
+        key: consumer_name
+    upstream:
+      type: roundrobin
+      nodes:
+        openwhisk-list-snapshots: 1

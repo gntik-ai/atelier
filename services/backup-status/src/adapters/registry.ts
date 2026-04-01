@@ -2,7 +2,7 @@
  * Adapter registry — singleton that maps componentType → BackupAdapter.
  */
 
-import type { BackupAdapter, BackupCheckResult } from './types.js'
+import type { BackupAdapter, BackupCheckResult, AdapterCapabilities, BackupActionAdapter } from './types.js'
 
 const fallbackAdapter: BackupAdapter = {
   componentType: 'unknown',
@@ -29,3 +29,19 @@ class AdapterRegistryImpl {
 }
 
 export const adapterRegistry = new AdapterRegistryImpl()
+
+export function isActionAdapter(adapter: unknown): adapter is BackupActionAdapter {
+  return (
+    adapter !== null &&
+    typeof adapter === 'object' &&
+    typeof (adapter as BackupActionAdapter).capabilities === 'function'
+  )
+}
+
+export function getCapabilities(componentType: string): AdapterCapabilities {
+  const adapter = adapterRegistry.get(componentType)
+  if (isActionAdapter(adapter)) {
+    return adapter.capabilities()
+  }
+  return { triggerBackup: false, triggerRestore: false, listSnapshots: false }
+}

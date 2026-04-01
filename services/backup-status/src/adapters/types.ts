@@ -34,3 +34,45 @@ export interface BackupAdapter {
     context: AdapterContext,
   ): Promise<BackupCheckResult>
 }
+
+export interface AdapterCapabilities {
+  triggerBackup: boolean
+  triggerRestore: boolean
+  listSnapshots: boolean
+}
+
+export interface SnapshotInfo {
+  snapshotId: string
+  createdAt: Date
+  available: boolean
+  sizeBytes?: number
+  label?: string
+}
+
+export interface TriggerResult {
+  adapterOperationId?: string
+  metadata?: Record<string, unknown>
+}
+
+/**
+ * Extension of BackupAdapter for adapters supporting mutation actions.
+ */
+export interface BackupActionAdapter extends BackupAdapter {
+  capabilities(): AdapterCapabilities
+  triggerBackup(
+    instanceId: string,
+    tenantId: string,
+    context: AdapterContext,
+  ): Promise<TriggerResult>
+  triggerRestore(
+    instanceId: string,
+    tenantId: string,
+    snapshotId: string,
+    context: AdapterContext,
+  ): Promise<TriggerResult>
+  listSnapshots(
+    instanceId: string,
+    tenantId: string,
+    context: AdapterContext,
+  ): Promise<SnapshotInfo[]>
+}
