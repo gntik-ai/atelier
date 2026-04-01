@@ -8,6 +8,7 @@ import { adapterRegistry, isActionAdapter } from '../adapters/registry.js'
 import type { AdapterContext, BackupActionAdapter } from '../adapters/types.js'
 import { emitAuditEvent } from '../audit/audit-trail.js'
 import type { AuditEventType } from '../audit/audit-trail.types.js'
+import { runRestoreSimulation, RestoreSimulationError } from './restore-simulation.service.js'
 
 const KAFKA_BROKERS = process.env.KAFKA_BROKERS
 const DISPATCHER_TIMEOUT_S = parseInt(process.env.DISPATCHER_TIMEOUT_SECONDS ?? '300', 10)
@@ -38,6 +39,10 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   })
 }
 
+function isSimulationOperation(operation: { metadata?: Record<string, unknown> | null }): boolean {
+  return operation.metadata?.execution_mode === 'simulation'
+}
+
 export async function dispatch(operationId: string): Promise<void> {
   const operation = await repo.findById(operationId)
   if (!operation) {
@@ -56,7 +61,7 @@ export async function dispatch(operationId: string): Promise<void> {
 
   // Audit: started
   void emitAuditEvent({
-    eventType: `${operation.type}.started` as AuditEventType,
+    eventType: isSimulationOperation(operation) ? 'restore.simulation.started' : `${operation.type}.started` as AuditEventType,
     operationId: operation.id,
     tenantId: operation.tenantId,
     componentType: operation.componentType,
@@ -66,8 +71,105 @@ export async function dispatch(operationId: string): Promise<void> {
     actorRole: operation.requesterRole,
     sessionContext: { status: 'not_applicable' },
     result: 'started',
-    destructive: operation.type === 'restore',
+    destructive: operation.type === 'restore' && !isSimulationOperation(operation),
   })
+
+  if (isSimulationOperation(operation)) {
+    try {
+      const result = await runRestoreSimulation({
+        operation,
+        deploymentProfile: operation.metadata?.target_environment as string
+          ?? process.env.DEPLOYMENT_PROFILE_SLUG
+          ?? 'default',
+        actorId: operation.requesterId,
+      })
+
+      await repo.updateStatus(operationId, result.status === 'failed' ? 'failed' : 'completed', {
+        metadataPatch: {
+          execution_mode: 'simulation',
+          target_environment: result.targetEnvironment,
+          validation_summary: result.validationSummary,
+          evidence_refs: result.evidenceRefs,
+        },
+      })
+
+      void emitAuditEvent({
+        eventType: result.status === 'failed' ? 'restore.simulation.failed' : 'restore.simulation.completed',
+        operationId: operation.id,
+        tenantId: operation.tenantId,
+        componentType: operation.componentType,
+        instanceId: operation.instanceId,
+        snapshotId: operation.snapshotId,
+        actorId: operation.requesterId,
+        actorRole: operation.requesterRole,
+        sessionContext: { status: 'not_applicable' },
+        result: result.status,
+        destructive: false,
+        detail: JSON.stringify({
+          execution_mode: 'simulation',
+          target_environment: result.targetEnvironment,
+          validation_summary: result.validationSummary,
+          evidence_refs: result.evidenceRefs,
+        }),
+      })
+
+      await emitKafkaEvent({
+        type: 'backup_operation_completed',
+        execution_mode: 'simulation',
+        operation_id: operationId,
+        tenant_id: operation.tenantId,
+        component_type: operation.componentType,
+        status: result.status,
+        timestamp: new Date().toISOString(),
+      })
+      return
+    } catch (err) {
+      const error = err instanceof RestoreSimulationError ? err : null
+      const message = error?.message ?? (err instanceof Error ? err.message : String(err))
+      await repo.updateStatus(operationId, 'failed', {
+        failureReason: message,
+        failureReasonPublic: GENERIC_FAILURE_MESSAGE,
+        metadataPatch: {
+          execution_mode: 'simulation',
+          validation_summary: {
+            outcome: 'failed',
+            checkedAt: new Date().toISOString(),
+            checkedBy: operation.requesterId,
+            environment: operation.metadata?.target_environment ?? process.env.DEPLOYMENT_PROFILE_SLUG ?? 'default',
+            snapshotId: operation.snapshotId ?? 'unknown',
+            checks: [],
+          },
+        },
+      })
+
+      void emitAuditEvent({
+        eventType: 'restore.simulation.failed',
+        operationId: operation.id,
+        tenantId: operation.tenantId,
+        componentType: operation.componentType,
+        instanceId: operation.instanceId,
+        snapshotId: operation.snapshotId,
+        actorId: operation.requesterId,
+        actorRole: operation.requesterRole,
+        sessionContext: { status: 'not_applicable' },
+        result: 'failed',
+        rejectionReason: message,
+        rejectionReasonPublic: GENERIC_FAILURE_MESSAGE,
+        destructive: false,
+      })
+
+      await emitKafkaEvent({
+        type: 'backup_operation_failed',
+        execution_mode: 'simulation',
+        operation_id: operationId,
+        tenant_id: operation.tenantId,
+        component_type: operation.componentType,
+        status: 'failed',
+        timestamp: new Date().toISOString(),
+      })
+      return
+    }
+  }
 
   const adapter = adapterRegistry.get(operation.componentType)
   if (!isActionAdapter(adapter)) {

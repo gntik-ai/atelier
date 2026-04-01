@@ -26,6 +26,8 @@ function extractToken(headers: Record<string, string>): string | null {
 }
 
 function serializeOperation(op: OperationRecord, includeTechnical: boolean): OperationResponseV1 {
+  const metadata = op.metadata ?? {}
+  const isSimulation = metadata.execution_mode === 'simulation'
   const response: OperationResponseV1 = {
     schema_version: '1',
     operation: {
@@ -42,6 +44,14 @@ function serializeOperation(op: OperationRecord, includeTechnical: boolean): Ope
       failed_at: op.failedAt?.toISOString() ?? null,
       snapshot_id: op.snapshotId ?? null,
       failure_reason_public: op.failureReasonPublic ?? null,
+      execution_mode: isSimulation ? 'simulation' : 'operative',
+      target_environment: isSimulation ? (typeof metadata.target_environment === 'string' ? metadata.target_environment : null) : null,
+      validation_summary: isSimulation && typeof metadata.validation_summary === 'object' && metadata.validation_summary !== null
+        ? metadata.validation_summary as OperationResponseV1['operation']['validation_summary']
+        : null,
+      evidence_refs: isSimulation && Array.isArray(metadata.evidence_refs)
+        ? metadata.evidence_refs as OperationResponseV1['operation']['evidence_refs']
+        : undefined,
     },
   }
 

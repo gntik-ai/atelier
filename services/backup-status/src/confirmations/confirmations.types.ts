@@ -1,4 +1,5 @@
 import type { PrecheckResult, PrecheckSummary } from './prechecks/precheck.types.js'
+import type { RestoreExecutionMode } from '../operations/restore-simulation.types.js'
 
 export type RiskLevel = 'normal' | 'elevated' | 'critical'
 
@@ -55,6 +56,7 @@ export interface InitiateRestoreBody {
   instance_id: string
   snapshot_id: string
   scope?: RestoreScope
+  execution_mode?: RestoreExecutionMode
 }
 
 export interface InitiateRestoreResponse {

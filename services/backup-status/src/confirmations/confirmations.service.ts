@@ -48,13 +48,16 @@ export interface AuditTrail {
 }
 
 export class ConfirmationError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    public readonly code: string,
-    public readonly detail?: Record<string, unknown>,
-  ) {
+  statusCode: number
+  code: string
+  detail?: Record<string, unknown>
+
+  constructor(statusCode: number, code: string, detail?: Record<string, unknown>) {
     super(code)
     this.name = 'ConfirmationError'
+    this.statusCode = statusCode
+    this.code = code
+    this.detail = detail
   }
 }
 
@@ -139,12 +142,22 @@ function toSnakeCaseConfirm(response: ConfirmRestoreResult) {
 }
 
 export class ConfirmationsService {
+  private readonly repo: ConfirmationsRepositoryClass
+  private readonly auditTrail: AuditTrail
+  private readonly adapterDispatcher: AdapterDispatcher
+  private readonly config: ConfirmationsConfig
+
   constructor(
-    private readonly repo: ConfirmationsRepositoryClass,
-    private readonly auditTrail: AuditTrail,
-    private readonly adapterDispatcher: AdapterDispatcher,
-    private readonly config: ConfirmationsConfig,
-  ) {}
+    repo: ConfirmationsRepositoryClass,
+    auditTrail: AuditTrail,
+    adapterDispatcher: AdapterDispatcher,
+    config: ConfirmationsConfig,
+  ) {
+    this.repo = repo
+    this.auditTrail = auditTrail
+    this.adapterDispatcher = adapterDispatcher
+    this.config = config
+  }
 
   private async resolveSnapshotCreatedAt(body: InitiateRestoreBody, actor: Actor): Promise<Date> {
     const resolver = this.config.resolveSnapshotCreatedAt
@@ -162,6 +175,12 @@ export class ConfirmationsService {
   }
 
   async initiate(body: InitiateRestoreBody, actor: Actor): Promise<InitiateRestoreResponse> {
+    if (body.execution_mode === 'simulation') {
+      throw new ConfirmationError(422, 'simulation_mode_not_supported', {
+        execution_mode: body.execution_mode,
+      })
+    }
+
     const requestedAt = new Date()
     const snapshotCreatedAt = await this.resolveSnapshotCreatedAt(body, actor)
     const precheckCtx: PrecheckContext = {

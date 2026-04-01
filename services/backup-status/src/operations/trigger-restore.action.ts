@@ -12,6 +12,7 @@ import * as dispatcher from './operation-dispatcher.js'
 import * as audit from '../shared/audit.js'
 import { emitAuditEvent } from '../audit/audit-trail.js'
 import { initiate, toSnakeCaseInitiate, ConfirmationError } from '../confirmations/confirmations.service.js'
+import { isSafeSimulationProfile } from './restore-simulation.types.js'
 
 interface ActionParams {
   __ow_headers?: Record<string, string>
@@ -38,22 +39,40 @@ function extractToken(headers: Record<string, string>): string | null {
   return auth.slice(7)
 }
 
+function parseBody(params: ActionParams): { tenant_id?: string; component_type?: string; instance_id?: string; snapshot_id?: string; scope?: 'partial' | 'full'; execution_mode?: 'operative' | 'simulation' } {
+  if (params.__ow_body) {
+    return JSON.parse(Buffer.from(params.__ow_body, 'base64').toString())
+  }
+  return {
+    tenant_id: params.tenant_id,
+    component_type: params.component_type,
+    instance_id: params.instance_id,
+    snapshot_id: params.snapshot_id,
+  }
+}
+
+async function validateSnapshotAvailability(body: { tenant_id: string; component_type: string; instance_id: string; snapshot_id: string }) {
+  const adapter = adapterRegistry.get(body.component_type)
+  const adapterContext: AdapterContext = {
+    deploymentProfile: process.env.DEPLOYMENT_PROFILE_SLUG ?? 'default',
+    serviceAccountToken: process.env.K8S_SERVICE_ACCOUNT_TOKEN,
+    k8sNamespace: process.env.K8S_NAMESPACE ?? 'default',
+  }
+
+  if (!isActionAdapter(adapter)) return
+
+  const snapshots = await (adapter as BackupActionAdapter).listSnapshots(body.instance_id, body.tenant_id, adapterContext)
+  const snap = snapshots.find((s) => s.snapshotId === body.snapshot_id)
+  if (!snap || !snap.available) {
+    throw new ConfirmationError(422, 'snapshot_not_available')
+  }
+}
+
 async function legacyDirectDispatch(params: ActionParams, token: { sub: string }) {
   const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
   const sessionContext = extractSessionContext(params.__ow_headers ?? {})
 
-  let body: { tenant_id?: string; component_type?: string; instance_id?: string; snapshot_id?: string }
-  if (params.__ow_body) {
-    body = JSON.parse(Buffer.from(params.__ow_body, 'base64').toString())
-  } else {
-    body = {
-      tenant_id: params.tenant_id,
-      component_type: params.component_type,
-      instance_id: params.instance_id,
-      snapshot_id: params.snapshot_id,
-    }
-  }
-
+  const body = parseBody(params)
   const { tenant_id, component_type, instance_id, snapshot_id } = body
   if (!tenant_id || !component_type || !instance_id || !snapshot_id) {
     return { statusCode: 400, headers, body: { error: 'Missing required fields: tenant_id, component_type, instance_id, snapshot_id' } }
@@ -179,6 +198,76 @@ async function legacyDirectDispatch(params: ActionParams, token: { sub: string }
   }
 }
 
+async function simulationDispatch(body: Required<Pick<NonNullable<ReturnType<typeof parseBody>>, 'tenant_id' | 'component_type' | 'instance_id' | 'snapshot_id'>> & { scope?: 'partial' | 'full' }, token: { sub: string }, sessionContext: ReturnType<typeof extractSessionContext>) {
+  const profile = process.env.DEPLOYMENT_PROFILE_SLUG ?? 'default'
+  if (!isSafeSimulationProfile(profile)) {
+    throw new ConfirmationError(403, 'restore_simulation_profile_not_allowed', { deployment_profile: profile })
+  }
+
+  const caps = getCapabilities(body.component_type)
+  if (!caps.triggerRestore) {
+    throw new ConfirmationError(422, 'adapter_capability_not_supported')
+  }
+
+  const active = await repo.findActive(body.tenant_id, body.component_type, body.instance_id, 'restore')
+  if (active) {
+    throw new ConfirmationError(409, 'operation_already_active', { conflict_operation_id: active.id })
+  }
+
+  await validateSnapshotAvailability(body)
+
+  const operation = await repo.create({
+    type: 'restore',
+    tenantId: body.tenant_id,
+    componentType: body.component_type,
+    instanceId: body.instance_id,
+    requesterId: token.sub,
+    requesterRole: 'sre',
+    snapshotId: body.snapshot_id,
+    metadata: {
+      execution_mode: 'simulation',
+      target_environment: profile,
+      evidence_refs: [],
+      validation_summary: null,
+    },
+  })
+
+  void emitAuditEvent({
+    eventType: 'restore.simulation.requested',
+    operationId: operation.id,
+    tenantId: body.tenant_id,
+    componentType: body.component_type,
+    instanceId: body.instance_id,
+    snapshotId: body.snapshot_id,
+    actorId: token.sub,
+    actorRole: 'sre',
+    sessionContext,
+    result: 'accepted',
+    destructive: false,
+    detail: JSON.stringify({
+      execution_mode: 'simulation',
+      target_environment: profile,
+      snapshot_id: body.snapshot_id,
+    }),
+  })
+
+  void dispatcher.dispatch(operation.id).catch((err) => {
+    console.error(`[trigger-restore] simulation dispatch error for ${operation.id}:`, err)
+  })
+
+  return {
+    statusCode: 202,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    body: {
+      operation_id: operation.id,
+      status: 'accepted',
+      accepted_at: operation.acceptedAt.toISOString(),
+      execution_mode: 'simulation',
+      target_environment: profile,
+    },
+  }
+}
+
 export async function main(params: ActionParams) {
   const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
 
@@ -191,20 +280,26 @@ export async function main(params: ActionParams) {
       return { statusCode: 403, headers, body: { error: 'Insufficient scope' } }
     }
 
-    if (process.env.RESTORE_CONFIRMATION_ENABLED === 'false') {
-      return await legacyDirectDispatch(params, token)
+    const body = parseBody(params)
+    if (body.execution_mode === 'simulation') {
+      if (!body.tenant_id || !body.component_type || !body.instance_id || !body.snapshot_id) {
+        return { statusCode: 400, headers, body: { error: 'Missing required fields: tenant_id, component_type, instance_id, snapshot_id' } }
+      }
+      return await simulationDispatch(
+        {
+          tenant_id: body.tenant_id,
+          component_type: body.component_type,
+          instance_id: body.instance_id,
+          snapshot_id: body.snapshot_id,
+          scope: body.scope,
+        },
+        { sub: token.sub },
+        extractSessionContext(params.__ow_headers ?? {}),
+      )
     }
 
-    let body: { tenant_id?: string; component_type?: string; instance_id?: string; snapshot_id?: string; scope?: 'partial' | 'full' }
-    if (params.__ow_body) {
-      body = JSON.parse(Buffer.from(params.__ow_body, 'base64').toString())
-    } else {
-      body = {
-        tenant_id: params.tenant_id,
-        component_type: params.component_type,
-        instance_id: params.instance_id,
-        snapshot_id: params.snapshot_id,
-      }
+    if (process.env.RESTORE_CONFIRMATION_ENABLED === 'false') {
+      return await legacyDirectDispatch(params, token)
     }
 
     if (!body.tenant_id || !body.component_type || !body.instance_id || !body.snapshot_id) {
