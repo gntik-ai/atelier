@@ -33,16 +33,16 @@ export interface BackupStatusResponse {
 }
 
 export class BackupStatusApiError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    message: string,
-  ) {
+  statusCode: number
+
+  constructor(statusCode: number, message: string) {
     super(message)
     this.name = 'BackupStatusApiError'
+    this.statusCode = statusCode
   }
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
+const BASE_URL = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL ?? ''
 
 export async function getBackupStatus(
   tenantId?: string,

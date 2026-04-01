@@ -6,6 +6,7 @@ import type {
   OperationRecord,
   OperationType,
   OperationStatus,
+  OperationMetadata,
 } from './operations.types.js'
 
 // Reuse the same DB client pattern from the existing repository
@@ -29,6 +30,19 @@ export function setClient(client: DbClient | null): void {
   _client = client
 }
 
+function readJsonObject(value: unknown): Record<string, unknown> | null {
+  if (!value) return null
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value) as unknown
+      return typeof parsed === 'object' && parsed !== null ? parsed as Record<string, unknown> : null
+    } catch {
+      return null
+    }
+  }
+  return typeof value === 'object' ? value as Record<string, unknown> : null
+}
+
 function rowToRecord(row: Record<string, unknown>): OperationRecord {
   return {
     id: row.id as string,
@@ -47,7 +61,7 @@ function rowToRecord(row: Record<string, unknown>): OperationRecord {
     inProgressAt: row.in_progress_at ? new Date(row.in_progress_at as string) : null,
     completedAt: row.completed_at ? new Date(row.completed_at as string) : null,
     failedAt: row.failed_at ? new Date(row.failed_at as string) : null,
-    metadata: (row.metadata as Record<string, unknown>) ?? null,
+    metadata: readJsonObject(row.metadata) as OperationMetadata | null,
   }
 }
 
@@ -110,6 +124,7 @@ export async function updateStatus(
     failureReason?: string
     failureReasonPublic?: string
     adapterOperationId?: string
+    metadataPatch?: Record<string, unknown>
   },
 ): Promise<OperationRecord | null> {
   const timestampCol =
@@ -141,6 +156,12 @@ export async function updateStatus(
   if (opts?.adapterOperationId !== undefined) {
     setClauses.push(`adapter_operation_id = $${paramIdx}`)
     params.push(opts.adapterOperationId)
+    paramIdx++
+  }
+
+  if (opts?.metadataPatch !== undefined) {
+    setClauses.push(`metadata = COALESCE(metadata, '{}'::jsonb) || $${paramIdx}::jsonb`)
+    params.push(JSON.stringify(opts.metadataPatch))
     paramIdx++
   }
 

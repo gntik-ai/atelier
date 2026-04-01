@@ -7,6 +7,7 @@ interface UseOperationStatusResult {
   data: OperationResponse | null
   loading: boolean
   error: Error | null
+  executionMode: 'operative' | 'simulation' | null
 }
 
 export function useOperationStatus(
@@ -43,5 +44,5 @@ export function useOperationStatus(
     return () => clearInterval(id)
   }, [operationId, token, fetch_, data?.operation?.status])
 
-  return { data, loading, error }
+  return { data, loading, error, executionMode: data?.operation?.execution_mode ?? null }
 }

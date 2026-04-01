@@ -2,6 +2,12 @@
  * Types for backup/restore operation lifecycle.
  */
 
+import type {
+  RestoreExecutionMode,
+  RestoreSimulationEvidenceRef,
+  RestoreSimulationValidationSummary,
+} from './restore-simulation.types.js'
+
 export type OperationType = 'backup' | 'restore'
 
 export type OperationStatus =
@@ -10,6 +16,14 @@ export type OperationStatus =
   | 'completed'
   | 'failed'
   | 'rejected'
+
+export interface OperationMetadata {
+  execution_mode?: RestoreExecutionMode
+  target_environment?: string
+  validation_summary?: RestoreSimulationValidationSummary | null
+  evidence_refs?: RestoreSimulationEvidenceRef[]
+  [key: string]: unknown
+}
 
 export interface OperationRecord {
   id: string
@@ -28,7 +42,7 @@ export interface OperationRecord {
   inProgressAt?: Date | null
   completedAt?: Date | null
   failedAt?: Date | null
-  metadata?: Record<string, unknown> | null
+  metadata?: OperationMetadata | null
 }
 
 export interface OperationResponseV1 {
@@ -48,6 +62,10 @@ export interface OperationResponseV1 {
     snapshot_id: string | null
     failure_reason?: string | null
     failure_reason_public: string | null
+    execution_mode?: RestoreExecutionMode
+    target_environment?: string | null
+    validation_summary?: RestoreSimulationValidationSummary | null
+    evidence_refs?: RestoreSimulationEvidenceRef[]
   }
 }
 

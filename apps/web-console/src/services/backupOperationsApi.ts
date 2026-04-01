@@ -5,9 +5,14 @@
 const API_BASE = (typeof process !== 'undefined' && process.env?.BACKUP_API_URL) || '/api'
 
 export class BackupOperationsApiError extends Error {
-  constructor(public statusCode: number, message: string, public code?: string) {
+  statusCode: number
+  code?: string
+
+  constructor(statusCode: number, message: string, code?: string) {
     super(message)
     this.name = 'BackupOperationsApiError'
+    this.statusCode = statusCode
+    this.code = code
   }
 }
 
@@ -24,6 +29,8 @@ export interface TriggerResponse {
   operation_id: string
   status: string
   accepted_at: string
+  execution_mode?: 'operative' | 'simulation'
+  target_environment?: string
 }
 
 export interface OperationResponse {
@@ -43,6 +50,17 @@ export interface OperationResponse {
     snapshot_id: string | null
     failure_reason?: string | null
     failure_reason_public: string | null
+    execution_mode?: 'operative' | 'simulation'
+    target_environment?: string | null
+    validation_summary?: {
+      outcome: 'completed' | 'warning' | 'failed'
+      checkedAt: string
+      checkedBy: string
+      environment: string
+      snapshotId: string
+      checks: Array<{ code: string; result: 'ok' | 'warning' | 'blocking_error'; message: string; metadata?: Record<string, unknown> }>
+    } | null
+    evidence_refs?: Array<{ kind: 'snapshot' | 'validation' | 'audit' | 'operation'; id: string; label?: string; href?: string | null }>
   }
 }
 
@@ -74,7 +92,7 @@ export async function triggerBackup(
 }
 
 export async function triggerRestore(
-  body: { tenant_id: string; component_type: string; instance_id: string; snapshot_id: string },
+  body: { tenant_id: string; component_type: string; instance_id: string; snapshot_id: string; execution_mode?: 'operative' | 'simulation' },
   token: string,
 ): Promise<TriggerResponse> {
   return await request<TriggerResponse>(`${API_BASE}/v1/backup/restore`, {
@@ -98,6 +116,7 @@ export interface InitiateRestoreBody {
   instance_id: string
   snapshot_id: string
   scope?: 'partial' | 'full'
+  execution_mode?: 'operative' | 'simulation'
 }
 
 export interface PrecheckResultItem {

@@ -17,6 +17,11 @@ export type AuditEventType =
   | 'restore.confirmed'
   | 'restore.aborted'
   | 'restore.confirmation_expired'
+  | 'restore.simulation.requested'
+  | 'restore.simulation.started'
+  | 'restore.simulation.completed'
+  | 'restore.simulation.failed'
+  | 'restore.simulation.rejected'
 
 /** Additional detail fields for restore confirmation audit events (US-BKP-01-T04). */
 export interface RestoreConfirmationAuditDetail {

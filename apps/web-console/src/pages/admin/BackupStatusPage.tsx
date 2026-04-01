@@ -33,7 +33,12 @@ export default function BackupStatusPage() {
   return (
     <div className="space-y-6 p-6" data-testid="backup-status-page">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Estado de Backups</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Estado de Backups</h1>
+          <p className="text-sm text-slate-600">
+            Las simulaciones de restore se muestran con modo explícito y evidencia consultable.
+          </p>
+        </div>
         <button onClick={() => void refetch()} className="text-sm underline">
           Refrescar
         </button>

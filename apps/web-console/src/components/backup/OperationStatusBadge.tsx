@@ -1,5 +1,6 @@
 interface OperationStatusBadgeProps {
   status: string
+  executionMode?: 'operative' | 'simulation' | null
 }
 
 const statusStyles: Record<string, string> = {
@@ -18,16 +19,17 @@ const statusLabels: Record<string, string> = {
   rejected: 'Rechazada',
 }
 
-export function OperationStatusBadge({ status }: OperationStatusBadgeProps) {
+export function OperationStatusBadge({ status, executionMode }: OperationStatusBadgeProps) {
   const style = statusStyles[status] ?? 'bg-gray-100 text-gray-600'
   const label = statusLabels[status] ?? status
+  const modeLabel = executionMode === 'simulation' ? ' · simulación' : ''
 
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}
       data-testid="operation-status-badge"
     >
-      {label}
+      {label}{modeLabel}
     </span>
   )
 }

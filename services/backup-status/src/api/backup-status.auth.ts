@@ -69,11 +69,11 @@ export function enforceScope(claims: TokenClaims, requiredScope: string): void {
 }
 
 export class AuthError extends Error {
-  constructor(
-    public readonly statusCode: number,
-    message: string,
-  ) {
+  statusCode: number
+
+  constructor(statusCode: number, message: string) {
     super(message)
     this.name = 'AuthError'
+    this.statusCode = statusCode
   }
 }
