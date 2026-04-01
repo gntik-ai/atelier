@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "config-preflight-audit-event",
+  "title": "Config Preflight Audit Event",
+  "description": "Kafka audit event emitted each time a pre-flight conflict check is executed.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "emitted_at",
+    "correlation_id",
+    "actor",
+    "tenant",
+    "artifact",
+    "analysis"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this event instance."
+    },
+    "event_type": {
+      "type": "string",
+      "const": "config.preflight.executed",
+      "description": "Fixed event type for preflight audit events."
+    },
+    "emitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlation_id": {
+      "type": "string",
+      "description": "Correlation ID shared with the HTTP response and the PostgreSQL audit record."
+    },
+    "actor": {
+      "type": "object",
+      "required": ["id", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["superadmin", "sre", "service_account"]
+        }
+      }
+    },
+    "tenant": {
+      "type": "object",
+      "required": ["target_id", "source_id"],
+      "additionalProperties": false,
+      "properties": {
+        "target_id": { "type": "string" },
+        "source_id": { "type": "string" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["format_version"],
+      "additionalProperties": false,
+      "properties": {
+        "format_version": { "type": "string" },
+        "checksum": { "type": "string", "nullable": true }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "required": [
+        "risk_level",
+        "incomplete_analysis",
+        "needs_confirmation",
+        "domains_analyzed",
+        "domains_skipped",
+        "conflict_counts",
+        "total_resources_analyzed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "risk_level": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "critical"],
+          "nullable": true,
+          "description": "Null when needs_confirmation=true (analysis was not performed)."
+        },
+        "incomplete_analysis": { "type": "boolean" },
+        "needs_confirmation": { "type": "boolean" },
+        "domains_analyzed": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "domains_skipped": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "conflict_counts": {
+          "type": "object",
+          "required": ["low", "medium", "high", "critical"],
+          "additionalProperties": false,
+          "properties": {
+            "low": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "high": { "type": "integer", "minimum": 0 },
+            "critical": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "total_resources_analyzed": { "type": "integer", "minimum": 0 },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "nullable": true
+        }
+      }
+    }
+  }
+}

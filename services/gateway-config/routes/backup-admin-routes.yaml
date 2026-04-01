@@ -147,6 +147,32 @@ routes:
       nodes:
         openwhisk-tenant-config-reprovision: 1
 
+  - name: config-preflight-post
+    uri: /v1/admin/tenants/*/config/reprovision/preflight
+    methods:
+      - POST
+    plugins:
+      keycloak-openid-connect:
+        enabled: true
+        required_scopes:
+          - platform:admin:config:reprovision
+      limit-req:
+        rate: 5
+        burst: 10
+        key: consumer_name
+      response-rewrite:
+        headers:
+          set:
+            Cache-Control: "no-store"
+    upstream:
+      type: roundrobin
+      timeout:
+        connect: 5
+        send: 60
+        read: 60
+      nodes:
+        openwhisk-tenant-config-preflight: 1
+
   - name: config-reprovision-identifier-map-post
     uri: /v1/admin/tenants/*/config/reprovision/identifier-map
     methods:
