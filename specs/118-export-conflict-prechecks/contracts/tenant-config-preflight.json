@@ -1,0 +1,273 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tenant Config Preflight API",
+    "version": "1.0.0",
+    "description": "Pre-flight check API for detecting conflicts between a tenant export artifact and a destination tenant environment."
+  },
+  "paths": {
+    "/v1/admin/tenants/{tenant_id}/config/reprovision/preflight": {
+      "post": {
+        "operationId": "tenantConfigPreflight",
+        "summary": "Execute a pre-flight conflict check between an export artifact and a destination tenant",
+        "description": "Analyzes all domains in the artifact (read-only) and returns a structured conflict report with severity classification, recommendations, and a global risk level. Does not modify any resource. Does not acquire the reprovision lock.",
+        "security": [
+          { "keycloak": ["platform:admin:config:reprovision"] }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ID of the destination tenant"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PreflightRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preflight analysis complete (including partial analysis with incomplete_analysis=true or needs_confirmation=true)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PreflightReport" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request: unknown domain in filter, or invalid identifier_map",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "403": {
+            "description": "Unauthorized: missing or insufficient JWT scope"
+          },
+          "404": {
+            "description": "Destination tenant not found"
+          },
+          "422": {
+            "description": "Artifact format_version is incompatible with server version"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "keycloak": {
+        "type": "openIdConnect",
+        "openIdConnectUrl": "/auth/realms/platform/.well-known/openid-configuration",
+        "description": "Keycloak JWT with scope platform:admin:config:reprovision"
+      }
+    },
+    "schemas": {
+      "PreflightRequest": {
+        "type": "object",
+        "required": ["artifact"],
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "type": "object",
+            "description": "Full export artifact produced by US-BKP-02-T01"
+          },
+          "identifier_map": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/IdentifierMap" },
+              { "type": "null" }
+            ],
+            "description": "Optional identifier map to apply before analysis. Required when artifact.tenant_id differs from destination tenant_id."
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["iam", "postgres_metadata", "mongo_metadata", "kafka", "functions", "storage"]
+            },
+            "description": "Optional filter: only analyze these domains. If omitted, all available domains in the artifact are analyzed."
+          }
+        }
+      },
+      "IdentifierMap": {
+        "type": "object",
+        "required": ["entries"],
+        "additionalProperties": false,
+        "properties": {
+          "source_tenant_id": { "type": "string", "nullable": true },
+          "target_tenant_id": { "type": "string", "nullable": true },
+          "entries": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/IdentifierMapEntry" }
+          }
+        }
+      },
+      "IdentifierMapEntry": {
+        "type": "object",
+        "required": ["from", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "scope": { "type": "string", "nullable": true, "description": "e.g. iam.realm, postgres.schema" },
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 }
+        }
+      },
+      "PreflightReport": {
+        "type": "object",
+        "required": ["correlation_id", "source_tenant_id", "target_tenant_id", "format_version", "analyzed_at", "summary", "domains"],
+        "additionalProperties": false,
+        "properties": {
+          "correlation_id": { "type": "string", "format": "uuid" },
+          "source_tenant_id": { "type": "string" },
+          "target_tenant_id": { "type": "string" },
+          "format_version": { "type": "string" },
+          "analyzed_at": { "type": "string", "format": "date-time" },
+          "summary": { "$ref": "#/components/schemas/PreflightSummary" },
+          "domains": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DomainAnalysisResult" }
+          },
+          "needs_confirmation": {
+            "type": "boolean",
+            "description": "True when the artifact tenant_id differs from the destination tenant_id and no identifier_map was provided. When true, no domain analysis was performed."
+          },
+          "identifier_map_proposal": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/IdentifierMapProposal" },
+              { "type": "null" }
+            ],
+            "description": "Present only when needs_confirmation=true. Contains the proposed identifier map for operator review."
+          }
+        }
+      },
+      "PreflightSummary": {
+        "type": "object",
+        "required": ["risk_level", "total_resources_analyzed", "compatible", "compatible_with_redacted_fields", "conflict_counts", "incomplete_analysis", "domains_analyzed", "domains_skipped"],
+        "additionalProperties": false,
+        "properties": {
+          "risk_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+            "description": "Global risk level determined by the highest severity conflict found. 'low' if no conflicts."
+          },
+          "total_resources_analyzed": { "type": "integer", "minimum": 0 },
+          "compatible": { "type": "integer", "minimum": 0 },
+          "compatible_with_redacted_fields": { "type": "integer", "minimum": 0 },
+          "conflict_counts": {
+            "type": "object",
+            "required": ["low", "medium", "high", "critical"],
+            "additionalProperties": false,
+            "properties": {
+              "low": { "type": "integer", "minimum": 0 },
+              "medium": { "type": "integer", "minimum": 0 },
+              "high": { "type": "integer", "minimum": 0 },
+              "critical": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "incomplete_analysis": {
+            "type": "boolean",
+            "description": "True when one or more domain analyzers failed (subsystem unavailable). The report covers the domains that were successfully analyzed."
+          },
+          "domains_analyzed": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "domains_skipped": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "DomainAnalysisResult": {
+        "type": "object",
+        "required": ["domain_key", "status", "resources_analyzed", "compatible_count", "compatible_with_redacted_count", "conflicts"],
+        "additionalProperties": false,
+        "properties": {
+          "domain_key": {
+            "type": "string",
+            "enum": ["iam", "postgres_metadata", "mongo_metadata", "kafka", "functions", "storage"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["analyzed", "no_conflicts", "skipped_not_exportable", "analysis_error"]
+          },
+          "resources_analyzed": { "type": "integer", "minimum": 0 },
+          "compatible_count": { "type": "integer", "minimum": 0 },
+          "compatible_with_redacted_count": { "type": "integer", "minimum": 0 },
+          "conflicts": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ConflictEntry" }
+          },
+          "analysis_error_message": {
+            "type": "string",
+            "nullable": true,
+            "description": "Error message when status=analysis_error. Null otherwise."
+          }
+        }
+      },
+      "ConflictEntry": {
+        "type": "object",
+        "required": ["resource_type", "resource_name", "severity", "recommendation"],
+        "additionalProperties": false,
+        "properties": {
+          "resource_type": { "type": "string", "description": "e.g. role, table, topic, collection, action, bucket" },
+          "resource_name": { "type": "string" },
+          "resource_id": { "type": "string", "nullable": true },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "diff": {
+            "type": "object",
+            "nullable": true,
+            "description": "Structured diff showing which fields differ. Keys are field names; values are objects with 'artifact' and 'destination' properties. Redacted values are never included.",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["artifact", "destination"],
+              "properties": {
+                "artifact": {},
+                "destination": {}
+              }
+            }
+          },
+          "recommendation": {
+            "type": "string",
+            "description": "Actionable recommendation specific to the resource type and severity."
+          }
+        }
+      },
+      "IdentifierMapProposal": {
+        "type": "object",
+        "required": ["source_tenant_id", "target_tenant_id", "entries"],
+        "additionalProperties": false,
+        "properties": {
+          "source_tenant_id": { "type": "string" },
+          "target_tenant_id": { "type": "string" },
+          "entries": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/IdentifierMapEntry" }
+          },
+          "warnings": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "details": { "type": "object", "nullable": true }
+        }
+      }
+    }
+  }
+}
