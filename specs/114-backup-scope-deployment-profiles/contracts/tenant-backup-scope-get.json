@@ -1,0 +1,78 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Backup Scope — Tenant Endpoint",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/tenants/{tenantId}/backup/scope": {
+      "get": {
+        "operationId": "getTenantBackupScope",
+        "summary": "Retrieve backup scope projection for a specific tenant",
+        "description": "Returns the backup scope filtered by the tenant's active resource types and plan capabilities. Tenant owners can query their own tenant only; superadmin/SRE can query any tenant.",
+        "tags": ["backup-scope"],
+        "security": [{ "openIdConnect": ["tenant:backup:read"] }],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "Tenant identifier",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant backup scope projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["tenantId", "activeProfile", "planId", "entries", "generatedAt", "correlationId"],
+                  "properties": {
+                    "tenantId": { "type": "string" },
+                    "activeProfile": { "type": "string" },
+                    "planId": { "type": "string" },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["componentKey", "coverageStatus", "backupGranularity", "operationalStatus", "tenantHasResources"],
+                        "properties": {
+                          "componentKey": { "type": "string" },
+                          "coverageStatus": { "type": "string", "enum": ["platform-managed", "operator-managed", "not-supported", "unknown"] },
+                          "backupGranularity": { "type": "string", "enum": ["full", "incremental", "config-only", "none", "unknown"] },
+                          "rpoRangeMinutes": {
+                            "oneOf": [
+                              { "type": "object", "properties": { "min": { "type": "integer" }, "max": { "type": "integer" } }, "required": ["min", "max"] },
+                              { "type": "null" }
+                            ]
+                          },
+                          "rtoRangeMinutes": {
+                            "oneOf": [
+                              { "type": "object", "properties": { "min": { "type": "integer" }, "max": { "type": "integer" } }, "required": ["min", "max"] },
+                              { "type": "null" }
+                            ]
+                          },
+                          "operationalStatus": { "type": "string", "enum": ["operational", "degraded", "unknown"] },
+                          "tenantHasResources": { "type": "boolean" },
+                          "planRestriction": { "type": ["string", "null"] },
+                          "recommendation": { "type": ["string", "null"] }
+                        }
+                      }
+                    },
+                    "generatedAt": { "type": "string", "format": "date-time" },
+                    "correlationId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthenticated" },
+          "403": { "description": "Forbidden — cross-tenant access or insufficient role" },
+          "404": { "description": "Tenant not found" }
+        }
+      }
+    }
+  }
+}

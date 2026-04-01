@@ -1,0 +1,42 @@
+- id: admin-backup-scope-get
+  uri: /v1/admin/backup/scope
+  methods: [GET]
+  upstream_id: provisioning-orchestrator
+  plugins:
+    openid-connect:
+      discovery: "${KEYCLOAK_DISCOVERY_URL}"
+      required_scopes: ["platform:admin:backup:read"]
+    scope-enforcement:
+      required_scope: "platform:admin:backup:read"
+      required_roles: ["superadmin", "sre"]
+    limit-req:
+      rate: 30
+      burst: 60
+      key: consumer_name
+    kafka-logger:
+      topic: console.audit.gateway
+    response-rewrite:
+      headers:
+        Cache-Control: "no-store, no-cache"
+        X-Content-Type-Options: "nosniff"
+
+- id: tenant-backup-scope-get
+  uri: /v1/tenants/*/backup/scope
+  methods: [GET]
+  upstream_id: provisioning-orchestrator
+  plugins:
+    openid-connect:
+      discovery: "${KEYCLOAK_DISCOVERY_URL}"
+      required_scopes: ["tenant:backup:read"]
+    scope-enforcement:
+      required_scope: "tenant:backup:read"
+    limit-req:
+      rate: 30
+      burst: 60
+      key: consumer_name
+    kafka-logger:
+      topic: console.audit.gateway
+    response-rewrite:
+      headers:
+        Cache-Control: "no-store, no-cache"
+        X-Content-Type-Options: "nosniff"

@@ -1,0 +1,100 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Backup Scope Matrix — Admin Endpoint",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/admin/backup/scope": {
+      "get": {
+        "operationId": "getAdminBackupScope",
+        "summary": "Retrieve backup scope matrix for deployment profiles",
+        "description": "Returns the backup scope and limits matrix. Superadmin/SRE only. Defaults to the active deployment profile; use ?profile=all for the full matrix.",
+        "tags": ["backup-scope"],
+        "security": [{ "openIdConnect": ["platform:admin:backup:read"] }],
+        "parameters": [
+          {
+            "name": "profile",
+            "in": "query",
+            "required": false,
+            "description": "Filter by deployment profile. Omit for active profile only. Use 'all' for full matrix.",
+            "schema": {
+              "type": "string",
+              "enum": ["all-in-one", "standard", "ha", "all"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Backup scope matrix",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["activeProfile", "requestedProfile", "entries", "generatedAt", "correlationId"],
+                  "properties": {
+                    "activeProfile": { "type": "string" },
+                    "requestedProfile": { "type": "string" },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["componentKey", "profileKey", "coverageStatus", "backupGranularity", "operationalStatus", "supportedByProfile", "preconditions", "limitations"],
+                        "properties": {
+                          "componentKey": { "type": "string" },
+                          "profileKey": { "type": "string" },
+                          "coverageStatus": { "type": "string", "enum": ["platform-managed", "operator-managed", "not-supported", "unknown"] },
+                          "backupGranularity": { "type": "string", "enum": ["full", "incremental", "config-only", "none", "unknown"] },
+                          "rpoRangeMinutes": {
+                            "oneOf": [
+                              { "type": "object", "properties": { "min": { "type": "integer" }, "max": { "type": "integer" } }, "required": ["min", "max"] },
+                              { "type": "null" }
+                            ]
+                          },
+                          "rtoRangeMinutes": {
+                            "oneOf": [
+                              { "type": "object", "properties": { "min": { "type": "integer" }, "max": { "type": "integer" } }, "required": ["min", "max"] },
+                              { "type": "null" }
+                            ]
+                          },
+                          "operationalStatus": { "type": "string", "enum": ["operational", "degraded", "unknown"] },
+                          "supportedByProfile": { "type": "boolean" },
+                          "maxBackupFrequencyMinutes": { "type": ["integer", "null"] },
+                          "maxRetentionDays": { "type": ["integer", "null"] },
+                          "maxConcurrentJobs": { "type": ["integer", "null"] },
+                          "maxBackupSizeGb": { "type": ["number", "null"] },
+                          "preconditions": { "type": "array", "items": { "type": "string" } },
+                          "limitations": { "type": "array", "items": { "type": "string" } },
+                          "airGapNotes": { "type": ["string", "null"] },
+                          "planCapabilityKey": { "type": ["string", "null"] }
+                        }
+                      }
+                    },
+                    "generatedAt": { "type": "string", "format": "date-time" },
+                    "correlationId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unknown profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": { "type": "string", "enum": ["BACKUP_SCOPE_UNKNOWN_PROFILE"] },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthenticated" },
+          "403": { "description": "Forbidden — insufficient role or scope" }
+        }
+      }
+    }
+  }
+}

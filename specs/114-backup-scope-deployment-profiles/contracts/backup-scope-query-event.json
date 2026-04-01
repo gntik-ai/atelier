@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BackupScopeQueriedEvent",
+  "description": "Kafka audit event emitted when the backup scope matrix is queried.",
+  "type": "object",
+  "required": ["eventType", "correlationId", "actor", "timestamp"],
+  "additionalProperties": false,
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "const": "backup.scope.queried"
+    },
+    "correlationId": {
+      "type": "string",
+      "description": "Request correlation ID"
+    },
+    "actor": {
+      "type": "object",
+      "required": ["id", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Actor user ID" },
+        "role": { "type": "string", "description": "Actor role (superadmin, sre, tenant:owner, tenant:admin)" }
+      }
+    },
+    "tenantId": {
+      "type": ["string", "null"],
+      "description": "Tenant ID if tenant-scoped query; null for superadmin matrix queries"
+    },
+    "requestedProfile": {
+      "type": ["string", "null"],
+      "description": "Requested profile filter; null if default (active profile)"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 event timestamp"
+    }
+  }
+}
