@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "restore-test-report.json",
+  "title": "RestoreTestReport",
+  "description": "Informe de resultados del catálogo de pruebas de restauración funcional (US-BKP-02-T05)",
+  "type": "object",
+  "required": ["report_id", "execution_id", "started_at", "finished_at", "summary", "scenarios"],
+  "additionalProperties": false,
+  "properties": {
+    "report_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID único del informe"
+    },
+    "execution_id": {
+      "type": "string",
+      "description": "UUID de la ejecución, compartido por todos los escenarios de esta ejecución"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "api_base_url": { "type": "string" },
+        "domains_enabled": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "ow_enabled": { "type": "boolean" },
+        "mongo_enabled": { "type": "boolean" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "passed", "failed", "skipped"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ScenarioResult"
+      }
+    }
+  },
+  "definitions": {
+    "ScenarioResult": {
+      "type": "object",
+      "required": ["scenario_id", "name", "status", "duration_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "type": "string",
+          "description": "Identificador del escenario, p.ej. 'E1', 'EC3'"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "skip"]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skip_reason": {
+          "type": "string"
+        },
+        "failure_detail": {
+          "$ref": "#/definitions/FailureDetail"
+        },
+        "correlation_id": {
+          "type": "string"
+        },
+        "tenants": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "src_tenant_id": { "type": "string" },
+            "dst_tenant_id": { "type": "string" }
+          }
+        }
+      }
+    },
+    "FailureDetail": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assertion_type": {
+          "type": "string",
+          "enum": ["equivalence", "http_status", "conflict_detection", "lock_rejection", "cleanup", "other"]
+        },
+        "domain": {
+          "type": "string"
+        },
+        "resource_type": {
+          "type": "string"
+        },
+        "resource_name": {
+          "type": "string"
+        },
+        "expected": {},
+        "actual": {},
+        "message": {
+          "type": "string"
+        },
+        "stack": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
