@@ -155,7 +155,7 @@
 
 ### Phase Dependencies
 
-```
+```text
 Phase 1 (Schema contract)         ← start immediately
 Phase 2 (Helpers)                 ← start immediately; T003/T004/T005 parallel with T002
 Phase 3 (Lifecycle fixtures)      ← depends on Phase 2 complete (needs api-client + retry)
@@ -182,6 +182,7 @@ Phase 9 (Polish)                  ← depends on Phase 8 complete; T029/T030/T03
 **Phase 4**: T008, T009, T010, T011, T012, T013 all in parallel
 
 **Phase 6 + 7 together** (after Phases 1–5):
+
 ```bash
 # Parallel batch A — main scenarios E2–E5:
 T017: e2-partial-restore-domain-subset.test.mjs

@@ -61,7 +61,7 @@ RESTORE_TEST_PARALLELISM=true pnpm test:e2e:restore
 
 El informe JSON se escribe en `$RESTORE_TEST_REPORT_OUTPUT`. Ejemplo de resumen en stdout:
 
-```
+```text
 ✅ E1 — Restauración total sobre tenant vacío (golden path): PASS (84320 ms)
 ✅ E2a — Restauración parcial IAM + PostgreSQL: PASS (42100 ms)
 ✅ E2b — Restauración parcial Kafka + Storage: PASS (38900 ms)
