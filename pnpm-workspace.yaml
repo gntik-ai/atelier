@@ -5,3 +5,4 @@ packages:
   - services/scheduling-engine
   - tests/*
   - tests/hardening
+  - docs-site
