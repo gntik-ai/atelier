@@ -6,10 +6,13 @@ export default defineConfig({
   base: '/falcone/',
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/falcone/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/falcone/img/icon-32.png' }],
+    ['link', { rel: 'apple-touch-icon', sizes: '180x180', href: '/falcone/img/icon-180.png' }],
     ['meta', { name: 'theme-color', content: '#1B2D5B' }],
     ['meta', { name: 'og:type', content: 'website' }],
     ['meta', { name: 'og:title', content: 'In Falcone Docs' }],
     ['meta', { name: 'og:description', content: 'Multi-tenant BaaS platform documentation' }],
+    ['meta', { name: 'og:image', content: '/falcone/img/icon-512.png' }],
   ],
   themeConfig: {
     logo: '/logo.svg',

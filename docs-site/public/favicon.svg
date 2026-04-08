@@ -1,83 +1,84 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1B2D5B"/>
-      <stop offset="100%" stop-color="#0F1B3D"/>
-    </linearGradient>
+    <clipPath id="circle">
+      <circle cx="150" cy="150" r="140"/>
+    </clipPath>
   </defs>
 
-  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+  <!-- Navy blue background -->
+  <circle cx="150" cy="150" r="140" fill="#1B2D5B"/>
 
-  <!-- Falcon wing (behind) -->
-  <path d="
-    M 51 44
-    C 45 40, 35 35, 27 37
-    C 21 38, 17 42, 16 47
-    C 14 53, 16 58, 20 62
-    C 24 65, 29 64, 34 62
-    C 39 60, 44 56, 49 52
-    Z
-  " fill="#C8A44E" opacity="0.55"/>
+  <!-- Crimson red diagonal -->
+  <path d="M 10 150 L 240 80 L 290 290 L 10 290 Z" fill="#9B1B30" clip-path="url(#circle)"/>
 
-  <!-- Head + beak -->
+  <!-- Falcon head -->
   <path d="
-    M 64 20
-    C 60 19, 55 22, 54 26
-    C 52 30, 53 34, 55 37
-    L 56 38
-    C 57 40, 60 42, 62 41
-    L 67 39
-    L 69 40
-    L 67 41.5
-    C 66 42.5, 67 43, 69 42.5
-    L 73 40
-    C 74 39, 75 38, 74 37
-    L 70 34
-    C 69 33, 68 31, 68 29
-    C 68 25, 67 21, 64 20
-    Z
-  " fill="#C8A44E"/>
+    M 175 28
+    C 155 25, 125 35, 108 55
+    C 92 74, 82 100, 85 125
+    C 87 140, 95 155, 108 165
+    L 115 170 L 128 168
+    C 135 165, 142 158, 148 150
+    L 165 142 L 180 148 L 195 140
+    C 205 133, 215 122, 218 112
+    L 215 105
+    C 212 90, 208 72, 198 55
+    C 188 38, 175 28, 175 28 Z
+  " fill="#1B2D5B"/>
+
+  <path d="
+    M 170 35
+    C 152 33, 128 42, 115 58
+    C 102 74, 95 95, 97 115
+    C 99 128, 105 140, 115 150
+    L 122 155 L 132 152
+    C 138 148, 145 140, 150 132
+    L 162 126
+    C 168 122, 175 115, 178 108
+    L 176 100
+    C 174 85, 170 68, 163 55
+    C 155 40, 170 35, 170 35 Z
+  " fill="#223A6B" opacity="0.6"/>
 
   <!-- Eye -->
-  <circle cx="62" cy="29" r="2" fill="#0F1B3D"/>
+  <ellipse cx="145" cy="95" rx="9" ry="8" fill="white" opacity="0.9"/>
+  <ellipse cx="147" cy="94" rx="5" ry="4.5" fill="#1B2D5B"/>
+  <circle cx="148" cy="93" r="1.5" fill="white" opacity="0.7"/>
 
-  <!-- Chest + belly -->
+  <!-- Beak -->
   <path d="
-    M 56 38
-    C 54 42, 53 47, 53.5 52
-    C 54 57, 55 61, 58 65
-    C 59 67, 61 68, 63 68.5
-    C 65 68, 66 67, 68 65
-    C 70 61, 71 56, 70 52
-    C 70 47, 68 43, 67 41.5
-    C 65 43, 61 44, 59 42
-    C 57 41, 56.5 40, 56 38
-    Z
-  " fill="#C8A44E"/>
+    M 178 108
+    C 185 112, 198 118, 210 115
+    C 218 113, 225 108, 228 100
+    C 230 95, 228 90, 222 88
+    L 215 90
+    C 210 92, 205 98, 200 105
+    L 190 112 Z
+  " fill="#1B2D5B"/>
+  <path d="M 200 105 C 208 100, 218 94, 222 90" stroke="#0F1B3D" stroke-width="1.5" fill="none" opacity="0.4"/>
 
-  <!-- Tail -->
-  <path d="
-    M 53.5 52
-    C 49 55, 43 59, 37 64
-    C 34 66, 33 65, 32 63
-    C 32 61, 34 59, 38 57
-    C 43 54, 48 51, 52 49
-    Z
-  " fill="#C8A44E" opacity="0.7"/>
+  <!-- Cityscape -->
+  <g fill="#D4A843">
+    <path d="M 105 230 L 105 210 C 105 195, 115 180, 130 175 C 145 180, 155 195, 155 210 L 155 230 Z"/>
+    <rect x="128" y="168" width="4" height="12"/>
+    <rect x="125" y="172" width="10" height="3"/>
+    <rect x="60" y="215" width="25" height="35" rx="1"/>
+    <rect x="48" y="225" width="18" height="25" rx="1"/>
+    <rect x="67" y="205" width="10" height="45" rx="1"/>
+    <rect x="158" y="210" width="22" height="40" rx="1"/>
+    <rect x="175" y="218" width="18" height="32" rx="1"/>
+    <rect x="190" y="222" width="15" height="28" rx="1"/>
+    <rect x="65" y="220" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="75" y="220" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="65" y="228" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="75" y="228" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="163" y="218" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="171" y="218" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="163" y="226" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="171" y="226" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="40" y="248" width="175" height="4" rx="2"/>
+  </g>
 
-  <!-- Talons -->
-  <path d="
-    M 60 68 L 59 72 L 57 73 L 59.5 72 L 61 70
-    M 63 68.5 L 63.5 72 L 65 73 L 64 71.5 L 63 70
-  " stroke="#C8A44E" stroke-width="1.2" stroke-linecap="round" fill="none"/>
-
-  <!-- Scales of justice -->
-  <polygon points="63,72 61,75 65,75" fill="#C8A44E"/>
-  <line x1="39" y1="75" x2="87" y2="75" stroke="#C8A44E" stroke-width="1.5" stroke-linecap="round"/>
-  <line x1="44" y1="75" x2="44" y2="86" stroke="#C8A44E" stroke-width="1"/>
-  <line x1="82" y1="75" x2="82" y2="86" stroke="#C8A44E" stroke-width="1"/>
-  <path d="M 37 86 C 37 86, 40 92, 44 92 C 48 92, 51 86, 51 86 Z" fill="#C8A44E" opacity="0.8"/>
-  <path d="M 75 86 C 75 86, 78 92, 82 92 C 86 92, 89 86, 89 86 Z" fill="#C8A44E" opacity="0.8"/>
-  <circle cx="44" cy="75" r="1.5" fill="#C8A44E"/>
-  <circle cx="82" cy="75" r="1.5" fill="#C8A44E"/>
+  <!-- Border -->
+  <circle cx="150" cy="150" r="140" stroke="#D4A843" stroke-width="2.5" fill="none" opacity="0.4"/>
 </svg>

@@ -1,129 +1,84 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1B2D5B"/>
-      <stop offset="100%" stop-color="#0F1B3D"/>
-    </linearGradient>
+    <clipPath id="circle">
+      <circle cx="150" cy="150" r="140"/>
+    </clipPath>
   </defs>
 
-  <!-- Background -->
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Navy blue background -->
+  <circle cx="150" cy="150" r="140" fill="#1B2D5B"/>
 
-  <!-- === FALCON — profile facing right, perched === -->
+  <!-- Crimson red diagonal -->
+  <path d="M 10 150 L 240 80 L 290 290 L 10 290 Z" fill="#9B1B30" clip-path="url(#circle)"/>
 
-  <!-- Wing (behind body) -->
+  <!-- Falcon head -->
   <path d="
-    M 205 195
-    C 180 175, 140 155, 110 160
-    C 85 164, 68 178, 62 195
-    C 56 215, 65 235, 80 248
-    C 95 261, 115 258, 135 250
-    C 155 242, 175 228, 195 215
-    Z
-  " fill="#C8A44E" opacity="0.55"/>
+    M 175 28
+    C 155 25, 125 35, 108 55
+    C 92 74, 82 100, 85 125
+    C 87 140, 95 155, 108 165
+    L 115 170 L 128 168
+    C 135 165, 142 158, 148 150
+    L 165 142 L 180 148 L 195 140
+    C 205 133, 215 122, 218 112
+    L 215 105
+    C 212 90, 208 72, 198 55
+    C 188 38, 175 28, 175 28 Z
+  " fill="#1B2D5B"/>
 
-  <!-- Body + head -->
   <path d="
-    M 255 95
-    C 240 92, 222 100, 215 115
-    C 208 130, 210 148, 218 160
-    L 222 165
-    C 228 170, 240 178, 248 175
-    L 268 164
-    L 275 168
-    L 268 175
-    C 262 180, 268 182, 275 180
-    L 290 170
-    C 295 167, 298 162, 295 157
-    L 280 148
-    C 275 142, 272 135, 272 128
-    C 272 115, 268 100, 255 95
-    Z
-  " fill="#C8A44E"/>
+    M 170 35
+    C 152 33, 128 42, 115 58
+    C 102 74, 95 95, 97 115
+    C 99 128, 105 140, 115 150
+    L 122 155 L 132 152
+    C 138 148, 145 140, 150 132
+    L 162 126
+    C 168 122, 175 115, 178 108
+    L 176 100
+    C 174 85, 170 68, 163 55
+    C 155 40, 170 35, 170 35 Z
+  " fill="#223A6B" opacity="0.6"/>
 
   <!-- Eye -->
-  <circle cx="248" cy="128" r="7" fill="#0F1B3D"/>
-  <circle cx="250" cy="126" r="2.2" fill="#C8A44E" opacity="0.5"/>
+  <ellipse cx="145" cy="95" rx="9" ry="8" fill="white" opacity="0.9"/>
+  <ellipse cx="147" cy="94" rx="5" ry="4.5" fill="#1B2D5B"/>
+  <circle cx="148" cy="93" r="1.5" fill="white" opacity="0.7"/>
 
-  <!-- Beak notch detail (tomial tooth — falcon signature) -->
-  <path d="M 280 148 L 285 152 L 290 150" stroke="#0F1B3D" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-
-  <!-- Chest + belly -->
+  <!-- Beak -->
   <path d="
-    M 222 165
-    C 215 180, 210 200, 212 220
-    C 214 240, 220 258, 230 270
-    C 235 277, 242 280, 250 282
-    C 258 280, 265 275, 270 268
-    C 280 252, 282 235, 280 218
-    C 278 200, 272 185, 268 175
-    C 258 185, 245 188, 235 182
-    C 228 178, 224 172, 222 165
-    Z
-  " fill="#C8A44E"/>
+    M 178 108
+    C 185 112, 198 118, 210 115
+    C 218 113, 225 108, 228 100
+    C 230 95, 228 90, 222 88
+    L 215 90
+    C 210 92, 205 98, 200 105
+    L 190 112 Z
+  " fill="#1B2D5B"/>
+  <path d="M 200 105 C 208 100, 218 94, 222 90" stroke="#0F1B3D" stroke-width="1.5" fill="none" opacity="0.4"/>
 
-  <!-- Chest feather marks -->
-  <path d="M 232 210 C 240 208, 258 208, 265 212" stroke="#0F1B3D" stroke-width="1" opacity="0.2" fill="none"/>
-  <path d="M 230 225 C 238 222, 260 222, 268 226" stroke="#0F1B3D" stroke-width="1" opacity="0.15" fill="none"/>
-  <path d="M 232 240 C 240 237, 258 237, 266 241" stroke="#0F1B3D" stroke-width="1" opacity="0.1" fill="none"/>
+  <!-- Cityscape -->
+  <g fill="#D4A843">
+    <path d="M 105 230 L 105 210 C 105 195, 115 180, 130 175 C 145 180, 155 195, 155 210 L 155 230 Z"/>
+    <rect x="128" y="168" width="4" height="12"/>
+    <rect x="125" y="172" width="10" height="3"/>
+    <rect x="60" y="215" width="25" height="35" rx="1"/>
+    <rect x="48" y="225" width="18" height="25" rx="1"/>
+    <rect x="67" y="205" width="10" height="45" rx="1"/>
+    <rect x="158" y="210" width="22" height="40" rx="1"/>
+    <rect x="175" y="218" width="18" height="32" rx="1"/>
+    <rect x="190" y="222" width="15" height="28" rx="1"/>
+    <rect x="65" y="220" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="75" y="220" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="65" y="228" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="75" y="228" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="163" y="218" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="171" y="218" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="163" y="226" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="171" y="226" width="3" height="4" fill="#9B1B30" opacity="0.5"/>
+    <rect x="40" y="248" width="175" height="4" rx="2"/>
+  </g>
 
-  <!-- Tail feathers -->
-  <path d="
-    M 212 220
-    C 195 230, 170 245, 145 265
-    C 135 272, 130 270, 128 264
-    C 126 255, 135 245, 150 238
-    C 170 225, 190 215, 205 210
-    Z
-  " fill="#C8A44E" opacity="0.7"/>
-
-  <!-- Talons gripping the scale beam -->
-  <path d="
-    M 238 280 L 234 295 L 230 298 L 236 296 L 240 290
-    M 250 282 L 252 295 L 256 298 L 254 294 L 250 288
-    M 260 278 L 264 293 L 268 296 L 264 293 L 260 285
-  " stroke="#C8A44E" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-
-  <!-- === SCALES OF JUSTICE === -->
-
-  <!-- Fulcrum (small triangle) -->
-  <polygon points="250,296 244,306 256,306" fill="#C8A44E"/>
-
-  <!-- Beam -->
-  <line x1="155" y1="306" x2="345" y2="306" stroke="#C8A44E" stroke-width="3" stroke-linecap="round"/>
-
-  <!-- Left chain -->
-  <line x1="175" y1="306" x2="175" y2="348" stroke="#C8A44E" stroke-width="2"/>
-
-  <!-- Right chain -->
-  <line x1="325" y1="306" x2="325" y2="348" stroke="#C8A44E" stroke-width="2"/>
-
-  <!-- Left pan -->
-  <path d="
-    M 145 348
-    C 145 348, 155 365, 175 365
-    C 195 365, 205 348, 205 348
-    Z
-  " fill="#C8A44E" opacity="0.8"/>
-
-  <!-- Right pan -->
-  <path d="
-    M 295 348
-    C 295 348, 305 365, 325 365
-    C 345 365, 355 348, 355 348
-    Z
-  " fill="#C8A44E" opacity="0.8"/>
-
-  <!-- Small dots at chain-beam joints -->
-  <circle cx="175" cy="306" r="4" fill="#C8A44E"/>
-  <circle cx="325" cy="306" r="4" fill="#C8A44E"/>
-
-  <!-- === TEXT === -->
-  <text x="256" y="430" text-anchor="middle"
-        font-family="'Helvetica Neue', Arial, sans-serif"
-        font-weight="700" font-size="46" letter-spacing="10"
-        fill="#C8A44E">IN FALCONE</text>
-
-  <!-- Subtle line under text -->
-  <line x1="140" y1="445" x2="372" y2="445" stroke="#C8A44E" stroke-width="1" opacity="0.3"/>
+  <!-- Border -->
+  <circle cx="150" cy="150" r="140" stroke="#D4A843" stroke-width="2.5" fill="none" opacity="0.4"/>
 </svg>
