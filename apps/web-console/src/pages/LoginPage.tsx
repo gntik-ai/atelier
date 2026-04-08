@@ -177,6 +177,7 @@ export function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-16 text-foreground">
       <section className="w-full max-w-3xl rounded-3xl border border-border bg-card/80 p-10 shadow-2xl shadow-black/20 backdrop-blur">
         <div className="mb-8 space-y-3">
+          <img src="/img/logo-wide.png" alt="In Falcone" className="mb-4 h-16 w-auto" />
           <Badge variant="secondary">EP-14 / US-UI-01-T05</Badge>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">{consoleAuthConfig.headings.title}</h1>
           <p className="max-w-2xl text-lg leading-8 text-muted-foreground">{consoleAuthConfig.headings.subtitle}</p>

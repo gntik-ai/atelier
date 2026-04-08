@@ -239,9 +239,7 @@ export function ConsoleShellLayout() {
         <header className="fixed inset-x-0 top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
           <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-sm font-semibold text-primary-foreground">
-                IA
-              </div>
+              <img src="/img/logo-wide.png" alt="In Falcone" className="h-10 w-auto" />
               <div className="min-w-0">
                 <Link className="block truncate text-base font-semibold tracking-tight" to="/console/overview">
                   In Falcone Console
