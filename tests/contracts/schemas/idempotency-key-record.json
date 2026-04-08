@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "idempotency-key-record",
+  "title": "IdempotencyKeyRecord",
+  "description": "Registro de asociación entre una idempotency key y una operación existente, scoped por tenant.",
+  "type": "object",
+  "required": ["record_id", "tenant_id", "idempotency_key", "operation_id", "operation_type", "params_hash", "created_at", "expires_at"],
+  "additionalProperties": false,
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del registro"
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tenant al que pertenece la idempotency key"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Key opaca proporcionada por el cliente"
+    },
+    "operation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Referencia a la operación asíncrona asociada"
+    },
+    "operation_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tipo de operación para detección de conflicto de tipo"
+    },
+    "params_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hex de los parámetros de la solicitud original (para detección de discrepancia)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp de creación del registro"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp de expiración de la ventana de deduplicación"
+    }
+  }
+}

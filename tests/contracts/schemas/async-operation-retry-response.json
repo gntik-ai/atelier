@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "async-operation-retry-response",
+  "title": "AsyncOperationRetryResponse",
+  "description": "Contrato de salida de la acción OpenWhisk async-operation-retry en caso de éxito (statusCode 200).",
+  "type": "object",
+  "required": ["statusCode", "headers", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "statusCode": {
+      "type": "integer",
+      "enum": [200],
+      "description": "HTTP 200 indica que el reintento fue creado exitosamente"
+    },
+    "headers": {
+      "type": "object",
+      "required": ["X-Correlation-Id"],
+      "properties": {
+        "X-Correlation-Id": {
+          "type": "string",
+          "description": "Nuevo correlation ID asignado al intento de reintento"
+        }
+      },
+      "additionalProperties": true
+    },
+    "body": {
+      "type": "object",
+      "required": ["attemptId", "operationId", "attemptNumber", "correlationId", "status", "createdAt"],
+      "additionalProperties": false,
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Identificador único del intento creado"
+        },
+        "operationId": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Identificador de la operación original"
+        },
+        "attemptNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Número de intento (1-indexed)"
+        },
+        "correlationId": {
+          "type": "string",
+          "description": "Nuevo correlation ID para trazabilidad del intento"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending"],
+          "description": "Estado inicial del intento recién creado"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp de creación del intento"
+        }
+      }
+    }
+  }
+}

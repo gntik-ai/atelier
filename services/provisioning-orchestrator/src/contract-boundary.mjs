@@ -6,12 +6,12 @@ import {
   listInteractionFlows
 } from '../../internal-contracts/src/index.mjs';
 
-export { default as idempotencyKeyRecordSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/idempotency-key-record.json' with { type: 'json' };
-export { default as retryAttemptSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/retry-attempt.json' with { type: 'json' };
-export { default as asyncOperationRetryRequestSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/async-operation-retry-request.json' with { type: 'json' };
-export { default as asyncOperationRetryResponseSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/async-operation-retry-response.json' with { type: 'json' };
-export { default as idempotencyDedupEventContractSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/idempotency-dedup-event.json' with { type: 'json' };
-export { default as operationRetryEventContractSchema } from '../../../specs/075-idempotent-retry-dedup/contracts/operation-retry-event.json' with { type: 'json' };
+export { default as idempotencyKeyRecordSchema } from '../../../tests/contracts/schemas/idempotency-key-record.json' with { type: 'json' };
+export { default as retryAttemptSchema } from '../../../tests/contracts/schemas/retry-attempt.json' with { type: 'json' };
+export { default as asyncOperationRetryRequestSchema } from '../../../tests/contracts/schemas/async-operation-retry-request.json' with { type: 'json' };
+export { default as asyncOperationRetryResponseSchema } from '../../../tests/contracts/schemas/async-operation-retry-response.json' with { type: 'json' };
+export { default as idempotencyDedupEventContractSchema } from '../../../tests/contracts/schemas/idempotency-dedup-event.json' with { type: 'json' };
+export { default as operationRetryEventContractSchema } from '../../../tests/contracts/schemas/operation-retry-event.json' with { type: 'json' };
 export { default as failureClassifiedEventSchema } from '../../../services/internal-contracts/src/failure-classified-event.json' with { type: 'json' };
 export { default as manualInterventionRequiredEventSchema } from '../../../services/internal-contracts/src/manual-intervention-required-event.json' with { type: 'json' };
 export { default as retryOverrideEventSchema } from '../../../services/internal-contracts/src/retry-override-event.json' with { type: 'json' };

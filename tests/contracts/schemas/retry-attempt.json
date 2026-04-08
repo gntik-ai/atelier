@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "retry-attempt",
+  "title": "RetryAttempt",
+  "description": "Intento de ejecución de una operación fallida, vinculado a la operación original.",
+  "type": "object",
+  "required": ["attempt_id", "operation_id", "tenant_id", "attempt_number", "correlation_id", "actor_id", "actor_type", "status", "created_at"],
+  "additionalProperties": false,
+  "properties": {
+    "attempt_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del intento"
+    },
+    "operation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Referencia a la operación original"
+    },
+    "tenant_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tenant al que pertenece la operación"
+    },
+    "attempt_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Número de intento (1-indexed)"
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nuevo correlation_id generado para este intento"
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Actor que solicitó el reintento"
+    },
+    "actor_type": {
+      "type": "string",
+      "enum": ["workspace_admin", "tenant_owner", "superadmin", "tenant_member"],
+      "description": "Tipo de actor que solicitó el reintento"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "completed", "failed"],
+      "description": "Estado del intento de ejecución"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp de creación del intento"
+    },
+    "completed_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Timestamp de finalización del intento (null si no completado)"
+    },
+    "metadata": {
+      "type": ["object", "null"],
+      "description": "Metadata adicional del intento"
+    }
+  }
+}

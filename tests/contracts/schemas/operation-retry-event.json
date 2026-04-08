@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "operation-retry-event",
+  "title": "OperationRetryRequestedEvent",
+  "description": "Evento Kafka publicado cuando se solicita un reintento de una operación fallida. Topic: console.async-operation.retry-requested",
+  "type": "object",
+  "required": ["eventId", "eventType", "operationId", "tenantId", "actorId", "actorType", "attemptId", "attemptNumber", "previousCorrelationId", "newCorrelationId", "occurredAt"],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador único del evento"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["async_operation.retry_requested"],
+      "description": "Tipo de evento"
+    },
+    "operationId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Operación original que se está reintentando"
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tenant al que pertenece la operación"
+    },
+    "actorId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Actor que solicitó el reintento"
+    },
+    "actorType": {
+      "type": "string",
+      "enum": ["workspace_admin", "tenant_owner", "superadmin", "tenant_member"],
+      "description": "Tipo de actor"
+    },
+    "attemptId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador del nuevo intento creado"
+    },
+    "attemptNumber": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Número de intento (1-indexed)"
+    },
+    "previousCorrelationId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Correlation ID del intento previo (o de la operación original si es el primer reintento)"
+    },
+    "newCorrelationId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Nuevo correlation ID generado para este intento"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp del evento de reintento"
+    }
+  }
+}

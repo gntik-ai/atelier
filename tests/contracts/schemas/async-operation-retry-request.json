@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "async-operation-retry-request",
+  "title": "AsyncOperationRetryRequest",
+  "description": "Contrato de entrada para la acción OpenWhisk async-operation-retry. Los parámetros de la operación se preservan del registro original.",
+  "type": "object",
+  "required": ["callerContext"],
+  "additionalProperties": true,
+  "properties": {
+    "callerContext": {
+      "type": "object",
+      "description": "Contexto del llamador (tenantId, actor) propagado desde APISIX/Keycloak",
+      "required": ["tenantId", "actor"],
+      "properties": {
+        "tenantId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tenant del actor solicitante"
+        },
+        "actor": {
+          "type": "object",
+          "required": ["id", "type"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Identificador del actor"
+            },
+            "type": {
+              "type": "string",
+              "enum": ["workspace_admin", "tenant_owner", "superadmin", "tenant_member"],
+              "description": "Tipo de actor"
+            }
+          },
+          "additionalProperties": true
+        },
+        "correlationId": {
+          "type": "string",
+          "description": "Correlation ID de la solicitud entrante"
+        }
+      },
+      "additionalProperties": true
+    },
+    "operation_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Identificador de la operación a reintentar"
+    }
+  }
+}
