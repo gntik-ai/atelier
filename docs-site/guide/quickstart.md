@@ -236,7 +236,7 @@ Now insert or update a product in another terminal — you'll see the event arri
 
 ## 9. Open the Web Console
 
-Navigate to [http://localhost:3000](http://localhost:3000) and log in with:
+Navigate to `http://localhost:3000` and log in with:
 - **Username:** `admin`
 - **Password:** `admin`
 
