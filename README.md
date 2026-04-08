@@ -1,4 +1,22 @@
-# In Falcone
+<p align="center">
+  <img src="logo.svg" alt="In Falcone" width="200" />
+</p>
+
+<h1 align="center">In Falcone</h1>
+
+<p align="center">
+  Self-hosted, multi-tenant Backend-as-a-Service platform
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> |
+  <a href="README.es.md">Espa&ntilde;ol</a> |
+  <a href="README.de.md">Deutsch</a> |
+  <a href="README.it.md">Italiano</a> |
+  <a href="README.zh.md">中文</a>
+</p>
+
+---
 
 **In Falcone** is a self-hosted, multi-tenant Backend-as-a-Service (BaaS) platform that provides managed databases, identity, serverless functions, event streaming, and object storage — all deployed on your own Kubernetes or OpenShift infrastructure via a single Helm chart.
 
@@ -14,87 +32,58 @@ Full documentation is available at **[gntik-ai.github.io/falcone](https://gntik-
 
 ## Repository Structure
 
-This repository establishes the working structure for:
-
-- `apps/control-plane`: control plane backend surface
-- `apps/web-console`: web console frontend surface
-- `services/gateway-config`: gateway and runtime configuration assets, including the unified public API family routing manifest
-- `services/internal-contracts`: internal service-map, authorization, deployment-topology, core-domain, and public-API taxonomy baselines
-- `services/provisioning-orchestrator`: control-plane orchestration workspace
-- `services/audit`: audit/evidence workspace
-- `services/adapters`: external service adapter packages
-- `charts/in-falcone`: umbrella Helm chart with aliased component wrappers plus layered values for Kubernetes/OpenShift deployments
-- `docs`: architecture and working conventions
-- `tests/e2e`: end-to-end test workspace
-- `tests/reference`: reusable testing strategy package and synthetic reference dataset
-- `.specify`: Spec Kit context and project conventions
-
-## Monorepo layout
-
 ```text
 apps/
-  control-plane/
-  web-console/
+  control-plane/          # Platform API backend (Node.js 20+ ESM)
+  web-console/            # Management UI (React 18 + Vite + Tailwind)
 services/
-  gateway-config/
-  internal-contracts/
-  provisioning-orchestrator/
-  audit/
-  adapters/
+  adapters/               # Provider adapters (Keycloak, PG, Mongo, Kafka, OW, S3)
+  internal-contracts/     # Machine-readable JSON schemas & contracts
+  provisioning-orchestrator/  # Tenant/workspace lifecycle management
+  gateway-config/         # APISIX routing definitions & plugins
+  event-gateway/          # Event publishing bridge
+  realtime-gateway/       # WebSocket subscription server
+  audit/                  # Audit event processing pipeline
+  backup-status/          # Backup monitoring service
+  pg-cdc-bridge/          # PostgreSQL Change Data Capture
+  mongo-cdc-bridge/       # MongoDB Change Data Capture
 charts/
-  in-falcone/
-docs/
-tests/
-  adapters/
-  contracts/
-  e2e/
-  reference/
-  resilience/
-  unit/
+  in-falcone/             # Umbrella Helm chart
+docs/                     # ADRs & internal reference
+tests/                    # Unit, contract, E2E, resilience, hardening
 ```
 
-## Working conventions
+## Quick Start
 
-- Use `pnpm` workspaces from the repository root.
-- Keep deployable applications under `apps/`.
-- Keep reusable service-side packages and operational assets under `services/`.
-- Keep documentation under `docs/` and decisions under `docs/adr/`.
-- Keep environment-specific deployment values outside chart templates when possible.
-- Layer deployment values as `common -> environment -> customer -> platform -> airgap -> localOverride -> secretRefs` to make promotion and rollback auditable.
-- Keep OpenShift compatibility by avoiding privileged defaults and using standard Kubernetes APIs.
+```bash
+git clone https://github.com/gntik-ai/falcone.git
+cd falcone
 
-## Quality gates
+helm dependency build charts/in-falcone
 
-The current baseline quality chain covers:
+helm upgrade --install in-falcone charts/in-falcone \
+  --namespace in-falcone-dev --create-namespace \
+  -f charts/in-falcone/values.yaml \
+  -f charts/in-falcone/values/profiles/all-in-one.yaml \
+  -f charts/in-falcone/values/dev.yaml \
+  -f charts/in-falcone/values/platform-kubernetes.yaml
+```
 
-- repository structure validation
-- PostgreSQL ADR package validation
-- testing-strategy package validation
-- internal service-map validation
-- public-API taxonomy, route-catalog, family-contract, and gateway-routing validation
-- deployment-topology validation for domains, environments, overlays, smoke parity, and bootstrap policy
-- deployment-chart validation for umbrella dependencies, wrapper coverage, values layers, and bootstrap controller contracts
-- authorization-model validation for tenant/workspace context, permission matrices, and propagation targets
-- domain-model validation for canonical entities, lifecycle events, OpenAPI mapping, and seed fixtures
-- markdown linting
-- OpenAPI validation for the unified control-plane/public-gateway contract
-- unit tests for helper logic and strategy consistency
-- adapter-integration scaffold tests
-- contract tests for API versioning/error expectations
-- internal contract/service-map tests
-- console E2E scaffold tests
-- deployment smoke scaffold tests for Kubernetes/OpenShift parity
-- resilience scaffold tests
-- dependency vulnerability audit
-- immutable image-reference policy checks
-
-Run:
+## Quality Gates
 
 ```bash
 corepack pnpm install
-corepack pnpm generate:public-api
 corepack pnpm lint
 corepack pnpm test
 corepack pnpm security:deps
-corepack pnpm security:images
 ```
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+<p align="center">
+  <i>Named after <b>Giovanni Falcone</b> (1939–1992), the Italian magistrate who gave his life fighting for justice.</i>
+</p>
