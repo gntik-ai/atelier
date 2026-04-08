@@ -1,1 +1,0 @@
-{"type":"object","required":["tenantId","planSlug","planStatus","effectiveLimits"],"properties":{"tenantId":{"type":"string"},"planSlug":{"type":"string"},"planStatus":{"type":"string"},"effectiveLimits":{"type":"array"}}}

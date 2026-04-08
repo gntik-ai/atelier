@@ -203,8 +203,7 @@ Node.js 20+ compatible ESM modules, JSON OpenAPI artifacts, Markdown planning as
 - New env vars: `SUB_QUOTA_KAFKA_TOPIC_SET`, `SUB_QUOTA_KAFKA_TOPIC_REMOVED`, `SUB_QUOTA_KAFKA_TOPIC_INCONSISTENCY`, `SUB_QUOTA_ALLOCATION_LOCK_TIMEOUT_MS`.
 - Resolution hierarchy: tenant `override > plan > catalog_default`; workspace `workspace_sub_quota > tenant_shared_pool`.
 - Workspace sub-quotas are finite-only: `-1` remains the tenant unlimited sentinel and is invalid at workspace sub-quota level.
-- Implement-read constraints for this slice: targeted file reads only, no full OpenAPI read, and only `plan.md` + `tasks.md` as spec context during `speckit.implement`.
-- Preserve unrelated untracked artifacts: `specs/070-saga-compensation-workflows/plan.md`, `specs/070-saga-compensation-workflows/tasks.md`, `specs/072-workflow-e2e-compensation/tasks.md`.
+- Implement-read constraints for this slice: targeted file reads only, no full OpenAPI read.
 
 ## Consumption Visibility Console (106-consumption-visibility-console)
 

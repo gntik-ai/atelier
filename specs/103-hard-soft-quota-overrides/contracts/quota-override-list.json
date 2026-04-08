@@ -1,1 +1,0 @@
-{"type":"object","required":["overrides","total","page","pageSize"],"properties":{"overrides":{"type":"array"},"total":{"type":"integer"},"page":{"type":"integer"},"pageSize":{"type":"integer"}}}

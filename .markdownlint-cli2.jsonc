@@ -9,27 +9,11 @@
     "MD041": false
   },
   "ignores": [
-    "**/node_modules/**/*.md",
-    "specs/080-pg-change-to-kafka/plan.md",
-    "specs/080-pg-change-to-kafka/tasks.md",
-    "specs/070-saga-compensation-workflows/plan.md",
-    "specs/070-saga-compensation-workflows/tasks.md",
-    "specs/072-workflow-e2e-compensation/tasks.md",
-    "specs/082-realtime-auth-scope-filters/plan.md",
-    "specs/082-realtime-auth-scope-filters/spec.md",
-    "specs/082-realtime-auth-scope-filters/tasks.md",
-    "specs/107-capability-enforcement/tasks.md",
-    "specs/108-plan-enforcement-tests/tasks.md",
-    "specs/109-backup-status-visibility/plan.md",
-    "specs/109-backup-status-visibility/tasks.md",
-    "specs/111-backup-audit-trail/plan.md",
-    "specs/111-backup-audit-trail/spec.md",
-    "specs/111-backup-audit-trail/tasks.md"
+    "**/node_modules/**/*.md"
   ],
   "globs": [
     "README*.md",
     "docs/**/*.md",
-    "specs/**/*.md",
     "tests/**/*.md",
     "apps/**/*.md",
     "services/**/*.md"

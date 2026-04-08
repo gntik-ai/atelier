@@ -1,1 +1,0 @@
-{"type":"object","required":["entries","total"],"properties":{"entries":{"type":"array"},"total":{"type":"integer"}}}
