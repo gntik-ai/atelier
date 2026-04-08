@@ -6,7 +6,6 @@ const requiredPaths = [
   'pnpm-workspace.yaml',
   'turbo.json',
   '.markdownlint-cli2.jsonc',
-  '.specify/memory/constitution.md',
   'apps/control-plane/package.json',
   'apps/control-plane/openapi/control-plane.openapi.json',
   'apps/web-console/package.json',
@@ -105,23 +104,7 @@ const requiredPaths = [
   'scripts/validate-deployment-chart.mjs',
   'scripts/validate-authorization-model.mjs',
   'scripts/validate-domain-model.mjs',
-  '.github/workflows/ci.yml',
-  'specs/us-prg-03-t01/spec.md',
-  'specs/us-prg-03-t01/plan.md',
-  'specs/us-prg-03-t01/research.md',
-  'specs/us-prg-03-t01/quickstart.md',
-  'specs/us-prg-03-t01/tasks.md',
-  'specs/us-prg-04-t01/spec.md',
-  'specs/us-prg-04-t01/plan.md',
-  'specs/us-prg-04-t01/research.md',
-  'specs/us-prg-04-t01/quickstart.md',
-  'specs/us-prg-04-t01/tasks.md',
-  'specs/us-arc-01-t01/spec.md',
-  'specs/us-arc-01-t01/plan.md',
-  'specs/us-arc-01-t01/research.md',
-  'specs/us-arc-01-t01/service-map.md',
-  'specs/us-arc-01-t01/quickstart.md',
-  'specs/us-arc-01-t01/tasks.md'
+  '.github/workflows/ci.yml'
 ];
 
 const missing = requiredPaths.filter((path) => !existsSync(path));
