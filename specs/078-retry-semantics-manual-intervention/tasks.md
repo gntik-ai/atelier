@@ -47,7 +47,7 @@ Phase 1 (Setup)
 
 ## Phase 1: Setup
 
-- [ ] T001 Verify branch `078-retry-semantics-manual-intervention` is active and that unrelated untracked files (070/072 specs) are preserved: `git status` check in `/root/projects/atelier`
+- [ ] T001 Verify branch `078-retry-semantics-manual-intervention` is active and that unrelated untracked files (070/072 specs) are preserved: `git status` check in `/root/projects/falcone`
 - [ ] T002 Create spec contracts directory at `specs/078-retry-semantics-manual-intervention/contracts/` and verify all plan-defined contract files are scaffolded (empty JSON stubs) to unblock parallel work: `retry-semantics-profile.json`, `failure-classification.json`, `manual-intervention-flag.json`, `retry-override.json`, `failure-classified-event.json`, `manual-intervention-required-event.json`, `retry-override-event.json`, `intervention-notification-event.json`, `retry-semantics-profile-query-response.json`
 
 ---

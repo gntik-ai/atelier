@@ -56,10 +56,10 @@ describe('console-context', () => {
   })
 
   it('ignora snapshots inválidos del storage', () => {
-    window.localStorage.setItem('in-atelier.console-active-context', '{not-json')
+    window.localStorage.setItem('in-falcone.console-active-context', '{not-json')
 
     expect(readPersistedConsoleContext(baseSession.principal?.userId ?? null)).toBeNull()
-    expect(window.localStorage.getItem('in-atelier.console-active-context')).toBeNull()
+    expect(window.localStorage.getItem('in-falcone.console-active-context')).toBeNull()
   })
 
   it('ignora snapshots de otro usuario', () => {

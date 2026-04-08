@@ -36,7 +36,7 @@ Decisiones de diseño clave:
 - **Serverless**: OpenWhisk REST API (recolector de funciones)
 - **Base de datos documental**: MongoDB (recolector de metadata)
 - **Plataforma de despliegue**: Kubernetes / OpenShift vía Helm
-- **Monorepo**: `in-atelier` (estructura existente, convenciones de specs 097–114)
+- **Monorepo**: `in-falcone` (estructura existente, convenciones de specs 097–114)
 - **Dependencias funcionales**: US-OBS-01 (pipeline de auditoría), US-DEP-03 (perfil de despliegue), US-TEN-04 (modelo de tenants)
 - **Testing**: `node:test` + `node:assert` (backend), `vitest` + React Testing Library (consola), `undici` (contract/integration HTTP)
 

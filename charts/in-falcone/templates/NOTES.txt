@@ -1,0 +1,27 @@
+In Falcone umbrella chart
+=========================
+
+Environment: {{ .Values.global.environment }}
+Namespace: {{ .Values.global.namespace }}
+Deployment profile: {{ .Values.deployment.profile }}
+Exposure kind: {{ .Values.platform.network.exposureKind }}
+TLS mode: {{ .Values.publicSurface.tls.mode }}
+
+Recommended values layering order:
+1. {{ .Values.deployment.valuesLayers.common }}
+2. {{ .Values.deployment.valuesLayers.environment }}
+3. {{ .Values.deployment.valuesLayers.customer }}
+4. {{ .Values.deployment.valuesLayers.platform }}
+5. {{ .Values.deployment.valuesLayers.airgap }}
+6. {{ .Values.deployment.valuesLayers.localOverride }}
+
+Public endpoints:
+- API: https://{{ .Values.publicSurface.hostnames.api }}{{ .Values.publicSurface.bindings.api.path }}
+- Identity: https://{{ .Values.publicSurface.hostnames.identity }}{{ .Values.publicSurface.bindings.identity.path }}
+- Realtime: https://{{ .Values.publicSurface.hostnames.realtime }}{{ .Values.publicSurface.bindings.realtime.path }}
+- Console: https://{{ .Values.publicSurface.hostnames.console }}{{ .Values.publicSurface.bindings.console.path }}
+
+Bootstrap:
+- Hook job: {{ include "in-falcone.fullname" . }}-bootstrap
+- Lock ConfigMap: {{ .Values.bootstrap.lock.name }}
+- Marker ConfigMap: {{ .Values.bootstrap.markers.name }}

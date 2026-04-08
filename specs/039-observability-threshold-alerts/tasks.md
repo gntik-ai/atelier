@@ -49,7 +49,7 @@ Use only the following repo files as implementation inputs for this task.
 - `scripts/lib/observability-threshold-alerts.mjs`
 - `scripts/validate-observability-threshold-alerts.mjs`
 - `apps/control-plane/src/observability-admin.mjs`
-- `charts/in-atelier/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql`
+- `charts/in-falcone/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql`
 - `docs/reference/architecture/observability-threshold-alerts.md`
 - `docs/reference/architecture/README.md`
 - `docs/tasks/us-obs-03.md`
@@ -133,7 +133,7 @@ Use only the following repo files as implementation inputs for this task.
 
 ## Phase 4 — PostgreSQL migration
 
-- [ ] T009 Add `charts/in-atelier/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql` with:
+- [ ] T009 Add `charts/in-falcone/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql` with:
 
   ```sql
   CREATE TABLE quota_last_known_posture (

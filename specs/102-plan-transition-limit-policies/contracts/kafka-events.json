@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://atelier.local/specs/102-plan-transition-limit-policies/contracts/kafka-events.json",
+  "$id": "https://falcone.local/specs/102-plan-transition-limit-policies/contracts/kafka-events.json",
   "title": "Plan Transition Policy Kafka Events",
   "description": "Schema for all Kafka events emitted by feature 102.",
   "oneOf": [

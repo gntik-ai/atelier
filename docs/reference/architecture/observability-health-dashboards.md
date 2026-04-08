@@ -127,9 +127,9 @@ Collection freshness is part of health, not a secondary footnote.
 
 The dashboard baseline reuses the metrics-plane telemetry contract:
 
-- `in_atelier_observability_collection_health`
-- `in_atelier_observability_collection_failures_total`
-- `in_atelier_observability_collection_lag_seconds`
+- `in_falcone_observability_collection_health`
+- `in_falcone_observability_collection_failures_total`
+- `in_falcone_observability_collection_lag_seconds`
 
 A stale or failed collection path means the affected widget or subsystem summary must not be shown
 as confirmed healthy current state.

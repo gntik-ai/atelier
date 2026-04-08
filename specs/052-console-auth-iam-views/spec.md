@@ -102,5 +102,5 @@ Como operador responsable de autenticación federada, quiero visualizar qué pro
 
 - **SC-001**: Un operador autenticado puede llegar desde el shell a la superficie Auth/IAM del tenant/workspace activo en un máximo de 2 clics desde cualquier página de consola.
 - **SC-002**: La vista `/console/auth` actualiza sus datos del realm y del workspace activo tras un cambio de contexto sin requerir recarga manual completa de la SPA.
-- **SC-003**: Los estados de carga, vacío y error quedan visibles por sección y pueden verificarse mediante pruebas automatizadas del paquete `@in-atelier/web-console`.
+- **SC-003**: Los estados de carga, vacío y error quedan visibles por sección y pueden verificarse mediante pruebas automatizadas del paquete `@in-falcone/web-console`.
 - **SC-004**: La vista expone de forma legible el inventario mínimo de scopes, clients, aplicaciones externas y providers federados del contexto activo sin introducir operaciones de escritura en T04.

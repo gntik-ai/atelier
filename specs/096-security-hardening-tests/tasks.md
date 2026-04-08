@@ -51,9 +51,9 @@ apps/control-plane/openapi/plans.openapi.json (si existe)
 **Tipo**: create  
 **Dependencias**: ninguna  
 
-Crear el archivo `package.json` para el workspace `@in-atelier/hardening-tests` con:
+Crear el archivo `package.json` para el workspace `@in-falcone/hardening-tests` con:
 
-- `"name": "@in-atelier/hardening-tests"`
+- `"name": "@in-falcone/hardening-tests"`
 - `"type": "module"`
 - `"version": "0.0.1"`
 - `"private": true`
@@ -71,7 +71,7 @@ Crear el archivo `package.json` para el workspace `@in-atelier/hardening-tests` 
 **Contenido mínimo esperado**:
 ```json
 {
-  "name": "@in-atelier/hardening-tests",
+  "name": "@in-falcone/hardening-tests",
   "type": "module",
   "version": "0.0.1",
   "private": true,

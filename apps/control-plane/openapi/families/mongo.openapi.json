@@ -4804,7 +4804,7 @@
   "info": {
     "description": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped document database control, discovery, and tenant-safe Data API routes exposed through the public gateway. Includes document CRUD, validated query controls, bounded bulk write, controlled aggregation, JSON import/export, topology-aware transactions, change-stream bridge registration, and collection-validation-aware mutation semantics.",
-    "title": "In Atelier Mongo API",
+    "title": "In Falcone Mongo API",
     "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -12302,12 +12302,12 @@
       "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
-          "default": "api.dev.in-atelier.example.com",
+          "default": "api.dev.in-falcone.example.com",
           "enum": [
-            "api.dev.in-atelier.example.com",
-            "api.sandbox.in-atelier.example.com",
-            "api.staging.in-atelier.example.com",
-            "api.in-atelier.example.com"
+            "api.dev.in-falcone.example.com",
+            "api.sandbox.in-falcone.example.com",
+            "api.staging.in-falcone.example.com",
+            "api.in-falcone.example.com"
           ]
         }
       }

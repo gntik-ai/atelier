@@ -9,7 +9,7 @@
 
 ## File Path Map
 
-> All paths are relative to `/root/projects/atelier`.
+> All paths are relative to `/root/projects/falcone`.
 > During `speckit.implement`, read only the paths listed here plus `plan.md` and `tasks.md`.
 > **TARGETED FILE READS ONLY**: do not broaden beyond these files.
 > **NO FULL OPENAPI**: never read `apps/control-plane/openapi/control-plane.openapi.json` directly; only read a relevant family file under `apps/control-plane/openapi/families/` if a route surface absolutely needs it.

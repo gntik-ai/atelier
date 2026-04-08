@@ -16,7 +16,7 @@
 ## File Path Map (implementation reference)
 
 ```text
-charts/in-atelier/charts/vault/
+charts/in-falcone/charts/vault/
   Chart.yaml
   values.yaml
   README.md
@@ -38,7 +38,7 @@ charts/in-atelier/charts/vault/
       gateway-policy.hcl.yaml
       iam-policy.hcl.yaml
 
-charts/in-atelier/charts/eso/
+charts/in-falcone/charts/eso/
   Chart.yaml
   values.yaml
   templates/
@@ -110,8 +110,8 @@ docs/
 
 **Purpose**: Scaffold all new package/chart skeletons so parallel work can proceed in Phase 2+
 
-- [ ] T001 Create Vault Helm sub-chart skeleton with `Chart.yaml` (name: vault, version: 0.1.0, appVersion: 1.15.0, dependencies: []) in `charts/in-atelier/charts/vault/Chart.yaml`
-- [ ] T002 [P] Create ESO Helm sub-chart skeleton with `Chart.yaml` (name: eso, wrapping external-secrets/external-secrets 0.9+) in `charts/in-atelier/charts/eso/Chart.yaml`
+- [ ] T001 Create Vault Helm sub-chart skeleton with `Chart.yaml` (name: vault, version: 0.1.0, appVersion: 1.15.0, dependencies: []) in `charts/in-falcone/charts/vault/Chart.yaml`
+- [ ] T002 [P] Create ESO Helm sub-chart skeleton with `Chart.yaml` (name: eso, wrapping external-secrets/external-secrets 0.9+) in `charts/in-falcone/charts/eso/Chart.yaml`
 - [ ] T003 [P] Create `services/secret-audit-handler/package.json` — ESM Node.js 20+ package (`"type":"module"`) with dependencies: `kafkajs`, `node:fs`, `node:readline`; devDependencies: `node:test`
 - [ ] T004 [P] Create `internal-contracts/secrets/` directory with placeholder README listing the three contracts to be generated (secret-inventory-v1, secret-metadata-v1, secret-audit-event-v1)
 - [ ] T005 [P] Create `deploy/k8s/` directory and stub `deploy/k8s/encryption-config.yaml` with boilerplate EncryptionConfiguration skeleton (kind, apiVersion, empty resources list)
@@ -124,15 +124,15 @@ docs/
 
 **⚠️ CRITICAL**: No user story phase can begin until Vault is running and reachable in `secret-store` namespace
 
-- [ ] T006 Implement `charts/in-atelier/charts/vault/values.yaml` — expose all configurable values: `vault.replicas` (default 1), `vault.storage.size` (default 10Gi), `vault.tls.enabled` (default true), `vault.unsealMethod` (shamir|transit), `vault.initShares` (5), `vault.initThreshold` (3), `vault.auditSidecar.kafkaTopic` (console.secrets.audit), `vault.auditSidecar.kafkaBrokers`, `vault.image.tag` (1.15.0), `vault.namespace` (secret-store)
-- [ ] T007 [P] Implement `charts/in-atelier/charts/vault/templates/vault-rbac.yaml` — ServiceAccount `vault` in `secret-store` namespace, ClusterRole with `tokenreviews/create` and `nodes/get` verbs (for Kubernetes auth method), ClusterRoleBinding; also ServiceAccount `eso-vault-auth` for ESO access
-- [ ] T008 Implement `charts/in-atelier/charts/vault/templates/vault-config-configmap.yaml` — Vault HCL config: `storage "file" { path = "/vault/data" }`, `listener "tcp" { address = "0.0.0.0:8200", tls_cert_file, tls_key_file }`, `ui = true`, `default_lease_ttl = "24h"`, `max_lease_ttl = "768h"`, `log_level = "info"`, `audit_device "file" { file_path = "/vault/audit/vault-audit.log" }`
-- [ ] T009 [P] Implement `charts/in-atelier/charts/vault/templates/vault-pvc.yaml` — PVC for Vault data (`/vault/data`) and audit log volume (`/vault/audit`) using `.Values.vault.storage.size`
-- [ ] T010 Implement `charts/in-atelier/charts/vault/templates/vault-deployment.yaml` — StatefulSet (1 or 3 replicas per `vault.replicas`), image `hashicorp/vault:{{ .Values.vault.image.tag }}`, liveness/readiness probes on `/v1/sys/health`, volumeMounts for data PVC + audit PVC + config ConfigMap + TLS cert; securityContext `runAsNonRoot: true`, `readOnlyRootFilesystem: true` (except /vault/data and /vault/audit)
-- [ ] T011 [P] Implement `charts/in-atelier/charts/vault/templates/vault-service.yaml` — ClusterIP Service exposing port 8200 (API+UI) and 8201 (cluster) in namespace `secret-store`
-- [ ] T012 Implement `charts/in-atelier/charts/vault/templates/vault-tls-certificate.yaml` — cert-manager Certificate resource (or self-signed Secret) for `vault.secret-store.svc.cluster.local`; TLS SAN includes `vault`, `vault.secret-store`, `vault.secret-store.svc`, `vault.secret-store.svc.cluster.local`
-- [ ] T013 Implement `charts/in-atelier/charts/vault/templates/vault-init-job.yaml` — Kubernetes Job that: (1) checks `vault status` to skip if already initialized; (2) runs `vault operator init -key-shares={{ .Values.vault.initShares }} -key-threshold={{ .Values.vault.initThreshold }}`; (3) stores unseal keys and root token in a Kubernetes Secret `vault-init-keys` in `secret-store` (accessible only by this Job and superadmin); (4) runs `vault operator unseal` three times; (5) enables Kubernetes auth method (`vault auth enable kubernetes`); (6) configures Kubernetes auth with cluster host and SA JWT; (7) enables KV v2 secrets engine at `secret/`; (8) enables file audit device; (9) applies all HCL policies from ConfigMaps; (10) creates dummy initial secrets at every required path
-- [ ] T014 [P] Implement `charts/in-atelier/charts/vault/templates/vault-networkpolicy.yaml` — NetworkPolicy in `secret-store`: ingress on port 8200 ONLY from namespaces labeled `vault-access: "true"` and from namespace `eso-system`; egress to Kubernetes API (443) for token review; deny all else
+- [ ] T006 Implement `charts/in-falcone/charts/vault/values.yaml` — expose all configurable values: `vault.replicas` (default 1), `vault.storage.size` (default 10Gi), `vault.tls.enabled` (default true), `vault.unsealMethod` (shamir|transit), `vault.initShares` (5), `vault.initThreshold` (3), `vault.auditSidecar.kafkaTopic` (console.secrets.audit), `vault.auditSidecar.kafkaBrokers`, `vault.image.tag` (1.15.0), `vault.namespace` (secret-store)
+- [ ] T007 [P] Implement `charts/in-falcone/charts/vault/templates/vault-rbac.yaml` — ServiceAccount `vault` in `secret-store` namespace, ClusterRole with `tokenreviews/create` and `nodes/get` verbs (for Kubernetes auth method), ClusterRoleBinding; also ServiceAccount `eso-vault-auth` for ESO access
+- [ ] T008 Implement `charts/in-falcone/charts/vault/templates/vault-config-configmap.yaml` — Vault HCL config: `storage "file" { path = "/vault/data" }`, `listener "tcp" { address = "0.0.0.0:8200", tls_cert_file, tls_key_file }`, `ui = true`, `default_lease_ttl = "24h"`, `max_lease_ttl = "768h"`, `log_level = "info"`, `audit_device "file" { file_path = "/vault/audit/vault-audit.log" }`
+- [ ] T009 [P] Implement `charts/in-falcone/charts/vault/templates/vault-pvc.yaml` — PVC for Vault data (`/vault/data`) and audit log volume (`/vault/audit`) using `.Values.vault.storage.size`
+- [ ] T010 Implement `charts/in-falcone/charts/vault/templates/vault-deployment.yaml` — StatefulSet (1 or 3 replicas per `vault.replicas`), image `hashicorp/vault:{{ .Values.vault.image.tag }}`, liveness/readiness probes on `/v1/sys/health`, volumeMounts for data PVC + audit PVC + config ConfigMap + TLS cert; securityContext `runAsNonRoot: true`, `readOnlyRootFilesystem: true` (except /vault/data and /vault/audit)
+- [ ] T011 [P] Implement `charts/in-falcone/charts/vault/templates/vault-service.yaml` — ClusterIP Service exposing port 8200 (API+UI) and 8201 (cluster) in namespace `secret-store`
+- [ ] T012 Implement `charts/in-falcone/charts/vault/templates/vault-tls-certificate.yaml` — cert-manager Certificate resource (or self-signed Secret) for `vault.secret-store.svc.cluster.local`; TLS SAN includes `vault`, `vault.secret-store`, `vault.secret-store.svc`, `vault.secret-store.svc.cluster.local`
+- [ ] T013 Implement `charts/in-falcone/charts/vault/templates/vault-init-job.yaml` — Kubernetes Job that: (1) checks `vault status` to skip if already initialized; (2) runs `vault operator init -key-shares={{ .Values.vault.initShares }} -key-threshold={{ .Values.vault.initThreshold }}`; (3) stores unseal keys and root token in a Kubernetes Secret `vault-init-keys` in `secret-store` (accessible only by this Job and superadmin); (4) runs `vault operator unseal` three times; (5) enables Kubernetes auth method (`vault auth enable kubernetes`); (6) configures Kubernetes auth with cluster host and SA JWT; (7) enables KV v2 secrets engine at `secret/`; (8) enables file audit device; (9) applies all HCL policies from ConfigMaps; (10) creates dummy initial secrets at every required path
+- [ ] T014 [P] Implement `charts/in-falcone/charts/vault/templates/vault-networkpolicy.yaml` — NetworkPolicy in `secret-store`: ingress on port 8200 ONLY from namespaces labeled `vault-access: "true"` and from namespace `eso-system`; egress to Kubernetes API (443) for token review; deny all else
 
 ---
 
@@ -142,19 +142,19 @@ docs/
 
 **Independent Test**: Deploy cluster, run `scripts/verify-secret-storage.sh` item 1 — confirms 0 env vars with PASSWORD|SECRET|KEY|TOKEN values; confirm `vault kv list secret/platform` returns postgresql, mongodb, kafka, s3, openwhisk
 
-- [ ] T015 [US1] Implement `charts/in-atelier/charts/eso/values.yaml` — values: `eso.vaultAddress` (`https://vault.secret-store.svc.cluster.local:8200`), `eso.vaultAuthPath` (kubernetes), `eso.vaultAuthRole` (eso-role), `eso.serviceAccountName` (eso-vault-auth), `eso.refreshInterval` (1h)
-- [ ] T016 [US1] Implement `charts/in-atelier/charts/eso/templates/eso-rbac.yaml` — Role + RoleBinding in each service namespace allowing ESO ServiceAccount to `create/update/delete` Kubernetes Secrets; ClusterRole for reading ServiceAccount tokens (TokenReview)
-- [ ] T017 [US1] Implement `charts/in-atelier/charts/eso/templates/eso-networkpolicy.yaml` — allow egress from `eso-system` namespace to `secret-store` on port 8200; deny direct pod-to-Vault from other namespaces
-- [ ] T018 [US1] Implement `charts/in-atelier/charts/eso/templates/cluster-secret-store.yaml` — ClusterSecretStore `vault-backend` authenticating to Vault using `kubernetes` auth with ServiceAccount `eso-vault-auth` in `eso-system`; mount KV v2 at `secret/`
-- [ ] T019 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/platform-postgresql.yaml` — ExternalSecret `platform-postgresql-credentials` syncing keys `root-password` and `app-password` from `secret/data/platform/postgresql/` into Kubernetes Secret `platform-postgresql-credentials` in `postgresql` namespace; `refreshInterval: 1h`
-- [ ] T020 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/platform-mongodb.yaml` — ExternalSecret `platform-mongodb-credentials` syncing `root-password`, `app-password` from `secret/data/platform/mongodb/`; target namespace `mongodb`
-- [ ] T021 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/platform-kafka.yaml` — ExternalSecret `platform-kafka-credentials` syncing `admin-password`, `inter-broker-secret` from `secret/data/platform/kafka/`; target namespace `kafka`
-- [ ] T022 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/platform-s3.yaml` — ExternalSecret `platform-s3-credentials` syncing `access-key`, `secret-key` from `secret/data/platform/s3/`; target namespace `s3-compat`
-- [ ] T023 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/platform-openwhisk.yaml` — ExternalSecret `platform-openwhisk-credentials` syncing `db-password` from `secret/data/platform/openwhisk/`; target namespace `openwhisk`
-- [ ] T024 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/functions-openwhisk.yaml` — ExternalSecret `functions-openwhisk-credentials` syncing `controller-password`, `invoker-password`, `action-encryption-key` from `secret/data/functions/openwhisk/`; target namespace `openwhisk`
-- [ ] T025 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/gateway-apisix.yaml` — ExternalSecret `gateway-apisix-credentials` syncing `admin-key`, `dashboard-password`, `etcd-password` from `secret/data/gateway/apisix/`; target namespace `apisix`
-- [ ] T026 [P] [US1] Implement `charts/in-atelier/charts/eso/templates/external-secrets/iam-keycloak.yaml` — ExternalSecret `iam-keycloak-credentials` syncing `admin-password`, `db-password` from `secret/data/iam/keycloak/`; target namespace `keycloak`
-- [ ] T027 [US1] Implement `charts/in-atelier/charts/vault/templates/vault-migration-job.yaml` — idempotent migration Job that: (1) reads existing credentials from current Helm values/Secrets using `kubectl get secret`; (2) writes each to Vault at correct path using `vault kv put`; (3) records each migration in `secret_metadata` table (INSERT ON CONFLICT DO NOTHING); (4) verifies each service can resolve secrets before removing inline credentials; includes rollback annotation comment
+- [ ] T015 [US1] Implement `charts/in-falcone/charts/eso/values.yaml` — values: `eso.vaultAddress` (`https://vault.secret-store.svc.cluster.local:8200`), `eso.vaultAuthPath` (kubernetes), `eso.vaultAuthRole` (eso-role), `eso.serviceAccountName` (eso-vault-auth), `eso.refreshInterval` (1h)
+- [ ] T016 [US1] Implement `charts/in-falcone/charts/eso/templates/eso-rbac.yaml` — Role + RoleBinding in each service namespace allowing ESO ServiceAccount to `create/update/delete` Kubernetes Secrets; ClusterRole for reading ServiceAccount tokens (TokenReview)
+- [ ] T017 [US1] Implement `charts/in-falcone/charts/eso/templates/eso-networkpolicy.yaml` — allow egress from `eso-system` namespace to `secret-store` on port 8200; deny direct pod-to-Vault from other namespaces
+- [ ] T018 [US1] Implement `charts/in-falcone/charts/eso/templates/cluster-secret-store.yaml` — ClusterSecretStore `vault-backend` authenticating to Vault using `kubernetes` auth with ServiceAccount `eso-vault-auth` in `eso-system`; mount KV v2 at `secret/`
+- [ ] T019 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/platform-postgresql.yaml` — ExternalSecret `platform-postgresql-credentials` syncing keys `root-password` and `app-password` from `secret/data/platform/postgresql/` into Kubernetes Secret `platform-postgresql-credentials` in `postgresql` namespace; `refreshInterval: 1h`
+- [ ] T020 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/platform-mongodb.yaml` — ExternalSecret `platform-mongodb-credentials` syncing `root-password`, `app-password` from `secret/data/platform/mongodb/`; target namespace `mongodb`
+- [ ] T021 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/platform-kafka.yaml` — ExternalSecret `platform-kafka-credentials` syncing `admin-password`, `inter-broker-secret` from `secret/data/platform/kafka/`; target namespace `kafka`
+- [ ] T022 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/platform-s3.yaml` — ExternalSecret `platform-s3-credentials` syncing `access-key`, `secret-key` from `secret/data/platform/s3/`; target namespace `s3-compat`
+- [ ] T023 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/platform-openwhisk.yaml` — ExternalSecret `platform-openwhisk-credentials` syncing `db-password` from `secret/data/platform/openwhisk/`; target namespace `openwhisk`
+- [ ] T024 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/functions-openwhisk.yaml` — ExternalSecret `functions-openwhisk-credentials` syncing `controller-password`, `invoker-password`, `action-encryption-key` from `secret/data/functions/openwhisk/`; target namespace `openwhisk`
+- [ ] T025 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/gateway-apisix.yaml` — ExternalSecret `gateway-apisix-credentials` syncing `admin-key`, `dashboard-password`, `etcd-password` from `secret/data/gateway/apisix/`; target namespace `apisix`
+- [ ] T026 [P] [US1] Implement `charts/in-falcone/charts/eso/templates/external-secrets/iam-keycloak.yaml` — ExternalSecret `iam-keycloak-credentials` syncing `admin-password`, `db-password` from `secret/data/iam/keycloak/`; target namespace `keycloak`
+- [ ] T027 [US1] Implement `charts/in-falcone/charts/vault/templates/vault-migration-job.yaml` — idempotent migration Job that: (1) reads existing credentials from current Helm values/Secrets using `kubectl get secret`; (2) writes each to Vault at correct path using `vault kv put`; (3) records each migration in `secret_metadata` table (INSERT ON CONFLICT DO NOTHING); (4) verifies each service can resolve secrets before removing inline credentials; includes rollback annotation comment
 
 ---
 
@@ -164,12 +164,12 @@ docs/
 
 **Independent Test**: Run `tests/integration/secret-storage/vault-access-control.test.mjs` — SA of `functions` domain receives 403 reading `platform/*`; tenant A SA receives 403 reading tenant B secrets
 
-- [ ] T028 [US2] Implement `charts/in-atelier/charts/vault/templates/vault-policies/platform-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/platform/*" { capabilities = ["read"] }`, `path "secret/metadata/platform/*" { capabilities = ["list","read"] }`; denies all other paths implicitly
-- [ ] T029 [P] [US2] Implement `charts/in-atelier/charts/vault/templates/vault-policies/tenant-policy.hcl.yaml` — ConfigMap with HCL parameterized by entity alias metadata `tenantId`: `path "secret/data/tenant/{{identity.entity.aliases.auth_kubernetes_cluster_1.metadata.tenantId}}/*" { capabilities = ["read"] }`, `path "secret/metadata/tenant/..." { capabilities = ["list","read"] }`
-- [ ] T030 [P] [US2] Implement `charts/in-atelier/charts/vault/templates/vault-policies/functions-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/functions/*" { capabilities = ["read"] }`, `path "secret/metadata/functions/*" { capabilities = ["list","read"] }`
-- [ ] T031 [P] [US2] Implement `charts/in-atelier/charts/vault/templates/vault-policies/gateway-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/gateway/*" { capabilities = ["read"] }`, `path "secret/metadata/gateway/*" { capabilities = ["list","read"] }`
-- [ ] T032 [P] [US2] Implement `charts/in-atelier/charts/vault/templates/vault-policies/iam-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/iam/*" { capabilities = ["read"] }`, `path "secret/metadata/iam/*" { capabilities = ["list","read"] }`
-- [ ] T033 [US2] Update `charts/in-atelier/charts/vault/templates/vault-init-job.yaml` — extend init Job to apply all 5 domain policies via `vault policy write platform /config/policies/platform.hcl` (and analogously for tenant, functions, gateway, iam); create Vault roles binding each policy to the corresponding ServiceAccount namespace labels
+- [ ] T028 [US2] Implement `charts/in-falcone/charts/vault/templates/vault-policies/platform-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/platform/*" { capabilities = ["read"] }`, `path "secret/metadata/platform/*" { capabilities = ["list","read"] }`; denies all other paths implicitly
+- [ ] T029 [P] [US2] Implement `charts/in-falcone/charts/vault/templates/vault-policies/tenant-policy.hcl.yaml` — ConfigMap with HCL parameterized by entity alias metadata `tenantId`: `path "secret/data/tenant/{{identity.entity.aliases.auth_kubernetes_cluster_1.metadata.tenantId}}/*" { capabilities = ["read"] }`, `path "secret/metadata/tenant/..." { capabilities = ["list","read"] }`
+- [ ] T030 [P] [US2] Implement `charts/in-falcone/charts/vault/templates/vault-policies/functions-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/functions/*" { capabilities = ["read"] }`, `path "secret/metadata/functions/*" { capabilities = ["list","read"] }`
+- [ ] T031 [P] [US2] Implement `charts/in-falcone/charts/vault/templates/vault-policies/gateway-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/gateway/*" { capabilities = ["read"] }`, `path "secret/metadata/gateway/*" { capabilities = ["list","read"] }`
+- [ ] T032 [P] [US2] Implement `charts/in-falcone/charts/vault/templates/vault-policies/iam-policy.hcl.yaml` — ConfigMap with HCL: `path "secret/data/iam/*" { capabilities = ["read"] }`, `path "secret/metadata/iam/*" { capabilities = ["list","read"] }`
+- [ ] T033 [US2] Update `charts/in-falcone/charts/vault/templates/vault-init-job.yaml` — extend init Job to apply all 5 domain policies via `vault policy write platform /config/policies/platform.hcl` (and analogously for tenant, functions, gateway, iam); create Vault roles binding each policy to the corresponding ServiceAccount namespace labels
 - [ ] T034 [P] [US2] Write integration test `tests/integration/secret-storage/vault-access-control.test.mjs` — test cases: (a) SA `functions-sa` reads `secret/data/platform/postgresql/app-password` → expect 403; (b) tenant-A SA reads `secret/data/tenant/tenant-b/*` → expect 403; (c) SA `gateway-sa` reads `secret/data/gateway/apisix/admin-key` → expect 200; (d) unauthenticated request → expect 403; uses node:test + vault HTTP API client
 
 ---
@@ -181,9 +181,9 @@ docs/
 **Independent Test**: `kubectl get secret -n secret-store -o yaml` — values are encrypted ciphertext, not base64-decodable plaintext; `openssl s_client -connect vault.secret-store.svc.cluster.local:8200` returns valid TLS cert
 
 - [ ] T035 [US3] Implement `deploy/k8s/encryption-config.yaml` — EncryptionConfiguration apiVersion `apiserver.config.k8s.io/v1`: resources `secrets` with provider `aescbc` (key1, 32-byte key sourced from Vault `platform/encryption/master-key` via init Job bootstrap); fallback `identity: {}` for read compatibility; includes comment for OpenShift equivalent (`apiserver.config.openshift.io/v1` + `APIServer` object)
-- [ ] T036 [P] [US3] Update `charts/in-atelier/charts/vault/templates/vault-deployment.yaml` — mount TLS cert from `vault-tls-certificate.yaml` secret; set env vars `VAULT_CACERT`, `VAULT_ADDR=https://...`; set `VAULT_SKIP_VERIFY=false`; verify readiness probe uses `https://`
-- [ ] T037 [P] [US3] Update `charts/in-atelier/charts/eso/templates/cluster-secret-store.yaml` — add `caBundle` or `caProvider` referencing the Vault CA cert; set ESO token refresh to `24h` (configurable via `eso.tokenTTL`)
-- [ ] T038 [P] [US3] Update all ExternalSecret templates in `charts/in-atelier/charts/eso/templates/external-secrets/` — add `immutable: true` annotation to synced Kubernetes Secrets that are static (postgres root-password, kafka inter-broker-secret, etc.) to prevent accidental mutation; document which secrets must be mutable for rotation (T02 scope)
+- [ ] T036 [P] [US3] Update `charts/in-falcone/charts/vault/templates/vault-deployment.yaml` — mount TLS cert from `vault-tls-certificate.yaml` secret; set env vars `VAULT_CACERT`, `VAULT_ADDR=https://...`; set `VAULT_SKIP_VERIFY=false`; verify readiness probe uses `https://`
+- [ ] T037 [P] [US3] Update `charts/in-falcone/charts/eso/templates/cluster-secret-store.yaml` — add `caBundle` or `caProvider` referencing the Vault CA cert; set ESO token refresh to `24h` (configurable via `eso.tokenTTL`)
+- [ ] T038 [P] [US3] Update all ExternalSecret templates in `charts/in-falcone/charts/eso/templates/external-secrets/` — add `immutable: true` annotation to synced Kubernetes Secrets that are static (postgres root-password, kafka inter-broker-secret, etc.) to prevent accidental mutation; document which secrets must be mutable for rotation (T02 scope)
 
 ---
 
@@ -201,8 +201,8 @@ docs/
 - [ ] T044 [P] [US4] Write unit test `services/secret-audit-handler/tests/unit/sanitizer.test.mjs` — using `node:test`: (a) sanitize removes `value`, `data`, `password`, `token`, `key`, `secret` fields at any nesting depth; (b) sanitize preserves allowed fields (`secretPath`, `domain`, `operation`); (c) sanitize throws if forbidden field survives
 - [ ] T045 [P] [US4] Write unit test `services/secret-audit-handler/tests/unit/vault-log-reader.test.mjs` — mock vault audit log lines; verify `parseVaultEntry` maps `type`, `auth.display_name`, `request.path`, `response.auth`, `time` correctly to `SecretAuditEvent` shape; verify denied entries set `operation=denied`
 - [ ] T046 [P] [US4] Write unit test `services/secret-audit-handler/tests/unit/kafka-publisher.test.mjs` — mock `kafkajs` producer; verify `publishAuditEvent` rejects events containing forbidden fields; verify correct topic and partition key used; verify disconnects on SIGTERM
-- [ ] T047 [US4] Implement `charts/in-atelier/charts/vault/templates/vault-audit-sidecar.yaml` — sidecar container in Vault StatefulSet: image `node:20-alpine`, runs `services/secret-audit-handler/src/index.mjs`, mounts shared `vault-audit` volume (read-only), env vars `KAFKA_BROKERS`, `SECRET_AUDIT_KAFKA_TOPIC`, `VAULT_AUDIT_LOG_PATH=/vault/audit/vault-audit.log`; resource limits: 128Mi / 100m
-- [ ] T048 [P] [US4] Add Kafka topic `console.secrets.audit` to cluster Kafka configuration — partitions: 3, retention: 90 days (7776000000 ms), cleanup.policy: delete (append-only audit log), min.insync.replicas: 2; add topic definition to the existing Kafka topics Helm chart or ConfigMap in `charts/in-atelier/`
+- [ ] T047 [US4] Implement `charts/in-falcone/charts/vault/templates/vault-audit-sidecar.yaml` — sidecar container in Vault StatefulSet: image `node:20-alpine`, runs `services/secret-audit-handler/src/index.mjs`, mounts shared `vault-audit` volume (read-only), env vars `KAFKA_BROKERS`, `SECRET_AUDIT_KAFKA_TOPIC`, `VAULT_AUDIT_LOG_PATH=/vault/audit/vault-audit.log`; resource limits: 128Mi / 100m
+- [ ] T048 [P] [US4] Add Kafka topic `console.secrets.audit` to cluster Kafka configuration — partitions: 3, retention: 90 days (7776000000 ms), cleanup.policy: delete (append-only audit log), min.insync.replicas: 2; add topic definition to the existing Kafka topics Helm chart or ConfigMap in `charts/in-falcone/`
 
 ---
 
@@ -227,11 +227,11 @@ docs/
 
 ### Fail-Closed (FR-010 / SC-006)
 
-- [ ] T055 Update `charts/in-atelier/charts/postgresql/` (or relevant sub-chart) — add `initContainer` `wait-for-secret`: image `bitnami/kubectl`, command verifies `platform-postgresql-credentials` Secret exists and is non-empty before allowing PostgreSQL container to start; readiness probe depends on successful secret mount at `/run/secrets/pg/`; update `volumeMounts` to use `secret:platform-postgresql-credentials` mounted at `/run/secrets/pg/` instead of env vars
-- [ ] T056 [P] Update `charts/in-atelier/charts/mongodb/` — same fail-closed initContainer pattern for `platform-mongodb-credentials`; mount at `/run/secrets/mongo/`; remove inline credential env vars
-- [ ] T057 [P] Update `charts/in-atelier/charts/kafka/` — same fail-closed initContainer for `platform-kafka-credentials`; mount at `/run/secrets/kafka/`
-- [ ] T058 [P] Update `charts/in-atelier/charts/apisix/` — same fail-closed initContainer for `gateway-apisix-credentials`; mount at `/run/secrets/apisix/`
-- [ ] T059 [P] Update `charts/in-atelier/charts/keycloak/` — same fail-closed initContainer for `iam-keycloak-credentials`; mount at `/run/secrets/keycloak/`
+- [ ] T055 Update `charts/in-falcone/charts/postgresql/` (or relevant sub-chart) — add `initContainer` `wait-for-secret`: image `bitnami/kubectl`, command verifies `platform-postgresql-credentials` Secret exists and is non-empty before allowing PostgreSQL container to start; readiness probe depends on successful secret mount at `/run/secrets/pg/`; update `volumeMounts` to use `secret:platform-postgresql-credentials` mounted at `/run/secrets/pg/` instead of env vars
+- [ ] T056 [P] Update `charts/in-falcone/charts/mongodb/` — same fail-closed initContainer pattern for `platform-mongodb-credentials`; mount at `/run/secrets/mongo/`; remove inline credential env vars
+- [ ] T057 [P] Update `charts/in-falcone/charts/kafka/` — same fail-closed initContainer for `platform-kafka-credentials`; mount at `/run/secrets/kafka/`
+- [ ] T058 [P] Update `charts/in-falcone/charts/apisix/` — same fail-closed initContainer for `gateway-apisix-credentials`; mount at `/run/secrets/apisix/`
+- [ ] T059 [P] Update `charts/in-falcone/charts/keycloak/` — same fail-closed initContainer for `iam-keycloak-credentials`; mount at `/run/secrets/keycloak/`
 
 ### Integration Tests
 
@@ -247,13 +247,13 @@ docs/
 
 ### Observability & Alerting
 
-- [ ] T066 [P] Add Vault metrics and PrometheusRule to `charts/in-atelier/charts/vault/templates/` — expose `vault_secret_access_total{domain,operation,result}` (counter), `vault_secret_deny_total{domain,reason}` (counter), `vault_audit_lag_seconds` (gauge), `vault_unseal_status` (gauge 0=sealed,1=unsealed) via Vault Prometheus endpoint `/v1/sys/metrics`; create PrometheusRule with alerts: `VaultSealed` (unsealed=0 for >60s), `SecretAccessDeniedSpike` (>10 denies/5min from same identity), `AuditKafkaLag` (lag>30s), `ExternalSecretSyncFailed` (NotReady>5min)
+- [ ] T066 [P] Add Vault metrics and PrometheusRule to `charts/in-falcone/charts/vault/templates/` — expose `vault_secret_access_total{domain,operation,result}` (counter), `vault_secret_deny_total{domain,reason}` (counter), `vault_audit_lag_seconds` (gauge), `vault_unseal_status` (gauge 0=sealed,1=unsealed) via Vault Prometheus endpoint `/v1/sys/metrics`; create PrometheusRule with alerts: `VaultSealed` (unsealed=0 for >60s), `SecretAccessDeniedSpike` (>10 denies/5min from same identity), `AuditKafkaLag` (lag>30s), `ExternalSecretSyncFailed` (NotReady>5min)
 
 ### Documentation
 
 - [ ] T067 [P] Create `docs/operations/secret-management.md` — platform team runbook: Vault access procedures (how to read/write secrets as operator), inventory query examples, troubleshooting (Vault sealed, ESO sync failure, fail-closed pod loop), unseal procedure, audit log query via Kafka, environment variable reference table from plan.md Section 11.2
 - [ ] T068 [P] Create `docs/architecture/secret-storage-adr.md` — ADR: context (plaintext credentials risk), decision (Vault OSS + ESO), alternatives considered (Sealed Secrets, k8s-native only, AWS Secrets Manager), consequences, date 2026-03-30
-- [ ] T069 [P] Create `charts/in-atelier/charts/vault/README.md` — sub-chart installation guide: prerequisites (cert-manager, Kafka), values reference (all values from T006), upgrade notes, initial bootstrap steps, OpenShift-specific notes (SCC, apiserver config)
+- [ ] T069 [P] Create `charts/in-falcone/charts/vault/README.md` — sub-chart installation guide: prerequisites (cert-manager, Kafka), values reference (all values from T006), upgrade notes, initial bootstrap steps, OpenShift-specific notes (SCC, apiserver config)
 - [ ] T070 [P] Create `services/secret-audit-handler/README.md` — service description, environment variables (`VAULT_AUDIT_LOG_PATH`, `KAFKA_BROKERS`, `SECRET_AUDIT_KAFKA_TOPIC`), deployment notes (runs as Vault sidecar), log format reference, security invariants (no value in published events)
 - [ ] T071 Update `AGENTS.md` — add Secure Secret Storage section under `<!-- MANUAL ADDITIONS START -->`: new Vault service in `secret-store` namespace, ESO in `eso-system`, `secret-audit-handler` sidecar, `secret_metadata` PostgreSQL table, Kafka topic `console.secrets.audit` (90d), new env vars from plan.md Section 11.2, Vault KV path structure summary
 

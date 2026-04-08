@@ -1,5 +1,5 @@
 {
-  "name": "@in-atelier/backup-status",
+  "name": "@in-falcone/backup-status",
   "private": true,
   "version": "0.1.0",
   "type": "module",

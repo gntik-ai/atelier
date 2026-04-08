@@ -21,7 +21,7 @@ La suite debe:
 - incluir un escenario de **empty state** y otro de **error de API** por servicio;
 - incluir al menos un escenario de **acceso denegado** transversal;
 - incluir una **verificación transversal de ausencia de backdoors** tras los cinco journeys;
-- ejecutarse con el comando ya existente `corepack pnpm --filter @in-atelier/web-console test:e2e`.
+- ejecutarse con el comando ya existente `corepack pnpm --filter @in-falcone/web-console test:e2e`.
 
 ### Fuera del alcance de T06
 
@@ -659,10 +659,10 @@ Todos los escenarios son E2E de navegador con Playwright/Chromium. No se introdu
 ### Validaciones del paquete antes del PR
 
 ```bash
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console build
-corepack pnpm --filter @in-atelier/web-console test:e2e
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console build
+corepack pnpm --filter @in-falcone/web-console test:e2e
 corepack pnpm lint
 ```
 

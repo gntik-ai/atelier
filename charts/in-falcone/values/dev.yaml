@@ -1,0 +1,44 @@
+global:
+  namespace: in-falcone-dev
+  environment: dev
+publicSurface:
+  hostnames:
+    api: api.dev.in-falcone.example.com
+    console: console.dev.in-falcone.example.com
+    identity: iam.dev.in-falcone.example.com
+    realtime: realtime.dev.in-falcone.example.com
+  certificates:
+    wildcardSecretName: in-falcone-dev-wildcard-tls
+    surfaces:
+      api: in-falcone-dev-api-tls
+      console: in-falcone-dev-console-tls
+      identity: in-falcone-dev-identity-tls
+      realtime: in-falcone-dev-realtime-tls
+environmentProfile:
+  id: dev
+  diagnostics:
+    logLevel: debug
+    debugEndpoints: true
+    passthroughHeaders: true
+  demoData:
+    enabled: true
+  limitsProfile: relaxed
+deployment:
+  topology:
+    clusterRef: cluster-dev-shared
+controlPlane:
+  replicas: 1
+webConsole:
+  replicas: 1
+observability:
+  persistence:
+    size: 10Gi
+gatewayPolicy:
+  passthrough:
+    mode: enabled
+  cors:
+    allowOrigins:
+    - https://console.dev.in-falcone.example.com
+  oidc:
+    issuerUrl: https://iam.dev.in-falcone.example.com/auth/realms/in-falcone-platform
+    discoveryUrl: https://iam.dev.in-falcone.example.com/auth/realms/in-falcone-platform/.well-known/openid-configuration

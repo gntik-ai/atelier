@@ -55,7 +55,7 @@ describe('console-session', () => {
   })
 
   it('trata un snapshot inválido como sesión nula', () => {
-    window.sessionStorage.setItem('in-atelier.console-shell-session', JSON.stringify({ nope: true }))
+    window.sessionStorage.setItem('in-falcone.console-shell-session', JSON.stringify({ nope: true }))
 
     expect(readConsoleShellSession()).toBeNull()
   })

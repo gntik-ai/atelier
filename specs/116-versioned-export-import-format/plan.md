@@ -115,8 +115,8 @@ Archivo: `services/provisioning-orchestrator/src/schemas/v1.0.0.schema.json`
 ```jsonc
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://atelier.internal/schemas/config-export/v1.0.0",
-  "title": "Atelier Tenant Config Export Artifact — v1.0.0",
+  "$id": "https://falcone.internal/schemas/config-export/v1.0.0",
+  "title": "Falcone Tenant Config Export Artifact — v1.0.0",
   "type": "object",
   "required": ["export_timestamp", "tenant_id", "format_version", "deployment_profile",
                "correlation_id", "schema_checksum", "domains"],

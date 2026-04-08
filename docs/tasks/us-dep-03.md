@@ -1,6 +1,6 @@
 # US-DEP-03 — hardened deployment profiles and upgrade-safe exposure options
 
-Deliver the next deployment increment for In Atelier so operators can choose recommended deployment profiles, harden pod security defaults, target private registries and disconnected mirrors, expose services through Kubernetes `Ingress` or `LoadBalancer` and OpenShift `Route`, and validate supported in-place upgrades without forcing a reinstall.
+Deliver the next deployment increment for In Falcone so operators can choose recommended deployment profiles, harden pod security defaults, target private registries and disconnected mirrors, expose services through Kubernetes `Ingress` or `LoadBalancer` and OpenShift `Route`, and validate supported in-place upgrades without forcing a reinstall.
 
 ## Backlog slices
 
@@ -16,7 +16,7 @@ Deliver the next deployment increment for In Atelier so operators can choose rec
   - add Kubernetes `LoadBalancer` exposure
   - support cluster-managed or external TLS modes with Helm-side validation
 - **T04 — recommended deployment profiles**
-  - add `all-in-one`, `standard`, and `ha` overlays under `charts/in-atelier/values/profiles/`
+  - add `all-in-one`, `standard`, and `ha` overlays under `charts/in-falcone/values/profiles/`
 - **T05 — supported in-place upgrade validation**
   - add chart and repository validation for approved version transitions
   - require explicit `deployment.upgrade.currentVersion` on Helm upgrades
@@ -25,8 +25,8 @@ Deliver the next deployment increment for In Atelier so operators can choose rec
 
 ## Expected artifacts
 
-- chart values, schema, and templates under `charts/in-atelier/`
+- chart values, schema, and templates under `charts/in-falcone/`
 - deployment validators under `scripts/`
 - topology contract updates under `services/internal-contracts/src/`
 - unit / contract / deployment smoke coverage under `tests/`
-- operator guidance under `charts/in-atelier/README.md` and `docs/reference/architecture/deployment-topology.md`
+- operator guidance under `charts/in-falcone/README.md` and `docs/reference/architecture/deployment-topology.md`

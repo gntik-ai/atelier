@@ -105,13 +105,13 @@ Required health signal families:
 
 | Signal | Metric name | Degraded condition |
 |---|---|---|
-| Emission freshness | `in_atelier_audit_emission_freshness_seconds` | A subsystem has not emitted within its freshness threshold |
-| Transport health | `in_atelier_audit_transport_health` | Kafka transport is unavailable or lag exceeds threshold |
-| Storage health | `in_atelier_audit_storage_health` | Durable-store writes fail or the store is unavailable |
+| Emission freshness | `in_falcone_audit_emission_freshness_seconds` | A subsystem has not emitted within its freshness threshold |
+| Transport health | `in_falcone_audit_transport_health` | Kafka transport is unavailable or lag exceeds threshold |
+| Storage health | `in_falcone_audit_storage_health` | Durable-store writes fail or the store is unavailable |
 
 Shared observability rules:
 
-- Metrics retain the `in_atelier` prefix.
+- Metrics retain the `in_falcone` prefix.
 - Required labels remain `environment`, `subsystem`, `metric_scope`, and `collection_mode`.
 - Status vocabulary reuses `healthy`, `degraded`, `unavailable`, `unknown`, and `stale`.
 - Missing or stale audit emission is visible as degradation, not silent success.

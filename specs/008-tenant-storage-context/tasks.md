@@ -22,7 +22,7 @@
 - [x] T017 Update `services/internal-contracts/src/public-api-taxonomy.json` so `tenant_storage_context` is a first-class tenant-scoped resource type.
 - [x] T018 Update `apps/control-plane/openapi/control-plane.openapi.json` so the generated tenant family publishes `GET /v1/tenants/{tenantId}/storage-context`, `POST /v1/tenants/{tenantId}/storage-context/credential-rotations`, and their additive schemas.
 - [x] T019 Regenerate public API artifacts so `services/internal-contracts/src/public-route-catalog.json`, `apps/control-plane/openapi/families/*.openapi.json`, and `docs/reference/api/*.md` reflect the new tenant storage routes.
-- [x] T020 Update `charts/in-atelier/values.yaml` so the bootstrap governance quota catalog mirrors the canonical domain-model quota policy catalog after the new storage metrics were added.
+- [x] T020 Update `charts/in-falcone/values.yaml` so the bootstrap governance quota catalog mirrors the canonical domain-model quota policy catalog after the new storage metrics were added.
 - [x] T021 Extend `tests/unit/storage-admin.test.mjs` to cover tenant storage summaries, safe introspection, credential rotation, and workspace bootstrap gating.
 - [x] T022 Extend `tests/unit/tenant-bootstrap.test.mjs` to cover `dependency_wait`, `blocked`, and restored `pending` behavior for `default_storage_bucket`.
 - [x] T023 Extend `tests/adapters/provider-catalog.test.mjs` to cover tenant storage helper exports and secret-safe summaries.

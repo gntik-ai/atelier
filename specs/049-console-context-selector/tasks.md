@@ -156,9 +156,9 @@ Cobertura mínima obligatoria:
 
 Ejecutar:
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
 
 Corregir cualquier fallo relacionado con la feature antes de cerrar la tarea.
 

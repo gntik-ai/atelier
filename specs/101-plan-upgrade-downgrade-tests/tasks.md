@@ -6,7 +6,7 @@
 **Task ID**: US-PLAN-01-T05 | **Epic**: EP-19 | **Story**: US-PLAN-01
 **Depends on**: T01 (`097-plan-entity-tenant-assignment`), T02 (`098-plan-base-limits`), T03 (`099-plan-management-api-console`), T04 (`100-plan-change-impact-history`) — all must be merged before implementation begins
 
-**Tech Stack**: Node.js 20+ ESM (`"type": "module"`), `node:test`, `node:assert`, `undici` (HTTP to APISIX), `pg` (PostgreSQL fixture seeding + state assertions), `kafkajs` (audit event verification), `@in-atelier/internal-contracts`
+**Tech Stack**: Node.js 20+ ESM (`"type": "module"`), `node:test`, `node:assert`, `undici` (HTTP to APISIX), `pg` (PostgreSQL fixture seeding + state assertions), `kafkajs` (audit event verification), `@in-falcone/internal-contracts`
 
 ## Format: `[ID] [P?] [Story] Description`
 

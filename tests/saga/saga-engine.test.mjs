@@ -6,7 +6,7 @@ import { __setWorkflowAuditHooksForTesting } from '../../apps/control-plane/src/
 function captureAuditAndEvents({ throwOnEmit = false, eventSink } = {}) {
   const auditCalls = [];
   const warnings = [];
-  globalThis.__ATELIER_EVENTS_ADMIN_EMIT__ = async (payload) => {
+  globalThis.__FALCONE_EVENTS_ADMIN_EMIT__ = async (payload) => {
     eventSink?.push(payload);
     return payload;
   };

@@ -3,7 +3,7 @@ import { readDomainModel } from './domain-model.mjs';
 import { readGatewayRouting, readPublicRouteCatalog } from './public-api.mjs';
 import { readYaml } from './quality-gates.mjs';
 
-export const ROOT_VALUES_PATH = 'charts/in-atelier/values.yaml';
+export const ROOT_VALUES_PATH = 'charts/in-falcone/values.yaml';
 export const ENVIRONMENTS = ['dev', 'sandbox', 'staging', 'prod'];
 export const PASSTHROUGH_MODES = ['enabled', 'limited', 'disabled'];
 export const REQUIRED_PROPAGATED_HEADER_KEYS = ['subject', 'username', 'tenantId', 'workspaceId', 'planId', 'scopes', 'roles'];
@@ -41,11 +41,11 @@ export function listEnabledApisixRoutes(values = readGatewayPolicyValues()) {
 }
 
 export function listPublicApiRoutes(values = readGatewayPolicyValues()) {
-  return listEnabledApisixRoutes(values).filter((route) => route?.labels?.['gateway.in-atelier.io/route-kind'] === 'product_api');
+  return listEnabledApisixRoutes(values).filter((route) => route?.labels?.['gateway.in-falcone.io/route-kind'] === 'product_api');
 }
 
 export function listPassthroughRoutes(values = readGatewayPolicyValues()) {
-  return listEnabledApisixRoutes(values).filter((route) => route?.labels?.['gateway.in-atelier.io/route-kind'] === 'passthrough');
+  return listEnabledApisixRoutes(values).filter((route) => route?.labels?.['gateway.in-falcone.io/route-kind'] === 'passthrough');
 }
 
 export function resolvePlanCapabilities(planId, domainModel = readDomainModel()) {
@@ -256,17 +256,17 @@ function collectObservabilityViolations(values, violations) {
     violations.push('gatewayPolicy.observability.gatewayMetrics.metricsPath must remain /apisix/prometheus/metrics.');
   }
 
-  if (metrics.seriesPrefix !== 'in_atelier_event_gateway_') {
-    violations.push('gatewayPolicy.observability.gatewayMetrics.seriesPrefix must remain in_atelier_event_gateway_.');
+  if (metrics.seriesPrefix !== 'in_falcone_event_gateway_') {
+    violations.push('gatewayPolicy.observability.gatewayMetrics.seriesPrefix must remain in_falcone_event_gateway_.');
   }
 
   for (const series of [
     'apisix_http_status',
     'apisix_nginx_http_current_connections',
-    'in_atelier_event_gateway_active_ws_connections',
-    'in_atelier_event_gateway_active_sse_streams',
-    'in_atelier_event_gateway_publish_total',
-    'in_atelier_event_gateway_backpressure_rejections_total'
+    'in_falcone_event_gateway_active_ws_connections',
+    'in_falcone_event_gateway_active_sse_streams',
+    'in_falcone_event_gateway_publish_total',
+    'in_falcone_event_gateway_backpressure_rejections_total'
   ]) {
     if (!(metrics.requiredSeries ?? []).includes(series)) {
       violations.push(`gatewayPolicy.observability.gatewayMetrics.requiredSeries must include ${series}.`);
@@ -406,7 +406,7 @@ function collectApisixRouteViolations(values, gatewayRouting, violations) {
       }
     }
 
-    if (route.labels?.['gateway.in-atelier.io/family'] !== family.id) {
+    if (route.labels?.['gateway.in-falcone.io/family'] !== family.id) {
       violations.push(`APISIX route public-api-${family.id} must carry the family label.`);
     }
 
@@ -432,7 +432,7 @@ function collectApisixRouteViolations(values, gatewayRouting, violations) {
   for (const policyRoute of passthroughPolicyRoutes) {
     const enabled = (policyRoute.enabledInModes ?? []).includes(values?.gatewayPolicy?.passthrough?.mode);
     const apisixRoute = enabledRoutes.find(
-      (route) => route.labels?.['gateway.in-atelier.io/passthrough-id'] === policyRoute.id
+      (route) => route.labels?.['gateway.in-falcone.io/passthrough-id'] === policyRoute.id
     );
 
     if (enabled && !apisixRoute) {

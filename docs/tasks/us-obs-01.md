@@ -10,7 +10,7 @@ Delivered artifacts:
 - `services/internal-contracts/src/observability-metrics-stack.json` as the machine-readable source
   of truth for subsystem coverage, normalized metric families, scope labels, cardinality guardrails,
   collection topology, and collection-health semantics
-- `charts/in-atelier/values.yaml` observability configuration updates that mirror the common-plane
+- `charts/in-falcone/values.yaml` observability configuration updates that mirror the common-plane
   targets and collection-health metadata
 - `apps/control-plane/src/observability-admin.mjs` summary helpers for downstream observability work
 - `scripts/lib/observability-metrics-stack.mjs` and
@@ -56,9 +56,9 @@ and normalized operation labels.
 The observability layer itself now reserves a collection-health contract so missing or stale data is
 visible as telemetry:
 
-- `in_atelier_observability_collection_health`
-- `in_atelier_observability_collection_failures_total`
-- `in_atelier_observability_collection_lag_seconds`
+- `in_falcone_observability_collection_health`
+- `in_falcone_observability_collection_failures_total`
+- `in_falcone_observability_collection_lag_seconds`
 
 ## Validation
 

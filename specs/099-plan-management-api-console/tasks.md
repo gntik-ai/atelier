@@ -9,7 +9,7 @@
 
 ## File Path Map
 
-> All paths are relative to `/root/projects/atelier`.
+> All paths are relative to `/root/projects/falcone`.
 > During `speckit.implement`, read only the paths listed here plus `plan.md` and `tasks.md`.
 > **Do not read** `apps/control-plane/openapi/control-plane.openapi.json` directly. Use only `apps/control-plane/openapi/families/platform.openapi.json`, then regenerate the full public API artifacts with `npm run generate:public-api`.
 
@@ -190,7 +190,7 @@ Follow this order. Do not skip ahead.
   - `npm run generate:public-api`
   - `npm run validate:public-api`
   - `npm run validate:openapi`
-  - `pnpm --filter @in-atelier/web-console test`
+  - `pnpm --filter @in-falcone/web-console test`
   - `node --test tests/integration/099-plan-management-api-console/*.test.mjs`
   - any repo-level lint/typecheck commands needed by touched packages
 - [ ] T018 Commit the completed implementation for `US-PLAN-01-T03`, push the branch, open/update the PR, monitor CI to green, fix failures, and merge when policy allows.

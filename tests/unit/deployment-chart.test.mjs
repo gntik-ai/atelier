@@ -79,11 +79,11 @@ test('deployment chart keeps the Keycloak platform and tenant IAM bootstrap base
   assert.ok(keycloakBootstrap.realmRoles.includes('workspace_service_account'));
   assert.ok(keycloakBootstrap.clientScopes.some((scope) => scope.name === 'tenant-context'));
   assert.ok(keycloakBootstrap.clientScopes.some((scope) => scope.name === 'workspace-context'));
-  assert.ok(keycloakBootstrap.clients.some((client) => client.clientId === 'in-atelier-gateway'));
-  assert.ok(keycloakBootstrap.clients.some((client) => client.clientId === 'in-atelier-console'));
+  assert.ok(keycloakBootstrap.clients.some((client) => client.clientId === 'in-falcone-gateway'));
+  assert.ok(keycloakBootstrap.clients.some((client) => client.clientId === 'in-falcone-console'));
   assert.equal(keycloakBootstrap.realm.login.registrationAllowed, true);
   assert.equal(keycloakBootstrap.realm.login.resetPasswordAllowed, true);
-  assert.equal(keycloakBootstrap.clients.find((client) => client.clientId === 'in-atelier-console').directAccessGrantsEnabled, true);
+  assert.equal(keycloakBootstrap.clients.find((client) => client.clientId === 'in-falcone-console').directAccessGrantsEnabled, true);
   assert.equal(keycloakBootstrap.tenantRealmTemplate.realmIdPattern, 'tenant-{tenantSlug}');
   assert.equal(
     keycloakBootstrap.tenantRealmTemplate.serviceAccountTemplate.credentialRefPattern,
@@ -112,16 +112,16 @@ test('recommended deployment profile overlays exist and declare their own profil
 });
 
 test('registry rewriting preserves repository paths while swapping the registry host', () => {
-  assert.equal(resolveImageRepository('docker.io/apache/apisix', 'registry.airgap.in-atelier.local'), 'registry.airgap.in-atelier.local/apache/apisix');
+  assert.equal(resolveImageRepository('docker.io/apache/apisix', 'registry.airgap.in-falcone.local'), 'registry.airgap.in-falcone.local/apache/apisix');
   assert.equal(
-    resolveImageRepository('ghcr.io/example/in-atelier-control-plane', 'registry.airgap.in-atelier.local'),
-    'registry.airgap.in-atelier.local/example/in-atelier-control-plane'
+    resolveImageRepository('ghcr.io/example/in-falcone-control-plane', 'registry.airgap.in-falcone.local'),
+    'registry.airgap.in-falcone.local/example/in-falcone-control-plane'
   );
 
   const values = readRootValues();
   const mirroredValues = structuredClone(values);
-  mirroredValues.global.imageRegistry = 'registry.airgap.in-atelier.local';
-  assert.equal(resolveComponentImage(mirroredValues, 'apisix'), 'registry.airgap.in-atelier.local/apache/apisix:3.10.0');
+  mirroredValues.global.imageRegistry = 'registry.airgap.in-falcone.local';
+  assert.equal(resolveComponentImage(mirroredValues, 'apisix'), 'registry.airgap.in-falcone.local/apache/apisix:3.10.0');
 });
 
 test('upgrade validation requires an approved currentVersion during in-place upgrades', () => {

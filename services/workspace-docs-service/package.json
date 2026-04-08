@@ -1,5 +1,5 @@
 {
-  "name": "@atelier/workspace-docs-service",
+  "name": "@falcone/workspace-docs-service",
   "private": true,
   "type": "module",
   "version": "0.1.0",

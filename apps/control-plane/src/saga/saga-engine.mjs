@@ -30,7 +30,7 @@ async function safelyEmitAudit(operation, sagaCtx) {
 }
 
 async function emitCompensationFailedAlert(payload) {
-  const emitter = typeof eventsAdmin.emit === 'function' ? eventsAdmin.emit : globalThis.__ATELIER_EVENTS_ADMIN_EMIT__;
+  const emitter = typeof eventsAdmin.emit === 'function' ? eventsAdmin.emit : globalThis.__FALCONE_EVENTS_ADMIN_EMIT__;
   if (typeof emitter === 'function') {
     await emitter({
       type: 'saga.compensation-failed',

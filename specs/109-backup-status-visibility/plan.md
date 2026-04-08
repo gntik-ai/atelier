@@ -20,7 +20,7 @@ Implementar la capa de visibilidad de estado de backup de los componentes gestio
 - **IAM**: Keycloak (tokens JWT, scopes y roles)
 - **Eventos**: Kafka (eventos operacionales del ciclo de recolección)
 - **Plataforma de despliegue**: Kubernetes / OpenShift vía Helm
-- **Monorepo**: `in-atelier` (estructura existente, convenciones de specs 097–108)
+- **Monorepo**: `in-falcone` (estructura existente, convenciones de specs 097–108)
 - **Dependencias funcionales**: US-OBS-01 (pipeline de auditoría), US-DEP-03 (modelo de perfil de despliegue)
 
 ---

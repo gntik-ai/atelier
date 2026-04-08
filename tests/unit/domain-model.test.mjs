@@ -95,7 +95,7 @@ test('managed resource kinds, governance catalogs, and seed profiles preserve do
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenantMemberships.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.workspaceMemberships.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.invitations.length >= 1), true);
-  assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.identityContext.platformRealm === 'in-atelier-platform'), true);
+  assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.identityContext.platformRealm === 'in-falcone-platform'), true);
   assert.equal(seedFixtures.profiles.every((profile) => Array.isArray(profile.tenant.labels) && profile.tenant.labels.length >= 2), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.quotaProfile?.workspaceSubquotas?.length >= 1), true);
   assert.equal(seedFixtures.profiles.every((profile) => profile.tenant.governance?.retentionPolicy?.purgeRequiresElevatedAccess === true), true);

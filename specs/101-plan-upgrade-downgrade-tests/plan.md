@@ -12,7 +12,7 @@ Deliver an **automated verification suite** that proves correctness of plan upgr
 ## Technical Context
 
 **Language/Version**: Node.js 20+ ESM (`"type": "module"`)  
-**Primary Dependencies**: `node:test`, `node:assert`, `undici` (HTTP integration calls to APISIX/plan API), `pg` (PostgreSQL fixture seeding + state assertions), `kafkajs` (audit event verification), existing `@in-atelier/internal-contracts` schemas  
+**Primary Dependencies**: `node:test`, `node:assert`, `undici` (HTTP integration calls to APISIX/plan API), `pg` (PostgreSQL fixture seeding + state assertions), `kafkajs` (audit event verification), existing `@in-falcone/internal-contracts` schemas  
 **Storage read targets**: PostgreSQL (`tenant_plan_assignments`, `plans`, `quota_dimension_catalog`, `plan_audit_events`, `plan_change_history_*`), per-dimension resource counts via platform APIs  
 **Testing approach**: Integration / E2E test suite using `node:test`; no new production code — this task is exclusively a verification artefact  
 **Target Platform**: Kubernetes / OpenShift via Helm, Apache APISIX (API calls), Apache OpenWhisk (action-level verification), existing CI pipeline  

@@ -33,7 +33,7 @@ export const env = Object.freeze({
   CONTROL_PLANE_URL: process.env.CONTROL_PLANE_URL ?? 'http://localhost:3233',
   CONSOLE_API_URL: process.env.CONSOLE_API_URL ?? 'http://localhost:3000/api',
   KEYCLOAK_URL: process.env.KEYCLOAK_URL ?? 'http://localhost:8080',
-  KEYCLOAK_REALM: process.env.KEYCLOAK_REALM ?? 'atelier',
+  KEYCLOAK_REALM: process.env.KEYCLOAK_REALM ?? 'falcone',
 
   // Superadmin credentials (client credentials grant)
   SUPERADMIN_CLIENT_ID: process.env.SUPERADMIN_CLIENT_ID ?? '',

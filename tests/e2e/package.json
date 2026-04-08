@@ -1,5 +1,5 @@
 {
-  "name": "@in-atelier/e2e",
+  "name": "@in-falcone/e2e",
   "private": true,
   "version": "0.1.0",
   "type": "module",

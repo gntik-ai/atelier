@@ -25,7 +25,7 @@ The repository now includes one storage provider operability guide that explains
 ### Internal targets are documented as platform objectives, not external guarantees
 
 The new guide makes it explicit that storage latency, freshness, and credential-hygiene statements
-are internal operating objectives for the Atelier platform team. They are not vendor guarantees or
+are internal operating objectives for the Falcone platform team. They are not vendor guarantees or
 customer-facing contractual SLAs.
 
 ### Deployment-dependent capability posture stays visible

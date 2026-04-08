@@ -9,7 +9,7 @@
 
 ## File Path Map
 
-All paths relative to `/root/projects/atelier/`.
+All paths relative to `/root/projects/falcone/`.
 
 ### New files to create
 
@@ -82,7 +82,7 @@ All paths relative to `/root/projects/atelier/`.
 
 ```json
 {
-  "name": "@atelier/openapi-sdk-service",
+  "name": "@falcone/openapi-sdk-service",
   "version": "0.1.0",
   "type": "module",
   "private": true,
@@ -299,7 +299,7 @@ Kafka topics used:
 **File**: `BASE_TEMPLATE`  
 **What**: `base-template.openapi.json` — The scaffold every assembled spec starts from. Contains:
 - `openapi: "3.1.0"`
-- `info`: `{ title: "Atelier Workspace API", version: "__VERSION__", description: "..." }`
+- `info`: `{ title: "Falcone Workspace API", version: "__VERSION__", description: "..." }`
 - `servers`: `[{ url: "__BASE_URL__", description: "Workspace API" }]`
 - `components.securitySchemes`: `BearerAuth` (HTTP Bearer JWT) + `ApiKeyAuth` (header `X-Api-Key`)
 - `security`: `[{ BearerAuth: [] }, { ApiKeyAuth: [] }]`
@@ -384,7 +384,7 @@ const CAPABILITY_MODULES = {
 /**
  * @param {Object} opts
  * @param {Set<string>} opts.enabledCapabilities - e.g. new Set(['storage','authentication'])
- * @param {string} opts.workspaceBaseUrl - e.g. "https://api.tenant.atelier.dev/workspace/abc"
+ * @param {string} opts.workspaceBaseUrl - e.g. "https://api.tenant.falcone.dev/workspace/abc"
  * @param {string} opts.previousSpecVersion - semver string of current published spec, or "0.0.0"
  * @param {string[]} opts.previousCapabilityTags - tags from previous spec version
  * @returns {{ formatJson: string, formatYaml: string, contentHash: string, specVersion: string, capabilityTags: string[] }}
@@ -434,7 +434,7 @@ Implementation details:
 4. `contentHash` format is `"sha256:{64 hex chars}"`
 5. Spectral lint of assembled spec for storage+auth combination — zero errors (uses `@stoplight/spectral-core` programmatically)
 
-**Acceptance**: `pnpm --filter @atelier/openapi-sdk-service test` passes all 5 test cases.
+**Acceptance**: `pnpm --filter @falcone/openapi-sdk-service test` passes all 5 test cases.
 
 ---
 
@@ -702,7 +702,7 @@ export { default as openapiSpecUpdatedEvent } from './openapi-spec-updated-event
 export { default as sdkGenerationCompletedEvent } from './sdk-generation-completed-event.json' assert { type: 'json' };
 ```
 
-**Acceptance**: `import { workspaceOpenApiVersion } from '@atelier/internal-contracts'` resolves without error.
+**Acceptance**: `import { workspaceOpenApiVersion } from '@falcone/internal-contracts'` resolves without error.
 
 ---
 
@@ -943,7 +943,7 @@ rules:
   no-$ref-siblings: error
 ```
 
-**Acceptance**: `pnpm --filter @atelier/openapi-sdk-service lint:openapi` runs spectral; fails on a deliberately broken fragment; passes on all valid fragments.
+**Acceptance**: `pnpm --filter @falcone/openapi-sdk-service lint:openapi` runs spectral; fails on a deliberately broken fragment; passes on all valid fragments.
 
 ---
 

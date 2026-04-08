@@ -9,14 +9,14 @@ function readEnv(key: string, fallback: string): string {
 }
 
 export const consoleAuthConfig = {
-  realm: readEnv('VITE_CONSOLE_AUTH_REALM', 'in-atelier-platform'),
-  clientId: readEnv('VITE_CONSOLE_AUTH_CLIENT_ID', 'in-atelier-console'),
+  realm: readEnv('VITE_CONSOLE_AUTH_REALM', 'in-falcone-platform'),
+  clientId: readEnv('VITE_CONSOLE_AUTH_CLIENT_ID', 'in-falcone-console'),
   loginPath: readEnv('VITE_CONSOLE_AUTH_LOGIN_PATH', '/login'),
   signupPath: readEnv('VITE_CONSOLE_AUTH_SIGNUP_PATH', '/signup'),
   pendingActivationPath: readEnv('VITE_CONSOLE_AUTH_PENDING_ACTIVATION_PATH', '/signup/pending-activation'),
   passwordRecoveryPath: readEnv('VITE_CONSOLE_AUTH_PASSWORD_RECOVERY_PATH', '/password-recovery'),
   headings: {
-    title: readEnv('VITE_CONSOLE_AUTH_TITLE', 'Accede a In Atelier Console'),
+    title: readEnv('VITE_CONSOLE_AUTH_TITLE', 'Accede a In Falcone Console'),
     subtitle: readEnv(
       'VITE_CONSOLE_AUTH_SUBTITLE',
       'Autenticación respaldada por Keycloak y normalizada por la familia pública /v1/auth/* del control plane.'
@@ -34,7 +34,7 @@ export const consoleAuthConfig = {
       'VITE_CONSOLE_AUTH_SIGNUP_DISABLED_LABEL',
       'El auto-registro no está disponible actualmente para este entorno.'
     ),
-    signupTitle: readEnv('VITE_CONSOLE_SIGNUP_TITLE', 'Crea tu acceso a In Atelier Console'),
+    signupTitle: readEnv('VITE_CONSOLE_SIGNUP_TITLE', 'Crea tu acceso a In Falcone Console'),
     signupSubtitle: readEnv(
       'VITE_CONSOLE_SIGNUP_SUBTITLE',
       'Registro público respaldado por Keycloak y gobernado por la policy efectiva de /v1/auth/signups/policy.'

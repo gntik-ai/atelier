@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-03-T03",
-  "system": "in-atelier-threshold-alerts",
+  "system": "in-falcone-threshold-alerts",
   "source_usage_contract": "2026-03-28",
   "source_quota_policy_contract": "2026-03-28",
   "source_audit_event_schema_contract": "2026-03-28",

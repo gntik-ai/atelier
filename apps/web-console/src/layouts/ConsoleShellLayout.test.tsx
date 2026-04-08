@@ -63,7 +63,7 @@ describe('ConsoleShellLayout', () => {
 
     renderShell('/console/overview')
 
-    expect(await screen.findByRole('link', { name: /in atelier console/i })).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: /in falcone console/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: /auth/i })).toHaveAttribute('href', '/console/auth')
     expect(screen.getByText(/operaciones plataforma/i)).toBeInTheDocument()
@@ -130,7 +130,7 @@ describe('ConsoleShellLayout', () => {
       }
     })
     window.localStorage.setItem(
-      'in-atelier.console-active-context',
+      'in-falcone.console-active-context',
       JSON.stringify({
         userId: 'usr_abc123',
         tenantId: 'ten_alpha',

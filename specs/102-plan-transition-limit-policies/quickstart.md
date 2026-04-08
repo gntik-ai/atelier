@@ -13,7 +13,7 @@
 Set a connection string and apply the feature DDL directly:
 
 ```bash
-export DATABASE_URL='postgres://postgres:postgres@localhost:5432/atelier_dev'
+export DATABASE_URL='postgres://postgres:postgres@localhost:5432/falcone_dev'
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f services/provisioning-orchestrator/src/migrations/102-plan-transition-policies.sql
 ```
 

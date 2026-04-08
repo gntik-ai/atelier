@@ -308,7 +308,7 @@ Pattern: each action exports `main(params)` + `resolveDependencies(params)` (sam
 
 ## Step 5 — Sweeper CronJobs (Helm)
 
-### `charts/in-atelier/values.yaml` additions
+### `charts/in-falcone/values.yaml` additions
 
 ```yaml
 secretRotation:
@@ -324,12 +324,12 @@ secretRotation:
 
 ### Helm CronJob templates
 
-**`charts/in-atelier/templates/cronjob-secret-rotation-expiry-sweep.yaml`**
+**`charts/in-falcone/templates/cronjob-secret-rotation-expiry-sweep.yaml`**
 - Schedule: `.Values.secretRotation.expirySweepCronSchedule`
 - Runs OpenWhisk action `secret-rotation-expiry-sweep` via `owcli invoke` or equivalent
 - `{{ if .Values.secretRotation.enabled }}` guard
 
-**`charts/in-atelier/templates/cronjob-secret-rotation-propagation-timeout-sweep.yaml`**
+**`charts/in-falcone/templates/cronjob-secret-rotation-propagation-timeout-sweep.yaml`**
 - Schedule: `.Values.secretRotation.propagationTimeoutCronSchedule`
 - Runs `secret-rotation-propagation-timeout-sweep` action
 - `{{ if .Values.secretRotation.enabled }}` guard
@@ -544,7 +544,7 @@ Append the following inside the `<!-- MANUAL ADDITIONS START -->` block of `/roo
 - [ ] **CD-06** No unit or integration test inserts a `secret_rotation_events` row containing secret material in `detail` JSONB.
 - [ ] **CD-07** Multi-tenant isolation integration test passes.
 - [ ] **CD-08** `ConsoleSecretsPage.test.tsx` and `ConsoleSecretRotationPage.test.tsx` pass.
-- [ ] **CD-09** `charts/in-atelier/values.yaml` contains `secretRotation` block; both CronJob templates rendered.
+- [ ] **CD-09** `charts/in-falcone/values.yaml` contains `secretRotation` block; both CronJob templates rendered.
 - [ ] **CD-10** `AGENTS.md` updated with "Secure Secret Rotation" section.
 - [ ] **CD-11** `platform.openapi.json` contains five new paths; `control-plane.openapi.json` untouched.
 - [ ] **CD-12** All unit tests pass (`node --test services/provisioning-orchestrator/tests/secret-rotation-*.test.mjs`).

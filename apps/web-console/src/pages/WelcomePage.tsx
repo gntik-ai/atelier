@@ -19,7 +19,7 @@ export function WelcomePage() {
               EP-14 / US-UI-01-T02
             </p>
             <h1 id="foundation-title" className="text-4xl font-semibold tracking-tight sm:text-5xl">
-              In Atelier Console
+              In Falcone Console
             </h1>
             <p className="max-w-2xl text-lg leading-8 text-muted-foreground">
               Consola administrativa del producto BaaS multi-tenant preparada para crecer con login,

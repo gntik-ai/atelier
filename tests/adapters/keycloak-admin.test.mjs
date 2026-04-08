@@ -22,7 +22,7 @@ test('keycloak admin adapter exports the supported compatibility matrix and reso
   assert.equal(isKeycloakVersionSupported('25.3.1'), true);
   assert.equal(isKeycloakVersionSupported('26.0.0'), true);
   assert.equal(isKeycloakVersionSupported('23.0.7'), false);
-  assert.equal(RESERVED_REALM_IDS.includes('in-atelier-platform'), true);
+  assert.equal(RESERVED_REALM_IDS.includes('in-falcone-platform'), true);
 });
 
 test('keycloak admin adapter normalizes provider payloads into the BaaS-native IAM shapes', () => {

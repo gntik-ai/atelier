@@ -13,7 +13,7 @@ Implementar el enforcement activo de capabilities booleanas en los tres puntos d
 - **Dependencias principales**: Apache APISIX (gateway), Keycloak (IAM), PostgreSQL (datos de planes), Kafka (eventos), OpenWhisk (backend de consola)
 - **Testing**: `node:test` nativo, Vitest (consola), contract tests OpenAPI
 - **Plataforma destino**: Kubernetes / OpenShift vía Helm
-- **Tipo de proyecto**: Monorepo BaaS multi-tenant (`in-atelier`)
+- **Tipo de proyecto**: Monorepo BaaS multi-tenant (`in-falcone`)
 - **Restricciones de rendimiento**: La resolución de capabilities en gateway no debe añadir más de 5 ms p99 al path crítico del request
 - **Constraints**: Aislamiento multi-tenant estricto, deny-by-default, auditabilidad completa
 

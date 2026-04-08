@@ -41,7 +41,7 @@ describe('generateSnippets', () => {
   it('preserva placeholders de secretos y no inyecta credenciales reales', () => {
     const snippets = generateSnippets('iam-client', {
       ...baseContext,
-      resourceName: 'atelier-console',
+      resourceName: 'falcone-console',
       resourceExtraB: 'https://sso.example.test/realms/tenant/protocol/openid-connect/token'
     })
 

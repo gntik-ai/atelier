@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-02-T01",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_metrics_contract": "2026-03-28",
   "source_health_contract": "2026-03-28",
   "principles": [
@@ -194,7 +194,7 @@
   "health_signals": [
     {
       "id": "audit_emission_freshness",
-      "metric_name": "in_atelier_audit_emission_freshness_seconds",
+      "metric_name": "in_falcone_audit_emission_freshness_seconds",
       "required_labels": [
         "environment",
         "subsystem",
@@ -212,7 +212,7 @@
     },
     {
       "id": "audit_transport_health",
-      "metric_name": "in_atelier_audit_transport_health",
+      "metric_name": "in_falcone_audit_transport_health",
       "required_labels": [
         "environment",
         "subsystem",
@@ -230,7 +230,7 @@
     },
     {
       "id": "audit_storage_health",
-      "metric_name": "in_atelier_audit_storage_health",
+      "metric_name": "in_falcone_audit_storage_health",
       "required_labels": [
         "environment",
         "subsystem",
@@ -295,7 +295,7 @@
       "stale"
     ],
     "rules": [
-      "Audit pipeline health reuses the in_atelier metric prefix and the common required labels from the observability plane.",
+      "Audit pipeline health reuses the in_falcone metric prefix and the common required labels from the observability plane.",
       "Missing emission from a required subsystem must surface as degraded or stale rather than healthy.",
       "Transport and storage degradation must remain visible even when individual emitters continue producing events."
     ]

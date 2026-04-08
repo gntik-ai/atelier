@@ -2159,7 +2159,7 @@
   "info": {
     "description": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped event topics with controlled HTTP publish, SSE delivery, replay windows, and audit-friendly gateway semantics.",
-    "title": "In Atelier Events API",
+    "title": "In Falcone Events API",
     "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -3544,12 +3544,12 @@
       "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
-          "default": "api.dev.in-atelier.example.com",
+          "default": "api.dev.in-falcone.example.com",
           "enum": [
-            "api.dev.in-atelier.example.com",
-            "api.sandbox.in-atelier.example.com",
-            "api.staging.in-atelier.example.com",
-            "api.in-atelier.example.com"
+            "api.dev.in-falcone.example.com",
+            "api.sandbox.in-falcone.example.com",
+            "api.staging.in-falcone.example.com",
+            "api.in-falcone.example.com"
           ]
         }
       }

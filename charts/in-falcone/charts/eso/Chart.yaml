@@ -1,0 +1,10 @@
+apiVersion: v2
+name: eso
+description: External Secrets Operator integration for Falcone Vault-backed secrets
+type: application
+version: 0.1.0
+appVersion: "0.9.0"
+dependencies:
+  - name: external-secrets
+    version: "0.9.0"
+    repository: https://charts.external-secrets.io

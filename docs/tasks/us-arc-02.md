@@ -8,7 +8,7 @@ Deliver the public-domain and deployment-topology baseline so the same logical p
 
 - **T01 — hostnames, route prefixes, optional subdomains, certificates**
   - `services/internal-contracts/src/deployment-topology.json`
-  - `charts/in-atelier/values*.yaml`
+  - `charts/in-falcone/values*.yaml`
   - `services/gateway-config/base/gateway.yaml`
   - `docs/reference/architecture/deployment-topology.md`
 - **T02 — operational environment profiles**
@@ -19,8 +19,8 @@ Deliver the public-domain and deployment-topology baseline so the same logical p
   - `docs/adr/0004-public-domain-environment-topology.md`
   - `apps/control-plane/openapi/control-plane.openapi.json`
 - **T04 — Helm/config/secret inheritance policy**
-  - `charts/in-atelier/values.yaml`
-  - `charts/in-atelier/values/*.yaml`
+  - `charts/in-falcone/values.yaml`
+  - `charts/in-falcone/values/*.yaml`
   - `scripts/lib/deployment-topology.mjs`
   - `scripts/validate-deployment-topology.mjs`
 - **T05 — promotion and functional-config migration**

@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: Realtime subscription authorization, scope mapping, and filter contracts for workspace-scoped delivery.
 servers:
-  - url: https://api.atelier.example
+  - url: https://api.falcone.example
 paths:
   /workspaces/{workspaceId}/realtime/subscriptions:
     post:

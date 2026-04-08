@@ -12,18 +12,18 @@ This note is the human-readable companion to `services/internal-contracts/src/de
 
 ## Public-domain strategy
 
-- Root domain: `in-atelier.example.com`
+- Root domain: `in-falcone.example.com`
 - Stable public surfaces:
-  - API: `api.<environment>.in-atelier.example.com` except production, which uses `api.in-atelier.example.com`
-  - Console: `console.<environment>.in-atelier.example.com` except production, which uses `console.in-atelier.example.com`
-  - Identity: `iam.<environment>.in-atelier.example.com` except production, which uses `iam.in-atelier.example.com`
-  - Realtime: `realtime.<environment>.in-atelier.example.com` except production, which uses `realtime.in-atelier.example.com`
+  - API: `api.<environment>.in-falcone.example.com` except production, which uses `api.in-falcone.example.com`
+  - Console: `console.<environment>.in-falcone.example.com` except production, which uses `console.in-falcone.example.com`
+  - Identity: `iam.<environment>.in-falcone.example.com` except production, which uses `iam.in-falcone.example.com`
+  - Realtime: `realtime.<environment>.in-falcone.example.com` except production, which uses `realtime.in-falcone.example.com`
 - Stable route prefixes:
   - control plane: `/control-plane`
   - identity: `/auth`
   - realtime: `/realtime`
   - console: `/`
-- Optional workspace/application subdomains are allowed only for `dev` and `sandbox`, using `{workspaceSlug}.apps.{environment}.in-atelier.example.com`.
+- Optional workspace/application subdomains are allowed only for `dev` and `sandbox`, using `{workspaceSlug}.apps.{environment}.in-falcone.example.com`.
 
 The identity surface now separates:
 
@@ -34,8 +34,8 @@ The identity surface now separates:
 ## Certificate naming and TLS modes
 
 - Issuer reference: `ClusterIssuer/letsencrypt-public`
-- Wildcard secret pattern: `in-atelier-<environment>-wildcard-tls`
-- Surface secret pattern: `in-atelier-<environment>-<surface>-tls`
+- Wildcard secret pattern: `in-falcone-<environment>-wildcard-tls`
+- Surface secret pattern: `in-falcone-<environment>-<surface>-tls`
 - Supported TLS modes:
   - `clusterManaged`: the charted exposure resource binds existing cluster-provided TLS assets
   - `external`: an external load balancer or edge tier terminates TLS before traffic reaches the in-cluster Service
@@ -70,7 +70,7 @@ Only the above operational characteristics, hostname/certificate bindings, and a
 - `standard`: repository default for balanced shared deployments
 - `ha`: higher replica counts and anti-affinity for stateless entry points; true end-to-end HA still expects separately hardened or externally managed stateful dependencies
 
-The recommended profile overlays live under `charts/in-atelier/values/profiles/` and are referenced by the same deployment contract across environments.
+The recommended profile overlays live under `charts/in-falcone/values/profiles/` and are referenced by the same deployment contract across environments.
 
 ### Forward-compatibility guardrails
 
@@ -188,4 +188,4 @@ Clusters with default-deny policies must preserve:
 - cluster-local domains, Pod CIDRs, and service suffixes must stay in `NO_PROXY`
 - internal CA bundles are mounted via ConfigMaps/Secrets or image trust stores, never stored in git-tracked values files
 
-The operator packaging guide lives in `charts/in-atelier/README.md` and is part of the deployment baseline.
+The operator packaging guide lives in `charts/in-falcone/README.md` and is part of the deployment baseline.

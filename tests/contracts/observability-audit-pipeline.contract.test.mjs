@@ -70,7 +70,7 @@ test('all audit health signals align with the metrics-stack required labels and 
   const healthVocabulary = new Set(readObservabilityHealthChecks().dashboard_alignment?.compatible_health_states ?? []);
 
   for (const signal of getAuditPipelineHealthSignals()) {
-    assert.equal(signal.metric_name.startsWith('in_atelier_audit_'), true, `${signal.id} must use in_atelier_audit_`);
+    assert.equal(signal.metric_name.startsWith('in_falcone_audit_'), true, `${signal.id} must use in_falcone_audit_`);
 
     for (const label of signal.required_labels ?? []) {
       assert.equal(metricsLabels.has(label), true, `metrics-stack must include required label ${label}`);

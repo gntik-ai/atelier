@@ -220,7 +220,7 @@ test('topic metadata and workspace dashboards expose lag retention compaction an
   assert.equal(dashboard.widgets.length, EVENT_DASHBOARD_WIDGET_TYPES.length);
   assert.equal(dashboard.widgets.some((widget) => widget.type === 'bridge_health'), true);
   assert.equal(
-    dashboard.widgets.some((widget) => widget.query.includes('in_atelier_openwhisk_kafka_trigger_invocations_total')),
+    dashboard.widgets.some((widget) => widget.query.includes('in_falcone_openwhisk_kafka_trigger_invocations_total')),
     true
   );
   assert.deepEqual(summarizedDashboard.coverage, dashboard.coverage);

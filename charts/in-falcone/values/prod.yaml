@@ -1,0 +1,69 @@
+global:
+  namespace: in-falcone
+  environment: prod
+publicSurface:
+  hostnames:
+    api: api.in-falcone.example.com
+    console: console.in-falcone.example.com
+    identity: iam.in-falcone.example.com
+    realtime: realtime.in-falcone.example.com
+  certificates:
+    wildcardSecretName: in-falcone-prod-wildcard-tls
+    surfaces:
+      api: in-falcone-prod-api-tls
+      console: in-falcone-prod-console-tls
+      identity: in-falcone-prod-identity-tls
+      realtime: in-falcone-prod-realtime-tls
+environmentProfile:
+  id: prod
+  diagnostics:
+    logLevel: warn
+    debugEndpoints: false
+    passthroughHeaders: false
+  demoData:
+    enabled: false
+  limitsProfile: strict
+config:
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-falcone-prod-api-tls
+      keys:
+      - tls.crt
+      - tls.key
+deployment:
+  topology:
+    clusterRef: cluster-prod-shared
+apisix:
+  replicas: 4
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2
+      memory: 2Gi
+postgresql:
+  persistence:
+    size: 100Gi
+mongodb:
+  persistence:
+    size: 100Gi
+kafka:
+  persistence:
+    size: 200Gi
+storage:
+  persistence:
+    size: 500Gi
+controlPlane:
+  replicas: 3
+webConsole:
+  replicas: 3
+gatewayPolicy:
+  passthrough:
+    mode: disabled
+  cors:
+    allowOrigins:
+    - https://console.in-falcone.example.com
+  oidc:
+    issuerUrl: https://iam.in-falcone.example.com/auth/realms/in-falcone-platform
+    discoveryUrl: https://iam.in-falcone.example.com/auth/realms/in-falcone-platform/.well-known/openid-configuration

@@ -274,9 +274,9 @@ Cobertura mínima:
 Ejecutar como mínimo:
 
 ```sh
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console build
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console build
 ```
 
 Para la entrega end-to-end del stage implement, completar además:
@@ -330,7 +330,7 @@ La tarea queda cerrada cuando exista evidencia de que:
 5. La página muestra aplicaciones externas del workspace activo.
 6. La página muestra providers federados OIDC/SAML asociados a las aplicaciones.
 7. Los estados vacío/carga/error están cubiertos por tests automatizados.
-8. `corepack pnpm --filter @in-atelier/web-console test`, `typecheck`, `build`, `corepack pnpm lint` y `corepack pnpm test` quedan en verde.
+8. `corepack pnpm --filter @in-falcone/web-console test`, `typecheck`, `build`, `corepack pnpm lint` y `corepack pnpm test` quedan en verde.
 9. La rama `052-console-auth-iam-views` se publica, la PR pasa CI y termina mergeada a `main`.
 
 ### Evidencia esperada al terminar

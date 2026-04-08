@@ -60,7 +60,7 @@ test('shared readers return business domains, metric types, and metric families 
 
   assert.equal(domain.display_name, 'API usage');
   assert.equal(metricType.description.length > 0, true);
-  assert.equal(family.name, 'in_atelier_api_requests_total');
+  assert.equal(family.name, 'in_falcone_api_requests_total');
   assert.equal(getObservabilityBusinessDomain('nonexistent'), undefined);
   assert.equal(getObservabilityBusinessMetricType('nonexistent'), undefined);
   assert.equal(getObservabilityBusinessMetricFamily('nonexistent'), undefined);
@@ -76,12 +76,12 @@ test('all required base labels align with the metrics-stack baseline', () => {
   }
 });
 
-test('every business metric family uses the in_atelier prefix and a known domain/type', () => {
+test('every business metric family uses the in_falcone prefix and a known domain/type', () => {
   const domains = new Set(listObservabilityBusinessDomains().map((domain) => domain.id));
   const metricTypes = new Set(listObservabilityBusinessMetricTypes().map((metricType) => metricType.id));
 
   for (const family of listObservabilityBusinessMetricFamilies()) {
-    assert.equal(family.name.startsWith('in_atelier_'), true, `${family.id} must use the in_atelier_ prefix`);
+    assert.equal(family.name.startsWith('in_falcone_'), true, `${family.id} must use the in_falcone_ prefix`);
     assert.equal(domains.has(family.domain), true, `${family.id} must reference a known domain`);
     assert.equal(metricTypes.has(family.metric_type), true, `${family.id} must reference a known metric_type`);
   }

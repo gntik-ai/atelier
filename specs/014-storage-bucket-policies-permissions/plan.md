@@ -14,7 +14,7 @@
 This task introduces a platform-level, declarative storage authorization layer for buckets and bucket-adjacent operations. The delivery is **additive only**: it adds a new pure-functional storage policy module, additive re-exports through `provider-catalog.mjs`, targeted tests, and a static E2E scenario matrix. Published contracts from specs `007`–`013` remain intact.
 
 The implementation is intentionally **platform-evaluated**, not provider-native:
-- bucket policies are evaluated by Atelier before the request reaches the S3-compatible backend,
+- bucket policies are evaluated by Falcone before the request reaches the S3-compatible backend,
 - workspace defaults govern buckets with no attached bucket policy,
 - tenant templates seed workspace defaults at workspace creation time,
 - superadmin overrides temporarily supersede bucket policies without deleting the underlying policy.

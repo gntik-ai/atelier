@@ -1,0 +1,50 @@
+global:
+  namespace: in-falcone-sandbox
+  environment: sandbox
+publicSurface:
+  hostnames:
+    api: api.sandbox.in-falcone.example.com
+    console: console.sandbox.in-falcone.example.com
+    identity: iam.sandbox.in-falcone.example.com
+    realtime: realtime.sandbox.in-falcone.example.com
+  optionalWorkspaceSubdomains:
+    enabled: true
+  certificates:
+    wildcardSecretName: in-falcone-sandbox-wildcard-tls
+    surfaces:
+      api: in-falcone-sandbox-api-tls
+      console: in-falcone-sandbox-console-tls
+      identity: in-falcone-sandbox-identity-tls
+      realtime: in-falcone-sandbox-realtime-tls
+environmentProfile:
+  id: sandbox
+  diagnostics:
+    logLevel: info
+    debugEndpoints: false
+    passthroughHeaders: false
+  demoData:
+    enabled: true
+  limitsProfile: preview
+config:
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-falcone-sandbox-api-tls
+      keys:
+      - tls.crt
+      - tls.key
+deployment:
+  topology:
+    clusterRef: cluster-sandbox-shared
+controlPlane:
+  replicas: 2
+webConsole:
+  replicas: 2
+gatewayPolicy:
+  passthrough:
+    mode: limited
+  cors:
+    allowOrigins:
+    - https://console.sandbox.in-falcone.example.com
+  oidc:
+    issuerUrl: https://iam.sandbox.in-falcone.example.com/auth/realms/in-falcone-platform
+    discoveryUrl: https://iam.sandbox.in-falcone.example.com/auth/realms/in-falcone-platform/.well-known/openid-configuration

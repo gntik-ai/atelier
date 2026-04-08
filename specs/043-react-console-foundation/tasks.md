@@ -106,7 +106,7 @@ Revisar el contenido del script `scripts/validate-structure.mjs` (raíz del mono
 
 Reemplazar el `package.json` placeholder actual por uno completo que declare:
 
-- `name`: `@in-atelier/web-console`
+- `name`: `@in-falcone/web-console`
 - `type`: `module`
 - Dependencias de producción: `react@^18.3.0`, `react-dom@^18.3.0`, `react-router-dom@^6.24.0`, `class-variance-authority@^0.7.0`, `clsx@^2.1.1`, `tailwind-merge@^2.4.0`, `lucide-react@^0.400.0`, `@radix-ui/react-slot@^1.1.0`
 - Dependencias de desarrollo: `vite@^5.3.0`, `@vitejs/plugin-react@^4.3.0`, `typescript@^5.5.0`, `@types/react@^18.3.0`, `@types/react-dom@^18.3.0`, `tailwindcss@^3.4.0`, `autoprefixer@^10.4.0`, `postcss@^8.4.0`, `vitest@^1.6.0`, `@vitest/coverage-v8@^1.6.0`, `@testing-library/react@^16.0.0`, `@testing-library/jest-dom@^6.4.0`, `@testing-library/user-event@^14.5.0`, `jsdom@^24.0.0`
@@ -206,9 +206,9 @@ Copiar los dos componentes shadcn/ui mínimos necesarios para T01 en `apps/web-c
 
 Entry point HTML de Vite que incluya:
 - `<meta charset="UTF-8">` y `<meta name="viewport">`
-- `<meta name="application-name" content="In Atelier Console">`
+- `<meta name="application-name" content="In Falcone Console">`
 - `<meta name="version" content="%VITE_APP_VERSION%">` (Vite lo sustituye en build)
-- `<title>In Atelier Console</title>`
+- `<title>In Falcone Console</title>`
 - `<link rel="stylesheet" href="/src/styles/globals.css">` (Vite procesa en dev; en build se incluye en el bundle)
 - `<div id="root"></div>`
 - `<script type="module" src="/src/main.tsx"></script>`
@@ -222,7 +222,7 @@ Entry point HTML de Vite que incluya:
 
 Componente funcional React para la ruta `/` que:
 - Usa estructura semántica: `<main>`, `<h1>`
-- Muestra el nombre del producto: "In Atelier Console"
+- Muestra el nombre del producto: "In Falcone Console"
 - Muestra un mensaje de contexto: "Consola administrativa del producto BaaS multi-tenant"
 - Incluye al menos un componente shadcn/ui visible (`<Badge>` o `<Button>` con rol decorativo)
 - No realiza llamadas a APIs externas
@@ -262,7 +262,7 @@ Entry point React que:
 - Importa `globals.css` para activar Tailwind
 - Usa `ReactDOM.createRoot(document.getElementById('root')!)` con `<RouterProvider router={router} />`
 - Envuelve en `<React.StrictMode>`
-- Opcionalmente emite `console.info('In Atelier Console', __APP_VERSION__)` para trazabilidad de versión en DevTools
+- Opcionalmente emite `console.info('In Falcone Console', __APP_VERSION__)` para trazabilidad de versión en DevTools
 
 **Archivo:** `apps/web-console/src/main.tsx`
 
@@ -364,10 +364,10 @@ Build multi-stage:
 
 | ID | Criterio | Comando de verificación |
 |---|---|---|
-| DON-01 | Build sin errores y `dist/` contiene `index.html`, `assets/*.js`, `assets/*.css` | `pnpm --filter @in-atelier/web-console build` |
-| DON-02 | Tests pasan con cobertura ≥ 80% en `src/pages/` | `pnpm --filter @in-atelier/web-console test:coverage` |
-| DON-03 | Sin errores TypeScript | `pnpm --filter @in-atelier/web-console typecheck` |
-| DON-04 | Imagen arranca y responde HTTP 200 con nombre del producto | `docker build -t web-console:local apps/web-console/ && docker run --rm -p 3000:3000 web-console:local` → `curl -s http://localhost:3000/ \| grep -i "In Atelier"` |
+| DON-01 | Build sin errores y `dist/` contiene `index.html`, `assets/*.js`, `assets/*.css` | `pnpm --filter @in-falcone/web-console build` |
+| DON-02 | Tests pasan con cobertura ≥ 80% en `src/pages/` | `pnpm --filter @in-falcone/web-console test:coverage` |
+| DON-03 | Sin errores TypeScript | `pnpm --filter @in-falcone/web-console typecheck` |
+| DON-04 | Imagen arranca y responde HTTP 200 con nombre del producto | `docker build -t web-console:local apps/web-console/ && docker run --rm -p 3000:3000 web-console:local` → `curl -s http://localhost:3000/ \| grep -i "In Falcone"` |
 | DON-05 | nginx sirve SPA fallback (HTTP 200) en rutas inexistentes | `curl -o /dev/null -w "%{http_code}" http://localhost:3000/ruta-no-existe` → `200` |
 | DON-06 | WelcomePage tiene `<h1>` y `<main>` | Verificación RTL en `WelcomePage.test.tsx` |
 | DON-07 | Al menos 1 componente shadcn/ui en WelcomePage | Verificación RTL en `WelcomePage.test.tsx` |

@@ -55,15 +55,15 @@ The baseline currently defines these business domains:
 
 The current metric families are intentionally bounded and reusable:
 
-- `in_atelier_tenant_active_total`
-- `in_atelier_workspace_active_total`
-- `in_atelier_api_requests_total`
-- `in_atelier_identity_events_total`
-- `in_atelier_function_invocations_total`
-- `in_atelier_data_service_operations_total`
-- `in_atelier_storage_logical_volume_bytes`
-- `in_atelier_realtime_connections_active`
-- `in_atelier_quota_utilization_ratio`
+- `in_falcone_tenant_active_total`
+- `in_falcone_workspace_active_total`
+- `in_falcone_api_requests_total`
+- `in_falcone_identity_events_total`
+- `in_falcone_function_invocations_total`
+- `in_falcone_data_service_operations_total`
+- `in_falcone_storage_logical_volume_bytes`
+- `in_falcone_realtime_connections_active`
+- `in_falcone_quota_utilization_ratio`
 
 ## Scope and isolation rules
 
@@ -119,8 +119,8 @@ Business metrics inherit the same collection-health caution as the technical obs
 
 That means downstream consumers must continue to interpret:
 
-- `in_atelier_observability_collection_health`
-- `in_atelier_observability_collection_lag_seconds`
+- `in_falcone_observability_collection_health`
+- `in_falcone_observability_collection_lag_seconds`
 
 when deciding whether business signals are current, stale, or missing.
 

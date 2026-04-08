@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-03-24
-- Deciders: In Atelier platform architecture baseline
+- Deciders: In Falcone platform architecture baseline
 - Related backlog item: US-IAM-01
 - Related ADRs:
   - ADR 0003: Control-plane service map
@@ -37,7 +37,7 @@ Adopt one explicit Keycloak IAM model that separates the **platform realm** from
 
 ### 1. Platform realm for console operators
 
-Use one stable platform realm, `in-atelier-platform`, for:
+Use one stable platform realm, `in-falcone-platform`, for:
 
 - platform operators and auditors
 - tenant/workspace console administrators

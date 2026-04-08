@@ -20,7 +20,7 @@ describe('LoginPage', () => {
 
     renderLoginPage()
 
-    expect(await screen.findByRole('heading', { name: /accede a in atelier console/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /accede a in falcone console/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/contraseña/i)).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: /mantener la sesión abierta/i })).toBeInTheDocument()
@@ -57,7 +57,7 @@ describe('LoginPage', () => {
   })
 
   it('envía el login y redirige al destino protegido recordado', async () => {
-    window.sessionStorage.setItem('in-atelier.console-protected-route', JSON.stringify('/console/workspaces?tab=active'))
+    window.sessionStorage.setItem('in-falcone.console-protected-route', JSON.stringify('/console/workspaces?tab=active'))
 
     fetchMock
       .mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
@@ -72,7 +72,7 @@ describe('LoginPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /entrar a la consola/i }))
 
     expect(await screen.findByText('Workspace target')).toBeInTheDocument()
-    expect(JSON.parse(window.sessionStorage.getItem('in-atelier.console-shell-session') ?? '{}')).toMatchObject({
+    expect(JSON.parse(window.sessionStorage.getItem('in-falcone.console-shell-session') ?? '{}')).toMatchObject({
       sessionId: 'ses_abc123'
     })
 
@@ -89,7 +89,7 @@ describe('LoginPage', () => {
 
   it('muestra el hint auth consumido desde storage', async () => {
     window.sessionStorage.setItem(
-      'in-atelier.console-auth-status-hint',
+      'in-falcone.console-auth-status-hint',
       JSON.stringify({
         statusView: 'login',
         title: 'Tu sesión ha expirado',
@@ -106,7 +106,7 @@ describe('LoginPage', () => {
   })
 
   it('evita permanecer en login cuando ya existe una sesión válida', async () => {
-    window.sessionStorage.setItem('in-atelier.console-shell-session', JSON.stringify(activeConsoleSession()))
+    window.sessionStorage.setItem('in-falcone.console-shell-session', JSON.stringify(activeConsoleSession()))
     fetchMock.mockResolvedValueOnce(createJsonResponse(200, allowedSignupPolicy()))
     vi.stubGlobal('fetch', fetchMock)
 

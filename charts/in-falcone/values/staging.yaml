@@ -1,0 +1,50 @@
+global:
+  namespace: in-falcone-staging
+  environment: staging
+publicSurface:
+  hostnames:
+    api: api.staging.in-falcone.example.com
+    console: console.staging.in-falcone.example.com
+    identity: iam.staging.in-falcone.example.com
+    realtime: realtime.staging.in-falcone.example.com
+  certificates:
+    wildcardSecretName: in-falcone-staging-wildcard-tls
+    surfaces:
+      api: in-falcone-staging-api-tls
+      console: in-falcone-staging-console-tls
+      identity: in-falcone-staging-identity-tls
+      realtime: in-falcone-staging-realtime-tls
+environmentProfile:
+  id: staging
+  diagnostics:
+    logLevel: info
+    debugEndpoints: false
+    passthroughHeaders: false
+  demoData:
+    enabled: false
+  limitsProfile: production_like
+config:
+  secretRefs:
+    gatewayTls:
+      existingSecret: in-falcone-staging-api-tls
+      keys:
+      - tls.crt
+      - tls.key
+deployment:
+  topology:
+    clusterRef: cluster-staging-shared
+apisix:
+  replicas: 3
+controlPlane:
+  replicas: 2
+webConsole:
+  replicas: 2
+gatewayPolicy:
+  passthrough:
+    mode: disabled
+  cors:
+    allowOrigins:
+    - https://console.staging.in-falcone.example.com
+  oidc:
+    issuerUrl: https://iam.staging.in-falcone.example.com/auth/realms/in-falcone-platform
+    discoveryUrl: https://iam.staging.in-falcone.example.com/auth/realms/in-falcone-platform/.well-known/openid-configuration

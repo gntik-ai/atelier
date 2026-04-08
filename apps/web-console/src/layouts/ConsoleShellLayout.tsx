@@ -244,7 +244,7 @@ export function ConsoleShellLayout() {
               </div>
               <div className="min-w-0">
                 <Link className="block truncate text-base font-semibold tracking-tight" to="/console/overview">
-                  In Atelier Console
+                  In Falcone Console
                 </Link>
                 <p className="truncate text-xs text-muted-foreground">Shell persistente + estado contextual · EP-14 / US-UI-02-T02</p>
               </div>

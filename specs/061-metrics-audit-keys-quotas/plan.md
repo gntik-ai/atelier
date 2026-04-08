@@ -635,9 +635,9 @@ Los eventos de auditoría sobre service accounts y cuotas son generados por el b
 ### 8.4 Validaciones operativas del paquete
 
 ```sh
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console build
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console build
 ```
 
 ### 8.5 Validaciones finales del flujo de implementación
@@ -711,7 +711,7 @@ La tarea quedará cerrada cuando exista evidencia de que:
 10. Las cuotas con ≥ 80 % de uso se destacan visualmente (ámbar); las cuotas al 100 % se marcan como bloqueadas (rojo).
 11. Los estados de carga, vacío y error son visibles y accesibles en las tres páginas.
 12. Cambiar de tenant/workspace en el selector recarga el contenido de las páginas activas.
-13. `corepack pnpm --filter @in-atelier/web-console test`, `typecheck` y `build` quedan en verde.
+13. `corepack pnpm --filter @in-falcone/web-console test`, `typecheck` y `build` quedan en verde.
 14. La rama `061-metrics-audit-keys-quotas` se publica, la PR se valida en CI y termina mergeada a `main`.
 
 ### Evidencia esperada al terminar

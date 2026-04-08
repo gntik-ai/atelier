@@ -12,7 +12,7 @@ if (versionMeta) {
   versionMeta.setAttribute('content', __APP_VERSION__)
 }
 
-console.info('In Atelier Console', __APP_VERSION__)
+console.info('In Falcone Console', __APP_VERSION__)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

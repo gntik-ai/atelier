@@ -202,9 +202,9 @@ Ajustar, solo si es necesario:
 
 ### Validaciones operativas
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
 - `corepack pnpm lint`
 - `corepack pnpm test`
 
@@ -252,6 +252,6 @@ La tarea se considera done cuando:
 - la UI refleja honestamente la policy resuelta por `/v1/auth/signups/policy`
 - existe pantalla dedicada para `pending_activation`
 - los tests nuevos cubren los flujos principales y de degradación
-- `@in-atelier/web-console` queda verde en `test`, `typecheck` y `build`
+- `@in-falcone/web-console` queda verde en `test`, `typecheck` y `build`
 - el monorepo queda verde en `lint` y `test`
 - la rama `045-console-signup-pending` se publica, pasa CI y se fusiona a `main`

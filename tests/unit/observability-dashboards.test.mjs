@@ -193,9 +193,9 @@ test('buildObservabilityDashboardScope returns collection freshness metric on ev
   const tenant = buildObservabilityDashboardScope({ tenantId: 'ten_abc' });
   const workspace = buildObservabilityDashboardScope({ tenantId: 'ten_abc', workspaceId: 'wrk_xyz' });
 
-  assert.equal(global.collectionFreshnessMetric, 'in_atelier_observability_collection_health');
-  assert.equal(tenant.collectionFreshnessMetric, 'in_atelier_observability_collection_health');
-  assert.equal(workspace.collectionFreshnessMetric, 'in_atelier_observability_collection_health');
+  assert.equal(global.collectionFreshnessMetric, 'in_falcone_observability_collection_health');
+  assert.equal(tenant.collectionFreshnessMetric, 'in_falcone_observability_collection_health');
+  assert.equal(workspace.collectionFreshnessMetric, 'in_falcone_observability_collection_health');
 });
 
 test('readObservabilityDashboards is consistent with listObservabilityDashboardScopes', () => {

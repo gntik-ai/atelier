@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-01-T01",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "principles": [
     "Every BaaS subsystem publishes metrics into one common observability plane before any downstream dashboard, health, or business-metric work is layered on top.",
     "Tenant-attributable metric series preserve tenant and optional workspace selectors while platform-global series remain explicitly marked as platform scope.",
@@ -60,7 +60,7 @@
     }
   },
   "naming": {
-    "prefix": "in_atelier",
+    "prefix": "in_falcone",
     "metric_scope_label": "metric_scope",
     "required_labels": [
       "environment",
@@ -117,7 +117,7 @@
     "normalized_metric_families": [
       {
         "id": "component_up",
-        "name": "in_atelier_component_up",
+        "name": "in_falcone_component_up",
         "type": "gauge",
         "required_labels": [
           "environment",
@@ -129,7 +129,7 @@
       },
       {
         "id": "component_operations_total",
-        "name": "in_atelier_component_operations_total",
+        "name": "in_falcone_component_operations_total",
         "type": "counter",
         "required_labels": [
           "environment",
@@ -142,7 +142,7 @@
       },
       {
         "id": "component_operation_errors_total",
-        "name": "in_atelier_component_operation_errors_total",
+        "name": "in_falcone_component_operation_errors_total",
         "type": "counter",
         "required_labels": [
           "environment",
@@ -156,7 +156,7 @@
       },
       {
         "id": "component_operation_duration_seconds",
-        "name": "in_atelier_component_operation_duration_seconds",
+        "name": "in_falcone_component_operation_duration_seconds",
         "type": "histogram",
         "required_labels": [
           "environment",
@@ -169,7 +169,7 @@
       },
       {
         "id": "component_probe_status",
-        "name": "in_atelier_component_probe_status",
+        "name": "in_falcone_component_probe_status",
         "type": "gauge",
         "required_labels": [
           "environment",
@@ -183,7 +183,7 @@
       },
       {
         "id": "component_probe_duration_seconds",
-        "name": "in_atelier_component_probe_duration_seconds",
+        "name": "in_falcone_component_probe_duration_seconds",
         "type": "histogram",
         "required_labels": [
           "environment",
@@ -197,7 +197,7 @@
       },
       {
         "id": "component_probe_failures_total",
-        "name": "in_atelier_component_probe_failures_total",
+        "name": "in_falcone_component_probe_failures_total",
         "type": "counter",
         "required_labels": [
           "environment",
@@ -232,9 +232,9 @@
     "note": "These are internal operating targets for collection and query ergonomics, not external SLA commitments."
   },
   "collection_health": {
-    "metric_name": "in_atelier_observability_collection_health",
-    "failure_counter": "in_atelier_observability_collection_failures_total",
-    "lag_metric": "in_atelier_observability_collection_lag_seconds",
+    "metric_name": "in_falcone_observability_collection_health",
+    "failure_counter": "in_falcone_observability_collection_failures_total",
+    "lag_metric": "in_falcone_observability_collection_lag_seconds",
     "required_labels": [
       "environment",
       "subsystem",
@@ -269,16 +269,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [
@@ -315,16 +315,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [
@@ -361,16 +361,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [
@@ -407,16 +407,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [
@@ -453,16 +453,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [
@@ -499,16 +499,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [
@@ -545,16 +545,16 @@
       ],
       "metric_categories": {
         "availability": [
-          "in_atelier_component_up"
+          "in_falcone_component_up"
         ],
         "throughput": [
-          "in_atelier_component_operations_total"
+          "in_falcone_component_operations_total"
         ],
         "errors": [
-          "in_atelier_component_operation_errors_total"
+          "in_falcone_component_operation_errors_total"
         ],
         "latency": [
-          "in_atelier_component_operation_duration_seconds"
+          "in_falcone_component_operation_duration_seconds"
         ]
       },
       "operation_dimensions": [

@@ -18,7 +18,7 @@ Run the following validation commands:
 npm run generate:public-api
 npm run validate:public-api
 npm run validate:openapi
-pnpm --filter @in-atelier/web-console test
+pnpm --filter @in-falcone/web-console test
 node --test tests/integration/099-plan-management-api-console/*.test.mjs
 ```
 

@@ -1,7 +1,7 @@
 {
   "version": "2026-03-24",
   "scope": "US-DOM-01, US-DOM-02",
-  "system": "in-atelier-core-domain-model",
+  "system": "in-falcone-core-domain-model",
   "contracts": {
     "entity_read_model": {
       "owner": "services/internal-contracts",
@@ -2466,12 +2466,12 @@
           "pvc_01metricsbasic"
         ],
         "identityTopology": {
-          "platformRealm": "in-atelier-platform",
+          "platformRealm": "in-falcone-platform",
           "tenantRealmMode": "realm_per_tenant",
           "realmClusterModel": "shared_keycloak_cluster",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
           "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
-          "consoleUsersRealm": "in-atelier-platform",
+          "consoleUsersRealm": "in-falcone-platform",
           "endUsersRealmBoundary": "tenant_realm"
         }
       },
@@ -2502,12 +2502,12 @@
           "pvc_01logsextended"
         ],
         "identityTopology": {
-          "platformRealm": "in-atelier-platform",
+          "platformRealm": "in-falcone-platform",
           "tenantRealmMode": "realm_per_tenant",
           "realmClusterModel": "shared_keycloak_cluster",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
           "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
-          "consoleUsersRealm": "in-atelier-platform",
+          "consoleUsersRealm": "in-falcone-platform",
           "endUsersRealmBoundary": "tenant_realm"
         }
       },
@@ -2535,12 +2535,12 @@
           "pvc_01auditexport"
         ],
         "identityTopology": {
-          "platformRealm": "in-atelier-platform",
+          "platformRealm": "in-falcone-platform",
           "tenantRealmMode": "realm_per_tenant",
           "realmClusterModel": "dedicated_keycloak_cluster",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
           "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
-          "consoleUsersRealm": "in-atelier-platform",
+          "consoleUsersRealm": "in-falcone-platform",
           "endUsersRealmBoundary": "tenant_realm"
         }
       },
@@ -2575,12 +2575,12 @@
           "pvc_01auditexport"
         ],
         "identityTopology": {
-          "platformRealm": "in-atelier-platform",
+          "platformRealm": "in-falcone-platform",
           "tenantRealmMode": "brokered_tenant_realm",
           "realmClusterModel": "federated_keycloak_cluster",
           "workspaceClientNamespacePattern": "{workspaceSlug}-{applicationSlug}",
           "serviceAccountClientPattern": "{workspaceSlug}-svc-{serviceAccountSlug}",
-          "consoleUsersRealm": "in-atelier-platform",
+          "consoleUsersRealm": "in-falcone-platform",
           "endUsersRealmBoundary": "federated_external_directory"
         }
       }
@@ -2844,8 +2844,8 @@
         ],
         "exampleRequest": {
           "entityType": "external_application",
-          "slug": "atelier-spa",
-          "displayName": "Atelier SPA",
+          "slug": "falcone-spa",
+          "displayName": "Falcone SPA",
           "templateId": "tpl_spa_oidc_pkce",
           "protocol": "oidc",
           "desiredState": "active",
@@ -2942,8 +2942,8 @@
         ],
         "exampleRequest": {
           "entityType": "external_application",
-          "slug": "atelier-api",
-          "displayName": "Atelier API",
+          "slug": "falcone-api",
+          "displayName": "Falcone API",
           "templateId": "tpl_backend_oidc_confidential",
           "protocol": "oidc",
           "desiredState": "active",

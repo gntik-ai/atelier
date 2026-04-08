@@ -95,4 +95,4 @@ Como visitante de la consola, quiero que la pantalla de signup refleje honestame
 - **SC-001**: Un usuario puede abrir `/signup`, completar el formulario mínimo con datos válidos y obtener una respuesta satisfactoria de `/v1/auth/signups` sin errores de UI no controlados.
 - **SC-002**: Cuando el backend devuelve `pending_activation`, la SPA presenta una pantalla dedicada con mensaje claro y al menos una acción siguiente visible.
 - **SC-003**: Cuando la policy de signup está deshabilitada o no puede resolverse, la pantalla comunica el estado sin exponer un CTA engañoso de alta y mantiene visible la navegación hacia login.
-- **SC-004**: La entrega mantiene verde la validación local del paquete `@in-atelier/web-console` y la validación global exigida por el monorepo.
+- **SC-004**: La entrega mantiene verde la validación local del paquete `@in-falcone/web-console` y la validación global exigida por el monorepo.

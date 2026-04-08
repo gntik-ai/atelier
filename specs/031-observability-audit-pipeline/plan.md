@@ -52,7 +52,7 @@ unit tests and contract tests are deferred to the test step.
 
 **Observability baseline consumed**:
 - `services/internal-contracts/src/observability-metrics-stack.json` (US-OBS-01-T01): naming
-  prefix `in_atelier`, required labels, high-cardinality label policy.
+  prefix `in_falcone`, required labels, high-cardinality label policy.
 - `services/internal-contracts/src/observability-health-checks.json` (US-OBS-01-T03): health
   status vocabulary (`healthy`, `degraded`, `unavailable`, `unknown`, `stale`), probe result
   shape, masking policy, forbidden-exposed-fields list.
@@ -107,7 +107,7 @@ Following `observability-health-checks.json` and `observability-metrics-stack.js
 {
   "version": "<ISO date>",
   "scope": "US-OBS-02-T01",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_metrics_contract": "<observability-metrics-stack.json version>",
   "source_health_contract": "<observability-health-checks.json version>",
   "principles": [...],
@@ -173,11 +173,11 @@ The contract defines three health signal families for audit pipeline observabili
 
 | Signal                   | Metric name                                      | Degraded condition                                               |
 |--------------------------|--------------------------------------------------|------------------------------------------------------------------|
-| Emission freshness        | `in_atelier_audit_emission_freshness_seconds`    | Last emission from subsystem exceeds threshold                   |
-| Transport health          | `in_atelier_audit_transport_health`              | Kafka consumer lag exceeds threshold or broker unavailable        |
-| Storage health            | `in_atelier_audit_storage_health`                | Durable store write failures or unavailability detected          |
+| Emission freshness        | `in_falcone_audit_emission_freshness_seconds`    | Last emission from subsystem exceeds threshold                   |
+| Transport health          | `in_falcone_audit_transport_health`              | Kafka consumer lag exceeds threshold or broker unavailable        |
+| Storage health            | `in_falcone_audit_storage_health`                | Durable store write failures or unavailability detected          |
 
-All signals follow the `in_atelier` prefix (FR-008; metrics-stack contract §naming). Required
+All signals follow the `in_falcone` prefix (FR-008; metrics-stack contract §naming). Required
 labels mirror the existing observability plane: `environment`, `subsystem`, `metric_scope`,
 `collection_mode`. Health status vocabulary reuses the health-checks contract:
 `healthy`, `degraded`, `unavailable`, `unknown`, `stale`.
@@ -307,7 +307,7 @@ AuditPipelineContract
 7. Confirm `delivery_guarantees.semantics === "at_least_once"`.
 8. Confirm `tenant_isolation.required_fields` includes `tenant_id`.
 9. Confirm `health_signals` contains at least three entries (emission, transport, storage).
-10. Confirm each health signal metric name begins with `in_atelier_audit_`.
+10. Confirm each health signal metric name begins with `in_falcone_audit_`.
 11. Confirm `masking_policy.forbidden_exposed_fields` is a non-empty array aligned with the
     health-checks contract.
 
@@ -354,7 +354,7 @@ require a health-check component entry for every audit subsystem.
 
 Defining metric names in the contract binds future emitter work.
 
-**Mitigation**: Metric names follow the `in_atelier` prefix and naming conventions from the
+**Mitigation**: Metric names follow the `in_falcone` prefix and naming conventions from the
 metrics-stack contract. They are additive and do not modify any existing metric family.
 If T02–T06 require narrower granularity, they extend rather than rename these families.
 

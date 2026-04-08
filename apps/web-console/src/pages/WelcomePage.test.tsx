@@ -12,7 +12,7 @@ describe('WelcomePage', () => {
       </MemoryRouter>
     )
 
-    const heading = screen.getByRole('heading', { level: 1, name: /in atelier console/i })
+    const heading = screen.getByRole('heading', { level: 1, name: /in falcone console/i })
     expect(heading).toBeInTheDocument()
     expect(screen.getByText(/consola administrativa del producto baas multi-tenant/i)).toBeInTheDocument()
     expect(screen.getByText(/fundación de consola lista/i)).toBeInTheDocument()

@@ -183,9 +183,9 @@ Ajustar para:
 
 ### Validaciones operativas
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
 - `corepack pnpm lint`
 
 ---
@@ -233,7 +233,7 @@ Ajustar para:
 - las requests autenticadas pueden recuperarse de un `401` con un solo refresh + retry;
 - el login respeta la ruta protegida recordada y muestra el hint auth cuando corresponda;
 - las pruebas automatizadas cubren guardas, refresh y expiración;
-- `test`, `typecheck`, `build` y `lint` pasan para `@in-atelier/web-console`.
+- `test`, `typecheck`, `build` y `lint` pasan para `@in-falcone/web-console`.
 
 ### Evidencia esperada
 

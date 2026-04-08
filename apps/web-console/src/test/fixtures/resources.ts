@@ -40,7 +40,7 @@ export const FIXTURE_FUNCTION = {
 
 export const FIXTURE_IAM_CLIENT = {
   resourceId: 'iam_1',
-  name: 'atelier-console',
+  name: 'falcone-console',
   host: 'sso.example.test',
   port: 443,
   clientType: 'confidential',

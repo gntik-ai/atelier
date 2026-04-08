@@ -113,10 +113,10 @@ Actualizar `pnpm-lock.yaml` para reflejar la nueva dependencia del paquete.
 
 Ejecutar:
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
-- `corepack pnpm --filter @in-atelier/web-console test:e2e`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test:e2e`
 - `corepack pnpm lint`
 
 Corregir los fallos relacionados con la feature antes de cerrar la tarea.

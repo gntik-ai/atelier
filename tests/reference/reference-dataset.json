@@ -2,25 +2,25 @@
   "tenants": [
     {
       "id": "tenant-shared-a",
-      "slug": "atelier-alpha",
+      "slug": "falcone-alpha",
       "placement": "shared_schema",
       "tier": "growth"
     },
     {
       "id": "tenant-shared-b",
-      "slug": "atelier-beta",
+      "slug": "falcone-beta",
       "placement": "shared_schema",
       "tier": "starter"
     },
     {
       "id": "tenant-dedicated-a",
-      "slug": "atelier-gamma",
+      "slug": "falcone-gamma",
       "placement": "dedicated_database",
       "tier": "regulated"
     },
     {
       "id": "tenant-bootstrap-starter",
-      "slug": "atelier-bootstrap",
+      "slug": "falcone-bootstrap",
       "placement": "shared_schema",
       "tier": "starter"
     }

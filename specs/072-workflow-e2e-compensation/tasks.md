@@ -699,7 +699,7 @@ node -e "import('./tests/e2e/workflows/index.mjs').then(m => { console.assert(m.
 
 ## T015 — Add `test:e2e:workflows` script to `package.json`
 
-**File**: `/root/projects/atelier/package.json`
+**File**: `/root/projects/falcone/package.json`
 
 **Change**: Add to the `"scripts"` object:
 

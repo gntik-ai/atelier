@@ -286,7 +286,7 @@ The document should explain:
 {
   "version": "<date>",
   "scope": "US-OBS-01-T05",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_metrics_contract": "<T01 version>",
   "source_dashboard_contract": "<T02 version>",
   "source_health_contract": "<T03 version>",

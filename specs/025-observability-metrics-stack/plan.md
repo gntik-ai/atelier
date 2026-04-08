@@ -49,7 +49,7 @@ runner, markdownlint.
 - `apps/control-plane/src/observability-admin.mjs`
 - `scripts/lib/observability-metrics-stack.mjs`
 - `scripts/validate-observability-metrics-stack.mjs`
-- `charts/in-atelier/values.yaml`
+- `charts/in-falcone/values.yaml`
 - `docs/reference/architecture/observability-metrics-stack.md`
 - `docs/reference/architecture/README.md`
 - `docs/tasks/us-obs-01.md`
@@ -86,7 +86,7 @@ This keeps the foundation aligned with the repo's existing contract-first patter
 
 ### 2. Helm baseline mirrors the contract
 
-Extend `charts/in-atelier/values.yaml` with an `observability.config.inline.metricsStack` block so
+Extend `charts/in-falcone/values.yaml` with an `observability.config.inline.metricsStack` block so
 Helm-facing deployment metadata exposes the same collection model, required labels, and component
 scrape targets.
 
@@ -148,7 +148,7 @@ Validation should confirm:
 
 ### Deployment metadata
 
-- Update `charts/in-atelier/values.yaml` with `observability.config.inline.metricsStack`
+- Update `charts/in-falcone/values.yaml` with `observability.config.inline.metricsStack`
 
 ### Documentation
 

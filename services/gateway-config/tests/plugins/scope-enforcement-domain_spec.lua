@@ -9,7 +9,7 @@ package.loaded["resty.lrucache"] = { new = function() local data = {}; return { 
 package.loaded["resty.http"] = { new = function() return { set_timeout = function() end, request_uri = function() return { status = 202 } end } end }
 ngx = { timer = { at = function(_, fn, payload) _G.last_event = payload; if fn then fn(nil, payload) end end } }
 
-local plugin = dofile('/root/projects/atelier/services/gateway-config/plugins/scope-enforcement.lua')
+local plugin = dofile('/root/projects/falcone/services/gateway-config/plugins/scope-enforcement.lua')
 
 local function ctx(method, path, role, domain)
   return {

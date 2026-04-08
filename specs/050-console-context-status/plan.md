@@ -310,9 +310,9 @@ Habrá degradación visible si se cumple cualquiera de estas condiciones:
 
 Ejecutar al menos:
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
 
 ### Validaciones finales del flujo implement
 
@@ -349,7 +349,7 @@ La tarea quedará cerrada cuando exista evidencia de que:
 3. Las páginas placeholder actuales muestran un resumen accesible de cuotas e inventario del tenant cuando esos datos están disponibles.
 4. No se muestran errores ni estados saludables falsos cuando faltan datos opcionales.
 5. El cambio de tenant/workspace sigue actualizando correctamente la información mostrada.
-6. `corepack pnpm --filter @in-atelier/web-console test`, `typecheck` y `build` quedan en verde.
+6. `corepack pnpm --filter @in-falcone/web-console test`, `typecheck` y `build` quedan en verde.
 7. La rama `050-console-context-status` se publica, la PR se valida en CI y termina mergeada a `main`.
 
 ### Evidencia esperada al terminar

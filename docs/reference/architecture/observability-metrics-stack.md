@@ -24,23 +24,23 @@ business metrics, or tenant-facing console views.
 ## Authoritative machine-readable source
 
 `services/internal-contracts/src/observability-metrics-stack.json` is the source of truth for the
-metrics-stack contract. The Helm-facing baseline under `charts/in-atelier/values.yaml` mirrors the
+metrics-stack contract. The Helm-facing baseline under `charts/in-falcone/values.yaml` mirrors the
 same subsystem targets and collection-health metadata so future deployment work can stay aligned
 with the internal contract.
 
 ## Normalized metric naming
 
-All common-plane metrics use the `in_atelier_` prefix.
+All common-plane metrics use the `in_falcone_` prefix.
 
 The foundational normalized metric families are:
 
-- `in_atelier_component_up`
-- `in_atelier_component_operations_total`
-- `in_atelier_component_operation_errors_total`
-- `in_atelier_component_operation_duration_seconds`
-- `in_atelier_observability_collection_health`
-- `in_atelier_observability_collection_failures_total`
-- `in_atelier_observability_collection_lag_seconds`
+- `in_falcone_component_up`
+- `in_falcone_component_operations_total`
+- `in_falcone_component_operation_errors_total`
+- `in_falcone_component_operation_duration_seconds`
+- `in_falcone_observability_collection_health`
+- `in_falcone_observability_collection_failures_total`
+- `in_falcone_observability_collection_lag_seconds`
 
 These are normalized projection names for the common observability plane. Native component metrics
 such as APISIX, Kafka, PostgreSQL, MongoDB, OpenWhisk, or storage exporter series may continue to
@@ -110,7 +110,7 @@ When additional labels are needed, use bounded forms only:
 ## Latency convention
 
 Latency uses a normalized histogram named
-`in_atelier_component_operation_duration_seconds` with the following bucket strategy:
+`in_falcone_component_operation_duration_seconds` with the following bucket strategy:
 
 - `0.005`
 - `0.01`
@@ -133,9 +133,9 @@ Collection failures must be visible as first-class signals rather than silent da
 
 The common plane therefore reserves:
 
-- `in_atelier_observability_collection_health`
-- `in_atelier_observability_collection_failures_total`
-- `in_atelier_observability_collection_lag_seconds`
+- `in_falcone_observability_collection_health`
+- `in_falcone_observability_collection_failures_total`
+- `in_falcone_observability_collection_lag_seconds`
 
 Required labels for collection-health signals are:
 
@@ -144,7 +144,7 @@ Required labels for collection-health signals are:
 - `collection_mode`
 - `target_ref`
 
-`in_atelier_observability_collection_health` uses `1` for a healthy target and `0` for a failed or
+`in_falcone_observability_collection_health` uses `1` for a healthy target and `0` for a failed or
 stale target.
 
 ## Internal operating targets

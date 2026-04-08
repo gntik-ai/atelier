@@ -401,9 +401,9 @@ Los eventos de dominio ya están registrados en el contrato del backend (`iam.in
 Ejecutar al menos:
 
 ```sh
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console build
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console build
 ```
 
 ### 8.5 Validaciones finales del flujo implement
@@ -469,7 +469,7 @@ La tarea quedará cerrada cuando exista evidencia de que:
 6. Los formularios de acción quedan deshabilitados cuando el tenant activo no está en estado `active`.
 7. Los estados de carga, vacío y error son visibles y accesibles (aria adecuado) en ambas páginas.
 8. Cambiar de tenant/workspace en el selector recarga automáticamente el contenido de la página activa.
-9. `corepack pnpm --filter @in-atelier/web-console test`, `typecheck` y `build` quedan en verde.
+9. `corepack pnpm --filter @in-falcone/web-console test`, `typecheck` y `build` quedan en verde.
 10. La rama `051-console-members-roles-permissions` se publica, la PR se valida en CI y termina mergeada a `main`.
 
 ### Evidencia esperada al terminar

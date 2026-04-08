@@ -22,20 +22,20 @@ Antes de instalar, comprueba que dispones de:
 ### OpenShift: preparar namespace
 
 ```bash
-oc new-project in-atelier-dev
+oc new-project in-falcone-dev
 ```
 
 ### Kubernetes: preparar namespace
 
 ```bash
-kubectl create namespace in-atelier-dev
-kubectl config set-context --current --namespace=in-atelier-dev
+kubectl create namespace in-falcone-dev
+kubectl config set-context --current --namespace=in-falcone-dev
 ```
 
 ## 3. Construir dependencias del chart
 
 ```bash
-helm dependency build charts/in-atelier
+helm dependency build charts/in-falcone
 ```
 
 ## 4. Elegir el overlay correcto
@@ -43,16 +43,16 @@ helm dependency build charts/in-atelier
 Para OpenShift usa el overlay de plataforma:
 
 ```text
-charts/in-atelier/values.yaml
-charts/in-atelier/values/profiles/standard.yaml
-charts/in-atelier/values/dev.yaml
-charts/in-atelier/values/platform-openshift.yaml
+charts/in-falcone/values.yaml
+charts/in-falcone/values/profiles/standard.yaml
+charts/in-falcone/values/dev.yaml
+charts/in-falcone/values/platform-openshift.yaml
 ```
 
 Para Kubernetes sustituye el último fichero por:
 
 ```text
-charts/in-atelier/values/platform-kubernetes.yaml
+charts/in-falcone/values/platform-kubernetes.yaml
 ```
 
 ## 5. Instalar
@@ -60,25 +60,25 @@ charts/in-atelier/values/platform-kubernetes.yaml
 ### OpenShift: instalar
 
 ```bash
-helm upgrade --install in-atelier charts/in-atelier \
-  --namespace in-atelier-dev \
+helm upgrade --install in-falcone charts/in-falcone \
+  --namespace in-falcone-dev \
   --create-namespace \
-  -f charts/in-atelier/values.yaml \
-  -f charts/in-atelier/values/profiles/standard.yaml \
-  -f charts/in-atelier/values/dev.yaml \
-  -f charts/in-atelier/values/platform-openshift.yaml
+  -f charts/in-falcone/values.yaml \
+  -f charts/in-falcone/values/profiles/standard.yaml \
+  -f charts/in-falcone/values/dev.yaml \
+  -f charts/in-falcone/values/platform-openshift.yaml
 ```
 
 ### Kubernetes: instalar
 
 ```bash
-helm upgrade --install in-atelier charts/in-atelier \
-  --namespace in-atelier-dev \
+helm upgrade --install in-falcone charts/in-falcone \
+  --namespace in-falcone-dev \
   --create-namespace \
-  -f charts/in-atelier/values.yaml \
-  -f charts/in-atelier/values/profiles/standard.yaml \
-  -f charts/in-atelier/values/dev.yaml \
-  -f charts/in-atelier/values/platform-kubernetes.yaml
+  -f charts/in-falcone/values.yaml \
+  -f charts/in-falcone/values/profiles/standard.yaml \
+  -f charts/in-falcone/values/dev.yaml \
+  -f charts/in-falcone/values/platform-kubernetes.yaml
 ```
 
 ## 6. Verificar que el despliegue levantó
@@ -88,13 +88,13 @@ Comprueba que el bootstrap terminó y que la superficie pública está creada:
 ### OpenShift: verificación
 
 ```bash
-oc get jobs,pods,route,configmap -n in-atelier-dev | grep bootstrap
+oc get jobs,pods,route,configmap -n in-falcone-dev | grep bootstrap
 ```
 
 ### Kubernetes: verificación
 
 ```bash
-kubectl get jobs,pods,ingress,configmap -n in-atelier-dev | grep bootstrap
+kubectl get jobs,pods,ingress,configmap -n in-falcone-dev | grep bootstrap
 ```
 
 Si el job de bootstrap está en `Completed`, la ruta o ingreso público existe y el `ConfigMap` de estado fue creado, el despliegue base ya quedó listo.

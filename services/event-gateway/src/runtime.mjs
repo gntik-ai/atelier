@@ -29,10 +29,10 @@ export const EVENT_GATEWAY_REPLAY_MODES = Object.freeze([
 ]);
 export const EVENT_GATEWAY_RELATIVE_ORDER_SCOPE = 'key_within_partition';
 export const EVENT_GATEWAY_REQUIRED_METRICS = Object.freeze([
-  'in_atelier_event_gateway_active_ws_connections',
-  'in_atelier_event_gateway_active_sse_streams',
-  'in_atelier_event_gateway_publish_total',
-  'in_atelier_event_gateway_backpressure_rejections_total'
+  'in_falcone_event_gateway_active_ws_connections',
+  'in_falcone_event_gateway_active_sse_streams',
+  'in_falcone_event_gateway_publish_total',
+  'in_falcone_event_gateway_backpressure_rejections_total'
 ]);
 
 const PLAN_DEFAULTS = Object.freeze({
@@ -376,7 +376,7 @@ export function resolveEventGatewayProfile(context = {}, topic = {}) {
     },
     observability: {
       metricsPath: '/apisix/prometheus/metrics',
-      seriesPrefix: 'in_atelier_event_gateway_',
+      seriesPrefix: 'in_falcone_event_gateway_',
       requiredMetrics: EVENT_GATEWAY_REQUIRED_METRICS,
       relativeOrderScope: EVENT_GATEWAY_RELATIVE_ORDER_SCOPE
     }

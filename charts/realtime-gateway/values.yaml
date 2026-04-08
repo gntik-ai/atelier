@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/atelier/realtime-gateway
+  repository: ghcr.io/falcone/realtime-gateway
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -10,12 +10,12 @@ service:
 
 apisix:
   jwtAuth:
-    jwksUrl: https://keycloak.example/realms/atelier/protocol/openid-connect/certs
-    realm: atelier
+    jwksUrl: https://keycloak.example/realms/falcone/protocol/openid-connect/certs
+    realm: falcone
 
 env:
-  KEYCLOAK_JWKS_URL: https://keycloak.example/realms/atelier/protocol/openid-connect/certs
-  KEYCLOAK_INTROSPECTION_URL: https://keycloak.example/realms/atelier/protocol/openid-connect/token/introspect
+  KEYCLOAK_JWKS_URL: https://keycloak.example/realms/falcone/protocol/openid-connect/certs
+  KEYCLOAK_INTROSPECTION_URL: https://keycloak.example/realms/falcone/protocol/openid-connect/token/introspect
   KEYCLOAK_INTROSPECTION_CLIENT_ID: realtime-gateway
   JWKS_CACHE_TTL_SECONDS: 300
   SCOPE_REVALIDATION_INTERVAL_SECONDS: 30

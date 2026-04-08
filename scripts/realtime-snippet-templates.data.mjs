@@ -9,7 +9,7 @@ const TOKEN = '<YOUR_ACCESS_TOKEN>'  // replace with your token
 
 const ws = new WebSocket(
   \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
-  ['v1.atelier.realtime']
+  ['v1.falcone.realtime']
 )
 
 ws.addEventListener('open', () => {
@@ -98,7 +98,7 @@ const TOKEN = '<YOUR_ACCESS_TOKEN>'
 
 const ws = new WebSocket(
   \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect\`,
-  ['v1.atelier.realtime']
+  ['v1.falcone.realtime']
 )
 
 ws.addEventListener('open', () => {
@@ -182,7 +182,7 @@ async function refreshToken() {
 function connect() {
   const ws = new WebSocket(
     \`\${ENDPOINT}/workspaces/{WORKSPACE_ID}/realtime/connect?token=\${encodeURIComponent(token)}\`,
-    ['v1.atelier.realtime']
+    ['v1.falcone.realtime']
   )
 
   ws.addEventListener('open', () => {

@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Atelier Workspace API",
+    "title": "Falcone Workspace API",
     "version": "__VERSION__",
     "description": "Workspace-scoped API contract generated from enabled capabilities."
   },

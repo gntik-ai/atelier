@@ -274,7 +274,7 @@ Delivered artifacts:
 - additive helper surfaces in `apps/control-plane/src/observability-admin.mjs` for transition
   detection, event construction, evaluation-cycle orchestration, posture-store reads/writes, and
   alert metrics
-- `charts/in-atelier/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql`
+- `charts/in-falcone/bootstrap/migrations/20260328-002-quota-threshold-alert-posture-store.sql`
   for the PostgreSQL last-known posture store used for deduplication and restart safety
 - `docs/reference/architecture/observability-threshold-alerts.md` as the human-readable
   architecture guide for the threshold-alert baseline

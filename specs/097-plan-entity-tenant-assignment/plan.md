@@ -6,7 +6,7 @@
 
 ## Summary
 
-Design and implement the **Plan** entity and the **Plan Assignment** contract layer for the Atelier multi-tenant platform. This task covers the PostgreSQL schema, OpenWhisk action contracts (no UI), Kafka audit event definitions, and integration tests for the superadmin-managed plan catalog and tenant plan assignment flow. Enforcement, API/console UI, quota limits, and plan-change history analysis are explicitly out of scope and deferred to US-PLAN-01-T02 through T06.
+Design and implement the **Plan** entity and the **Plan Assignment** contract layer for the Falcone multi-tenant platform. This task covers the PostgreSQL schema, OpenWhisk action contracts (no UI), Kafka audit event definitions, and integration tests for the superadmin-managed plan catalog and tenant plan assignment flow. Enforcement, API/console UI, quota limits, and plan-change history analysis are explicitly out of scope and deferred to US-PLAN-01-T02 through T06.
 
 ## Technical Context
 

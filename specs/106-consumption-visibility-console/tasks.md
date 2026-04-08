@@ -24,7 +24,7 @@
 
 ## File Path Map
 
-> Implementation-ready reference. All paths relative to repo root `/root/projects/atelier`.
+> Implementation-ready reference. All paths relative to repo root `/root/projects/falcone`.
 
 ### Backend — provisioning-orchestrator
 

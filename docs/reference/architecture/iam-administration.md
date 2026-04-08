@@ -28,7 +28,7 @@ Tenant-scoped IAM enforcement also adds one explicit suspension route under `/v1
 Create a tenant realm:
 
 ```bash
-curl -X POST https://api.in-atelier.example.com/v1/iam/realms \
+curl -X POST https://api.in-falcone.example.com/v1/iam/realms \
   -H 'Authorization: Bearer <token>' \
   -H 'X-API-Version: 2026-03-24' \
   -H 'X-Correlation-Id: corr-iam-001' \
@@ -46,7 +46,7 @@ curl -X POST https://api.in-atelier.example.com/v1/iam/realms \
 Create a workspace client inside one tenant realm:
 
 ```bash
-curl -X POST https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/clients \
+curl -X POST https://api.in-falcone.example.com/v1/iam/realms/tenant-acme-prod/clients \
   -H 'Authorization: Bearer <token>' \
   -H 'X-API-Version: 2026-03-24' \
   -H 'X-Correlation-Id: corr-iam-002' \
@@ -67,7 +67,7 @@ curl -X POST https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/c
 Reset a user password and require password update:
 
 ```bash
-curl -X POST https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/users/7dc3f95c-20a1-46d4-b1a7-ef8f919f2e87/credential-resets \
+curl -X POST https://api.in-falcone.example.com/v1/iam/realms/tenant-acme-prod/users/7dc3f95c-20a1-46d4-b1a7-ef8f919f2e87/credential-resets \
   -H 'Authorization: Bearer <token>' \
   -H 'X-API-Version: 2026-03-24' \
   -H 'X-Correlation-Id: corr-iam-003' \
@@ -83,7 +83,7 @@ curl -X POST https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/u
 Deactivate a client without deleting it:
 
 ```bash
-curl -X PATCH https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/clients/acme-prod-web-console/status \
+curl -X PATCH https://api.in-falcone.example.com/v1/iam/realms/tenant-acme-prod/clients/acme-prod-web-console/status \
   -H 'Authorization: Bearer <token>' \
   -H 'X-API-Version: 2026-03-24' \
   -H 'X-Correlation-Id: corr-iam-004' \
@@ -98,7 +98,7 @@ curl -X PATCH https://api.in-atelier.example.com/v1/iam/realms/tenant-acme-prod/
 Suspend tenant-managed IAM access while preserving the tenant entity itself:
 
 ```bash
-curl -X PATCH https://api.in-atelier.example.com/v1/tenants/ten_01starteralpha/iam-access \
+curl -X PATCH https://api.in-falcone.example.com/v1/tenants/ten_01starteralpha/iam-access \
   -H 'Authorization: Bearer <token>' \
   -H 'X-API-Version: 2026-03-24' \
   -H 'X-Correlation-Id: corr-iam-005' \
@@ -117,7 +117,7 @@ curl -X PATCH https://api.in-atelier.example.com/v1/tenants/ten_01starteralpha/i
 Query tenant IAM lifecycle activity:
 
 ```bash
-curl https://api.in-atelier.example.com/v1/iam/tenants/ten_01starteralpha/activity?filter[eventType]=iam.tenant.access.suspended \
+curl https://api.in-falcone.example.com/v1/iam/tenants/ten_01starteralpha/activity?filter[eventType]=iam.tenant.access.suspended \
   -H 'Authorization: Bearer <token>' \
   -H 'X-API-Version: 2026-03-24' \
   -H 'X-Correlation-Id: corr-iam-006'
@@ -143,7 +143,7 @@ These paths are intentionally documented now so later console work can preserve 
 
 The normalized IAM layer rejects unsafe combinations before the provider call is built. Examples:
 
-- reserved realms such as `master` and `in-atelier-platform` are blocked outside platform scope
+- reserved realms such as `master` and `in-falcone-platform` are blocked outside platform scope
 - public clients cannot enable service accounts
 - bearer-only clients cannot use redirect URIs or browser flows
 - default and optional scopes must remain disjoint

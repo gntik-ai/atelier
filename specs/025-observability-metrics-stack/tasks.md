@@ -17,7 +17,7 @@
 - [x] T004 Add `services/internal-contracts/src/observability-metrics-stack.json` covering subsystem scope, normalized metric families, labels, cardinality rules, collection topology, and collection-health semantics.
 - [x] T005 Update `services/internal-contracts/src/index.mjs` so the observability metrics-stack contract is available through shared readers and helpers.
 - [x] T006 Add `apps/control-plane/src/observability-admin.mjs` with summary helpers and safe scope-selector construction for downstream observability work.
-- [x] T007 Update `charts/in-atelier/values.yaml` with `observability.config.inline.metricsStack` so Helm-facing configuration mirrors the same contract version, labels, and component targets.
+- [x] T007 Update `charts/in-falcone/values.yaml` with `observability.config.inline.metricsStack` so Helm-facing configuration mirrors the same contract version, labels, and component targets.
 - [x] T008 Add `scripts/lib/observability-metrics-stack.mjs` and `scripts/validate-observability-metrics-stack.mjs` for deterministic validation.
 
 ## Phase 3 — Documentation and discoverability

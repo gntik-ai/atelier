@@ -142,8 +142,8 @@ export function collectAuditPipelineViolations(
       continue;
     }
 
-    if (!signal.metric_name?.startsWith('in_atelier_audit_')) {
-      violations.push(`Observability audit health signal ${signalId} must use an in_atelier_audit_ metric name.`);
+    if (!signal.metric_name?.startsWith('in_falcone_audit_')) {
+      violations.push(`Observability audit health signal ${signalId} must use an in_falcone_audit_ metric name.`);
     }
 
     for (const label of REQUIRED_LABELS) {

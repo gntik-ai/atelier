@@ -1,6 +1,6 @@
 # Guía práctica de uso de la plataforma
 
-Esta guía resume los flujos operativos más importantes del paraguas `in-atelier` y cómo se usan en la práctica desde la consola, el gateway público o las APIs de administración.
+Esta guía resume los flujos operativos más importantes del paraguas `in-falcone` y cómo se usan en la práctica desde la consola, el gateway público o las APIs de administración.
 
 ## Mapa rápido de capacidades
 

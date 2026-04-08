@@ -47,7 +47,7 @@ test('resolveValues applies environment and platform overlays deterministically'
   assert.equal(resolved.environmentProfile.id, 'prod');
   assert.equal(resolved.platform.target, 'openshift');
   assert.equal(resolved.platform.network.exposureKind, 'Route');
-  assert.equal(resolved.publicSurface.hostnames.api, 'api.in-atelier.example.com');
+  assert.equal(resolved.publicSurface.hostnames.api, 'api.in-falcone.example.com');
   assert.equal(resolved.bootstrap.enabled, true);
   assert.equal(resolved.bootstrap.reconcile.apisix.routes.length >= 16, true);
   assert.equal(resolved.gatewayPolicy.passthrough.mode, 'disabled');

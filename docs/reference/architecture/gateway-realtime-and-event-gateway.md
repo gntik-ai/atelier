@@ -199,10 +199,10 @@ Required gateway/realtime metric families:
 
 - `apisix_http_status`
 - `apisix_nginx_http_current_connections`
-- `in_atelier_event_gateway_active_ws_connections`
-- `in_atelier_event_gateway_active_sse_streams`
-- `in_atelier_event_gateway_publish_total`
-- `in_atelier_event_gateway_backpressure_rejections_total`
+- `in_falcone_event_gateway_active_ws_connections`
+- `in_falcone_event_gateway_active_sse_streams`
+- `in_falcone_event_gateway_publish_total`
+- `in_falcone_event_gateway_backpressure_rejections_total`
 
 Additional runtime signals expected from the public contract:
 

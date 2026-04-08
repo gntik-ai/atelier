@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-03-T01",
-  "system": "in-atelier-usage-consumption",
+  "system": "in-falcone-usage-consumption",
   "source_business_metrics_contract": "2026-03-28",
   "source_health_contract": "2026-03-28",
   "source_audit_event_schema_contract": "2026-03-28",
@@ -67,8 +67,8 @@
   "refresh_policy": {
     "default_cadence_seconds": 300,
     "degraded_after_seconds": 900,
-    "collection_health_metric": "in_atelier_observability_collection_health",
-    "lag_metric": "in_atelier_observability_collection_lag_seconds",
+    "collection_health_metric": "in_falcone_observability_collection_health",
+    "lag_metric": "in_falcone_observability_collection_lag_seconds",
     "rules": [
       "The default calculation cadence is five minutes unless a narrower operational profile overrides it.",
       "Freshness is evaluated per dimension and summarized at snapshot level through the degradedDimensions list.",

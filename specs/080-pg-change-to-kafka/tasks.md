@@ -237,7 +237,7 @@
 **What to implement**:
 ```json
 {
-  "name": "@atelier/pg-cdc-bridge",
+  "name": "@falcone/pg-cdc-bridge",
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.mjs",
@@ -342,7 +342,7 @@ Also create `services/pg-cdc-bridge/src/` directory structure (empty placeholder
   - `const client = new Client({ connectionString, replication: 'database' })`.
   - `await client.connect()`.
   - Ensure replication slot: `CREATE_REPLICATION_SLOT ${slotName} LOGICAL pgoutput` (suppress error if slot already exists: check `code === '42710'`).
-  - `await client.query(`START_REPLICATION SLOT ${slotName} LOGICAL 0/0 (proto_version '1', publication_names 'atelier_cdc')`)`.
+  - `await client.query(`START_REPLICATION SLOT ${slotName} LOGICAL 0/0 (proto_version '1', publication_names 'falcone_cdc')`)`.
   - On `copyData` message: call `decoder.decodeMessage(buffer, lsn)`. If result non-null, call `routeFilter.match(result, dataSourceRef)`. For each matching config, call `publisher.publish(config, result, lsn, committedAt)`. After all publishes resolve, send LSN acknowledgement: `client.query(`UPDATE_REPLICATION_SLOT ...`)` or standard standby status update.
   - On error: emit `'error'` event; set `_running = false`. Caller (`WalListenerManager`) handles reconnect.
 - `async stop()` — end replication stream, disconnect client.
@@ -442,7 +442,7 @@ appVersion: "1.0.0"
 ```yaml
 replicaCount: 1
 image:
-  repository: atelier/pg-cdc-bridge
+  repository: falcone/pg-cdc-bridge
   tag: "1.0.0"
   pullPolicy: IfNotPresent
 env:

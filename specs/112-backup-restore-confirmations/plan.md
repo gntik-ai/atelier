@@ -5,7 +5,7 @@
 | **Task ID**        | US-BKP-01-T04                                                      |
 | **Spec**           | `specs/112-backup-restore-confirmations/spec.md`                   |
 | **Rama**           | `112-backup-restore-confirmations`                                 |
-| **Servicio**       | `services/backup-status` (`@in-atelier/backup-status`)             |
+| **Servicio**       | `services/backup-status` (`@in-falcone/backup-status`)             |
 | **Frontend**       | `apps/web-console`                                                 |
 | **Dependencias**   | PR#156 (T01), PR#157 (T02), PR#158 (T03) — todas merged           |
 

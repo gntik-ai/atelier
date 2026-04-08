@@ -19,7 +19,7 @@ Create the initial monorepo structure with base folders for control plane, gatew
 - [x] Add root structure validator under `scripts/`.
 - [x] Create `apps/control-plane` and `apps/web-console` placeholders.
 - [x] Create `services/gateway-config` and `services/adapters` placeholders.
-- [x] Create `charts/in-atelier` Helm chart skeleton.
+- [x] Create `charts/in-falcone` Helm chart skeleton.
 - [x] Add `docs/conventions.md`, `docs/README.md`, and ADR-0001.
 - [x] Add `tests/e2e` placeholder workspace.
 - [x] Add `.github/workflows/ci.yml` bootstrap workflow.

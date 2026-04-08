@@ -1,7 +1,7 @@
 {
   "version": "2026-03-25",
   "scope": "US-ARC-01-T01",
-  "system": "in-atelier-baas-control-plane",
+  "system": "in-falcone-baas-control-plane",
   "principles": [
     "Public REST concerns stay in control_api.",
     "Provisioning side effects are coordinated only through provisioning_orchestrator.",

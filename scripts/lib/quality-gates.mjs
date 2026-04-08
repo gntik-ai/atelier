@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import YAML from 'yaml';
 
 export const OPENAPI_PATH = 'apps/control-plane/openapi/control-plane.openapi.json';
-export const IMAGE_VALUES_PATH = 'charts/in-atelier/values.yaml';
+export const IMAGE_VALUES_PATH = 'charts/in-falcone/values.yaml';
 
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'patch', 'delete', 'options', 'head']);
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;

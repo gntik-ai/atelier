@@ -284,9 +284,9 @@ Cubrir los 19 escenarios del §8.1 del plan:
 Ejecutar en orden desde la raíz del repo:
 
 ```sh
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console build
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console build
 ```
 
 - [ ] `typecheck` sin errores.

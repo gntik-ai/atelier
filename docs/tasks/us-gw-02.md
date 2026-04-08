@@ -54,7 +54,7 @@ Primary validation entry points:
 
 `US-IAM-01` is still pending, so the Keycloak-side permission model and token claim shape are treated as integration risk. The gateway layer is therefore implemented with explicit contract assumptions:
 
-- realm: `in-atelier-platform`
+- realm: `in-falcone-platform`
 - passthrough scopes:
   - `gateway.native.keycloak.admin`
   - `gateway.native.openwhisk.admin`

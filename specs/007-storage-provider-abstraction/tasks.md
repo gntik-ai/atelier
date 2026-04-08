@@ -18,7 +18,7 @@
 - [x] T013 Update `apps/control-plane/openapi/control-plane.openapi.json` so the generated Platform family publishes `GET /v1/platform/storage/provider` plus `StorageCapabilityManifest`, `StorageProviderLimitation`, and `StorageProviderIntrospection` schemas.
 - [x] T014 Regenerate `services/internal-contracts/src/public-route-catalog.json` so `getStorageProviderIntrospection` is discoverable in the generated public API catalog.
 - [x] T015 Update `services/internal-contracts/src/internal-service-map.json` to add storage abstraction capabilities (`resolve_provider_profile`, `get_capability_manifest`, `get_provider_status`) and the control-plane responsibility for provider introspection.
-- [x] T016 Update `charts/in-atelier/values.yaml` to declare `storage.config.inline.providerType` and `storage.config.inline.providerSelectionMode` for configuration-based provider selection.
+- [x] T016 Update `charts/in-falcone/values.yaml` to declare `storage.config.inline.providerType` and `storage.config.inline.providerSelectionMode` for configuration-based provider selection.
 - [x] T017 Add `tests/unit/storage-admin.test.mjs` for provider normalization, fail-safe behavior, and route/helper summaries.
 - [x] T018 Extend `tests/adapters/provider-catalog.test.mjs` to cover supported storage providers and provider compatibility summaries.
 - [x] T019 Add `tests/contracts/storage-provider.contract.test.mjs` for OpenAPI, route-catalog, and internal service-map coverage.

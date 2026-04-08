@@ -68,7 +68,7 @@ services/
         └── public-route-catalog.json               ← generated: tenant storage context routes discoverable
 
 charts/
-└── in-atelier/
+└── in-falcone/
     └── values.yaml                                 ← additive: bootstrap governance quota catalog mirrors new storage limits
 
 tests/
@@ -181,7 +181,7 @@ Additive changes only:
 
 Add `tenant_storage_context` so generated/public metadata has an explicit resource taxonomy entry aligned with tenant-scoped authorization semantics.
 
-### `charts/in-atelier/values.yaml`
+### `charts/in-falcone/values.yaml`
 
 Mirror the canonical quota-policy catalog changes in the bootstrap governance catalog so deployment validation stays aligned with the domain model source of truth.
 

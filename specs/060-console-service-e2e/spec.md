@@ -162,7 +162,7 @@ Como superadmin de la plataforma, quiero que la suite E2E confirme de forma tran
 - **FR-007**: La suite DEBE verificar que cuando la API de un servicio responde con error, la vista muestra un estado de error comprensible al usuario.
 - **FR-008**: La suite DEBE verificar al menos un escenario de acceso denegado donde un usuario sin permisos sobre un dominio recibe un mensaje claro de la consola.
 - **FR-009**: La suite DEBE usar aserciones estables sobre comportamiento visible al usuario (rutas, headings, listados, mensajes de estado), evitando depender de detalles de implementación frágiles.
-- **FR-010**: La suite DEBE poder ejecutarse con un único comando dentro del paquete `@in-atelier/web-console`.
+- **FR-010**: La suite DEBE poder ejecutarse con un único comando dentro del paquete `@in-falcone/web-console`.
 - **FR-011**: La suite DEBE mantener el alcance acotado a las vistas de los cinco servicios core y su verificación de consumo de API pública; no debe absorber journeys de autenticación base (ya cubiertos en 048), permisos finos entre roles, ni operaciones de escritura destructivas.
 - **FR-012**: La suite DEBE ser extensible para incorporar nuevos servicios o journeys adicionales sin reestructurar los escenarios existentes.
 
@@ -220,7 +220,7 @@ Como superadmin de la plataforma, quiero que la suite E2E confirme de forma tran
 
 ### Resultados medibles
 
-- **SC-001**: La suite E2E puede ejecutarse con un único comando dentro de `@in-atelier/web-console` y finaliza en verde en entorno local/CI controlado.
+- **SC-001**: La suite E2E puede ejecutarse con un único comando dentro de `@in-falcone/web-console` y finaliza en verde en entorno local/CI controlado.
 - **SC-002**: Existe al menos un escenario automatizado por cada servicio core (PostgreSQL, MongoDB, Kafka, Functions, Storage) que verifica listado de recursos y exploración de un nivel de detalle.
 - **SC-003**: Cada escenario de servicio incluye una aserción que confirma que todas las peticiones de red durante el journey van dirigidas a endpoints de la API pública del BaaS.
 - **SC-004**: Existe una verificación transversal que, tras los cinco journeys, confirma ausencia de llamadas a endpoints no documentados.
@@ -236,7 +236,7 @@ Como superadmin de la plataforma, quiero que la suite E2E confirme de forma tran
 - T01–T05 ya dejaron operativas las vistas de los cinco servicios core dentro de la consola, con navegación desde el shell autenticado.
 - La consola consume las APIs públicas del BaaS a través del gateway (APISIX), usando las familias de endpoints documentadas para cada servicio.
 - Las respuestas HTTP de cada servicio pueden simularse de forma controlada y determinista para los journeys principales.
-- El paquete `@in-atelier/web-console` ya soporta la infraestructura base de E2E establecida en 048-console-auth-e2e-flows, que puede extenderse para los journeys de servicio.
+- El paquete `@in-falcone/web-console` ya soporta la infraestructura base de E2E establecida en 048-console-auth-e2e-flows, que puede extenderse para los journeys de servicio.
 - La suite E2E de 048 ya resolvió el patrón de autenticación simulada en navegador, reutilizable aquí.
 
 ## Riesgos

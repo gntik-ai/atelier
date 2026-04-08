@@ -177,7 +177,7 @@ Regla funcional crítica:
 - Usar una clave de `sessionStorage`/`localStorage` namespaced por workspace; por ejemplo:
 
 ```text
-in-atelier.console-service-account-index:<workspaceId>
+in-falcone.console-service-account-index:<workspaceId>
 ```
 
 - Si el índice está vacío, la página debe mostrar empty state explícito y permitir crear el primer service account.
@@ -498,7 +498,7 @@ Completar el `implement` end-to-end sin pedir confirmación adicional: código, 
 
 ### Validaciones mínimas obligatorias
 
-Desde `/root/projects/atelier/apps/web-console`:
+Desde `/root/projects/falcone/apps/web-console`:
 
 ```sh
 corepack pnpm test -- src/lib/console-metrics.test.ts src/lib/console-service-accounts.test.ts src/lib/console-quotas.test.ts src/pages/ConsoleObservabilityPage.test.tsx src/pages/ConsoleServiceAccountsPage.test.tsx src/pages/ConsoleQuotasPage.test.tsx src/components/console/ConsoleTimeRangeSelector.test.tsx src/components/console/ConsoleQuotaPostureBadge.test.tsx src/router.test.tsx src/layouts/ConsoleShellLayout.test.tsx
@@ -506,7 +506,7 @@ corepack pnpm typecheck
 corepack pnpm build
 ```
 
-Desde `/root/projects/atelier`:
+Desde `/root/projects/falcone`:
 
 ```sh
 npm run lint

@@ -38,7 +38,7 @@ Crear la **suite de pruebas de hardening de seguridad** que valida de forma auto
 ## 2. Technical Context
 
 **Language/Version**: Node.js 20+ ESM (`"type": "module"`, pnpm workspaces)  
-**Primary Dependencies**: `node:test` (test runner nativo Node 20), `node:assert`, `undici` (cliente HTTP para llamadas a APISIX/API), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y auditoría), cliente Vault HTTP (`node-vault` o `undici` directo), `@in-atelier/internal-contracts` (schemas de contratos de auditoría)  
+**Primary Dependencies**: `node:test` (test runner nativo Node 20), `node:assert`, `undici` (cliente HTTP para llamadas a APISIX/API), `kafkajs` (verificación de eventos de auditoría), `pg` (consultas de estado para fixtures y auditoría), cliente Vault HTTP (`node-vault` o `undici` directo), `@in-falcone/internal-contracts` (schemas de contratos de auditoría)  
 **Storage**: PostgreSQL (lectura de tablas de auditoría: `scope_enforcement_denials`, `privilege_domain_denials`, `secret_version_states`), Kafka (consumo de audit topics para verificar emisión), Vault (API HTTP para bootstrap de secretos en fixtures)  
 **Testing**: La propia tarea ES la suite de tests; no tiene tests propios más allá de los smoke checks del scaffolding  
 **Target Platform**: Kubernetes / OpenShift con APISIX, Keycloak, Vault, PostgreSQL, Kafka y OpenWhisk desplegados  
@@ -162,7 +162,7 @@ run.mjs
 
 | Fichero | Descripción |
 |---------|-------------|
-| `package.json` | `@in-atelier/hardening-tests`, `"type":"module"`, deps: `undici`, `kafkajs`, `pg`, `node-vault` |
+| `package.json` | `@in-falcone/hardening-tests`, `"type":"module"`, deps: `undici`, `kafkajs`, `pg`, `node-vault` |
 | `run.mjs` | Entrypoint: importa todas las suites, invoca fixtures, agrega HardeningReport, imprime reporte, sale con exit 1 si hay P1 failures |
 | `lib/fixtures.mjs` | `createIsolatedFixture(runId)` → crea Tenant + Workspace + credenciales vía API superadmin; `teardownFixture(runId)` → eliminación idempotente |
 | `lib/audit-verifier.mjs` | `waitForAuditEvent(topic, filter, timeoutMs=5000)` → polling Kafka consumer o query PostgreSQL; devuelve `{found: bool, eventData}` |

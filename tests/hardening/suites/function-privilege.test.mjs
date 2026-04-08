@@ -59,14 +59,14 @@ export async function runFunctionPrivilegeSuite({ fixture, environment }) {
 
   await execute('FP-02', 'invoke-only credential cannot deploy function', async () => {
     const headers = { Authorization: `Bearer ${fixture.credentials.functionsInvokeOnly}` };
-    const response = await put(`/v1/functions/${fixture.workspaceId}`, { headers, body: { runtime: 'nodejs20', image: 'ghcr.io/in-atelier/test:latest' } });
+    const response = await put(`/v1/functions/${fixture.workspaceId}`, { headers, body: { runtime: 'nodejs20', image: 'ghcr.io/in-falcone/test:latest' } });
     const audit = await waitForPrivilegeEvent({ attemptedDomain: 'function_deployment' });
     return { status: response.status === 403 && audit.found ? 'pass' : 'fail', method: 'PUT', path: `/v1/functions/${fixture.workspaceId}`, headers, expectedHttpStatus: 403, actualHttpStatus: response.status, auditEventExpected: 'function-privilege-denied', auditEventObserved: audit.found };
   });
 
   await execute('FP-03', 'full-function credential can deploy and invoke', async () => {
     const headers = { Authorization: `Bearer ${fixture.credentials.fullFunctionCredential}` };
-    const deploy = await put(`/v1/functions/${fixture.workspaceId}`, { headers, body: { runtime: 'nodejs20', image: 'ghcr.io/in-atelier/test:latest' } });
+    const deploy = await put(`/v1/functions/${fixture.workspaceId}`, { headers, body: { runtime: 'nodejs20', image: 'ghcr.io/in-falcone/test:latest' } });
     const invoke = await post(`/v1/functions/${fixture.workspaceId}/invoke`, { headers, body: { payload: { ping: true } } });
     return { status: deploy.status === 200 && invoke.status === 200 ? 'pass' : 'fail', method: 'PUT', path: `/v1/functions/${fixture.workspaceId}`, headers, expectedHttpStatus: 200, actualHttpStatus: deploy.status };
   });

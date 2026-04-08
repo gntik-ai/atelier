@@ -14,7 +14,7 @@ Define one production-shaped IAM baseline for the platform and tenant spaces on 
 - **T02 — automatic IAM provisioning on tenant activation**
   - `services/internal-contracts/src/internal-service-map.json`
   - `services/internal-contracts/src/deployment-topology.json`
-  - `charts/in-atelier/templates/bootstrap-script-configmap.yaml`
+  - `charts/in-falcone/templates/bootstrap-script-configmap.yaml`
 - **T03 — workspace client/application model**
   - `apps/control-plane/openapi/control-plane.openapi.json`
   - `services/internal-contracts/src/domain-model.json`
@@ -24,10 +24,10 @@ Define one production-shaped IAM baseline for the platform and tenant spaces on 
   - `services/internal-contracts/src/authorization-model.json`
   - `services/internal-contracts/src/internal-service-map.json`
 - **T05 — naming, metadata, attributes, and mappers required by the control plane**
-  - `charts/in-atelier/values.yaml`
-  - `charts/in-atelier/values.schema.json`
-  - `charts/in-atelier/templates/bootstrap-payload-configmap.yaml`
-  - `charts/in-atelier/templates/bootstrap-script-configmap.yaml`
+  - `charts/in-falcone/values.yaml`
+  - `charts/in-falcone/values.schema.json`
+  - `charts/in-falcone/templates/bootstrap-payload-configmap.yaml`
+  - `charts/in-falcone/templates/bootstrap-script-configmap.yaml`
 - **T06 — multi-tenant scenarios with multiple workspaces and multiple clients per tenant**
   - `tests/reference/domain-seed-fixtures.json`
   - `tests/unit/domain-model.test.mjs`

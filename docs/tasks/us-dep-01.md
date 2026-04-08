@@ -2,34 +2,34 @@
 
 ## Story summary
 
-Deliver a modular Helm deployment baseline for In Atelier with an umbrella chart, reusable component wrappers, full image/resource/persistence parametrization, explicit values layers, Helm-side validations, and an operator guide for packaging, upgrade, and rollback.
+Deliver a modular Helm deployment baseline for In Falcone with an umbrella chart, reusable component wrappers, full image/resource/persistence parametrization, explicit values layers, Helm-side validations, and an operator guide for packaging, upgrade, and rollback.
 
 ## Backlog-to-artifact traceability
 
 - **T01 — umbrella chart with optional dependencies**
-  - `charts/in-atelier/Chart.yaml`
-  - `charts/in-atelier/templates/namespace.yaml`
-  - `charts/in-atelier/templates/public-surface.yaml`
+  - `charts/in-falcone/Chart.yaml`
+  - `charts/in-falcone/templates/namespace.yaml`
+  - `charts/in-falcone/templates/public-surface.yaml`
 - **T02 — subcharts/wrappers per component**
-  - `charts/in-atelier/charts/component-wrapper/Chart.yaml`
-  - `charts/in-atelier/charts/component-wrapper/templates/*.yaml`
+  - `charts/in-falcone/charts/component-wrapper/Chart.yaml`
+  - `charts/in-falcone/charts/component-wrapper/templates/*.yaml`
 - **T03 — full deployment parametrization in values**
-  - `charts/in-atelier/values.yaml`
-  - `charts/in-atelier/values/*.yaml`
-  - `charts/in-atelier/values.schema.json`
+  - `charts/in-falcone/values.yaml`
+  - `charts/in-falcone/values/*.yaml`
+  - `charts/in-falcone/values.schema.json`
 - **T04 — values layers for environment, customer, air-gap, and local override**
-  - `charts/in-atelier/values/customer-reference.yaml`
-  - `charts/in-atelier/values/airgap.yaml`
-  - `charts/in-atelier/values/local.example.yaml`
+  - `charts/in-falcone/values/customer-reference.yaml`
+  - `charts/in-falcone/values/airgap.yaml`
+  - `charts/in-falcone/values/local.example.yaml`
   - `services/internal-contracts/src/deployment-topology.json`
 - **T05 — Helm validations for incompatible/incomplete config**
-  - `charts/in-atelier/templates/validate.yaml`
+  - `charts/in-falcone/templates/validate.yaml`
   - `scripts/lib/deployment-chart.mjs`
   - `scripts/validate-deployment-chart.mjs`
   - `tests/unit/deployment-chart.test.mjs`
   - `tests/contracts/deployment-chart.contract.test.mjs`
 - **T06 — packaging, upgrade, rollback guide**
-  - `charts/in-atelier/README.md`
+  - `charts/in-falcone/README.md`
   - `README.md`
   - `docs/reference/architecture/deployment-topology.md`
 

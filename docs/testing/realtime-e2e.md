@@ -57,7 +57,7 @@ Esta suite valida el pipeline realtime end-to-end mediante interfaces públicas 
     PROVISIONING_API_BASE_URL: ${{ secrets.PROVISIONING_API_BASE_URL }}
     PROVISIONING_ADMIN_TOKEN: ${{ secrets.PROVISIONING_ADMIN_TOKEN }}
     KEYCLOAK_BASE_URL: ${{ secrets.KEYCLOAK_BASE_URL }}
-    KEYCLOAK_REALM: atelier
+    KEYCLOAK_REALM: falcone
     KEYCLOAK_ADMIN_CLIENT_ID: ${{ secrets.KEYCLOAK_ADMIN_CLIENT_ID }}
     KEYCLOAK_ADMIN_SECRET: ${{ secrets.KEYCLOAK_ADMIN_SECRET }}
     WS_PG_CONN_STR: ${{ secrets.WS_PG_CONN_STR }}

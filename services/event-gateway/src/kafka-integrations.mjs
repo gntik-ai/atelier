@@ -438,31 +438,31 @@ export function buildWorkspaceEventDashboard({ workspaceId, topicMetrics = [], b
       {
         type: 'topic_throughput',
         title: 'Kafka topic throughput',
-        query: `sum(rate(in_atelier_event_gateway_publish_total{workspace_id="${workspaceId}"}[5m])) by (topic_ref)`,
+        query: `sum(rate(in_falcone_event_gateway_publish_total{workspace_id="${workspaceId}"}[5m])) by (topic_ref)`,
         seriesCount: topicMetrics.length
       },
       {
         type: 'consumer_lag',
         title: 'Consumer lag',
-        query: `max(in_atelier_kafka_consumer_lag_messages{workspace_id="${workspaceId}"}) by (topic_ref, consumer_group)`,
+        query: `max(in_falcone_kafka_consumer_lag_messages{workspace_id="${workspaceId}"}) by (topic_ref, consumer_group)`,
         seriesCount: topicMetrics.length
       },
       {
         type: 'bridge_health',
         title: 'Bridge health',
-        query: `max(in_atelier_event_bridge_delivery_lag_messages{workspace_id="${workspaceId}"}) by (bridge_id, source_type)`,
+        query: `max(in_falcone_event_bridge_delivery_lag_messages{workspace_id="${workspaceId}"}) by (bridge_id, source_type)`,
         seriesCount: bridgeStatuses.length
       },
       {
         type: 'function_trigger_health',
         title: 'Kafka-triggered functions',
-        query: `sum(rate(in_atelier_openwhisk_kafka_trigger_invocations_total{workspace_id="${workspaceId}"}[5m])) by (action_ref, trigger_id)`,
+        query: `sum(rate(in_falcone_openwhisk_kafka_trigger_invocations_total{workspace_id="${workspaceId}"}[5m])) by (action_ref, trigger_id)`,
         seriesCount: triggerStatuses.length
       },
       {
         type: 'admin_audit_volume',
         title: 'Kafka admin audit volume',
-        query: `sum(rate(in_atelier_audit_records_total{workspace_id="${workspaceId}", resource_family="events"}[5m])) by (operation)`,
+        query: `sum(rate(in_falcone_audit_records_total{workspace_id="${workspaceId}", resource_family="events"}[5m])) by (operation)`,
         seriesCount: auditSeries.length
       }
     ],

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://atelier.internal/schemas/workspace-capability-catalog-response.json",
+  "$id": "https://falcone.internal/schemas/workspace-capability-catalog-response.json",
   "type": "object",
   "additionalProperties": false,
   "required": ["workspaceId", "tenantId", "generatedAt", "catalogVersion", "capabilities"],

@@ -1,0 +1,42 @@
+global:
+  airgap:
+    enabled: true
+  privateRegistry:
+    enabled: true
+    registry: registry.airgap.in-falcone.local
+    pullSecretNames:
+      - in-falcone-registry
+    caBundleConfigMap: in-falcone-registry-ca
+  imagePullSecrets:
+    - name: in-falcone-registry
+  imageRegistry: registry.airgap.in-falcone.local
+apisix:
+  image:
+    repository: registry.airgap.in-falcone.local/apache/apisix
+keycloak:
+  image:
+    repository: registry.airgap.in-falcone.local/keycloak/keycloak
+postgresql:
+  image:
+    repository: registry.airgap.in-falcone.local/bitnami/postgresql
+mongodb:
+  image:
+    repository: registry.airgap.in-falcone.local/bitnami/mongodb
+kafka:
+  image:
+    repository: registry.airgap.in-falcone.local/bitnami/kafka
+openwhisk:
+  image:
+    repository: registry.airgap.in-falcone.local/apache/openwhisk-controller
+storage:
+  image:
+    repository: registry.airgap.in-falcone.local/minio/minio
+observability:
+  image:
+    repository: registry.airgap.in-falcone.local/prometheus/prometheus
+controlPlane:
+  image:
+    repository: registry.airgap.in-falcone.local/example/in-falcone-control-plane
+webConsole:
+  image:
+    repository: registry.airgap.in-falcone.local/example/in-falcone-web-console

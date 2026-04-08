@@ -203,9 +203,9 @@ Crear o ajustar:
 
 ### Validaciones operativas
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
 - `corepack pnpm lint`
 - `corepack pnpm test`
 
@@ -255,6 +255,6 @@ La tarea se considera done cuando:
 - la sidebar muestra secciones principales y refleja la ruta activa
 - `Logout` intenta invalidar la sesión actual y limpia el estado local
 - el login exitoso deja un camino visible para entrar al shell
-- `@in-atelier/web-console` queda verde en `test`, `typecheck` y `build`
+- `@in-falcone/web-console` queda verde en `test`, `typecheck` y `build`
 - el monorepo queda verde en `lint` y `test`
 - la rama `046-console-shell-navigation` se publica, pasa CI y se fusiona a `main`

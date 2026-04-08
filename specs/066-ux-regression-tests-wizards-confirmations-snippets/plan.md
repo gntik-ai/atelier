@@ -239,7 +239,7 @@ export const SNIPPET_CTX_FUNCTION: SnippetContext = {
 };
 export const SNIPPET_CTX_IAM_CLIENT: SnippetContext = {
   ...SNIPPET_CTX_POSTGRES,
-  resourceName: "atelier-console",
+  resourceName: "falcone-console",
   resourceExtraB: "https://sso.example.test/token",
 };
 ```
@@ -310,7 +310,7 @@ Tenant Alpha (ten_alpha)
   │     ├── MongoDB: events (mongo.example.test:27017)
   │     ├── Storage Bucket: assets (s3.example.test)
   │     ├── Serverless Function: hello
-  │     └── IAM Client: atelier-console
+  │     └── IAM Client: falcone-console
   └── Workspace Alpha 2 (wrk_a2)
         └── (vacío — para tests de cuota y permisos)
 

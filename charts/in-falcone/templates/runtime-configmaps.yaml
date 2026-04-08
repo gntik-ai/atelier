@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.configMapNames.gateway }}
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+data:
+  environment: {{ .Values.global.environment | quote }}
+  exposureKind: {{ .Values.platform.network.exposureKind | quote }}
+  tlsMode: {{ .Values.publicSurface.tls.mode | quote }}
+  apiHostname: {{ .Values.publicSurface.hostnames.api | quote }}
+  realtimeHostname: {{ .Values.publicSurface.hostnames.realtime | quote }}
+  oidcIssuerUrl: {{ .Values.gatewayPolicy.oidc.issuerUrl | quote }}
+  oidcDiscoveryUrl: {{ .Values.gatewayPolicy.oidc.discoveryUrl | quote }}
+  passthroughMode: {{ .Values.gatewayPolicy.passthrough.mode | quote }}
+  propagatedAuthHeaders: {{ values .Values.gatewayPolicy.claimsPropagation.headers | join "," | quote }}
+  correlationHeader: {{ .Values.gatewayPolicy.correlation.headerName | quote }}
+  requestIdHeader: {{ .Values.gatewayPolicy.correlation.requestIdHeader | quote }}
+  gatewayInternalMode: {{ .Values.gatewayPolicy.internalRequests.mode | quote }}
+  errorEnvelopeSchema: {{ .Values.gatewayPolicy.errorEnvelope.schema | quote }}
+  gatewayMetricsPath: {{ .Values.gatewayPolicy.observability.gatewayMetrics.metricsPath | quote }}
+  gatewayMetricsSeriesPrefix: {{ .Values.gatewayPolicy.observability.gatewayMetrics.seriesPrefix | quote }}
+  realtimePathPrefix: {{ .Values.publicSurface.routePrefixes.realtime | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "in-falcone.fullname" . }}-gateway-policy
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+data:
+  gateway-policy.json: |
+{{ toPrettyJson .Values.gatewayPolicy | nindent 4 }}
+  enabled-apisix-routes.json: |
+{{- $mode := .Values.gatewayPolicy.passthrough.mode -}}
+{{- $routes := list -}}
+{{- range .Values.bootstrap.reconcile.apisix.routes }}
+{{- if or (not (hasKey . "enabledInModes")) (has $mode .enabledInModes) }}
+{{- $routes = append $routes (dict "routeId" .routeId "name" .name "uri" .uri) -}}
+{{- end }}
+{{- end }}
+{{ toPrettyJson $routes | nindent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.configMapNames.controlPlane }}
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+data:
+  diagnostics.logLevel: {{ .Values.environmentProfile.diagnostics.logLevel | quote }}
+  diagnostics.debugEndpoints: {{ .Values.environmentProfile.diagnostics.debugEndpoints | quote }}
+  deploymentProfile: {{ .Values.deployment.profile | quote }}
+  limitsProfile: {{ .Values.environmentProfile.limitsProfile | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.config.configMapNames.webConsole }}
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+data:
+  consoleHostname: {{ .Values.publicSurface.hostnames.console | quote }}
+  publicBasePath: {{ .Values.publicSurface.routePrefixes.console | quote }}
+  environment: {{ .Values.global.environment | quote }}

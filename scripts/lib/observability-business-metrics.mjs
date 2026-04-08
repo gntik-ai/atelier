@@ -129,8 +129,8 @@ export function collectObservabilityBusinessMetricViolations(
     }
   }
 
-  if (metricsStack?.naming?.prefix !== 'in_atelier') {
-    violations.push('Observability metrics stack naming prefix must remain in_atelier for business metrics alignment.');
+  if (metricsStack?.naming?.prefix !== 'in_falcone') {
+    violations.push('Observability metrics stack naming prefix must remain in_falcone for business metrics alignment.');
   }
 
   const familyMap = indexBy(businessMetrics?.metric_families ?? []);
@@ -142,8 +142,8 @@ export function collectObservabilityBusinessMetricViolations(
       continue;
     }
 
-    if (!family.name?.startsWith('in_atelier_')) {
-      violations.push(`Observability business metric family ${familyId} must use the in_atelier_ prefix.`);
+    if (!family.name?.startsWith('in_falcone_')) {
+      violations.push(`Observability business metric family ${familyId} must use the in_falcone_ prefix.`);
     }
 
     if (!domainMap.has(family.domain)) {
@@ -205,8 +205,8 @@ export function collectObservabilityBusinessMetricViolations(
     violations.push('Observability business metrics collection_health_metric must align with the observability metrics-stack collection health metric.');
   }
 
-  if (businessMetrics?.freshness_and_collection?.lag_metric !== 'in_atelier_observability_collection_lag_seconds') {
-    violations.push('Observability business metrics lag_metric must be in_atelier_observability_collection_lag_seconds.');
+  if (businessMetrics?.freshness_and_collection?.lag_metric !== 'in_falcone_observability_collection_lag_seconds') {
+    violations.push('Observability business metrics lag_metric must be in_falcone_observability_collection_lag_seconds.');
   }
 
   if (!packageJson?.scripts?.['validate:observability-business-metrics']) {

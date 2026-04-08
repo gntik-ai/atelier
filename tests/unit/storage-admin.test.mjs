@@ -260,8 +260,8 @@ test('storage admin summaries preserve canonical capability ordering and stable 
 test('tenant storage context summary is tenant-isolated, introspectable, and secret-safe', () => {
   const preview = previewTenantStorageContext({
     tenant: {
-      tenantId: 'ten_01atelier',
-      slug: 'atelier',
+      tenantId: 'ten_01falcone',
+      slug: 'falcone',
       state: 'active',
       planId: 'pln_01growth'
     },
@@ -277,8 +277,8 @@ test('tenant storage context summary is tenant-isolated, introspectable, and sec
   });
   const summary = summarizeTenantStorageContext({
     tenant: {
-      tenantId: 'ten_01atelier',
-      slug: 'atelier',
+      tenantId: 'ten_01falcone',
+      slug: 'falcone',
       state: 'active',
       planId: 'pln_01growth'
     },
@@ -303,7 +303,7 @@ test('tenant storage context summary is tenant-isolated, introspectable, and sec
   assert.equal(getStorageAdminRoute('getTenantStorageContext').resourceType, 'tenant_storage_context');
   assert.equal(preview.state, 'active');
   assert.equal(preview.bucketProvisioningAllowed, true);
-  assert.equal(preview.namespace.startsWith('tctx-atelier-'), true);
+  assert.equal(preview.namespace.startsWith('tctx-falcone-'), true);
   assert.equal(summary.route.operationId, 'getTenantStorageContext');
   assert.equal(summary.context.quotaAssignment.capabilityAvailable, true);
   assert.equal(summary.context.providerCapabilities.manifestVersion, STORAGE_PROVIDER_CAPABILITY_MANIFEST_SCHEMA_VERSION);
@@ -316,8 +316,8 @@ test('tenant storage context summary is tenant-isolated, introspectable, and sec
 
 test('storage programmatic credential previews stay workspace-scoped, secret-safe, rotatable, and revocable', () => {
   const issuance = issueStorageProgrammaticCredentialPreview({
-    tenantId: 'ten_01atelieractive',
-    workspaceId: 'wrk_01atelieractive',
+    tenantId: 'ten_01falconeactive',
+    workspaceId: 'wrk_01falconeactive',
     displayName: 'CI uploader',
     principal: {
       principalType: 'service_account',
@@ -325,9 +325,9 @@ test('storage programmatic credential previews stay workspace-scoped, secret-saf
       displayName: 'Uploader service account'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelieractive',
+      workspaceId: 'wrk_01falconeactive',
       bucketId: 'bucket_01assets',
-      bucketName: 'atelier-assets',
+      bucketName: 'falcone-assets',
       objectPrefix: 'uploads/ci/',
       allowedActions: [
         STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG[0],
@@ -343,15 +343,15 @@ test('storage programmatic credential previews stay workspace-scoped, secret-saf
     now: '2026-03-28T01:00:00Z'
   });
   const preview = previewStorageProgrammaticCredential({
-    tenantId: 'ten_01atelieractive',
-    workspaceId: 'wrk_01atelieractive',
+    tenantId: 'ten_01falconeactive',
+    workspaceId: 'wrk_01falconeactive',
     displayName: 'Report reader',
     principal: {
       principalType: 'user',
       principalId: 'usr_01reporter'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelieractive',
+      workspaceId: 'wrk_01falconeactive',
       allowedActions: [STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTION_CATALOG[3]]
     }],
     now: '2026-03-28T01:01:00Z'
@@ -448,8 +448,8 @@ test('storage logical organization previews are deterministic and reserve platfo
 test('bucket and object previews stay scope-bound and expose bounded metadata/download surfaces', () => {
   const activeContext = previewTenantStorageContext({
     tenant: {
-      tenantId: 'ten_01atelieractive',
-      slug: 'atelier-active',
+      tenantId: 'ten_01falconeactive',
+      slug: 'falcone-active',
       state: 'active',
       planId: 'pln_01starter'
     },
@@ -463,9 +463,9 @@ test('bucket and object previews stay scope-bound and expose bounded metadata/do
     now: '2026-03-27T20:45:00Z'
   });
   const bucket = previewStorageBucket({
-    workspaceId: 'wrk_01atelieractive',
-    workspaceSlug: 'atelier-live',
-    bucketName: 'atelier-assets',
+    workspaceId: 'wrk_01falconeactive',
+    workspaceSlug: 'falcone-live',
+    bucketName: 'falcone-assets',
     region: 'us-east-1',
     tenantStorageContext: activeContext,
     objectCount: 1,
@@ -477,7 +477,7 @@ test('bucket and object previews stay scope-bound and expose bounded metadata/do
   const objectRecord = previewStorageObject({
     bucket,
     objectKey: 'avatars/logo.png',
-    applicationId: 'app_01atelieractive',
+    applicationId: 'app_01falconeactive',
     applicationSlug: 'console-app',
     sizeBytes: 128,
     contentType: 'image/png',
@@ -496,21 +496,21 @@ test('bucket and object previews stay scope-bound and expose bounded metadata/do
     operation: 'object.deleted',
     bucket,
     object: objectRecord,
-    actorUserId: 'usr_01atelier',
+    actorUserId: 'usr_01falcone',
     correlationId: 'cor_storage_object_01',
     occurredAt: '2026-03-27T20:45:14Z'
   });
 
   assert.equal(bucketSummary.route.operationId, 'getStorage');
   assert.equal(bucketSummary.bucket.objectStats.objectCount, 1);
-  assert.equal(bucketSummary.bucket.organization.workspaceSharedPrefix, 'tenants/ten_01atelieractive/workspaces/wrk_01atelieractive/shared/');
+  assert.equal(bucketSummary.bucket.organization.workspaceSharedPrefix, 'tenants/ten_01falconeactive/workspaces/wrk_01falconeactive/shared/');
   assert.equal(bucketList.route.operationId, 'listStorage');
   assert.equal(bucketList.collection.items.length, 1);
   assert.equal(metadata.route.operationId, 'getStorageObjectMetadata');
   assert.equal(metadata.object.objectKey, 'avatars/logo.png');
-  assert.equal(metadata.object.applicationId, 'app_01atelieractive');
+  assert.equal(metadata.object.applicationId, 'app_01falconeactive');
   assert.equal(metadata.object.organization.placementType, 'application');
-  assert.equal(metadata.object.organization.canonicalObjectPath, 'tenants/ten_01atelieractive/workspaces/wrk_01atelieractive/apps/app_01atelieractive/data/avatars/logo.png');
+  assert.equal(metadata.object.organization.canonicalObjectPath, 'tenants/ten_01falconeactive/workspaces/wrk_01falconeactive/apps/app_01falconeactive/data/avatars/logo.png');
   assert.equal(Object.prototype.hasOwnProperty.call(metadata.object, 'contentBase64'), false);
   assert.equal(objectList.route.operationId, 'listStorageObjects');
   assert.equal(objectList.collection.items.length, 1);
@@ -774,8 +774,8 @@ test('storage import/export previews are discoverable and bounded', () => {
 test('tenant storage context lifecycle gating and bucket deletion rules block unsafe operations', () => {
   const pendingContext = previewTenantStorageContext({
     tenant: {
-      tenantId: 'ten_01atelierpending',
-      slug: 'atelier-pending',
+      tenantId: 'ten_01falconepending',
+      slug: 'falcone-pending',
       state: 'pending_activation',
       planId: 'pln_01starter'
     },
@@ -789,16 +789,16 @@ test('tenant storage context lifecycle gating and bucket deletion rules block un
     now: '2026-03-27T20:45:00Z'
   });
   const blocked = previewWorkspaceStorageBootstrapContext({
-    tenantId: 'ten_01atelierpending',
-    workspaceId: 'wrk_01atelierpending',
-    workspaceSlug: 'atelier-dev',
+    tenantId: 'ten_01falconepending',
+    workspaceId: 'wrk_01falconepending',
+    workspaceSlug: 'falcone-dev',
     storageContext: pendingContext,
     now: '2026-03-27T20:45:00Z'
   });
   const activeContext = previewTenantStorageContext({
     tenant: {
-      tenantId: 'ten_01atelieractive',
-      slug: 'atelier-active',
+      tenantId: 'ten_01falconeactive',
+      slug: 'falcone-active',
       state: 'active',
       planId: 'pln_01starter'
     },
@@ -812,9 +812,9 @@ test('tenant storage context lifecycle gating and bucket deletion rules block un
     now: '2026-03-27T20:45:00Z'
   });
   const ready = previewWorkspaceStorageBootstrapContext({
-    tenantId: 'ten_01atelieractive',
-    workspaceId: 'wrk_01atelieractive',
-    workspaceSlug: 'atelier-live',
+    tenantId: 'ten_01falconeactive',
+    workspaceId: 'wrk_01falconeactive',
+    workspaceSlug: 'falcone-live',
     storageContext: activeContext,
     now: '2026-03-27T20:45:00Z'
   });
@@ -826,8 +826,8 @@ test('tenant storage context lifecycle gating and bucket deletion rules block un
   });
   const blockedBucketDelete = deleteStorageBucketPreview({
     bucket: previewStorageBucket({
-      workspaceId: 'wrk_01atelieractive',
-      bucketName: 'atelier-retained',
+      workspaceId: 'wrk_01falconeactive',
+      bucketName: 'falcone-retained',
       tenantStorageContext: activeContext,
       objectCount: 2,
       totalBytes: 256,
@@ -837,7 +837,7 @@ test('tenant storage context lifecycle gating and bucket deletion rules block un
   });
   const protectedBucketDelete = deleteStorageBucketPreview({
     bucket: previewStorageBucket({
-      workspaceId: 'wrk_01atelieractive',
+      workspaceId: 'wrk_01falconeactive',
       bucketName: 'default-storage-bucket',
       tenantStorageContext: activeContext,
       managed: true,
@@ -850,8 +850,8 @@ test('tenant storage context lifecycle gating and bucket deletion rules block un
   });
   const allowedBucketDelete = deleteStorageBucketPreview({
     bucket: previewStorageBucket({
-      workspaceId: 'wrk_01atelieractive',
-      bucketName: 'atelier-empty',
+      workspaceId: 'wrk_01falconeactive',
+      bucketName: 'falcone-empty',
       tenantStorageContext: activeContext,
       objectCount: 0,
       totalBytes: 0,

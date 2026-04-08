@@ -113,8 +113,8 @@ state itself.
 
 The baseline uses:
 
-- `in_atelier_observability_collection_health`
-- `in_atelier_observability_collection_lag_seconds`
+- `in_falcone_observability_collection_health`
+- `in_falcone_observability_collection_lag_seconds`
 
 as the common freshness anchors inherited from the observability plane.
 

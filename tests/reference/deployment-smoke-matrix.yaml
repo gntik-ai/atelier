@@ -26,10 +26,10 @@ smoke_scenarios:
     platform: kubernetes
     expected_exposure_kind: Ingress
     expected_hostnames:
-      api: api.dev.in-atelier.example.com
-      console: console.dev.in-atelier.example.com
-      identity: iam.dev.in-atelier.example.com
-      realtime: realtime.dev.in-atelier.example.com
+      api: api.dev.in-falcone.example.com
+      console: console.dev.in-falcone.example.com
+      identity: iam.dev.in-falcone.example.com
+      realtime: realtime.dev.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -41,10 +41,10 @@ smoke_scenarios:
     platform: openshift
     expected_exposure_kind: Route
     expected_hostnames:
-      api: api.dev.in-atelier.example.com
-      console: console.dev.in-atelier.example.com
-      identity: iam.dev.in-atelier.example.com
-      realtime: realtime.dev.in-atelier.example.com
+      api: api.dev.in-falcone.example.com
+      console: console.dev.in-falcone.example.com
+      identity: iam.dev.in-falcone.example.com
+      realtime: realtime.dev.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -56,10 +56,10 @@ smoke_scenarios:
     platform: kubernetes
     expected_exposure_kind: Ingress
     expected_hostnames:
-      api: api.sandbox.in-atelier.example.com
-      console: console.sandbox.in-atelier.example.com
-      identity: iam.sandbox.in-atelier.example.com
-      realtime: realtime.sandbox.in-atelier.example.com
+      api: api.sandbox.in-falcone.example.com
+      console: console.sandbox.in-falcone.example.com
+      identity: iam.sandbox.in-falcone.example.com
+      realtime: realtime.sandbox.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -71,10 +71,10 @@ smoke_scenarios:
     platform: openshift
     expected_exposure_kind: Route
     expected_hostnames:
-      api: api.sandbox.in-atelier.example.com
-      console: console.sandbox.in-atelier.example.com
-      identity: iam.sandbox.in-atelier.example.com
-      realtime: realtime.sandbox.in-atelier.example.com
+      api: api.sandbox.in-falcone.example.com
+      console: console.sandbox.in-falcone.example.com
+      identity: iam.sandbox.in-falcone.example.com
+      realtime: realtime.sandbox.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -86,10 +86,10 @@ smoke_scenarios:
     platform: kubernetes
     expected_exposure_kind: Ingress
     expected_hostnames:
-      api: api.staging.in-atelier.example.com
-      console: console.staging.in-atelier.example.com
-      identity: iam.staging.in-atelier.example.com
-      realtime: realtime.staging.in-atelier.example.com
+      api: api.staging.in-falcone.example.com
+      console: console.staging.in-falcone.example.com
+      identity: iam.staging.in-falcone.example.com
+      realtime: realtime.staging.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -101,10 +101,10 @@ smoke_scenarios:
     platform: openshift
     expected_exposure_kind: Route
     expected_hostnames:
-      api: api.staging.in-atelier.example.com
-      console: console.staging.in-atelier.example.com
-      identity: iam.staging.in-atelier.example.com
-      realtime: realtime.staging.in-atelier.example.com
+      api: api.staging.in-falcone.example.com
+      console: console.staging.in-falcone.example.com
+      identity: iam.staging.in-falcone.example.com
+      realtime: realtime.staging.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -116,10 +116,10 @@ smoke_scenarios:
     platform: kubernetes
     expected_exposure_kind: Ingress
     expected_hostnames:
-      api: api.in-atelier.example.com
-      console: console.in-atelier.example.com
-      identity: iam.in-atelier.example.com
-      realtime: realtime.in-atelier.example.com
+      api: api.in-falcone.example.com
+      console: console.in-falcone.example.com
+      identity: iam.in-falcone.example.com
+      realtime: realtime.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap
@@ -131,10 +131,10 @@ smoke_scenarios:
     platform: openshift
     expected_exposure_kind: Route
     expected_hostnames:
-      api: api.in-atelier.example.com
-      console: console.in-atelier.example.com
-      identity: iam.in-atelier.example.com
-      realtime: realtime.in-atelier.example.com
+      api: api.in-falcone.example.com
+      console: console.in-falcone.example.com
+      identity: iam.in-falcone.example.com
+      realtime: realtime.in-falcone.example.com
     required_resources:
       - Namespace
       - ConfigMap

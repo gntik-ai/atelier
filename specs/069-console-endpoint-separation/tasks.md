@@ -285,7 +285,7 @@ All modified test files pass with deterministic assertions and without weakening
 
 ## Validation Commands
 
-Run from `/root/projects/atelier`:
+Run from `/root/projects/falcone`:
 
 ```bash
 npm run generate:public-api

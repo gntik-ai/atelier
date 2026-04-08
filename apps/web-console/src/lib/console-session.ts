@@ -5,9 +5,9 @@ import {
 } from '@/lib/console-auth'
 import { requestJson, type ApiError, type JsonValue } from '@/lib/http'
 
-const CONSOLE_SHELL_SESSION_STORAGE_KEY = 'in-atelier.console-shell-session'
-const CONSOLE_PROTECTED_ROUTE_STORAGE_KEY = 'in-atelier.console-protected-route'
-const CONSOLE_AUTH_STATUS_HINT_STORAGE_KEY = 'in-atelier.console-auth-status-hint'
+const CONSOLE_SHELL_SESSION_STORAGE_KEY = 'in-falcone.console-shell-session'
+const CONSOLE_PROTECTED_ROUTE_STORAGE_KEY = 'in-falcone.console-protected-route'
+const CONSOLE_AUTH_STATUS_HINT_STORAGE_KEY = 'in-falcone.console-auth-status-hint'
 const ACCESS_TOKEN_REFRESH_WINDOW_MS = 60_000
 
 let inFlightSessionRefresh: Promise<ConsoleShellSession | null> | null = null

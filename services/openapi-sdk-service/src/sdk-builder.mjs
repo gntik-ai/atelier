@@ -28,7 +28,7 @@ export async function buildSdk(specJson, language, workspaceId, specVersion, opt
   const generatorName = GENERATOR_MAP[language];
   if (!generatorName) throw new Error(`Unsupported SDK language: ${language}`);
 
-  const tempRoot = await mkdtemp(join(tmpdir(), 'atelier-openapi-sdk-'));
+  const tempRoot = await mkdtemp(join(tmpdir(), 'falcone-openapi-sdk-'));
   const specPath = join(tempRoot, 'spec.json');
   const outputPath = join(tempRoot, 'output');
   const archivePath = join(tempRoot, language === 'typescript' ? 'workspace-sdk.zip' : 'workspace-sdk.tar.gz');

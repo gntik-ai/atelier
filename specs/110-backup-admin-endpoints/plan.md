@@ -20,7 +20,7 @@ Extender el servicio `backup-status` (creado en T01) con capacidades de mutació
 - **Gateway**: Apache APISIX (nuevas rutas para los endpoints de mutación)
 - **IAM**: Keycloak (nuevos scopes `backup:write:own`, `backup:write:global`, `backup:restore:global`)
 - **Eventos**: Kafka (eventos de ciclo de vida de operaciones)
-- **Monorepo**: `/root/projects/atelier` — extensión de `services/backup-status/`
+- **Monorepo**: `/root/projects/falcone` — extensión de `services/backup-status/`
 - **Dependencias funcionales**: US-BKP-01-T01 (estado de solo lectura, modelo de adaptadores, registro de instancias), US-OBS-01 (pipeline de auditoría), US-DEP-03 (perfil de despliegue)
 
 ---

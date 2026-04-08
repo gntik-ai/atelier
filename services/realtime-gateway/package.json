@@ -1,5 +1,5 @@
 {
-  "name": "@atelier/realtime-gateway",
+  "name": "@falcone/realtime-gateway",
   "version": "0.1.0",
   "private": true,
   "type": "module",

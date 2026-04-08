@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://atelier.internal/contracts/async-operation-query-response.json",
+  "$id": "https://falcone.internal/contracts/async-operation-query-response.json",
   "title": "AsyncOperationQueryResponse",
   "type": "object",
   "oneOf": [

@@ -1005,11 +1005,11 @@ export function buildOpenWhiskHttpExposure(payload = {}, context = {}) {
     authMode: OPENWHISK_ALLOWED_HTTP_AUTH_MODES.includes(payload.authMode) ? payload.authMode : 'workspace_token',
     methods: (payload.methods ?? ['POST']).filter((method) => OPENWHISK_ALLOWED_HTTP_METHODS.includes(method)),
     path: payload.path ?? `/functions/${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
-    publicUrl: payload.publicUrl ?? `https://api.in-atelier.example/functions/${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
+    publicUrl: payload.publicUrl ?? `https://api.in-falcone.example/functions/${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
     apisixRouteRef: payload.apisixRouteRef ?? `apisix:functions:${normalizeLogicalName(payload.actionName ?? context.actionName ?? 'action', 'action')}`,
     cors: {
       enabled: payload.cors?.enabled ?? true,
-      allowOrigins: payload.cors?.allowOrigins ?? ['https://console.in-atelier.example']
+      allowOrigins: payload.cors?.allowOrigins ?? ['https://console.in-falcone.example']
     },
     rateLimitProfile: payload.rateLimitProfile ?? 'functions-http-default'
   };

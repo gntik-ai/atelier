@@ -20,7 +20,7 @@ Run from repository root after implementation lands:
 npm run generate:public-api
 npm run validate:public-api
 npm run validate:openapi
-pnpm --filter @in-atelier/web-console test
+pnpm --filter @in-falcone/web-console test
 node --test tests/integration/100-plan-change-impact-history/*.test.mjs
 node --test tests/contract/100-plan-change-impact-history/*.test.mjs
 ```

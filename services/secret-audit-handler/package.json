@@ -1,5 +1,5 @@
 {
-  "name": "@atelier/secret-audit-handler",
+  "name": "@falcone/secret-audit-handler",
   "version": "0.1.0",
   "private": true,
   "type": "module",

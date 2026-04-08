@@ -255,9 +255,9 @@ Snapshot persistido de contexto, por ejemplo:
 
 Ejecutar como mínimo:
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
 
 Opcional según estabilidad del árbol global:
 
@@ -321,6 +321,6 @@ La tarea podrá cerrarse cuando exista evidencia de que:
 ### Evidencia esperada al terminar
 
 - diff acotado a `apps/web-console/` y `specs/049-console-context-selector/`
-- salida verde de `test`, `typecheck` y `build` para `@in-atelier/web-console`
+- salida verde de `test`, `typecheck` y `build` para `@in-falcone/web-console`
 - commit en rama `049-console-context-selector`
 - PR abierta, CI verificada y merge posterior como parte del flujo de implementación

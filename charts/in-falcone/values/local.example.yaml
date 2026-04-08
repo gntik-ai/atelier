@@ -1,0 +1,32 @@
+# Copy this file to values/local.yaml and keep it out of version control.
+# Apply it last in your Helm command so workstation-specific overrides remain local.
+
+global:
+  namespace: in-falcone-dev-local
+
+# Optional deployment profile overlays live in values/profiles/*.yaml and should be applied
+# after values.yaml but before the environment/platform files.
+
+deployment:
+  profile: standard
+
+controlPlane:
+  image:
+    tag: 0.3.0-dev1
+  env:
+    - name: NODE_ENV
+      value: development
+    - name: DEPLOYMENT_PROFILE
+      value: dev-local
+
+webConsole:
+  image:
+    tag: 0.3.0-dev1
+  env:
+    - name: NODE_ENV
+      value: development
+    - name: PUBLIC_BASE_PATH
+      value: /
+
+observability:
+  enabled: false

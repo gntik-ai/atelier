@@ -24,7 +24,7 @@ async function loginToConsole(page: Page, scenario: MockScenario) {
   await installContextAuthMocks(page, scenario)
   await page.goto('/login')
 
-  await expect(page.getByRole('heading', { name: /accede a in atelier console/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /accede a in falcone console/i })).toBeVisible()
 
   await page.getByLabel(/usuario/i).fill('operaciones')
   await page.getByLabel(/contraseña/i).fill('super-secret-123')

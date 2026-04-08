@@ -17,7 +17,7 @@
 ## Format: `[ID] [P?] Description`
 
 - **[P]**: Can run in parallel with other [P] tasks in same phase (no incomplete dependency overlap)
-- All file paths are relative to `/root/projects/atelier/`
+- All file paths are relative to `/root/projects/falcone/`
 
 ---
 
@@ -199,7 +199,7 @@
 **Purpose**: Long-running Kubernetes Deployment that opens MongoDB change streams and publishes to Kafka.
 
 - [ ] T013 Bootstrap `services/mongo-cdc-bridge/package.json`
-  - `"type": "module"`, `"name": "@atelier/mongo-cdc-bridge"`
+  - `"type": "module"`, `"name": "@falcone/mongo-cdc-bridge"`
   - Dependencies: `mongodb` (official driver), `kafkajs`, `pg`
   - Dev dependencies: Node.js built-in `node:test`
   - Scripts: `start`, `test`, `test:unit`, `test:integration`
@@ -296,7 +296,7 @@
 
 - [ ] T023 Create `services/mongo-cdc-bridge/helm/mongo-cdc-bridge/Chart.yaml`
   - `apiVersion: v2`, `name: mongo-cdc-bridge`, version matching service version
-  - Description: "MongoDB Change Stream CDC bridge for Atelier realtime pipeline"
+  - Description: "MongoDB Change Stream CDC bridge for Falcone realtime pipeline"
 
 - [ ] T024 [P] Create `services/mongo-cdc-bridge/helm/mongo-cdc-bridge/templates/deployment.yaml`
   - Kind: `Deployment`, 1 replica (singleton; resume tokens ensure consistency)

@@ -25,7 +25,7 @@ describe('router', () => {
   it('renderiza la página de bienvenida en la ruta raíz', async () => {
     const router = createMemoryRouter(appRoutes, { initialEntries: ['/'] })
     render(<RouterProvider router={router} />)
-    expect(await screen.findByRole('heading', { level: 1, name: /in atelier console/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /in falcone console/i })).toBeInTheDocument()
   })
 
   it('renderiza tenants y workspaces con páginas reales', async () => {

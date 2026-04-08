@@ -1,7 +1,7 @@
 import { readJson, readYaml } from './quality-gates.mjs';
 
 export const OBSERVABILITY_METRICS_STACK_PATH = 'services/internal-contracts/src/observability-metrics-stack.json';
-export const BASE_VALUES_PATH = 'charts/in-atelier/values.yaml';
+export const BASE_VALUES_PATH = 'charts/in-falcone/values.yaml';
 
 const REQUIRED_SUBSYSTEM_IDS = [
   'apisix',
@@ -76,8 +76,8 @@ export function collectObservabilityMetricsStackViolations(
     }
   }
 
-  if (stack?.naming?.prefix !== 'in_atelier') {
-    violations.push('Observability naming prefix must be in_atelier.');
+  if (stack?.naming?.prefix !== 'in_falcone') {
+    violations.push('Observability naming prefix must be in_falcone.');
   }
 
   if (stack?.naming?.metric_scope_label !== 'metric_scope') {
@@ -116,8 +116,8 @@ export function collectObservabilityMetricsStackViolations(
       continue;
     }
 
-    if (!family.name?.startsWith('in_atelier_')) {
-      violations.push(`Observability metric family ${metricFamilyId} must use the in_atelier_ prefix.`);
+    if (!family.name?.startsWith('in_falcone_')) {
+      violations.push(`Observability metric family ${metricFamilyId} must use the in_falcone_ prefix.`);
     }
 
     for (const label of REQUIRED_LABELS) {
@@ -139,12 +139,12 @@ export function collectObservabilityMetricsStackViolations(
     violations.push('Observability default resolution must be 30s.');
   }
 
-  if (stack?.collection_health?.metric_name !== 'in_atelier_observability_collection_health') {
-    violations.push('Observability collection health metric_name must be in_atelier_observability_collection_health.');
+  if (stack?.collection_health?.metric_name !== 'in_falcone_observability_collection_health') {
+    violations.push('Observability collection health metric_name must be in_falcone_observability_collection_health.');
   }
 
-  if (stack?.collection_health?.failure_counter !== 'in_atelier_observability_collection_failures_total') {
-    violations.push('Observability collection health failure_counter must be in_atelier_observability_collection_failures_total.');
+  if (stack?.collection_health?.failure_counter !== 'in_falcone_observability_collection_failures_total') {
+    violations.push('Observability collection health failure_counter must be in_falcone_observability_collection_failures_total.');
   }
 
   const subsystems = stack?.subsystems ?? [];

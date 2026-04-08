@@ -1,0 +1,25 @@
+{{- if and .Values.bootstrap.enabled .Values.apisix.enabled .Values.bootstrap.reconcile.apisix.adminService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "in-falcone.apisixAdminServiceName" . }}
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+    app.kubernetes.io/name: apisix
+    in-falcone.io/component: bootstrap
+    in-falcone.io/managed-lifecycle: reconcile
+  {{- with .Values.bootstrap.reconcile.apisix.adminService.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: {{ (index .Values "apisix").wrapper.componentId | default "apisix" }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: {{ .Values.bootstrap.reconcile.apisix.adminService.portName }}
+      port: {{ .Values.bootstrap.reconcile.apisix.adminService.port }}
+      targetPort: {{ .Values.bootstrap.reconcile.apisix.adminService.targetPort }}
+      protocol: TCP
+{{- end }}

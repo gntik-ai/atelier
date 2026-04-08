@@ -1,18 +1,18 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: in-atelier-gateway-config
+  name: in-falcone-gateway-config
   labels:
-    app.kubernetes.io/name: in-atelier-gateway
-    app.kubernetes.io/part-of: in-atelier
+    app.kubernetes.io/name: in-falcone-gateway
+    app.kubernetes.io/part-of: in-falcone
 data:
   GATEWAY_MODE: "managed"
   GATEWAY_PORT: "8080"
-  PUBLIC_DOMAIN_ROOT: "in-atelier.example.com"
+  PUBLIC_DOMAIN_ROOT: "in-falcone.example.com"
   CONTROL_PLANE_BASE_PATH: "/control-plane"
   PUBLIC_API_BASE_PATH: "/v1"
   PUBLIC_API_ROUTE_CATALOG_PATH: "/v1/platform/route-catalog"
   IDENTITY_BASE_PATH: "/auth"
   REALTIME_BASE_PATH: "/realtime"
-  OPTIONAL_WORKSPACE_SUBDOMAIN_TEMPLATE: "{workspaceSlug}.apps.{environment}.in-atelier.example.com"
+  OPTIONAL_WORKSPACE_SUBDOMAIN_TEMPLATE: "{workspaceSlug}.apps.{environment}.in-falcone.example.com"
   TLS_SECRET_REF_MODE: "existingSecret"

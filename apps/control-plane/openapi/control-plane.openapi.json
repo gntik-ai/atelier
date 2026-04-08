@@ -1,13 +1,13 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "In Atelier Public API",
+    "title": "In Falcone Public API",
     "version": "1.21.0",
     "summary": "Unified, versioned, and documented public API surface grouped into coherent /v1 families.",
-    "description": "Unified public gateway contract for the In Atelier BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, PostgreSQL administration and data control, events, functions, storage, metrics, and realtime routes.",
+    "description": "Unified public gateway contract for the In Falcone BaaS platform. The surface is exposed through APISIX, versioned under /v1, pinned with X-API-Version, and organized into stable families for platform, tenants, workspaces, authorization, PostgreSQL administration and data control, events, functions, storage, metrics, and realtime routes.",
     "license": {
       "name": "Proprietary",
-      "url": "https://in-atelier.example.com/licenses/proprietary"
+      "url": "https://in-falcone.example.com/licenses/proprietary"
     }
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -16,12 +16,12 @@
       "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
-          "default": "api.dev.in-atelier.example.com",
+          "default": "api.dev.in-falcone.example.com",
           "enum": [
-            "api.dev.in-atelier.example.com",
-            "api.sandbox.in-atelier.example.com",
-            "api.staging.in-atelier.example.com",
-            "api.in-atelier.example.com"
+            "api.dev.in-falcone.example.com",
+            "api.sandbox.in-falcone.example.com",
+            "api.staging.in-falcone.example.com",
+            "api.in-falcone.example.com"
           ]
         }
       }
@@ -60344,7 +60344,7 @@
           "subprotocol": {
             "type": "string",
             "enum": [
-              "in_atelier.event.v1"
+              "in_falcone.event.v1"
             ]
           },
           "auditRecordId": {
@@ -61024,7 +61024,7 @@
               },
               "seriesPrefix": {
                 "type": "string",
-                "const": "in_atelier_event_gateway_"
+                "const": "in_falcone_event_gateway_"
               }
             }
           },
@@ -63247,7 +63247,7 @@
       "DurationString": {
         "type": "string",
         "pattern": "^[0-9]+(?:s|m|h|d)$",
-        "description": "Compact duration string used by in-atelier lifecycle policies."
+        "description": "Compact duration string used by in-falcone lifecycle policies."
       },
       "ExpirationRule": {
         "type": "object",

@@ -163,7 +163,7 @@ export function buildFamilyDocument(document, taxonomy, familyId) {
     openapi: document.openapi,
     jsonSchemaDialect: document.jsonSchemaDialect,
     info: {
-      title: `In Atelier ${family.title} API`,
+      title: `In Falcone ${family.title} API`,
       version: taxonomy.release.openapi_semver,
       summary: family.summary,
       description: `${family.summary} Generated from the unified public API contract for ${taxonomy.release.path_version}.`

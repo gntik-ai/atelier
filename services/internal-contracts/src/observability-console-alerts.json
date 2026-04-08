@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-01-T05",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_metrics_contract": "2026-03-28",
   "source_dashboard_contract": "2026-03-28",
   "source_health_contract": "2026-03-28",

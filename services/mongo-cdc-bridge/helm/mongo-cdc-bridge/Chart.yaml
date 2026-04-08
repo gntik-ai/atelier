@@ -1,5 +1,5 @@
 apiVersion: v2
 name: mongo-cdc-bridge
-description: MongoDB Change Stream CDC bridge for Atelier realtime pipeline
+description: MongoDB Change Stream CDC bridge for Falcone realtime pipeline
 version: 1.0.0
 appVersion: 1.0.0

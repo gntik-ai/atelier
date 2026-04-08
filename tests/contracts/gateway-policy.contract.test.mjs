@@ -24,7 +24,7 @@ test('gateway contract publishes APISIX policy for every public family and passt
     const route = enabledRoutes.find((entry) => entry.name === `public-api-${family.id}`);
     assert.ok(route, `missing APISIX route for family ${family.id}`);
     assert.equal(route.uri, `${family.pathPrefix}/*`);
-    assert.equal(route.labels['gateway.in-atelier.io/family'], family.id);
+    assert.equal(route.labels['gateway.in-falcone.io/family'], family.id);
     assert.deepEqual(Object.keys(route.plugins).sort(), REQUIRED_PRODUCT_PLUGINS.slice().sort());
     assert.equal(route.plugins['limit-count'].rejected_code, 429);
     assert.ok(route.plugins['client-control'].max_body_size > 0);
@@ -39,10 +39,10 @@ test('gateway contract publishes APISIX policy for every public family and passt
   assert.equal(realtimeRoute.enableWebsocket, true);
 
   for (const routeId of ['keycloak_admin', 'openwhisk_admin']) {
-    const route = enabledRoutes.find((entry) => entry.labels?.['gateway.in-atelier.io/passthrough-id'] === routeId);
+    const route = enabledRoutes.find((entry) => entry.labels?.['gateway.in-falcone.io/passthrough-id'] === routeId);
     assert.ok(route, `missing enabled passthrough route ${routeId}`);
     assert.deepEqual(Object.keys(route.plugins).sort(), REQUIRED_PASSTHROUGH_PLUGINS.slice().sort());
-    assert.equal(route.labels['gateway.in-atelier.io/audit-required'], 'true');
+    assert.equal(route.labels['gateway.in-falcone.io/audit-required'], 'true');
     assert.ok(route.plugins['client-control'].max_body_size > 0);
   }
 
@@ -59,8 +59,8 @@ test('gateway metrics and event-gateway QoS remain explicit in values and catalo
   assert.equal(values.gatewayPolicy.observability.gatewayMetrics.enabled, true);
   assert.equal(values.gatewayPolicy.observability.gatewayMetrics.plugin, 'prometheus');
   assert.equal(values.gatewayPolicy.observability.gatewayMetrics.metricsPath, '/apisix/prometheus/metrics');
-  assert.equal(values.gatewayPolicy.observability.gatewayMetrics.seriesPrefix, 'in_atelier_event_gateway_');
-  assert.ok(values.gatewayPolicy.observability.gatewayMetrics.requiredSeries.includes('in_atelier_event_gateway_publish_total'));
+  assert.equal(values.gatewayPolicy.observability.gatewayMetrics.seriesPrefix, 'in_falcone_event_gateway_');
+  assert.ok(values.gatewayPolicy.observability.gatewayMetrics.requiredSeries.includes('in_falcone_event_gateway_publish_total'));
 
   const publishRoute = routeCatalog.routes.find((route) => route.path === '/v1/events/topics/{resourceId}/publish');
   const websocketRoute = routeCatalog.routes.find((route) => route.path === '/v1/websockets/sessions');

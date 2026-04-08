@@ -317,12 +317,12 @@ Internally maintains a received-event buffer so `poller.mjs` can drain it withou
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `REALTIME_ENDPOINT` | WebSocket/SSE endpoint through APISIX | `wss://api.atelier.local/realtime` |
-| `API_BASE_URL` | REST API base URL through APISIX | `https://api.atelier.local` |
-| `PROVISIONING_API_BASE_URL` | Provisioning orchestrator base URL | `https://api.atelier.local/provisioning` |
+| `REALTIME_ENDPOINT` | WebSocket/SSE endpoint through APISIX | `wss://api.falcone.local/realtime` |
+| `API_BASE_URL` | REST API base URL through APISIX | `https://api.falcone.local` |
+| `PROVISIONING_API_BASE_URL` | Provisioning orchestrator base URL | `https://api.falcone.local/provisioning` |
 | `PROVISIONING_ADMIN_TOKEN` | Admin token for test provisioning | — |
-| `KEYCLOAK_BASE_URL` | Keycloak base URL | `https://iam.atelier.local` |
-| `KEYCLOAK_REALM` | Realm for test tenants | `atelier` |
+| `KEYCLOAK_BASE_URL` | Keycloak base URL | `https://iam.falcone.local` |
+| `KEYCLOAK_REALM` | Realm for test tenants | `falcone` |
 | `KEYCLOAK_ADMIN_CLIENT_ID` | Admin client ID | `admin-cli` |
 | `KEYCLOAK_ADMIN_SECRET` | Admin client secret | — |
 | `WS_PG_CONN_STR` | PostgreSQL connection string for test data injection | `postgresql://...` |

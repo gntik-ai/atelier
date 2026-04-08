@@ -24,7 +24,7 @@
 
 ## File Path Map
 
-> All paths are relative to `/root/projects/atelier`.
+> All paths are relative to `/root/projects/falcone`.
 > During `speckit.implement`, read only the paths listed here plus `plan.md` and `tasks.md`.
 
 ### Read-only reference files (for content accuracy — targeted reads only)

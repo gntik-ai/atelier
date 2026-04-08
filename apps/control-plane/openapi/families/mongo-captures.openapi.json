@@ -139,7 +139,7 @@
   "info": {
     "description": "Workspace-scoped MongoDB change-capture enablement and listing surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace-scoped MongoDB change-capture enablement and listing surfaces.",
-    "title": "In Atelier Mongo Captures API",
+    "title": "In Falcone Mongo Captures API",
     "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -443,12 +443,12 @@
       "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
-          "default": "api.dev.in-atelier.example.com",
+          "default": "api.dev.in-falcone.example.com",
           "enum": [
-            "api.dev.in-atelier.example.com",
-            "api.sandbox.in-atelier.example.com",
-            "api.staging.in-atelier.example.com",
-            "api.in-atelier.example.com"
+            "api.dev.in-falcone.example.com",
+            "api.sandbox.in-falcone.example.com",
+            "api.staging.in-falcone.example.com",
+            "api.in-falcone.example.com"
           ]
         }
       }

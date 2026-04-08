@@ -28,7 +28,7 @@ describe('console-service-accounts', () => {
   it('crea y persiste service account id', async () => {
     mockRequestConsoleSessionJson.mockResolvedValue({ serviceAccountId: 'sa_1' })
     await expect(createServiceAccount('wrk_1', { displayName: 'Ops SA', entityType: 'service_account' })).resolves.toEqual({ serviceAccountId: 'sa_1' })
-    expect(window.sessionStorage.getItem('in-atelier.console-service-account-index:wrk_1')).toContain('sa_1')
+    expect(window.sessionStorage.getItem('in-falcone.console-service-account-index:wrk_1')).toContain('sa_1')
   })
 
   it('emite, revoca y rota credenciales', async () => {
@@ -41,7 +41,7 @@ describe('console-service-accounts', () => {
   })
 
   it('rehidrata ids persistidos', async () => {
-    window.sessionStorage.setItem('in-atelier.console-service-account-index:wrk_1', JSON.stringify(['sa_1']))
+    window.sessionStorage.setItem('in-falcone.console-service-account-index:wrk_1', JSON.stringify(['sa_1']))
     mockRequestConsoleSessionJson.mockResolvedValue({ serviceAccountId: 'sa_1', displayName: 'Ops SA' })
     const { result } = renderHook(() => useConsoleServiceAccounts('wrk_1'))
     await waitFor(() => expect(result.current.accounts[0]?.serviceAccountId).toBe('sa_1'))

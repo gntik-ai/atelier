@@ -185,10 +185,10 @@ Debe cubrir al menos:
 
 ### Validaciones del paquete
 
-- `corepack pnpm --filter @in-atelier/web-console test`
-- `corepack pnpm --filter @in-atelier/web-console typecheck`
-- `corepack pnpm --filter @in-atelier/web-console build`
-- `corepack pnpm --filter @in-atelier/web-console test:e2e`
+- `corepack pnpm --filter @in-falcone/web-console test`
+- `corepack pnpm --filter @in-falcone/web-console typecheck`
+- `corepack pnpm --filter @in-falcone/web-console build`
+- `corepack pnpm --filter @in-falcone/web-console test:e2e`
 - `corepack pnpm lint`
 
 ---
@@ -231,7 +231,7 @@ Debe cubrir al menos:
 
 ### Done verificable
 
-- existe un comando E2E reproducible en `@in-atelier/web-console`;
+- existe un comando E2E reproducible en `@in-falcone/web-console`;
 - la suite cubre login con retorno a deep link, logout y signup pending activation;
 - la suite valida al menos una navegación autenticada básica del shell;
 - la ejecución no depende de un Keycloak real ni de servicios externos;

@@ -379,9 +379,9 @@ Cobertura incremental (los tests existentes no se modifican):
 
 ```sh
 # Mínimo antes de PR:
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console build
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console build
 
 # Completar antes de merge:
 corepack pnpm lint
@@ -445,7 +445,7 @@ La tarea queda cerrada cuando exista evidencia de que:
 7. El panel DDL Preview muestra statements, warnings y riskProfile sin ningún affordance de ejecución.
 8. Los warnings con `severity=high` o `severity=critical` tienen una clase CSS diferenciada verificable en el DOM del test.
 9. La página es estrictamente read-only: no existe ningún `<form>`, `<button type="submit">` ni acción de mutación salvo el trigger de preview.
-10. `corepack pnpm --filter @in-atelier/web-console test`, `typecheck`, `build`, `corepack pnpm lint` y `corepack pnpm test` quedan en verde.
+10. `corepack pnpm --filter @in-falcone/web-console test`, `typecheck`, `build`, `corepack pnpm lint` y `corepack pnpm test` quedan en verde.
 11. La rama `055-console-postgres-views` se publica, la PR pasa CI y termina mergeada a `main`.
 
 ### Evidencia esperada al terminar

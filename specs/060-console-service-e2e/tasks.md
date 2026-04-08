@@ -772,9 +772,9 @@ test.describe('J06 — Verificación transversal de ausencia de backdoors', () =
 ## Secuencia de implementación recomendada
 
 1. Crear `e2e/fixtures/service-e2e.ts` completo con todos los tipos, constantes y funciones.
-2. Verificar typecheck: `corepack pnpm --filter @in-atelier/web-console typecheck`.
+2. Verificar typecheck: `corepack pnpm --filter @in-falcone/web-console typecheck`.
 3. Crear `e2e/console-service-e2e.e2e.ts` con helpers locales y Grupo J01.
-4. Ejecutar `corepack pnpm --filter @in-atelier/web-console test:e2e -- --grep "J01"` para validar.
+4. Ejecutar `corepack pnpm --filter @in-falcone/web-console test:e2e -- --grep "J01"` para validar.
 5. Añadir Grupo J02. Ejecutar `--grep "J02"`.
 6. Añadir Grupo J03. Ejecutar `--grep "J03"`. Verificar si el componente Kafka activa SSE automáticamente; si lo hace, confirmar que el mock de stream devuelve `text/event-stream` vacío.
 7. Añadir Grupo J04. Ejecutar `--grep "J04"`.

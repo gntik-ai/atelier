@@ -386,9 +386,9 @@ Cron job separado (cada 30 s): lista `secret_propagation_events` WHERE state='pe
 
 Completa según sección 3.1.
 
-### 4.6 Configuración Helm — `charts/in-atelier/`
+### 4.6 Configuración Helm — `charts/in-falcone/`
 
-Nuevos valores en `charts/in-atelier/values.yaml`:
+Nuevos valores en `charts/in-falcone/values.yaml`:
 ```yaml
 secretRotation:
   enabled: true
@@ -400,7 +400,7 @@ secretRotation:
   propagationTimeoutCronSchedule: "*/1 * * * *"
 ```
 
-Nuevos CronJob manifests en `charts/in-atelier/templates/`:
+Nuevos CronJob manifests en `charts/in-falcone/templates/`:
 - `cronjob-secret-rotation-expiry-sweep.yaml`
 - `cronjob-secret-rotation-propagation-timeout-sweep.yaml`
 
@@ -582,7 +582,7 @@ Los pasos 1 y 5 son paralelizables: el equipo de frontend puede construir la UI 
 | **CD-06** Ningún evento de auditoría contiene valores de secretos | Todos los tests que insertan `secret_rotation_events` afirman `!record.detail?.value && !record.detail?.data` |
 | **CD-07** Aislamiento multi-tenant: rotación de tenant A no afecta tenant B | Test de integración `secret-rotation-multi-tenant-isolation` pasa |
 | **CD-08** Consola renderiza lista de secretos con estado de versión y permite iniciar rotación | `ConsoleSecretsPage.test.tsx` y `ConsoleSecretRotationPage.test.tsx` pasan |
-| **CD-09** Variables de entorno documentadas y presentes en Helm values | `charts/in-atelier/values.yaml` contiene bloque `secretRotation` con todos los parámetros |
+| **CD-09** Variables de entorno documentadas y presentes en Helm values | `charts/in-falcone/values.yaml` contiene bloque `secretRotation` con todos los parámetros |
 | **CD-10** AGENTS.md actualizado con nuevas tablas, topics Kafka y env vars | Sección "Secure Secret Rotation" añadida al AGENTS.md del proyecto |
 
 ---

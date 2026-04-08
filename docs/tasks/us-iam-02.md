@@ -2,7 +2,7 @@
 
 ## Story summary
 
-Deliver the normalized administrative IAM surface for In Atelier so platform and tenant operators can manage Keycloak-backed realms, clients, roles, scopes, and users through BaaS-native contracts instead of raw provider payloads.
+Deliver the normalized administrative IAM surface for In Falcone so platform and tenant operators can manage Keycloak-backed realms, clients, roles, scopes, and users through BaaS-native contracts instead of raw provider payloads.
 
 ## Backlog-to-artifact traceability
 

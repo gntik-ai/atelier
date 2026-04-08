@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-03-23
-- Deciders: In Atelier platform architecture baseline
+- Deciders: In Falcone platform architecture baseline
 - Related backlog item: US-DOM-01
 - Related ADRs:
   - ADR 0002: PostgreSQL tenant isolation model

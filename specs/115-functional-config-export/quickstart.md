@@ -34,7 +34,7 @@ WHERE tablename = 'config_export_audit_log';
 
 ```bash
 # PostgreSQL — auditoría
-export DATABASE_URL="postgresql://user:password@localhost:5432/atelier"
+export DATABASE_URL="postgresql://user:password@localhost:5432/falcone"
 
 # Keycloak Admin API (recolector IAM)
 export CONFIG_EXPORT_KEYCLOAK_ADMIN_URL="http://localhost:8080"

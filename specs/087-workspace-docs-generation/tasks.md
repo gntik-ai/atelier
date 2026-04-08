@@ -79,7 +79,7 @@ charts/workspace-docs-service/
 
 **Purpose**: Establish the `workspace-docs-service` package and shared configuration so all subsequent backend tasks have a valid module to work in.
 
-- [ ] T001 Create `services/workspace-docs-service/package.json` with `"type": "module"`, `name: "@atelier/workspace-docs-service"`, and peer dependencies `pg`, `kafkajs` (mirrors `services/webhook-engine/package.json` layout)
+- [ ] T001 Create `services/workspace-docs-service/package.json` with `"type": "module"`, `name: "@falcone/workspace-docs-service"`, and peer dependencies `pg`, `kafkajs` (mirrors `services/webhook-engine/package.json` layout)
 - [ ] T002 Create `services/workspace-docs-service/src/config.mjs` exporting `WORKSPACE_DOCS_DB_URL`, `KAFKA_BROKERS`, `INTERNAL_API_BASE_URL`, `WORKSPACE_DOCS_NOTE_MAX_LENGTH` (default 4096) from `process.env` with validation guards
 - [ ] T003 [P] Extract shared snippet template data into `services/internal-contracts/src/snippet-catalog-data.json` — a JSON array of `{ id, serviceKey, language, label, codeTemplate, placeholders[] }` records covering all 7 capability types defined in plan.md (postgres-database, mongo-collection, storage-bucket, serverless-function, realtime-subscription, webhooks, scheduling); verify parity with existing `apps/web-console/src/lib/snippets/snippet-catalog.ts`
 

@@ -23,14 +23,14 @@ Adopt a machine-readable deployment-topology baseline in `services/internal-cont
 
 ### 1. Public-domain strategy
 
-Use one root domain: `in-atelier.example.com`.
+Use one root domain: `in-falcone.example.com`.
 
 Stable public surfaces:
 
-- API: `api.<environment>.in-atelier.example.com` (production: `api.in-atelier.example.com`)
-- Console: `console.<environment>.in-atelier.example.com` (production: `console.in-atelier.example.com`)
-- Identity: `iam.<environment>.in-atelier.example.com` (production: `iam.in-atelier.example.com`)
-- Realtime: `realtime.<environment>.in-atelier.example.com` (production: `realtime.in-atelier.example.com`)
+- API: `api.<environment>.in-falcone.example.com` (production: `api.in-falcone.example.com`)
+- Console: `console.<environment>.in-falcone.example.com` (production: `console.in-falcone.example.com`)
+- Identity: `iam.<environment>.in-falcone.example.com` (production: `iam.in-falcone.example.com`)
+- Realtime: `realtime.<environment>.in-falcone.example.com` (production: `realtime.in-falcone.example.com`)
 
 Stable route prefixes:
 

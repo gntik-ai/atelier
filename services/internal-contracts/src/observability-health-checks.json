@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-01-T03",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_metrics_contract": "2026-03-28",
   "source_dashboard_contract": "2026-03-28",
   "principles": [
@@ -158,9 +158,9 @@
     ]
   },
   "observability_projection": {
-    "status_metric": "in_atelier_component_probe_status",
-    "duration_metric": "in_atelier_component_probe_duration_seconds",
-    "failure_counter": "in_atelier_component_probe_failures_total",
+    "status_metric": "in_falcone_component_probe_status",
+    "duration_metric": "in_falcone_component_probe_duration_seconds",
+    "failure_counter": "in_falcone_component_probe_failures_total",
     "required_labels": [
       "environment",
       "subsystem",
@@ -263,9 +263,9 @@
       ],
       "narrower_scope_policy": "tenant_workspace_safe_when_request_context_can_be_attributed",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     },
     {
@@ -293,9 +293,9 @@
       ],
       "narrower_scope_policy": "tenant_workspace_safe_only_for_platform-managed logical topic ownership",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     },
     {
@@ -323,9 +323,9 @@
       ],
       "narrower_scope_policy": "tenant_workspace_safe_only_for platform-managed logical database and schema projections",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     },
     {
@@ -353,9 +353,9 @@
       ],
       "narrower_scope_policy": "tenant_workspace_safe_only_for bounded platform-managed collection projections",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     },
     {
@@ -383,9 +383,9 @@
       ],
       "narrower_scope_policy": "tenant_workspace_safe_when namespace and action references are platform-resolved",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     },
     {
@@ -413,9 +413,9 @@
       ],
       "narrower_scope_policy": "tenant_workspace_safe_when logical bucket and prefix ownership are platform-resolved",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     },
     {
@@ -443,9 +443,9 @@
       ],
       "narrower_scope_policy": "workspace-safe for platform-managed routes and administrative context projections",
       "metric_projection": {
-        "status_metric": "in_atelier_component_probe_status",
-        "duration_metric": "in_atelier_component_probe_duration_seconds",
-        "failure_counter": "in_atelier_component_probe_failures_total"
+        "status_metric": "in_falcone_component_probe_status",
+        "duration_metric": "in_falcone_component_probe_duration_seconds",
+        "failure_counter": "in_falcone_component_probe_failures_total"
       }
     }
   ]

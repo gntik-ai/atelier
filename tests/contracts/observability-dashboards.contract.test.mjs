@@ -80,7 +80,7 @@ test('collection_freshness telemetry contract aligns with metrics-stack collecti
   const stackHealthMetric = collectionHealth.metric_name;
 
   assert.equal(dashboardHealthMetric, stackHealthMetric);
-  assert.equal(dashboardHealthMetric, 'in_atelier_observability_collection_health');
+  assert.equal(dashboardHealthMetric, 'in_falcone_observability_collection_health');
 });
 
 test('dashboard scope hierarchy levels match canonical order', () => {

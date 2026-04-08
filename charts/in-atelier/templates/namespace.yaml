@@ -1,9 +1,0 @@
-{{- if .Values.global.createNamespace }}
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.global.namespace }}
-  labels:
-    {{- include "in-atelier.labels" . | nindent 4 }}
-    in-atelier.io/environment: {{ .Values.global.environment | quote }}
-{{- end }}

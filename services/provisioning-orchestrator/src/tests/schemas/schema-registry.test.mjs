@@ -50,7 +50,7 @@ test('getChecksum returns null for unknown version', () => {
 test('getSchemaFor returns schema for exact version', () => {
   const schema = getSchemaFor('1.0.0');
   assert.ok(schema);
-  assert.equal(schema.title, 'Atelier Tenant Config Export Artifact — v1.0.0');
+  assert.equal(schema.title, 'Falcone Tenant Config Export Artifact — v1.0.0');
 });
 
 test('getSchemaFor returns schema for same-major different minor', () => {

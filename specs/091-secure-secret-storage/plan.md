@@ -91,7 +91,7 @@ Implementar el almacenamiento seguro centralizado de secretos y credenciales sen
 | Autenticación de servicios | Vault Kubernetes Auth Method + ServiceAccount tokens | Sin secrets adicionales necesarios para acceder a Vault; zero-secret bootstrap |
 | Políticas de acceso | Vault HCL policies + Kubernetes RBAC | Vault policies por path/domain; RBAC para quién puede crear ExternalSecret CRDs |
 | Auditoría | Vault audit log → sidecar → Kafka `console.secrets.audit` | Inmutable en Vault, propagado a Kafka para observabilidad centralizada |
-| Despliegue | Helm sub-chart dentro de `charts/in-atelier` | Consistente con el patrón existente del proyecto |
+| Despliegue | Helm sub-chart dentro de `charts/in-falcone` | Consistente con el patrón existente del proyecto |
 | Fail-closed | init containers + readiness probes que requieren secreto resuelto | Servicio no arranca si no resuelve credenciales de Vault |
 
 ### 2.3 Namespaces / paths de secretos en Vault
@@ -160,10 +160,10 @@ secret/                           # Motor KV v2
 
 ## 3. Cambios por artefacto
 
-### 3.1 Nuevo sub-chart Helm: `charts/in-atelier/charts/vault/`
+### 3.1 Nuevo sub-chart Helm: `charts/in-falcone/charts/vault/`
 
 ```
-charts/in-atelier/charts/vault/
+charts/in-falcone/charts/vault/
   Chart.yaml
   values.yaml
   templates/
@@ -192,10 +192,10 @@ charts/in-atelier/charts/vault/
 - `vault.auditSidecar.kafkaBrokers`
 - `vault.unsealMethod` (shamir | transit | cloud-kms)
 
-### 3.2 External Secrets Operator: `charts/in-atelier/charts/eso/`
+### 3.2 External Secrets Operator: `charts/in-falcone/charts/eso/`
 
 ```
-charts/in-atelier/charts/eso/
+charts/in-falcone/charts/eso/
   Chart.yaml                       # Dependencia: external-secrets/external-secrets Helm chart
   values.yaml
   templates/
@@ -527,7 +527,7 @@ kubectl get secret -n secret-store -o yaml | grep -v "type: kubernetes.io/servic
 kubectl get externalsecret -A -o json | jq '.items[] | {name:.metadata.name, status:.status.conditions[].status}'
 
 # 4. Verifica acceso al inventario sin exponer valores
-curl -s -H "Authorization: Bearer $TOKEN" https://api.atelier.io/v1/secrets/inventory | jq 'if .secrets[].value? then error("VALUE EXPOSED") else "OK" end'
+curl -s -H "Authorization: Bearer $TOKEN" https://api.falcone.io/v1/secrets/inventory | jq 'if .secrets[].value? then error("VALUE EXPOSED") else "OK" end'
 ```
 
 ---
@@ -669,7 +669,7 @@ Semana 5:
 
 - `docs/operations/secret-management.md`: guía operativa para el platform team (acceso, inventario, troubleshooting de Vault).
 - `docs/architecture/secret-storage-adr.md`: ADR documentando la elección de Vault + ESO vs. alternativas (Sealed Secrets, k8s native only).
-- `charts/in-atelier/charts/vault/README.md`: instrucciones de instalación y configuración del sub-chart.
+- `charts/in-falcone/charts/vault/README.md`: instrucciones de instalación y configuración del sub-chart.
 - `services/secret-audit-handler/README.md`: descripción del servicio y configuración.
 
 ### 11.2 Variables de entorno nuevas

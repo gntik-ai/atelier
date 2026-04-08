@@ -23,7 +23,7 @@ This task does **not** implement tenant storage context (T02), bucket/object CRU
 
 ## Constitution Check
 
-- **Monorepo Separation of Concerns**: PASS — adapter logic stays under `services/adapters/src/`; control-plane summaries stay under `apps/control-plane/src/`; OpenAPI/public route/catalog changes stay in existing storage artifacts; chart config stays in `charts/in-atelier`; tests stay under `tests/`.
+- **Monorepo Separation of Concerns**: PASS — adapter logic stays under `services/adapters/src/`; control-plane summaries stay under `apps/control-plane/src/`; OpenAPI/public route/catalog changes stay in existing storage artifacts; chart config stays in `charts/in-falcone`; tests stay under `tests/`.
 - **Incremental Delivery First**: PASS — the task introduces only the abstraction contract and provider-selection metadata required by later storage work.
 - **Kubernetes and OpenShift Compatibility**: PASS — configuration is expressed through existing chart values/schema patterns and does not assume provider-specific platform features.
 - **Quality Gates at the Root**: PASS — all changes remain compatible with `generate:public-api`, `validate:public-api`, `validate:openapi`, `validate:service-map`, chart validation, and unit/contract tests.
@@ -65,7 +65,7 @@ services/
         └── authorization-model.json        ← additive: provider introspection projection/negative scenario if needed by route tests
 
 charts/
-└── in-atelier/
+└── in-falcone/
     ├── values.yaml                         ← additive: platform storage provider selection values
     └── values.schema.json                  ← additive: schema for storage provider selection block
 
@@ -173,7 +173,7 @@ Additive changes only:
 
 If route/contract tests require explicit authorization/context coverage, add the minimum additive authorization metadata for the provider-introspection route and any negative scenario covering unauthorized platform access. Keep scope minimal and platform-level.
 
-### `charts/in-atelier/values.yaml`
+### `charts/in-falcone/values.yaml`
 
 Add a storage provider selection block consistent with the chart’s existing structure. Example fields:
 
@@ -184,7 +184,7 @@ Add a storage provider selection block consistent with the chart’s existing st
 
 Do not move or rename the existing object-storage secret reference fields; T01 only adds the provider selection metadata needed by the abstraction.
 
-### `charts/in-atelier/values.schema.json`
+### `charts/in-falcone/values.schema.json`
 
 Add schema validation for the new provider-selection keys:
 
@@ -345,7 +345,7 @@ npm run test:contracts
 - Additive diff to `services/adapters/src/provider-catalog.mjs`
 - Additive diff to `apps/control-plane/openapi/control-plane.openapi.json` plus regenerated `apps/control-plane/openapi/families/platform.openapi.json`
 - Additive diffs to `services/internal-contracts/src/public-route-catalog.json`, `internal-service-map.json`, and minimal authorization metadata if required
-- Additive diffs to `charts/in-atelier/values.yaml` and `values.schema.json`
+- Additive diffs to `charts/in-falcone/values.yaml` and `values.schema.json`
 - New tests `tests/unit/storage-admin.test.mjs` and `tests/contracts/storage-provider.contract.test.mjs`
 - Passing outputs from public API, OpenAPI, service-map, chart, unit, adapter, and contract validations
 

@@ -1174,7 +1174,7 @@ function getWorkspaceApplicationBaseUrl({ workspaceSlug, workspaceEnvironment, a
 
   const allowedEnvironments = new Set(subdomainConfig.allowed_environments ?? []);
   if (allowedEnvironments.has(workspaceEnvironment)) {
-    return `https://${workspaceSlug}.apps.${workspaceEnvironment}.in-atelier.example.com/${applicationSlug}`;
+    return `https://${workspaceSlug}.apps.${workspaceEnvironment}.in-falcone.example.com/${applicationSlug}`;
   }
 
   return `https://${environmentProfile.hostnames.api}/workspaces/${workspaceSlug}/apps/${applicationSlug}`;

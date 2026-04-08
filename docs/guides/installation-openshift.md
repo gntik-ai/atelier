@@ -1,6 +1,6 @@
 # Instalación en OpenShift
 
-Esta guía describe una instalación operativa del paraguas Helm `charts/in-atelier` centrada en OpenShift, con la paridad equivalente para Kubernetes cuando el despliegue no usa `Route`.
+Esta guía describe una instalación operativa del paraguas Helm `charts/in-falcone` centrada en OpenShift, con la paridad equivalente para Kubernetes cuando el despliegue no usa `Route`.
 
 Si buscas una versión más corta para salir del paso rápidamente, consulta primero [Inicio rápido](./quickstart.md).
 
@@ -8,12 +8,12 @@ Si buscas una versión más corta para salir del paso rápidamente, consulta pri
 
 El repositorio organiza el despliegue por capas:
 
-1. `charts/in-atelier/values.yaml` — valores comunes
-2. `charts/in-atelier/values/profiles/<profile>.yaml` — perfil (`all-in-one`, `standard`, `ha`)
-3. `charts/in-atelier/values/<environment>.yaml` — entorno (`dev`, `staging`, `prod`, etc.)
-4. `charts/in-atelier/values/customer-reference.yaml` — sobreescrituras de cliente/tenant
-5. `charts/in-atelier/values/platform-openshift.yaml` o `platform-kubernetes.yaml`
-6. `charts/in-atelier/values/airgap.yaml` cuando haya registro privado / entorno aislado
+1. `charts/in-falcone/values.yaml` — valores comunes
+2. `charts/in-falcone/values/profiles/<profile>.yaml` — perfil (`all-in-one`, `standard`, `ha`)
+3. `charts/in-falcone/values/<environment>.yaml` — entorno (`dev`, `staging`, `prod`, etc.)
+4. `charts/in-falcone/values/customer-reference.yaml` — sobreescrituras de cliente/tenant
+5. `charts/in-falcone/values/platform-openshift.yaml` o `platform-kubernetes.yaml`
+6. `charts/in-falcone/values/airgap.yaml` cuando haya registro privado / entorno aislado
 7. `values/local.yaml` solo para pruebas locales no versionadas
 
 OpenShift usa `Route` y `securityProfile: restricted-v2`; Kubernetes usa `Ingress` y `securityProfile: restricted`.
@@ -29,20 +29,20 @@ OpenShift usa `Route` y `securityProfile: restricted-v2`; Kubernetes usa `Ingres
 ## 1. Preparar el namespace
 
 ```bash
-oc new-project in-atelier-staging
+oc new-project in-falcone-staging
 ```
 
 Si el namespace ya existe, basta con seleccionarlo:
 
 ```bash
-oc project in-atelier-staging
+oc project in-falcone-staging
 ```
 
 En Kubernetes, el equivalente es:
 
 ```bash
-kubectl create namespace in-atelier-staging
-kubectl config set-context --current --namespace=in-atelier-staging
+kubectl create namespace in-falcone-staging
+kubectl config set-context --current --namespace=in-falcone-staging
 ```
 
 ## 2. Construir dependencias del chart
@@ -50,7 +50,7 @@ kubectl config set-context --current --namespace=in-atelier-staging
 Desde la raíz del repositorio:
 
 ```bash
-helm dependency build charts/in-atelier
+helm dependency build charts/in-falcone
 ```
 
 Si cambiaste dependencias o wrappers, vuelve a ejecutar este paso antes de instalar.
@@ -60,10 +60,10 @@ Si cambiaste dependencias o wrappers, vuelve a ejecutar este paso antes de insta
 Para OpenShift, el stack mínimo recomendado para un despliegue estándar es:
 
 ```text
-charts/in-atelier/values.yaml
-charts/in-atelier/values/profiles/standard.yaml
-charts/in-atelier/values/staging.yaml
-charts/in-atelier/values/platform-openshift.yaml
+charts/in-falcone/values.yaml
+charts/in-falcone/values/profiles/standard.yaml
+charts/in-falcone/values/staging.yaml
+charts/in-falcone/values/platform-openshift.yaml
 ```
 
 Para Kubernetes, sustituye el overlay de plataforma por `platform-kubernetes.yaml`.
@@ -73,13 +73,13 @@ Para Kubernetes, sustituye el overlay de plataforma por `platform-kubernetes.yam
 Ejemplo de instalación estándar:
 
 ```bash
-helm upgrade --install in-atelier charts/in-atelier \
-  --namespace in-atelier-staging \
+helm upgrade --install in-falcone charts/in-falcone \
+  --namespace in-falcone-staging \
   --create-namespace \
-  -f charts/in-atelier/values.yaml \
-  -f charts/in-atelier/values/profiles/standard.yaml \
-  -f charts/in-atelier/values/staging.yaml \
-  -f charts/in-atelier/values/platform-openshift.yaml
+  -f charts/in-falcone/values.yaml \
+  -f charts/in-falcone/values/profiles/standard.yaml \
+  -f charts/in-falcone/values/staging.yaml \
+  -f charts/in-falcone/values/platform-openshift.yaml
 ```
 
 ### Variantes útiles
@@ -109,22 +109,22 @@ El bootstrap se ejecuta como job post-install / post-upgrade y realiza dos fases
 Comprueba el estado con:
 
 ```bash
-oc get jobs,pods,configmap -n in-atelier-staging | grep bootstrap
-oc get route -n in-atelier-staging
-oc get configmap in-atelier-bootstrap-state -n in-atelier-staging
+oc get jobs,pods,configmap -n in-falcone-staging | grep bootstrap
+oc get route -n in-falcone-staging
+oc get configmap in-falcone-bootstrap-state -n in-falcone-staging
 ```
 
 Si necesitas ver el log del job, usa el nombre real del job de bootstrap del release:
 
 ```bash
-oc logs job/<nombre-del-job-bootstrap> -n in-atelier-staging
+oc logs job/<nombre-del-job-bootstrap> -n in-falcone-staging
 ```
 
 ### Qué debes confirmar
 
 - El job terminó en `Completed`.
 - La `Route` pública existe y apunta al servicio esperado.
-- El `ConfigMap` marcador `in-atelier-bootstrap-state` se actualizó con el hash de la fase one-shot.
+- El `ConfigMap` marcador `in-falcone-bootstrap-state` se actualizó con el hash de la fase one-shot.
 - No hay recreaciones en bucle del job de bootstrap.
 
 ## 7. Verificación funcional mínima
@@ -138,27 +138,27 @@ oc logs job/<nombre-del-job-bootstrap> -n in-atelier-staging
 
 La instalación en Kubernetes usa el mismo chart y la misma secuencia, con dos diferencias principales:
 
-- `charts/in-atelier/values/platform-kubernetes.yaml` sustituye el overlay OpenShift.
+- `charts/in-falcone/values/platform-kubernetes.yaml` sustituye el overlay OpenShift.
 - La exposición pública se hace con `Ingress` en lugar de `Route`.
 
 Ejemplo equivalente:
 
 ```bash
-helm upgrade --install in-atelier charts/in-atelier \
-  --namespace in-atelier-staging \
+helm upgrade --install in-falcone charts/in-falcone \
+  --namespace in-falcone-staging \
   --create-namespace \
-  -f charts/in-atelier/values.yaml \
-  -f charts/in-atelier/values/profiles/standard.yaml \
-  -f charts/in-atelier/values/staging.yaml \
-  -f charts/in-atelier/values/platform-kubernetes.yaml
+  -f charts/in-falcone/values.yaml \
+  -f charts/in-falcone/values/profiles/standard.yaml \
+  -f charts/in-falcone/values/staging.yaml \
+  -f charts/in-falcone/values/platform-kubernetes.yaml
 ```
 
 Verificación equivalente:
 
 ```bash
-kubectl get ingress -n in-atelier-staging
-kubectl get jobs,pods,configmap -n in-atelier-staging | grep bootstrap
-kubectl get configmap in-atelier-bootstrap-state -n in-atelier-staging
+kubectl get ingress -n in-falcone-staging
+kubectl get jobs,pods,configmap -n in-falcone-staging | grep bootstrap
+kubectl get configmap in-falcone-bootstrap-state -n in-falcone-staging
 ```
 
 ## Buenas prácticas operativas
@@ -171,6 +171,6 @@ kubectl get configmap in-atelier-bootstrap-state -n in-atelier-staging
 
 ## Referencias relacionadas
 
-- `charts/in-atelier/README.md` — ejemplos oficiales de instalación y actualización.
+- `charts/in-falcone/README.md` — ejemplos oficiales de instalación y actualización.
 - `docs/reference/environment-variables.md` — variables de entorno operativas.
 - `docs/guides/platform-usage.md` — flujos de uso de la plataforma.

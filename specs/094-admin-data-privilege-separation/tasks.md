@@ -11,7 +11,7 @@
 
 ## File-Path Map (Canonical — implement step must use exactly these paths)
 
-> All paths are relative to repo root `/root/projects/atelier`.
+> All paths are relative to repo root `/root/projects/falcone`.
 
 | Token | Path |
 |-------|------|

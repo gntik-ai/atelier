@@ -4,12 +4,12 @@ import { deepMerge, readDeploymentTopology } from './deployment-topology.mjs';
 import { readDomainModel } from './domain-model.mjs';
 import { readYaml } from './quality-gates.mjs';
 
-export const ROOT_CHART_PATH = 'charts/in-atelier/Chart.yaml';
-export const ROOT_VALUES_PATH = 'charts/in-atelier/values.yaml';
-export const ROOT_SCHEMA_PATH = 'charts/in-atelier/values.schema.json';
-export const WRAPPER_CHART_PATH = 'charts/in-atelier/charts/component-wrapper/Chart.yaml';
-export const WRAPPER_SCHEMA_PATH = 'charts/in-atelier/charts/component-wrapper/values.schema.json';
-export const OPTIONAL_LOADBALANCER_VALUES_PATH = 'charts/in-atelier/values/platform-kubernetes-loadbalancer.yaml';
+export const ROOT_CHART_PATH = 'charts/in-falcone/Chart.yaml';
+export const ROOT_VALUES_PATH = 'charts/in-falcone/values.yaml';
+export const ROOT_SCHEMA_PATH = 'charts/in-falcone/values.schema.json';
+export const WRAPPER_CHART_PATH = 'charts/in-falcone/charts/component-wrapper/Chart.yaml';
+export const WRAPPER_SCHEMA_PATH = 'charts/in-falcone/charts/component-wrapper/values.schema.json';
+export const OPTIONAL_LOADBALANCER_VALUES_PATH = 'charts/in-falcone/values/platform-kubernetes-loadbalancer.yaml';
 export const REQUIRED_COMPONENT_ALIASES = [
   'apisix',
   'keycloak',
@@ -28,11 +28,11 @@ export const SUPPORTED_TLS_MODES = ['clusterManaged', 'external'];
 export const SUPPORTED_LOADBALANCER_PORT_KEYS = ['api', 'console', 'identity', 'realtime'];
 export const EXPECTED_SUPPORTED_PREVIOUS_VERSIONS = ['0.2.0'];
 export const REQUIRED_BOOTSTRAP_TEMPLATES = [
-  'charts/in-atelier/templates/bootstrap-rbac.yaml',
-  'charts/in-atelier/templates/bootstrap-payload-configmap.yaml',
-  'charts/in-atelier/templates/bootstrap-script-configmap.yaml',
-  'charts/in-atelier/templates/bootstrap-job.yaml',
-  'charts/in-atelier/templates/bootstrap-apisix-admin-service.yaml'
+  'charts/in-falcone/templates/bootstrap-rbac.yaml',
+  'charts/in-falcone/templates/bootstrap-payload-configmap.yaml',
+  'charts/in-falcone/templates/bootstrap-script-configmap.yaml',
+  'charts/in-falcone/templates/bootstrap-job.yaml',
+  'charts/in-falcone/templates/bootstrap-apisix-admin-service.yaml'
 ];
 const REQUIRED_BOOTSTRAP_SECRET_STRATEGIES = ['kubernetesSecret', 'env', 'externalRef'];
 const REQUIRED_BOOTSTRAP_ONE_SHOT_RESOURCES = ['superadmin', 'platform_realm', 'governance_catalog', 'internal_namespaces'];
@@ -72,7 +72,7 @@ export function readWrapperChart() {
 }
 
 export function readProfileValues(profileId) {
-  return readYaml(`charts/in-atelier/values/profiles/${profileId}.yaml`);
+  return readYaml(`charts/in-falcone/values/profiles/${profileId}.yaml`);
 }
 
 function readText(filePath) {
@@ -97,7 +97,7 @@ function expectedLayerFile(layerName) {
 }
 
 function profilePath(profileId) {
-  return `charts/in-atelier/values/profiles/${profileId}.yaml`;
+  return `charts/in-falcone/values/profiles/${profileId}.yaml`;
 }
 
 export function resolveImageRepository(repository, globalRegistry = '') {
@@ -292,7 +292,7 @@ function collectBootstrapValueViolations(values, topology, domainModel, violatio
   }
 
   const keycloakClients = keycloakBootstrap?.clients ?? [];
-  for (const clientId of ['in-atelier-gateway', 'in-atelier-console']) {
+  for (const clientId of ['in-falcone-gateway', 'in-falcone-console']) {
     if (!keycloakClients.some((client) => client?.clientId === clientId)) {
       violations.push(`bootstrap.oneShot.keycloak.clients must include ${clientId}.`);
     }
@@ -309,9 +309,9 @@ function collectBootstrapValueViolations(values, topology, domainModel, violatio
     violations.push('bootstrap.oneShot.keycloak.realm.login.resetPasswordAllowed must remain true for password recovery.');
   }
 
-  const consoleClient = keycloakClients.find((client) => client?.clientId === 'in-atelier-console') ?? {};
+  const consoleClient = keycloakClients.find((client) => client?.clientId === 'in-falcone-console') ?? {};
   if (consoleClient.directAccessGrantsEnabled !== true) {
-    violations.push('bootstrap.oneShot.keycloak.clients[in-atelier-console].directAccessGrantsEnabled must remain true for console login flows.');
+    violations.push('bootstrap.oneShot.keycloak.clients[in-falcone-console].directAccessGrantsEnabled must remain true for console login flows.');
   }
 
   const webConsoleAuth = values?.webConsole?.auth ?? {};
@@ -435,17 +435,17 @@ function collectBootstrapTemplateViolations(violations) {
     return;
   }
 
-  const jobTemplate = readText('charts/in-atelier/templates/bootstrap-job.yaml');
-  const scriptTemplate = readText('charts/in-atelier/templates/bootstrap-script-configmap.yaml');
-  const payloadTemplate = readText('charts/in-atelier/templates/bootstrap-payload-configmap.yaml');
-  const rbacTemplate = readText('charts/in-atelier/templates/bootstrap-rbac.yaml');
-  const adminServiceTemplate = readText('charts/in-atelier/templates/bootstrap-apisix-admin-service.yaml');
+  const jobTemplate = readText('charts/in-falcone/templates/bootstrap-job.yaml');
+  const scriptTemplate = readText('charts/in-falcone/templates/bootstrap-script-configmap.yaml');
+  const payloadTemplate = readText('charts/in-falcone/templates/bootstrap-payload-configmap.yaml');
+  const rbacTemplate = readText('charts/in-falcone/templates/bootstrap-rbac.yaml');
+  const adminServiceTemplate = readText('charts/in-falcone/templates/bootstrap-apisix-admin-service.yaml');
 
   if (!jobTemplate.includes('helm.sh/hook: post-install,post-upgrade')) {
     violations.push('bootstrap job template must run as a post-install/post-upgrade Helm hook.');
   }
 
-  if (!jobTemplate.includes('serviceAccountName: {{ include "in-atelier.bootstrapServiceAccountName" . }}')) {
+  if (!jobTemplate.includes('serviceAccountName: {{ include "in-falcone.bootstrapServiceAccountName" . }}')) {
     violations.push('bootstrap job template must use the dedicated bootstrap service account.');
   }
 
@@ -589,7 +589,7 @@ export function collectDeploymentChartViolations(
       violations.push(`deployment.valuesLayers.${layer} must point to ${expected}.`);
     }
 
-    const absolutePath = `charts/in-atelier/${layerMap[layer]}`;
+    const absolutePath = `charts/in-falcone/${layerMap[layer]}`;
     if (!existsSync(absolutePath)) {
       violations.push(`Referenced values layer file ${absolutePath} does not exist.`);
     }
@@ -716,8 +716,8 @@ export function collectDeploymentChartViolations(
     violations.push('Deployment topology packaging_guidance.deployment_profiles must align with the chart deployment profiles.');
   }
 
-  if (topology?.packaging_guidance?.profile_values_path !== 'charts/in-atelier/values/profiles/{profile}.yaml') {
-    violations.push('Deployment topology packaging_guidance.profile_values_path must point to charts/in-atelier/values/profiles/{profile}.yaml.');
+  if (topology?.packaging_guidance?.profile_values_path !== 'charts/in-falcone/values/profiles/{profile}.yaml') {
+    violations.push('Deployment topology packaging_guidance.profile_values_path must point to charts/in-falcone/values/profiles/{profile}.yaml.');
   }
 
   if (JSON.stringify(topology?.configuration_policy?.optional_helm_value_layers ?? []) !== JSON.stringify(['profile'])) {
@@ -734,7 +734,7 @@ export function collectDeploymentChartViolations(
   for (const path of [
     ROOT_SCHEMA_PATH,
     WRAPPER_SCHEMA_PATH,
-    'charts/in-atelier/README.md',
+    'charts/in-falcone/README.md',
     'docs/reference/architecture/deployment-topology.md'
   ]) {
     if (!existsSync(path)) {

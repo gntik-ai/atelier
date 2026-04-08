@@ -13,7 +13,7 @@ Implementar una suite completa de pruebas de integración y coherencia end-to-en
 - **Dependencias principales**: Apache APISIX (gateway), Keycloak (IAM), PostgreSQL (datos de planes), MongoDB (datos de workspace), Kafka (eventos de auditoría), OpenWhisk (acciones del control plane), React + Tailwind + shadcn/ui (consola)
 - **Testing framework**: `node:test` nativo para tests de API, Vitest para tests de componentes de consola, Playwright para tests E2E de browser
 - **Plataforma destino**: Kubernetes / OpenShift vía Helm (entorno de test desplegado)
-- **Tipo de proyecto**: Monorepo BaaS multi-tenant (`in-atelier`)
+- **Tipo de proyecto**: Monorepo BaaS multi-tenant (`in-falcone`)
 - **Constraints**: Aislamiento de tenants de prueba, credenciales vía env vars, idempotencia, tiempo total < 15 min en CI
 
 ## Verificación de constitución
@@ -214,19 +214,19 @@ Integración en el pipeline de CI/CD, README final, y reporte de cobertura.
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `GATEWAY_BASE_URL` | URL base del gateway APISIX | `https://api.test.atelier.local` |
-| `CONTROL_PLANE_URL` | URL base del control plane (acciones OpenWhisk) | `https://cp.test.atelier.local` |
-| `CONSOLE_API_URL` | URL base de los endpoints JSON de la consola | `https://console.test.atelier.local/api` |
-| `KEYCLOAK_URL` | URL de Keycloak | `https://auth.test.atelier.local` |
-| `KEYCLOAK_REALM` | Realm de Keycloak | `atelier-test` |
+| `GATEWAY_BASE_URL` | URL base del gateway APISIX | `https://api.test.falcone.local` |
+| `CONTROL_PLANE_URL` | URL base del control plane (acciones OpenWhisk) | `https://cp.test.falcone.local` |
+| `CONSOLE_API_URL` | URL base de los endpoints JSON de la consola | `https://console.test.falcone.local/api` |
+| `KEYCLOAK_URL` | URL de Keycloak | `https://auth.test.falcone.local` |
+| `KEYCLOAK_REALM` | Realm de Keycloak | `falcone-test` |
 | `SUPERADMIN_CLIENT_ID` | Client ID del superadmin | `test-superadmin` |
 | `SUPERADMIN_CLIENT_SECRET` | Client secret del superadmin | (secreto de CI) |
-| `KAFKA_BROKERS` | Brokers de Kafka | `kafka.test.atelier.local:9092` |
+| `KAFKA_BROKERS` | Brokers de Kafka | `kafka.test.falcone.local:9092` |
 | `KAFKA_AUDIT_TOPIC` | Topic de eventos de auditoría | `platform.audit.events` |
 | `PROPAGATION_TTL_MS` | TTL máximo de propagación (ms) | `30000` |
 | `TEST_TENANT_PREFIX` | Prefijo para tenants de prueba | `test-t06` |
 | `BROWSER_TEST_ENABLED` | Habilitar tests de browser E2E | `true` |
-| `PLAYWRIGHT_BASE_URL` | URL de la consola para Playwright | `https://console.test.atelier.local` |
+| `PLAYWRIGHT_BASE_URL` | URL de la consola para Playwright | `https://console.test.falcone.local` |
 
 ## Riesgos y mitigaciones
 

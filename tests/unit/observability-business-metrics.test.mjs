@@ -65,7 +65,7 @@ test('buildObservabilityBusinessMetricQuery returns platform-scoped query by def
   assert.equal(query.requiredContext.tenantId, null);
   assert.equal(query.requiredContext.workspaceId, null);
   assert.equal(query.metricFamily.id, 'tenant_active_total');
-  assert.equal(query.metricFamily.name, 'in_atelier_tenant_active_total');
+  assert.equal(query.metricFamily.name, 'in_falcone_tenant_active_total');
   assert.equal(query.metricFamily.supportedScopes.includes('platform'), true);
   assert.equal(query.queryScope.labels.metric_scope, 'platform');
   assert.equal(query.queryScope.filters.includes('metric_scope=platform'), true);

@@ -58,8 +58,8 @@ function makeBucket() {
   return buildStorageBucketRecord({
     tenantId: 'ten_01',
     workspaceId: 'wrk_01',
-    workspaceSlug: 'atelier',
-    bucketName: 'atelier-assets',
+    workspaceSlug: 'falcone',
+    bucketName: 'falcone-assets',
     now: '2026-03-28T00:00:00Z'
   });
 }
@@ -93,7 +93,7 @@ test('normalizeStorageAuditEvent round-trips the five existing storage audit sou
     tenantId: 'ten_01',
     workspaceId: 'wrk_01',
     operation: 'object.put',
-    bucketName: 'atelier-assets',
+    bucketName: 'falcone-assets',
     objectKey: 'uploads/logo.png',
     observedAt: '2026-03-28T00:00:01Z'
   });

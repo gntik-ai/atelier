@@ -33,7 +33,7 @@ This suite verifies cross-subsystem coherence for:
 | `CONTROL_PLANE_URL` | ✅ | `http://localhost:3233` | Control plane URL |
 | `CONSOLE_API_URL` | | `http://localhost:3000/api` | Console API URL |
 | `KEYCLOAK_URL` | ✅ | `http://localhost:8080` | Keycloak URL |
-| `KEYCLOAK_REALM` | | `atelier` | Keycloak realm |
+| `KEYCLOAK_REALM` | | `falcone` | Keycloak realm |
 | `SUPERADMIN_CLIENT_ID` | ✅ | — | Superadmin OAuth client ID |
 | `SUPERADMIN_CLIENT_SECRET` | ✅ | — | Superadmin OAuth client secret |
 | `KAFKA_BROKERS` | | `localhost:9092` | Kafka broker addresses |

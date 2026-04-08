@@ -29,7 +29,7 @@ test('observability plane summary exposes the normalized foundation and all requ
   assert.equal(summary.subsystems.length, 7);
   assert.equal(summary.subsystems.some((subsystem) => subsystem.id === 'apisix'), true);
   assert.equal(summary.subsystems.some((subsystem) => subsystem.id === 'control_plane'), true);
-  assert.equal(stack.collection_health.metric_name, 'in_atelier_observability_collection_health');
+  assert.equal(stack.collection_health.metric_name, 'in_falcone_observability_collection_health');
   assert.equal(values.componentTargets.apisix.metricsPath, '/apisix/prometheus/metrics');
   assert.equal(values.componentTargets.controlPlane.interval, '15s');
 });

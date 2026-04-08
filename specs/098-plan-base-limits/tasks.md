@@ -9,7 +9,7 @@
 
 ## File Path Map
 
-> All paths are relative to the repository root `/root/projects/atelier`.
+> All paths are relative to the repository root `/root/projects/falcone`.
 
 | Artifact | Path | Type |
 |----------|------|------|

@@ -82,7 +82,7 @@ Recommended top-level structure:
 {
   "version": "2026-03-28",
   "scope": "US-OBS-02-T02",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_audit_pipeline_contract": "2026-03-28",
   "source_authorization_contract": "<authorization-model version>",
   "required_top_level_fields": [...],

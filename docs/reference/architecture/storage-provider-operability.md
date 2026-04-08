@@ -17,7 +17,7 @@ The guide documents four things:
 4. and qualitative cost / operator-burden trade-offs.
 
 > Internal scope note:
-> The targets below are internal operating objectives for the Atelier platform team. They are not
+> The targets below are internal operating objectives for the Falcone platform team. They are not
 > external customer-facing SLAs and they do not replace provider-specific runbooks or deployment
 > validation.
 

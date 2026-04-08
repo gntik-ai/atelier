@@ -29,7 +29,7 @@ El trail de auditoría es **append-only**: no se exponen operaciones de mutació
 - **Gateway**: Apache APISIX (nueva ruta para el endpoint de consulta de auditoría)
 - **IAM**: Keycloak (nuevo scope `backup-audit:read:global` + scope reducido para tenant owner)
 - **Mensajería**: Kafka — nuevo topic `platform.backup.audit.events`
-- **Monorepo**: `/root/projects/atelier` — extensión de `services/backup-status/`
+- **Monorepo**: `/root/projects/falcone` — extensión de `services/backup-status/`
 - **Dependencias funcionales**: US-BKP-01-T01, US-BKP-01-T02, US-OBS-01
 
 ---

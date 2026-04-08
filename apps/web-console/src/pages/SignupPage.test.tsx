@@ -29,7 +29,7 @@ describe('SignupPage', () => {
 
     renderPage()
 
-    expect(await screen.findByRole('heading', { name: /crea tu acceso a in atelier console/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /crea tu acceso a in falcone console/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/usuario/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/nombre visible/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/correo principal/i)).toBeInTheDocument()

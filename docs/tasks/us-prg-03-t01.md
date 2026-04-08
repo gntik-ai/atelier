@@ -20,5 +20,5 @@ Create a practical CI quality pipeline for markdown lint, OpenAPI validation, un
 - [x] Add `scripts/lib/quality-gates.mjs`, `scripts/validate-openapi.mjs`, and `scripts/validate-image-policy.mjs`.
 - [x] Add `tests/unit/quality-gates.test.mjs` and `tests/contracts/control-plane.openapi.test.mjs`.
 - [x] Replace `.github/workflows/ci.yml` with a multi-job CI workflow.
-- [x] Replace mutable Helm image tags in `charts/in-atelier/values.yaml`.
+- [x] Replace mutable Helm image tags in `charts/in-falcone/values.yaml`.
 - [x] Run repository validation commands.

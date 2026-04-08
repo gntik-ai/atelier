@@ -4,16 +4,16 @@ import { OPENAPI_PATH, readJson, readYaml, resolveParameters } from './quality-g
 
 export const DEPLOYMENT_TOPOLOGY_PATH = 'services/internal-contracts/src/deployment-topology.json';
 export const DEPLOYMENT_SMOKE_MATRIX_PATH = 'tests/reference/deployment-smoke-matrix.yaml';
-export const BASE_VALUES_PATH = 'charts/in-atelier/values.yaml';
+export const BASE_VALUES_PATH = 'charts/in-falcone/values.yaml';
 export const ENVIRONMENT_VALUES = {
-  dev: 'charts/in-atelier/values/dev.yaml',
-  sandbox: 'charts/in-atelier/values/sandbox.yaml',
-  staging: 'charts/in-atelier/values/staging.yaml',
-  prod: 'charts/in-atelier/values/prod.yaml'
+  dev: 'charts/in-falcone/values/dev.yaml',
+  sandbox: 'charts/in-falcone/values/sandbox.yaml',
+  staging: 'charts/in-falcone/values/staging.yaml',
+  prod: 'charts/in-falcone/values/prod.yaml'
 };
 export const PLATFORM_VALUES = {
-  kubernetes: 'charts/in-atelier/values/platform-kubernetes.yaml',
-  openshift: 'charts/in-atelier/values/platform-openshift.yaml'
+  kubernetes: 'charts/in-falcone/values/platform-kubernetes.yaml',
+  openshift: 'charts/in-falcone/values/platform-openshift.yaml'
 };
 
 const REQUIRED_ENVIRONMENTS = ['dev', 'sandbox', 'staging', 'prod'];
@@ -128,8 +128,8 @@ function collectTopologyContractViolations(topology) {
     }
   }
 
-  if (topology?.public_surface?.root_domain !== 'in-atelier.example.com') {
-    violations.push('Deployment topology public_surface.root_domain must be in-atelier.example.com.');
+  if (topology?.public_surface?.root_domain !== 'in-falcone.example.com') {
+    violations.push('Deployment topology public_surface.root_domain must be in-falcone.example.com.');
   }
 
   for (const [key, expected] of Object.entries(REQUIRED_ROUTE_PREFIXES)) {
@@ -205,13 +205,13 @@ function collectTopologyContractViolations(topology) {
     violations.push('Deployment topology configuration_policy.secret_rules must document bootstrap credential resolution.');
   }
 
-  if (topology?.packaging_guidance?.umbrella_chart !== 'charts/in-atelier') {
-    violations.push('Deployment topology packaging_guidance.umbrella_chart must be charts/in-atelier.');
+  if (topology?.packaging_guidance?.umbrella_chart !== 'charts/in-falcone') {
+    violations.push('Deployment topology packaging_guidance.umbrella_chart must be charts/in-falcone.');
   }
 
-  if (topology?.packaging_guidance?.component_wrapper_chart !== 'charts/in-atelier/charts/component-wrapper') {
+  if (topology?.packaging_guidance?.component_wrapper_chart !== 'charts/in-falcone/charts/component-wrapper') {
     violations.push(
-      'Deployment topology packaging_guidance.component_wrapper_chart must be charts/in-atelier/charts/component-wrapper.'
+      'Deployment topology packaging_guidance.component_wrapper_chart must be charts/in-falcone/charts/component-wrapper.'
     );
   }
 
@@ -223,8 +223,8 @@ function collectTopologyContractViolations(topology) {
     violations.push('Deployment topology packaging_guidance.deployment_profiles must match the recommended deployment profiles.');
   }
 
-  if (topology?.packaging_guidance?.profile_values_path !== 'charts/in-atelier/values/profiles/{profile}.yaml') {
-    violations.push('Deployment topology packaging_guidance.profile_values_path must point to charts/in-atelier/values/profiles/{profile}.yaml.');
+  if (topology?.packaging_guidance?.profile_values_path !== 'charts/in-falcone/values/profiles/{profile}.yaml') {
+    violations.push('Deployment topology packaging_guidance.profile_values_path must point to charts/in-falcone/values/profiles/{profile}.yaml.');
   }
 
   const supportedInstallModes = topology?.packaging_guidance?.supported_install_modes ?? [];
@@ -327,9 +327,9 @@ function collectValuesViolations(topology) {
   }
 
   for (const filePath of [
-    'charts/in-atelier/values/customer-reference.yaml',
-    'charts/in-atelier/values/airgap.yaml',
-    'charts/in-atelier/values/local.example.yaml'
+    'charts/in-falcone/values/customer-reference.yaml',
+    'charts/in-falcone/values/airgap.yaml',
+    'charts/in-falcone/values/local.example.yaml'
   ]) {
     if (!existsSync(filePath)) {
       violations.push(`Missing deployment values layer ${filePath}.`);

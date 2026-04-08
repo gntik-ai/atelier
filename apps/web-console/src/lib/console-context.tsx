@@ -11,7 +11,7 @@ import {
 import { type ConsoleShellSession, requestConsoleSessionJson } from '@/lib/console-session'
 import { getEffectiveCapabilities } from '@/services/planManagementApi'
 
-const CONSOLE_ACTIVE_CONTEXT_STORAGE_KEY = 'in-atelier.console-active-context'
+const CONSOLE_ACTIVE_CONTEXT_STORAGE_KEY = 'in-falcone.console-active-context'
 
 interface TenantCollectionResponse {
   items: Tenant[]

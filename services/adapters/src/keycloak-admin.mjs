@@ -19,7 +19,7 @@ export const IAM_ADMIN_ACTIONS = Object.freeze([
   'reset_credentials'
 ]);
 
-export const RESERVED_REALM_IDS = Object.freeze(['master', 'in-atelier-platform']);
+export const RESERVED_REALM_IDS = Object.freeze(['master', 'in-falcone-platform']);
 export const RESERVED_ROLE_NAMES = Object.freeze([
   'platform_admin',
   'platform_operator',

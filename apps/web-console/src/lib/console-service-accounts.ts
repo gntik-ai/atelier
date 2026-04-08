@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { requestConsoleSessionJson } from '@/lib/console-session'
 
-const STORAGE_PREFIX = 'in-atelier.console-service-account-index:'
+const STORAGE_PREFIX = 'in-falcone.console-service-account-index:'
 
 export interface ConsoleCredentialReference {
   credentialId: string

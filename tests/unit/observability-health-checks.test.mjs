@@ -91,7 +91,7 @@ test('buildObservabilityPlatformProbeRollup returns health rollup by default', (
   assert.equal(Array.isArray(rollup.compatibleDashboardStateModel), true);
   assert.equal(rollup.compatibleDashboardStateModel.includes('healthy'), true);
   assert.equal(rollup.compatibleDashboardStateModel.includes('degraded'), true);
-  assert.equal(rollup.projection.status_metric, 'in_atelier_component_probe_status');
+  assert.equal(rollup.projection.status_metric, 'in_falcone_component_probe_status');
 });
 
 test('buildObservabilityPlatformProbeRollup returns liveness rollup', () => {
@@ -138,7 +138,7 @@ test('buildComponentHealthProbeSummary returns apisix health probe summary', () 
   assert.equal(summary.exposure.componentPathTemplate, '/internal/health/components/{componentId}');
   assert.equal(summary.exposure.componentPath, '/internal/health/components/apisix');
   assert.equal(summary.exposure.internalOnly, true);
-  assert.equal(summary.projection.status_metric, 'in_atelier_component_probe_status');
+  assert.equal(summary.projection.status_metric, 'in_falcone_component_probe_status');
   assert.equal(Array.isArray(summary.auditFields), true);
   assert.equal(summary.auditFields.includes('actor_id'), true);
   assert.equal(summary.auditFields.includes('correlation_id'), true);

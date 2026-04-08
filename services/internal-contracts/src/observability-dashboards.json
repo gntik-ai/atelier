@@ -1,7 +1,7 @@
 {
   "version": "2026-03-28",
   "scope": "US-OBS-01-T02",
-  "system": "in-atelier-observability-plane",
+  "system": "in-falcone-observability-plane",
   "source_metrics_contract": "2026-03-28",
   "hierarchy": {
     "canonical_order": [
@@ -97,9 +97,9 @@
   },
   "collection_freshness": {
     "telemetry_contract": {
-      "health_metric": "in_atelier_observability_collection_health",
-      "failure_counter": "in_atelier_observability_collection_failures_total",
-      "lag_metric": "in_atelier_observability_collection_lag_seconds"
+      "health_metric": "in_falcone_observability_collection_health",
+      "failure_counter": "in_falcone_observability_collection_failures_total",
+      "lag_metric": "in_falcone_observability_collection_lag_seconds"
     },
     "semantics": [
       "Dashboards must surface freshness as a first-class health dimension for every scope.",

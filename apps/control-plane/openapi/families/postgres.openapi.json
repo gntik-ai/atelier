@@ -8033,7 +8033,7 @@
   "info": {
     "description": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel. Generated from the unified public API contract for v1.",
     "summary": "Workspace- and tenant-aware PostgreSQL control, structural administration, inventory, and Data API routes exposed through safe BaaS contracts. Includes CRUD/query, bulk ops, import/export, scoped credentials, saved queries, stable endpoints, workspace-scoped RPC routines, and a restricted admin SQL channel.",
-    "title": "In Atelier Postgres API",
+    "title": "In Falcone Postgres API",
     "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -25115,12 +25115,12 @@
       "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
-          "default": "api.dev.in-atelier.example.com",
+          "default": "api.dev.in-falcone.example.com",
           "enum": [
-            "api.dev.in-atelier.example.com",
-            "api.sandbox.in-atelier.example.com",
-            "api.staging.in-atelier.example.com",
-            "api.in-atelier.example.com"
+            "api.dev.in-falcone.example.com",
+            "api.sandbox.in-falcone.example.com",
+            "api.staging.in-falcone.example.com",
+            "api.in-falcone.example.com"
           ]
         }
       }

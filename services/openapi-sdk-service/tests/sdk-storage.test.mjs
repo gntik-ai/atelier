@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { uploadSdkArtefact, buildSdkObjectKey } from '../src/sdk-storage.mjs';
 
-const fixtureDir = join(tmpdir(), 'atelier-sdk-storage-tests');
+const fixtureDir = join(tmpdir(), 'falcone-sdk-storage-tests');
 mkdirSync(fixtureDir, { recursive: true });
 const archivePath = join(fixtureDir, 'archive.zip');
 writeFileSync(archivePath, 'zip');

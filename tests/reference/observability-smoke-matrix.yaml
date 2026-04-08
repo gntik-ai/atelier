@@ -58,9 +58,9 @@ shared_expectations:
     - component_operation_errors_total
     - component_operation_duration_seconds
   required_collection_health:
-    metric_name: in_atelier_observability_collection_health
-    failure_counter: in_atelier_observability_collection_failures_total
-    lag_metric: in_atelier_observability_collection_lag_seconds
+    metric_name: in_falcone_observability_collection_health
+    failure_counter: in_falcone_observability_collection_failures_total
+    lag_metric: in_falcone_observability_collection_lag_seconds
   freshness_threshold_seconds: 120
   masking_policy_forbidden_content_categories:
     - password
@@ -88,9 +88,9 @@ smoke_scenarios:
       - storage
       - control_plane
     required_collection_health:
-      metric_name: in_atelier_observability_collection_health
-      failure_counter: in_atelier_observability_collection_failures_total
-      lag_metric: in_atelier_observability_collection_lag_seconds
+      metric_name: in_falcone_observability_collection_health
+      failure_counter: in_falcone_observability_collection_failures_total
+      lag_metric: in_falcone_observability_collection_lag_seconds
 
   - id: SMOKE-OBS-DASHBOARD-GLOBAL
     focus: dashboards

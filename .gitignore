@@ -6,4 +6,4 @@ coverage/
 .env
 .env.*
 !.env.example
-charts/in-atelier/values/local.yaml
+charts/in-falcone/values/local.yaml

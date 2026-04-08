@@ -24,7 +24,7 @@ test('observability metrics stack contract is exposed through shared readers', (
   assert.equal(getObservabilityContract('metric_family_descriptor').version, '2026-03-28');
   assert.equal(subsystems.length, 7);
   assert.equal(metricFamilies.length >= 4, true);
-  assert.equal(collectionHealth.metric_name, 'in_atelier_observability_collection_health');
+  assert.equal(collectionHealth.metric_name, 'in_falcone_observability_collection_health');
   assert.equal(apisix.target.metrics_path, '/apisix/prometheus/metrics');
   assert.equal(controlPlane.target.metrics_path, '/metrics');
   assert.equal(stack.naming.tenant_isolation.tenant_label, 'tenant_id');
@@ -54,7 +54,7 @@ test('architecture index and task summary document the observability baseline', 
 
   assert.equal(architectureIndex.includes('observability-metrics-stack.json'), true);
   assert.equal(architectureIndex.includes('observability-metrics-stack.md'), true);
-  assert.equal(architectureGuide.includes('in_atelier_observability_collection_health'), true);
+  assert.equal(architectureGuide.includes('in_falcone_observability_collection_health'), true);
   assert.equal(architectureGuide.includes('metric_scope=platform'), true);
   assert.equal(taskSummary.includes('US-OBS-01-T01'), true);
   assert.equal(taskSummary.includes('collection-health'), true);

@@ -80,7 +80,7 @@ test('redirige desde deep link protegido a login, restaura el destino y permite 
   await page.goto('/console/workspaces?tab=active')
 
   await expect(page).toHaveURL(/\/login$/)
-  await expect(page.getByRole('heading', { name: /accede a in atelier console/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /accede a in falcone console/i })).toBeVisible()
 
   await page.getByLabel(/usuario/i).fill('operaciones')
   await page.getByLabel(/contraseña/i).fill('super-secret-123')
@@ -102,7 +102,7 @@ test('permite cerrar sesión desde el shell y vuelve a proteger las rutas', asyn
   })
 
   await page.goto('/login')
-  await expect(page.getByRole('heading', { name: /accede a in atelier console/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /accede a in falcone console/i })).toBeVisible()
 
   await page.getByLabel(/usuario/i).fill('operaciones')
   await page.getByLabel(/contraseña/i).fill('super-secret-123')
@@ -115,11 +115,11 @@ test('permite cerrar sesión desde el shell y vuelve a proteger las rutas', asyn
   await page.getByRole('menuitem', { name: /logout/i }).click()
 
   await expect(page).toHaveURL(/\/login$/)
-  await expect(page.getByRole('heading', { name: /accede a in atelier console/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /accede a in falcone console/i })).toBeVisible()
 
   await expect
     .poll(() =>
-      page.evaluate(() => window.sessionStorage.getItem('in-atelier.console-shell-session'))
+      page.evaluate(() => window.sessionStorage.getItem('in-falcone.console-shell-session'))
     )
     .toBeNull()
 

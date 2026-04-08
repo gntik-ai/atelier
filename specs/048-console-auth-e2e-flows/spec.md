@@ -114,7 +114,7 @@ Como usuario sin cuenta operativa, quiero completar el alta desde la consola y v
 - **FR-007**: La suite E2E DEBE poder ejecutarse en CI o localmente sin depender de una instancia externa real de Keycloak, usando un entorno controlado y reproducible para las respuestas HTTP necesarias del family auth.
 - **FR-008**: La suite E2E DEBE mantener el alcance acotado a login, logout, signup y navegación básica; no debe absorber permisos finos, roles UI ni journeys de negocio posteriores.
 - **FR-009**: La suite E2E DEBE usar aserciones estables sobre comportamiento visible al usuario (rutas, headings, acciones y mensajes clave), evitando depender de detalles frágiles no esenciales.
-- **FR-010**: La entrega DEBE incluir la forma de ejecutar la suite E2E dentro del paquete `@in-atelier/web-console`.
+- **FR-010**: La entrega DEBE incluir la forma de ejecutar la suite E2E dentro del paquete `@in-falcone/web-console`.
 
 ### Entidades clave
 
@@ -164,7 +164,7 @@ No se introduce una nueva superficie de auditoría. La tarea valida journeys vis
 
 ### Resultados medibles
 
-- **SC-001**: La suite E2E puede ejecutarse con un único comando dentro de `@in-atelier/web-console` y finaliza en verde en entorno local/CI controlado.
+- **SC-001**: La suite E2E puede ejecutarse con un único comando dentro de `@in-falcone/web-console` y finaliza en verde en entorno local/CI controlado.
 - **SC-002**: Un escenario automatizado demuestra que una navegación directa a una ruta protegida profunda redirige a login y vuelve al destino solicitado tras autenticar.
 - **SC-003**: Un escenario automatizado demuestra que el logout desde el shell devuelve al login y restaura la protección de rutas.
 - **SC-004**: Un escenario automatizado demuestra que el signup con activación pendiente termina en la pantalla de `pending_activation`.

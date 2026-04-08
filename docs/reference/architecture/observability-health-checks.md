@@ -114,9 +114,9 @@ connection strings, raw hostnames, raw endpoints, object keys, and raw broker to
 `US-OBS-01-T03` adds additive normalized probe metric families so health outcomes can be queried in
 the same observability plane:
 
-- `in_atelier_component_probe_status`
-- `in_atelier_component_probe_duration_seconds`
-- `in_atelier_component_probe_failures_total`
+- `in_falcone_component_probe_status`
+- `in_falcone_component_probe_duration_seconds`
+- `in_falcone_component_probe_failures_total`
 
 These families remain internal observability primitives and must use the existing label discipline,
 including `environment`, `subsystem`, `metric_scope`, `collection_mode`, `probe_type`, and

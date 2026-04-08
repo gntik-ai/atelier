@@ -105,7 +105,7 @@ kafka-console-consumer --bootstrap-server $KAFKA_BROKERS \
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/atelier` | PostgreSQL connection |
+| `DATABASE_URL` | `postgresql://user:pass@localhost:5432/falcone` | PostgreSQL connection |
 | `KAFKA_BROKERS` | `localhost:9092` | Kafka broker addresses |
 | `SUB_QUOTA_KAFKA_TOPIC_SET` | `console.quota.sub_quota.set` | Override default topic name |
 | `SUB_QUOTA_KAFKA_TOPIC_REMOVED` | `console.quota.sub_quota.removed` | Override default topic name |

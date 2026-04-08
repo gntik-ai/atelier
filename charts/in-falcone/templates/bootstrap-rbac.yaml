@@ -1,0 +1,46 @@
+{{- if .Values.bootstrap.enabled }}
+{{- if .Values.bootstrap.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "in-falcone.bootstrapServiceAccountName" . }}
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+    in-falcone.io/component: bootstrap
+    in-falcone.io/managed-lifecycle: reconcile
+---
+{{- end }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "in-falcone.fullname" . }}-bootstrap
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+    in-falcone.io/component: bootstrap
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "in-falcone.fullname" . }}-bootstrap
+  labels:
+    {{- include "in-falcone.labels" . | nindent 4 }}
+    in-falcone.io/component: bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "in-falcone.bootstrapServiceAccountName" . }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "in-falcone.fullname" . }}-bootstrap
+{{- end }}

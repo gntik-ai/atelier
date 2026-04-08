@@ -43,10 +43,10 @@ Los archivos `.mjs` bajo `src/` son stubs de lógica de servidor/OpenWhisk, **no
 ### Chart Helm
 
 El chart ya tiene `webConsole` declarado:
-- Deployment con imagen `in-atelier-web-console`, puerto `3000`.
-- ConfigMap `in-atelier-web-console-config` en `values.yaml`.
+- Deployment con imagen `in-falcone-web-console`, puerto `3000`.
+- ConfigMap `in-falcone-web-console-config` en `values.yaml`.
 - `webConsole.auth.*` disponible para T02–T05.
-- El hostname de consola expuesto: `console.<env>.in-atelier.example.com`.
+- El hostname de consola expuesto: `console.<env>.in-falcone.example.com`.
 
 La SPA estática se servirá con **nginx** en el contenedor, escuchando en el puerto `3000`.
 
@@ -74,7 +74,7 @@ La SPA estática se servirá con **nginx** en el contenedor, escuchando en el pu
 ```text
 
 Browser
-  └─► console.<env>.in-atelier.example.com  (APISIX → Service K8s → nginx:3000)
+  └─► console.<env>.in-falcone.example.com  (APISIX → Service K8s → nginx:3000)
         └─► nginx sirve /dist como assets estáticos
               └─► index.html → React SPA (bundle JS/CSS)
                     └─► React Router
@@ -226,7 +226,7 @@ lint          → eslint src --ext ts,tsx
 ### 5.6 `apps/web-console/src/pages/WelcomePage.tsx`
 
 - Componente funcional React
-- Muestra nombre del producto ("In Atelier Console" o similar)
+- Muestra nombre del producto ("In Falcone Console" o similar)
 - Muestra mensaje de contexto ("Consola administrativa del producto BaaS multi-tenant")
 - Incluye al menos un componente shadcn/ui visible (p. ej. `<Badge>` o `<Button>` decorativo)
 - Estructura semántica: `<main>`, `<h1>`, contraste legible
@@ -291,7 +291,7 @@ CMD ["nginx", "-g", "daemon off;"]
 
 ### 5.10 `apps/web-console/index.html`
 
-- `<meta name="application-name" content="In Atelier Console">`
+- `<meta name="application-name" content="In Falcone Console">`
 - `<meta name="version" content="%VITE_APP_VERSION%">` (reemplazado por Vite en build)
 - `<div id="root"></div>`
 - `<noscript>` con mensaje de fallback
@@ -333,7 +333,7 @@ T01 **no requiere ningún secreto nuevo**. El bloque `webConsole.auth.identityCl
 
 ### ConfigMap
 
-El ConfigMap `in-atelier-web-console-config` existe en el chart. T01 no necesita añadir claves, pero puede añadir `APP_VERSION` como referencia informativa:
+El ConfigMap `in-falcone-web-console-config` existe en el chart. T01 no necesita añadir claves, pero puede añadir `APP_VERSION` como referencia informativa:
 
 ```yaml
 
@@ -351,7 +351,7 @@ El ConfigMap `in-atelier-web-console-config` existe en el chart. T01 no necesita
 
 ### Imagen en registry airgap
 
-La imagen debe publicarse en `registry.airgap.in-atelier.local/example/in-atelier-web-console` para entornos sin acceso a internet externo. El pipeline de CI deberá hacer push con el tag adecuado.
+La imagen debe publicarse en `registry.airgap.in-falcone.local/example/in-falcone-web-console` para entornos sin acceso a internet externo. El pipeline de CI deberá hacer push con el tag adecuado.
 
 ---
 
@@ -373,17 +373,17 @@ La imagen debe publicarse en `registry.airgap.in-atelier.local/example/in-atelie
 | Ruta `/` → `WelcomePage` | Enrutamiento correcto |
 | Ruta `/ruta-inexistente` → `NotFoundPage` | Fallback controlado (SC-004) |
 
-**Comando**: `pnpm --filter @in-atelier/web-console test`
+**Comando**: `pnpm --filter @in-falcone/web-console test`
 **Cobertura**: objetivo mínimo 80% sobre `src/pages/` y `src/router.tsx` antes de merge.
 
 ### 7.2 Prueba de typecheck
 
-`pnpm --filter @in-atelier/web-console typecheck`
+`pnpm --filter @in-falcone/web-console typecheck`
 Sin errores TypeScript antes de merge.
 
 ### 7.3 Prueba de build
 
-`pnpm --filter @in-atelier/web-console build`
+`pnpm --filter @in-falcone/web-console build`
 El comando debe producir `apps/web-console/dist/` con `index.html`, un archivo JS y un archivo CSS como mínimo.
 
 ### 7.4 Prueba de contenedor local (smoke)
@@ -392,7 +392,7 @@ El comando debe producir `apps/web-console/dist/` con `index.html`, un archivo J
 
 docker build -t web-console:local apps/web-console/
 docker run --rm -p 3000:3000 web-console:local
-curl -s http://localhost:3000/ | grep -i "In Atelier"
+curl -s http://localhost:3000/ | grep -i "In Falcone"
 curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ruta-no-existe
 
 # → 200 (nginx sirve index.html para rutas SPA)
@@ -493,8 +493,8 @@ Paso 6: Construir imagen Docker
   └─ Smoke test local
 
 Paso 7: Integración CI
-  └─ Verificar pnpm --filter @in-atelier/web-console build en pipeline
-  └─ Verificar pnpm --filter @in-atelier/web-console test en pipeline
+  └─ Verificar pnpm --filter @in-falcone/web-console build en pipeline
+  └─ Verificar pnpm --filter @in-falcone/web-console test en pipeline
   └─ Publicar imagen al registry
 
 Paso 8: Ajuste chart (si aplica)
@@ -531,10 +531,10 @@ Paso 8: Ajuste chart (si aplica)
 
 | ID | Criterio | Evidencia esperada |
 |---|---|---|
-| DON-01 | `pnpm --filter @in-atelier/web-console build` finaliza sin errores | Output de CI / terminal: `dist/` contiene `index.html`, `assets/*.js`, `assets/*.css` |
-| DON-02 | `pnpm --filter @in-atelier/web-console test` pasa con cobertura ≥ 80% en `src/pages/` y `src/router.tsx` | Reporte Vitest en CI |
-| DON-03 | `pnpm --filter @in-atelier/web-console typecheck` sin errores | Output de CI sin líneas de error TypeScript |
-| DON-04 | La imagen Docker arranca y responde HTTP 200 en `/` con contenido HTML que incluye el nombre del producto | Smoke test: `curl -s http://localhost:3000/ \| grep -i "In Atelier"` |
+| DON-01 | `pnpm --filter @in-falcone/web-console build` finaliza sin errores | Output de CI / terminal: `dist/` contiene `index.html`, `assets/*.js`, `assets/*.css` |
+| DON-02 | `pnpm --filter @in-falcone/web-console test` pasa con cobertura ≥ 80% en `src/pages/` y `src/router.tsx` | Reporte Vitest en CI |
+| DON-03 | `pnpm --filter @in-falcone/web-console typecheck` sin errores | Output de CI sin líneas de error TypeScript |
+| DON-04 | La imagen Docker arranca y responde HTTP 200 en `/` con contenido HTML que incluye el nombre del producto | Smoke test: `curl -s http://localhost:3000/ \| grep -i "In Falcone"` |
 | DON-05 | La imagen Docker sirve HTTP 200 (SPA fallback) en `/ruta-inexistente` | Smoke test: `curl -o /dev/null -w "%{http_code}" http://localhost:3000/ruta-no-existe` → `200` |
 | DON-06 | La página de bienvenida tiene `<h1>` y `<main>` en el HTML renderizado | Verificación RTL en `WelcomePage.test.tsx` o inspección de `index.html` |
 | DON-07 | Al menos 1 componente shadcn/ui está presente y visible en `WelcomePage` | Verificación RTL: el componente renderiza sin errores y contiene markup esperado |
@@ -589,4 +589,4 @@ apps/web-console/
 
 **Ningún otro archivo fuera de `apps/web-console/`** debe modificarse para cumplir T01, salvo:
 - `pnpm-workspace.yaml` en la raíz si `apps/web-console` no está ya incluido.
-- `charts/in-atelier/values/dev.yaml` o `sandbox.yaml` para actualizar `webConsole.image.tag`.
+- `charts/in-falcone/values/dev.yaml` o `sandbox.yaml` para actualizar `webConsole.image.tag`.

@@ -1,0 +1,57 @@
+apiVersion: v2
+name: in-falcone
+description: Umbrella Helm chart for modular In Falcone platform deployments
+type: application
+version: 0.3.0
+appVersion: "0.3.0"
+dependencies:
+  - name: component-wrapper
+    alias: apisix
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: apisix.enabled
+  - name: component-wrapper
+    alias: keycloak
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: keycloak.enabled
+  - name: component-wrapper
+    alias: postgresql
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: postgresql.enabled
+  - name: component-wrapper
+    alias: mongodb
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: mongodb.enabled
+  - name: component-wrapper
+    alias: kafka
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: kafka.enabled
+  - name: component-wrapper
+    alias: openwhisk
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: openwhisk.enabled
+  - name: component-wrapper
+    alias: storage
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: storage.enabled
+  - name: component-wrapper
+    alias: observability
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: observability.enabled
+  - name: component-wrapper
+    alias: controlPlane
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: controlPlane.enabled
+  - name: component-wrapper
+    alias: webConsole
+    version: 0.2.0
+    repository: file://./charts/component-wrapper
+    condition: webConsole.enabled

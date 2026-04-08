@@ -56,7 +56,7 @@ export async function runScopeEnforcementSuite({ fixture, environment }) {
 
   await execute('SE-02', 'wrong sub-domain scope (invoke→deploy) is denied', async () => {
     const headers = { Authorization: `Bearer ${fixture.credentials.functionsInvokeOnly}` };
-    const response = await put(`/v1/functions/${fixture.workspaceId}`, { headers, body: { image: 'ghcr.io/in-atelier/test:latest' } });
+    const response = await put(`/v1/functions/${fixture.workspaceId}`, { headers, body: { image: 'ghcr.io/in-falcone/test:latest' } });
     const audit = await waitForAuditEvent({ pgTable: 'scope_enforcement_denials', filter: { actorId: fixture.workspaceId, endpointPath: `/v1/functions/${fixture.workspaceId}` } });
     return { status: response.status === 403 && audit.found ? 'pass' : 'fail', method: 'PUT', path: `/v1/functions/${fixture.workspaceId}`, headers, expectedHttpStatus: 403, actualHttpStatus: response.status, auditEventExpected: 'scope-denied', auditEventObserved: audit.found };
   });

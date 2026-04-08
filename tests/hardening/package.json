@@ -1,5 +1,5 @@
 {
-  "name": "@in-atelier/hardening-tests",
+  "name": "@in-falcone/hardening-tests",
   "type": "module",
   "version": "0.0.1",
   "private": true,

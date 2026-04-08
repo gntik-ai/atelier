@@ -418,7 +418,7 @@ it('muestra "Sin resultado disponible." cuando result.result es null', async () 
 ### Git steps (in order)
 
 ```bash
-cd /root/projects/atelier
+cd /root/projects/falcone
 
 # 1. Create and switch to feature branch from the spec branch
 git checkout -b feat/064-function-execution-logs spec/064-function-execution-logs

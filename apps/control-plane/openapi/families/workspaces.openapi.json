@@ -232,7 +232,7 @@
         "type": "string"
       },
       "DurationString": {
-        "description": "Compact duration string used by in-atelier lifecycle policies.",
+        "description": "Compact duration string used by in-falcone lifecycle policies.",
         "pattern": "^[0-9]+(?:s|m|h|d)$",
         "type": "string"
       },
@@ -3437,7 +3437,7 @@
   "info": {
     "description": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces. Generated from the unified public API contract for v1.",
     "summary": "Workspace lifecycle, application inventory, workload identities, and managed-resource control surfaces.",
-    "title": "In Atelier Workspaces API",
+    "title": "In Falcone Workspaces API",
     "version": "1.21.0"
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -7458,12 +7458,12 @@
       "url": "https://{publicHost}",
       "variables": {
         "publicHost": {
-          "default": "api.dev.in-atelier.example.com",
+          "default": "api.dev.in-falcone.example.com",
           "enum": [
-            "api.dev.in-atelier.example.com",
-            "api.sandbox.in-atelier.example.com",
-            "api.staging.in-atelier.example.com",
-            "api.in-atelier.example.com"
+            "api.dev.in-falcone.example.com",
+            "api.sandbox.in-falcone.example.com",
+            "api.staging.in-falcone.example.com",
+            "api.in-falcone.example.com"
           ]
         }
       }

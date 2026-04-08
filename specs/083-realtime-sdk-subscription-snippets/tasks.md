@@ -111,7 +111,7 @@ const TOKEN = '<YOUR_ACCESS_TOKEN>'  // replace with your token
 
 const ws = new WebSocket(
   `${ENDPOINT}/workspaces/${WORKSPACE_ID}/realtime/connect`,
-  ['v1.atelier.realtime']
+  ['v1.falcone.realtime']
 )
 
 ws.addEventListener('open', () => {
@@ -242,7 +242,7 @@ async function refreshToken() {
 function connect() {
   const ws = new WebSocket(
     `${ENDPOINT}/workspaces/${WORKSPACE_ID}/realtime/connect?token=${encodeURIComponent(token)}`,
-    ['v1.atelier.realtime']
+    ['v1.falcone.realtime']
   )
 
   ws.addEventListener('open', () => {
@@ -474,7 +474,7 @@ interface RealtimeSnippetsPanelProps {
 //    If python3 not in PATH: log WARN, continue (do not fail).
 // 4. For each guide in docs/guides/realtime/*.md: extract ```js/ts/javascript/typescript/python blocks.
 //    For each extracted block: check it contains the corresponding catalog snippet's distinctive identifier
-//    (e.g., for JS basic: check `v1.atelier.realtime` appears in the block).
+//    (e.g., for JS basic: check `v1.falcone.realtime` appears in the block).
 // 5. Check no template matches /Bearer [A-Za-z0-9_\-.]{20,}/ (no embedded real tokens).
 // 6. Exit 0 on all pass; exit 1 on any error.
 ```

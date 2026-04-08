@@ -189,9 +189,9 @@ Modificar `apps/web-console/src/pages/LoginPage.test.tsx` únicamente si el CTA 
 Ejecutar y dejar verde:
 
 ```bash
-corepack pnpm --filter @in-atelier/web-console test
-corepack pnpm --filter @in-atelier/web-console typecheck
-corepack pnpm --filter @in-atelier/web-console build
+corepack pnpm --filter @in-falcone/web-console test
+corepack pnpm --filter @in-falcone/web-console typecheck
+corepack pnpm --filter @in-falcone/web-console build
 ```
 
 ---

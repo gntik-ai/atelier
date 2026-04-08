@@ -39,7 +39,7 @@ test('deployment topology contract exposes the required descriptors and promotio
     'webConsole'
   ]);
   assert.deepEqual(topology.packaging_guidance.deployment_profiles, ['all-in-one', 'standard', 'ha']);
-  assert.equal(topology.packaging_guidance.profile_values_path, 'charts/in-atelier/values/profiles/{profile}.yaml');
+  assert.equal(topology.packaging_guidance.profile_values_path, 'charts/in-falcone/values/profiles/{profile}.yaml');
 });
 
 test('resolved environment overlays preserve the same public route semantics across platforms', () => {

@@ -1,7 +1,7 @@
-apiVersion: gateway.in-atelier/v1alpha1
+apiVersion: gateway.in-falcone/v1alpha1
 kind: PublicApiRouting
 metadata:
-  name: in-atelier-public-api-routing
+  name: in-falcone-public-api-routing
 spec:
   version: 2026-03-26
   uriPrefix: /v1

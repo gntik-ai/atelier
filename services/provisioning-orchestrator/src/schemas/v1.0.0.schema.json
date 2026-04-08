@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://atelier.internal/schemas/config-export/v1.0.0",
-  "title": "Atelier Tenant Config Export Artifact — v1.0.0",
+  "$id": "https://falcone.internal/schemas/config-export/v1.0.0",
+  "title": "Falcone Tenant Config Export Artifact — v1.0.0",
   "type": "object",
   "required": [
     "export_timestamp",

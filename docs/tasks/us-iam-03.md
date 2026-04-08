@@ -2,7 +2,7 @@
 
 ## Story summary
 
-Deliver the console authentication surface for In Atelier so operators can log in with username/password, self-register under policy control, wait for superadmin activation when required, and recover expired passwords without falling back to raw Keycloak workflows.
+Deliver the console authentication surface for In Falcone so operators can log in with username/password, self-register under policy control, wait for superadmin activation when required, and recover expired passwords without falling back to raw Keycloak workflows.
 
 ## Backlog-to-artifact traceability
 
@@ -10,7 +10,7 @@ Deliver the console authentication surface for In Atelier so operators can log i
   - `apps/control-plane/openapi/control-plane.openapi.json`
   - `apps/control-plane/src/console-auth.mjs`
   - `services/gateway-config/base/public-api-routing.yaml`
-  - `charts/in-atelier/values.yaml`
+  - `charts/in-falcone/values.yaml`
 - **T02 — self-service signup with pending activation**
   - `apps/control-plane/openapi/control-plane.openapi.json`
   - `services/internal-contracts/src/domain-model.json`
@@ -21,11 +21,11 @@ Deliver the console authentication surface for In Atelier so operators can log i
   - `tests/contracts/control-plane.openapi.test.mjs`
 - **T04 — password recovery and reset**
   - `apps/control-plane/openapi/control-plane.openapi.json`
-  - `charts/in-atelier/values.yaml`
+  - `charts/in-falcone/values.yaml`
   - `tests/contracts/public-api.catalog.test.mjs`
 - **T05 — global/environment/plan auto-signup policy controls**
-  - `charts/in-atelier/values.yaml`
-  - `charts/in-atelier/values.schema.json`
+  - `charts/in-falcone/values.yaml`
+  - `charts/in-falcone/values.schema.json`
   - `scripts/lib/deployment-chart.mjs`
 - **T06 — status views, user messaging, and test scaffolding**
   - `tests/reference/testing-strategy.yaml`

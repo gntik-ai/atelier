@@ -1,5 +1,5 @@
 {
-  "name": "@atelier/mongo-cdc-bridge",
+  "name": "@falcone/mongo-cdc-bridge",
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.mjs",

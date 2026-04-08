@@ -1,6 +1,6 @@
-# in-atelier monorepo
+# in-falcone monorepo
 
-Bootstrap monorepo for the In Atelier platform.
+Bootstrap monorepo for the In Falcone platform.
 
 ## Scope of this bootstrap
 
@@ -13,7 +13,7 @@ This repository establishes the minimal working structure for:
 - `services/provisioning-orchestrator`: control-plane orchestration workspace
 - `services/audit`: audit/evidence workspace
 - `services/adapters`: external service adapter packages
-- `charts/in-atelier`: umbrella Helm chart with aliased component wrappers plus layered values for Kubernetes/OpenShift deployments
+- `charts/in-falcone`: umbrella Helm chart with aliased component wrappers plus layered values for Kubernetes/OpenShift deployments
 - `docs`: architecture and working conventions
 - `tests/e2e`: end-to-end test workspace
 - `tests/reference`: reusable testing strategy package and synthetic reference dataset
@@ -32,7 +32,7 @@ services/
   audit/
   adapters/
 charts/
-  in-atelier/
+  in-falcone/
 docs/
 tests/
   adapters/

@@ -478,7 +478,7 @@ SuperAdmin → APISIX → plan-assign action
 
 ### Contract Tests
 
-- OpenAPI schemas in `contracts/` validated against live action responses using existing `@in-atelier/internal-contracts` validation patterns.
+- OpenAPI schemas in `contracts/` validated against live action responses using existing `@in-falcone/internal-contracts` validation patterns.
 - Kafka event envelopes validated against `kafka-events.json` schema in contract tests.
 
 ### Operational Validation

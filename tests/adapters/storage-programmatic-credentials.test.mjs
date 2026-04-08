@@ -15,15 +15,15 @@ import {
 
 test('storage programmatic credential helpers normalize records and one-time secret envelopes', () => {
   const envelope = buildStorageProgrammaticCredentialSecretEnvelope({
-    tenantId: 'ten_01atelier',
-    workspaceId: 'wrk_01atelier',
+    tenantId: 'ten_01falcone',
+    workspaceId: 'wrk_01falcone',
     displayName: 'CLI uploader',
     principal: {
       principalType: 'service_account',
       principalId: 'svc_01cli'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelier',
+      workspaceId: 'wrk_01falcone',
       bucketId: 'bucket_01assets',
       objectPrefix: 'uploads/',
       allowedActions: [
@@ -44,8 +44,8 @@ test('storage programmatic credential helpers normalize records and one-time sec
   assert.equal(STORAGE_PROGRAMMATIC_CREDENTIAL_TYPES.ACCESS_KEY, 'access_key');
   assert.equal(STORAGE_PROGRAMMATIC_CREDENTIAL_STATES.ACTIVE, 'active');
   assert.equal(STORAGE_PROGRAMMATIC_CREDENTIAL_ALLOWED_ACTIONS.includes('object.put'), true);
-  assert.equal(envelope.credential.workspaceId, 'wrk_01atelier');
-  assert.equal(envelope.credential.tenantId, 'ten_01atelier');
+  assert.equal(envelope.credential.workspaceId, 'wrk_01falcone');
+  assert.equal(envelope.credential.tenantId, 'ten_01falcone');
   assert.equal(envelope.credential.credentialType, 'access_key');
   assert.equal(envelope.credential.state, 'active');
   assert.equal(envelope.credential.scopes[0].bucketId, 'bucket_01assets');
@@ -59,14 +59,14 @@ test('storage programmatic credential helpers normalize records and one-time sec
 
 test('storage programmatic credential helpers rotate and revoke without crossing workspace boundaries', () => {
   const record = buildStorageProgrammaticCredentialRecord({
-    workspaceId: 'wrk_01atelier',
+    workspaceId: 'wrk_01falcone',
     displayName: 'Report reader',
     principal: {
       principalType: 'user',
       principalId: 'usr_01reporter'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelier',
+      workspaceId: 'wrk_01falcone',
       allowedActions: ['object.list', 'object.get']
     }],
     now: '2026-03-28T02:10:00Z'
@@ -88,20 +88,20 @@ test('storage programmatic credential helpers rotate and revoke without crossing
 
 test('storage programmatic credential helpers reject unsupported actions and cross-workspace scopes', () => {
   assert.throws(() => buildStorageProgrammaticCredentialRecord({
-    workspaceId: 'wrk_01atelier',
+    workspaceId: 'wrk_01falcone',
     displayName: 'Invalid operations',
     principal: {
       principalType: 'service_account',
       principalId: 'svc_01invalid'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelier',
+      workspaceId: 'wrk_01falcone',
       allowedActions: ['bucket.delete']
     }]
   }), new RegExp(STORAGE_PROGRAMMATIC_CREDENTIAL_ERROR_CODES.INVALID_OPERATION));
 
   assert.throws(() => buildStorageProgrammaticCredentialRecord({
-    workspaceId: 'wrk_01atelier',
+    workspaceId: 'wrk_01falcone',
     displayName: 'Cross workspace',
     principal: {
       principalType: 'service_account',
@@ -116,15 +116,15 @@ test('storage programmatic credential helpers reject unsupported actions and cro
 
 test('storage programmatic credential rotation keeps identity and scope while refreshing secret material', () => {
   const issued = buildStorageProgrammaticCredentialSecretEnvelope({
-    tenantId: 'ten_01atelier',
-    workspaceId: 'wrk_01atelier',
+    tenantId: 'ten_01falcone',
+    workspaceId: 'wrk_01falcone',
     displayName: 'CI uploader',
     principal: {
       principalType: 'service_account',
       principalId: 'svc_01ci'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelier',
+      workspaceId: 'wrk_01falcone',
       bucketId: 'bucket_01assets',
       objectPrefix: 'uploads/ci/',
       allowedActions: ['object.list', 'object.get', 'object.put', 'object.head']
@@ -156,15 +156,15 @@ test('storage programmatic credential rotation keeps identity and scope while re
 
 test('storage programmatic credential helpers reject rotation of revoked credentials and keep revocation traceable', () => {
   const record = buildStorageProgrammaticCredentialRecord({
-    tenantId: 'ten_01atelier',
-    workspaceId: 'wrk_01atelier',
+    tenantId: 'ten_01falcone',
+    workspaceId: 'wrk_01falcone',
     displayName: 'Emergency revoke',
     principal: {
       principalType: 'user',
       principalId: 'usr_01operator'
     },
     scopes: [{
-      workspaceId: 'wrk_01atelier',
+      workspaceId: 'wrk_01falcone',
       allowedActions: ['object.list', 'object.get']
     }],
     actorId: 'usr_01owner',

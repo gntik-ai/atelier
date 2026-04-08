@@ -151,7 +151,7 @@ the snapshot values have increased.
   tenant-level snapshot after the next refresh cycle. Historical snapshots are not retroactively
   modified.
 - **Metric collection gap**: If the underlying business metric is stale (as indicated by
-  `in_atelier_observability_collection_health`), the usage snapshot for the affected dimension must
+  `in_falcone_observability_collection_health`), the usage snapshot for the affected dimension must
   signal that the value may be stale rather than silently returning a stale number as current.
 - **Dimension not applicable to plan**: If a tenant's plan does not include a capability (e.g.,
   functions), the consumption calculation may omit that dimension or return zero, but must not fail.
@@ -171,15 +171,15 @@ business metric families established by US-OBS-01-T04:
 
 | Dimension key | Description | Scope | Source metric family |
 | --- | --- | --- | --- |
-| `api_requests` | Total API requests processed | tenant, workspace | `in_atelier_api_requests_total` |
-| `function_invocations` | Total serverless function invocations | tenant, workspace | `in_atelier_function_invocations_total` |
-| `storage_volume_bytes` | Logical storage volume in bytes | tenant, workspace | `in_atelier_storage_logical_volume_bytes` |
-| `data_service_operations` | Total data-service operations (PG + Mongo) | tenant, workspace | `in_atelier_data_service_operations_total` |
-| `realtime_connections` | Peak concurrent realtime connections | tenant, workspace | `in_atelier_realtime_connections_active` |
+| `api_requests` | Total API requests processed | tenant, workspace | `in_falcone_api_requests_total` |
+| `function_invocations` | Total serverless function invocations | tenant, workspace | `in_falcone_function_invocations_total` |
+| `storage_volume_bytes` | Logical storage volume in bytes | tenant, workspace | `in_falcone_storage_logical_volume_bytes` |
+| `data_service_operations` | Total data-service operations (PG + Mongo) | tenant, workspace | `in_falcone_data_service_operations_total` |
+| `realtime_connections` | Peak concurrent realtime connections | tenant, workspace | `in_falcone_realtime_connections_active` |
 | `logical_databases` | Count of provisioned logical databases | tenant, workspace | derived from control-plane inventory |
 | `topics` | Count of provisioned Kafka topics | tenant, workspace | derived from control-plane inventory |
 | `collections_tables` | Count of provisioned collections/tables | tenant, workspace | derived from control-plane inventory |
-| `error_count` | Total error responses across subsystems | tenant, workspace | `in_atelier_component_operation_errors_total` |
+| `error_count` | Total error responses across subsystems | tenant, workspace | `in_falcone_component_operation_errors_total` |
 
 ### Functional Requirements
 

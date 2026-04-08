@@ -28,7 +28,7 @@ function makeValidArtifact(overrides = {}) {
 
 test('schema exists and has correct title', () => {
   assert.ok(schema);
-  assert.equal(schema.title, 'Atelier Tenant Config Export Artifact — v1.0.0');
+  assert.equal(schema.title, 'Falcone Tenant Config Export Artifact — v1.0.0');
 });
 
 test('validates a fully conforming artifact as valid', () => {
