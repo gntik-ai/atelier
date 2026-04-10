@@ -6835,7 +6835,7 @@ snapshots:
   vite@5.4.21(@types/node@20.19.37):
     dependencies:
       esbuild: 0.21.5
-      postcss: 8.5.9
+      postcss: 8.5.8
       rollup: 4.60.1
     optionalDependencies:
       '@types/node': 20.19.37
@@ -6844,7 +6844,7 @@ snapshots:
   vite@5.4.21(@types/node@22.19.15):
     dependencies:
       esbuild: 0.21.5
-      postcss: 8.5.9
+      postcss: 8.5.8
       rollup: 4.60.1
     optionalDependencies:
       '@types/node': 22.19.15
@@ -6855,7 +6855,7 @@ snapshots:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.9
+      postcss: 8.5.8
       rollup: 4.60.1
       tinyglobby: 0.2.16
     optionalDependencies:
