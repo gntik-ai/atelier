@@ -67,7 +67,8 @@
   },
   "pnpm": {
     "overrides": {
-      "axios": "1.14.0",
+      "axios": ">=1.15.0",
+      "esbuild": ">=0.25.0",
       "picomatch": ">=2.3.2"
     }
   }
