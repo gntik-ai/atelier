@@ -12,8 +12,12 @@ import type {
   SnapshotInfo,
   TriggerResult,
 } from './types.js'
+import { assertDnsSubdomain, buildServiceUrl, encodePathSegment, normalizeServiceBaseUrl } from '../shared/network.js'
 
 const BACKUP_STALENESS_HOURS = parseInt(process.env.BACKUP_STALENESS_HOURS ?? '25', 10)
+const KUBERNETES_API_BASE_URL = normalizeServiceBaseUrl('https://kubernetes.default.svc', 'KUBERNETES_API_BASE_URL')
+const BARMAN_PROTOCOL = 'http'
+const BARMAN_PORT = '8080'
 
 async function fetchJson(url: string, token?: string, timeoutMs = 5000): Promise<{ ok: boolean; status: number; data?: unknown }> {
   const controller = new AbortController()
@@ -38,7 +42,8 @@ function isStale(lastBackup: Date): boolean {
 }
 
 async function tryVelero(namespace: string, token: string, timeoutMs: number): Promise<BackupCheckResult | null> {
-  const url = `https://kubernetes.default.svc/apis/snapshot.storage.k8s.io/v1/namespaces/${namespace}/volumesnapshots`
+  const namespaceSegment = encodePathSegment(assertDnsSubdomain(namespace, 'namespace'), 'namespace')
+  const url = buildServiceUrl(KUBERNETES_API_BASE_URL, `apis/snapshot.storage.k8s.io/v1/namespaces/${namespaceSegment}/volumesnapshots`)
   const res = await fetchJson(url, token, timeoutMs)
   if (!res.ok || res.status === 404) return null
   const items = (res.data as { items?: { status?: { readyToUse?: boolean; creationTime?: string } }[] })?.items
@@ -76,7 +81,13 @@ async function tryVelero(namespace: string, token: string, timeoutMs: number): P
 
 async function tryBarman(namespace: string, timeoutMs: number): Promise<BackupCheckResult | null> {
   // CloudNativePG / Barman API — typically exposed as a service in the namespace
-  const url = `http://cnpg-barman.${namespace}.svc:8080/api/v1/backups`
+  const normalizedNamespace = assertDnsSubdomain(namespace, 'namespace')
+  const barmanBaseUrl = normalizeServiceBaseUrl(
+    `${BARMAN_PROTOCOL}://cnpg-barman.${normalizedNamespace}.svc:${BARMAN_PORT}`,
+    'Barman service URL',
+    { allowBareInternalHttp: true }
+  )
+  const url = buildServiceUrl(barmanBaseUrl, 'api/v1/backups')
   const res = await fetchJson(url, undefined, timeoutMs)
   if (!res.ok) return null
   const backups = (res.data as { items?: { status?: string; completedAt?: string }[] })?.items
@@ -95,7 +106,11 @@ async function tryBarman(namespace: string, timeoutMs: number): Promise<BackupCh
 }
 
 async function tryAnnotation(namespace: string, token: string, timeoutMs: number): Promise<BackupCheckResult | null> {
-  const url = `https://kubernetes.default.svc/api/v1/namespaces/${namespace}/pods?labelSelector=app.kubernetes.io/component=postgresql`
+  const namespaceSegment = encodePathSegment(assertDnsSubdomain(namespace, 'namespace'), 'namespace')
+  const url = buildServiceUrl(
+    KUBERNETES_API_BASE_URL,
+    `api/v1/namespaces/${namespaceSegment}/pods?labelSelector=${encodeURIComponent('app.kubernetes.io/component=postgresql')}`
+  )
   const res = await fetchJson(url, token, timeoutMs)
   if (!res.ok) return null
   const pods = (res.data as { items?: { metadata?: { annotations?: Record<string, string> } }[] })?.items
@@ -115,7 +130,8 @@ async function tryAnnotation(namespace: string, token: string, timeoutMs: number
 }
 
 async function detectCnpgAvailable(namespace: string, token: string): Promise<boolean> {
-  const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/clusters`
+  const namespaceSegment = encodePathSegment(assertDnsSubdomain(namespace, 'namespace'), 'namespace')
+  const url = buildServiceUrl(KUBERNETES_API_BASE_URL, `apis/postgresql.cnpg.io/v1/namespaces/${namespaceSegment}/clusters`)
   const res = await fetchJson(url, token, 3000)
   return res.ok
 }
@@ -135,22 +151,28 @@ export const postgresqlAdapter: BackupActionAdapter = {
     context: AdapterContext,
   ): Promise<TriggerResult> {
     const namespace = context.k8sNamespace ?? 'default'
+    const normalizedNamespace = assertDnsSubdomain(namespace, 'context.k8sNamespace')
     const token = context.serviceAccountToken ?? ''
 
-    const cnpgAvailable = await detectCnpgAvailable(namespace, token)
+    const cnpgAvailable = await detectCnpgAvailable(normalizedNamespace, token)
     if (!cnpgAvailable) {
       const err = new Error('No backup mechanism available for this PostgreSQL instance')
       ;(err as Error & { code: string }).code = 'adapter_no_backup_mechanism'
       throw err
     }
 
-    const backupName = `backup-${instanceId}-${Date.now()}`
-    const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/backups`
+    const normalizedInstanceId = String(instanceId ?? '').trim()
+    if (!normalizedInstanceId) throw new Error('instanceId is required')
+    const backupName = `backup-${normalizedInstanceId}-${Date.now()}`
+    const url = buildServiceUrl(
+      KUBERNETES_API_BASE_URL,
+      `apis/postgresql.cnpg.io/v1/namespaces/${encodePathSegment(normalizedNamespace, 'namespace')}/backups`
+    )
     const body = {
       apiVersion: 'postgresql.cnpg.io/v1',
       kind: 'Backup',
-      metadata: { name: backupName, namespace },
-      spec: { cluster: { name: instanceId } },
+      metadata: { name: backupName, namespace: normalizedNamespace },
+      spec: { cluster: { name: normalizedInstanceId } },
     }
 
     const controller = new AbortController()
@@ -184,24 +206,32 @@ export const postgresqlAdapter: BackupActionAdapter = {
     context: AdapterContext,
   ): Promise<TriggerResult> {
     const namespace = context.k8sNamespace ?? 'default'
+    const normalizedNamespace = assertDnsSubdomain(namespace, 'context.k8sNamespace')
     const token = context.serviceAccountToken ?? ''
 
-    const cnpgAvailable = await detectCnpgAvailable(namespace, token)
+    const cnpgAvailable = await detectCnpgAvailable(normalizedNamespace, token)
     if (!cnpgAvailable) {
       const err = new Error('No restore mechanism available for this PostgreSQL instance')
       ;(err as Error & { code: string }).code = 'adapter_no_restore_mechanism'
       throw err
     }
 
-    const restoreClusterName = `${instanceId}-restore-${Date.now()}`
-    const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/clusters`
+    const normalizedInstanceId = String(instanceId ?? '').trim()
+    if (!normalizedInstanceId) throw new Error('instanceId is required')
+    const normalizedSnapshotId = String(snapshotId ?? '').trim()
+    if (!normalizedSnapshotId) throw new Error('snapshotId is required')
+    const restoreClusterName = `${normalizedInstanceId}-restore-${Date.now()}`
+    const url = buildServiceUrl(
+      KUBERNETES_API_BASE_URL,
+      `apis/postgresql.cnpg.io/v1/namespaces/${encodePathSegment(normalizedNamespace, 'namespace')}/clusters`
+    )
     const body = {
       apiVersion: 'postgresql.cnpg.io/v1',
       kind: 'Cluster',
-      metadata: { name: restoreClusterName, namespace },
+      metadata: { name: restoreClusterName, namespace: normalizedNamespace },
       spec: {
         instances: 1,
-        bootstrap: { recovery: { backup: { name: snapshotId } } },
+        bootstrap: { recovery: { backup: { name: normalizedSnapshotId } } },
       },
     }
 
@@ -235,9 +265,15 @@ export const postgresqlAdapter: BackupActionAdapter = {
     context: AdapterContext,
   ): Promise<SnapshotInfo[]> {
     const namespace = context.k8sNamespace ?? 'default'
+    const normalizedNamespace = assertDnsSubdomain(namespace, 'context.k8sNamespace')
     const token = context.serviceAccountToken ?? ''
 
-    const url = `https://kubernetes.default.svc/apis/postgresql.cnpg.io/v1/namespaces/${namespace}/backups?labelSelector=cnpg.io/cluster=${instanceId}`
+    const normalizedInstanceId = String(instanceId ?? '').trim()
+    if (!normalizedInstanceId) return []
+    const url = buildServiceUrl(
+      KUBERNETES_API_BASE_URL,
+      `apis/postgresql.cnpg.io/v1/namespaces/${encodePathSegment(normalizedNamespace, 'namespace')}/backups?labelSelector=${encodeURIComponent(`cnpg.io/cluster=${normalizedInstanceId}`)}`
+    )
     const res = await fetchJson(url, token, 5000)
     if (!res.ok) return []
 

@@ -5,6 +5,7 @@
 
 import { compareResources, resolveAction, buildDiff } from '../reprovision/diff.mjs';
 import { REDACTED_MARKER, zeroCounts } from '../reprovision/types.mjs';
+import { buildServiceUrl, encodePathSegment, normalizeServiceBaseUrl } from '../http/safe-url.mjs';
 
 const RESOURCE_TYPES = ['packages', 'actions', 'triggers', 'rules'];
 
@@ -31,7 +32,11 @@ export async function apply(tenantId, domainData, options = {}) {
   const namespace = domainData.namespace ?? tenantId;
 
   const owApi = credentials.owApi ?? (async (method, path, body) => {
-    const url = `${owApiHost}/api/v1/namespaces/${encodeURIComponent(namespace)}${path}`;
+    const normalizedOwApiHost = normalizeServiceBaseUrl(owApiHost, 'CONFIG_IMPORT_OW_API_HOST', {
+      allowBareInternalHttp: true,
+    });
+    const namespacePath = encodePathSegment(namespace, 'namespace');
+    const url = buildServiceUrl(normalizedOwApiHost, `api/v1/namespaces/${namespacePath}${path}`);
     const authHeader = `Basic ${Buffer.from(owApiKey).toString('base64')}`;
     const opts = { method, headers: { Authorization: authHeader, 'Content-Type': 'application/json' } };
     if (body !== undefined) opts.body = JSON.stringify(body);

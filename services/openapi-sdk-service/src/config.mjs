@@ -1,3 +1,5 @@
+import { normalizeServiceBaseUrl } from './network.mjs';
+
 const DEFAULTS = Object.freeze({
   kafkaClientId: 'openapi-sdk-service',
   s3Bucket: 'workspace-sdks',
@@ -49,5 +51,12 @@ export const config = Object.freeze((() => {
   };
 
   validateRequired(loaded);
+  if (loaded.effectiveCapabilitiesBaseUrl) {
+    loaded.effectiveCapabilitiesBaseUrl = normalizeServiceBaseUrl(
+      loaded.effectiveCapabilitiesBaseUrl,
+      'EFFECTIVE_CAPABILITIES_BASE_URL',
+      { allowBareInternalHttp: true }
+    );
+  }
   return loaded;
 })());

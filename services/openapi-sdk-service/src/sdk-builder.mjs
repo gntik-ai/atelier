@@ -7,6 +7,24 @@ import { join } from 'node:path';
 
 const execFileAsync = promisify(execFileCallback);
 const GENERATOR_MAP = { typescript: 'typescript-fetch', python: 'python' };
+const SAFE_FRAGMENT_PATTERN = /^[a-z0-9_-]+$/i;
+const SAFE_SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9a-z.-]+)?$/i;
+
+function sanitizePackageNameFragment(value, label) {
+  const normalized = String(value ?? '').trim();
+  if (!SAFE_FRAGMENT_PATTERN.test(normalized)) {
+    throw new Error(`${label} contains unsupported characters`);
+  }
+  return normalized.slice(0, 8);
+}
+
+function sanitizeSpecVersion(value) {
+  const normalized = String(value ?? '').trim();
+  if (!SAFE_SEMVER_PATTERN.test(normalized)) {
+    throw new Error('specVersion must be a valid semantic version');
+  }
+  return normalized;
+}
 
 export async function archiveDirectory(outputPath, archivePath) {
   const { spawn } = await import('node:child_process');
@@ -27,6 +45,8 @@ export async function buildSdk(specJson, language, workspaceId, specVersion, opt
   const execFileImpl = options.execFileAsync ?? execFileAsync;
   const generatorName = GENERATOR_MAP[language];
   if (!generatorName) throw new Error(`Unsupported SDK language: ${language}`);
+  const safeWorkspaceFragment = sanitizePackageNameFragment(workspaceId, 'workspaceId');
+  const safeSpecVersion = sanitizeSpecVersion(specVersion);
 
   const tempRoot = await mkdtemp(join(tmpdir(), 'falcone-openapi-sdk-'));
   const specPath = join(tempRoot, 'spec.json');
@@ -40,7 +60,7 @@ export async function buildSdk(specJson, language, workspaceId, specVersion, opt
       '-g', generatorName,
       '-i', specPath,
       '-o', outputPath,
-      '--additional-properties', `packageName=workspace-${workspaceId.slice(0, 8)}-sdk,packageVersion=${specVersion}`
+      '--additional-properties', `packageName=workspace-${safeWorkspaceFragment}-sdk,packageVersion=${safeSpecVersion}`
     ];
     await execFileImpl('openapi-generator-cli', args, { timeout: 240_000 });
     await archiveDirectory(outputPath, archivePath);

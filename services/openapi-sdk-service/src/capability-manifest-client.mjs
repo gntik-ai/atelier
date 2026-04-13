@@ -1,7 +1,12 @@
 import { config } from './config.mjs';
+import { buildServiceUrl, encodePathSegment } from './network.mjs';
 
 export async function fetchEnabledCapabilities(workspaceId, authToken) {
-  const url = `${config.effectiveCapabilitiesBaseUrl}/v1/workspaces/${workspaceId}/effective-capabilities`;
+  const workspaceIdPath = encodePathSegment(workspaceId, 'workspaceId');
+  const url = buildServiceUrl(
+    config.effectiveCapabilitiesBaseUrl,
+    `v1/workspaces/${workspaceIdPath}/effective-capabilities`
+  );
   const res = await fetch(url, {
     headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
   });

@@ -3,6 +3,8 @@
  * Provides the list of managed component instances for backup status collection.
  */
 
+import { buildServiceUrl, normalizeServiceBaseUrl } from './network.js'
+
 export interface ManagedInstance {
   id: string
   tenantId: string
@@ -19,7 +21,10 @@ const DEPLOYMENT_PROFILE_API_URL = process.env.DEPLOYMENT_PROFILE_API_URL
 export async function getCurrent(): Promise<string> {
   if (DEPLOYMENT_PROFILE_API_URL) {
     try {
-      const res = await fetch(`${DEPLOYMENT_PROFILE_API_URL}/v1/profile`)
+      const apiBaseUrl = normalizeServiceBaseUrl(DEPLOYMENT_PROFILE_API_URL, 'DEPLOYMENT_PROFILE_API_URL', {
+        allowBareInternalHttp: true,
+      })
+      const res = await fetch(buildServiceUrl(apiBaseUrl, 'v1/profile'))
       if (res.ok) {
         const data = (await res.json()) as { slug: string }
         return data.slug
@@ -39,7 +44,10 @@ export async function getCurrent(): Promise<string> {
 export async function getManagedInstances(): Promise<ManagedInstance[]> {
   if (DEPLOYMENT_PROFILE_API_URL) {
     try {
-      const res = await fetch(`${DEPLOYMENT_PROFILE_API_URL}/v1/instances`)
+      const apiBaseUrl = normalizeServiceBaseUrl(DEPLOYMENT_PROFILE_API_URL, 'DEPLOYMENT_PROFILE_API_URL', {
+        allowBareInternalHttp: true,
+      })
+      const res = await fetch(buildServiceUrl(apiBaseUrl, 'v1/instances'))
       if (res.ok) {
         return (await res.json()) as ManagedInstance[]
       }

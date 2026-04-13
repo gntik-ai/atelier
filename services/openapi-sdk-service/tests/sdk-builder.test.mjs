@@ -39,3 +39,17 @@ test('buildSdk propagates execFile errors', async () => {
     /boom/
   );
 });
+
+test('buildSdk rejects unsafe workspace ids before invoking the generator', async () => {
+  await assert.rejects(
+    () => buildSdk(spec, 'typescript', 'workspace,evil', '1.2.3', { execFileAsync: async () => ({}) }),
+    /workspaceId contains unsupported characters/
+  );
+});
+
+test('buildSdk rejects invalid package versions before invoking the generator', async () => {
+  await assert.rejects(
+    () => buildSdk(spec, 'typescript', 'workspace_12345678', '1.2.3;rm', { execFileAsync: async () => ({}) }),
+    /specVersion must be a valid semantic version/
+  );
+});

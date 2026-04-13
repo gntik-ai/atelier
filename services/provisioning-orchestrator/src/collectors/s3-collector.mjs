@@ -5,6 +5,7 @@
  */
 
 import { redactSensitiveFields } from './types.mjs';
+import { normalizeServiceBaseUrl } from '../http/safe-url.mjs';
 
 const DOMAIN_KEY = 'storage';
 
@@ -50,8 +51,18 @@ export async function collect(tenantId, options = {}) {
   }
 
   try {
+    const normalizedEndpoint = normalizeServiceBaseUrl(endpoint, 'CONFIG_EXPORT_S3_ENDPOINT', {
+      allowBareInternalHttp: true,
+    });
+    const buildBucketUrl = (bucketName = '', query = '') => {
+      const path = bucketName ? `${encodeURIComponent(bucketName)}` : '';
+      const url = new URL(path, `${normalizedEndpoint}/`);
+      url.search = query ? `?${query}` : '';
+      return url.toString();
+    };
+
     // List buckets — simplified; in production would use AWS Sig v4
-    const listRes = await fetchFn(`${endpoint}/`, {
+    const listRes = await fetchFn(buildBucketUrl(), {
       headers: {
         ...(accessKey ? { 'x-amz-access-key-id': accessKey } : {}),
       },
@@ -71,22 +82,22 @@ export async function collect(tenantId, options = {}) {
       const bucket = { name: bucketName, region: null, versioning: 'Disabled', lifecycle_rules: [], bucket_policy: null, cors_rules: [] };
 
       try {
-        const vRes = await fetchFn(`${endpoint}/${bucketName}?versioning`, { headers: {} });
+        const vRes = await fetchFn(buildBucketUrl(bucketName, 'versioning'), { headers: {} });
         if (vRes.ok) bucket.versioning = parseVersioningStatus(await vRes.text());
       } catch { /* ignore */ }
 
       try {
-        const lcRes = await fetchFn(`${endpoint}/${bucketName}?lifecycle`, { headers: {} });
+        const lcRes = await fetchFn(buildBucketUrl(bucketName, 'lifecycle'), { headers: {} });
         if (lcRes.ok) bucket.lifecycle_rules = await lcRes.json().catch(() => []);
       } catch { /* ignore */ }
 
       try {
-        const polRes = await fetchFn(`${endpoint}/${bucketName}?policy`, { headers: {} });
+        const polRes = await fetchFn(buildBucketUrl(bucketName, 'policy'), { headers: {} });
         if (polRes.ok) bucket.bucket_policy = await polRes.json().catch(() => null);
       } catch { /* ignore */ }
 
       try {
-        const corsRes = await fetchFn(`${endpoint}/${bucketName}?cors`, { headers: {} });
+        const corsRes = await fetchFn(buildBucketUrl(bucketName, 'cors'), { headers: {} });
         if (corsRes.ok) bucket.cors_rules = await corsRes.json().catch(() => []);
       } catch { /* ignore */ }
 

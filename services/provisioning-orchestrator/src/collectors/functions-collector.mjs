@@ -5,6 +5,7 @@
  */
 
 import { redactSensitiveFields } from './types.mjs';
+import { buildServiceUrl, encodePathSegment, normalizeServiceBaseUrl } from '../http/safe-url.mjs';
 
 const DOMAIN_KEY = 'functions';
 
@@ -33,21 +34,24 @@ export async function collect(tenantId, options = {}) {
     Authorization: `Basic ${Buffer.from(authToken).toString('base64')}`,
     Accept: 'application/json',
   };
-  const ns = encodeURIComponent(tenantId);
-  const base = `${apiHost}/api/v1/namespaces/${ns}`;
+  const normalizedApiHost = normalizeServiceBaseUrl(apiHost, 'CONFIG_EXPORT_OW_API_HOST', {
+    allowBareInternalHttp: true,
+  });
+  const ns = encodePathSegment(tenantId, 'tenantId');
+  const base = buildServiceUrl(normalizedApiHost, `api/v1/namespaces/${ns}`);
 
   try {
     const [actionsRes, packagesRes, triggersRes, rulesRes] = await Promise.all([
-      fetchFn(`${base}/actions`, { headers }).then(r => r.ok ? r.json() : []),
-      fetchFn(`${base}/packages`, { headers }).then(r => r.ok ? r.json() : []),
-      fetchFn(`${base}/triggers`, { headers }).then(r => r.ok ? r.json() : []),
-      fetchFn(`${base}/rules`, { headers }).then(r => r.ok ? r.json() : []),
+      fetchFn(buildServiceUrl(base, 'actions'), { headers }).then(r => r.ok ? r.json() : []),
+      fetchFn(buildServiceUrl(base, 'packages'), { headers }).then(r => r.ok ? r.json() : []),
+      fetchFn(buildServiceUrl(base, 'triggers'), { headers }).then(r => r.ok ? r.json() : []),
+      fetchFn(buildServiceUrl(base, 'rules'), { headers }).then(r => r.ok ? r.json() : []),
     ]);
 
     // Enrich actions with full definitions (code, limits, params)
     const actions = await Promise.all((actionsRes ?? []).map(async (action) => {
       try {
-        const fullRes = await fetchFn(`${base}/actions/${encodeURIComponent(action.name)}`, { headers });
+        const fullRes = await fetchFn(buildServiceUrl(base, `actions/${encodeURIComponent(action.name)}`), { headers });
         if (!fullRes.ok) return { ...action, code_base64: null, code_available: false };
         const full = await fullRes.json();
 

@@ -5,6 +5,7 @@
  */
 
 import { redactSensitiveFields } from './types.mjs';
+import { buildServiceUrl, encodePathSegment, normalizeServiceBaseUrl } from '../http/safe-url.mjs';
 
 const DOMAIN_KEY = 'iam';
 
@@ -27,7 +28,7 @@ async function kcGet(url, accessToken, fetchFn = globalThis.fetch) {
  * Obtain a service-account token from Keycloak.
  */
 async function getServiceToken(baseUrl, clientId, clientSecret, fetchFn = globalThis.fetch) {
-  const tokenUrl = `${baseUrl}/realms/master/protocol/openid-connect/token`;
+  const tokenUrl = buildServiceUrl(baseUrl, 'realms/master/protocol/openid-connect/token');
   const body = new URLSearchParams({
     grant_type: 'client_credentials',
     client_id: clientId,
@@ -62,9 +63,12 @@ export async function collect(tenantId, options = {}) {
   }
 
   try {
-    const token = await getServiceToken(adminUrl, clientId, clientSecret, fetchFn);
+    const normalizedAdminUrl = normalizeServiceBaseUrl(adminUrl, 'CONFIG_EXPORT_KEYCLOAK_ADMIN_URL', {
+      allowBareInternalHttp: true,
+    });
+    const token = await getServiceToken(normalizedAdminUrl, clientId, clientSecret, fetchFn);
     const realm = tenantId; // convention: realm name = tenant ID
-    const base = `${adminUrl}/admin/realms/${realm}`;
+    const base = buildServiceUrl(normalizedAdminUrl, `admin/realms/${encodePathSegment(realm, 'tenantId')}`);
 
     // Fetch all sections in parallel
     const [realmSettings, roles, groups, clients, clientScopes, identityProviders] = await Promise.all([

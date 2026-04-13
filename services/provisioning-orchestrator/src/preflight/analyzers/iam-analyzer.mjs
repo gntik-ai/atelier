@@ -6,6 +6,7 @@
 
 import { emptyDomainResult, DOMAIN_ANALYSIS_STATUSES } from '../types.mjs';
 import { processResourceArray, aggregateDomainResults } from './analyzer-helpers.mjs';
+import { buildServiceUrl, encodePathSegment, normalizeServiceBaseUrl } from '../../http/safe-url.mjs';
 
 const DOMAIN_KEY = 'iam';
 const TIMESTAMP_KEYS = ['createdTimestamp', 'lastModifiedTimestamp', 'created_at', 'updated_at', 'lastRefresh', 'lastImport'];
@@ -29,7 +30,10 @@ export async function analyze(tenantId, domainData, options = {}) {
   const realm = domainData.realm ?? tenantId;
 
   const getAdminToken = credentials.getAdminToken ?? (async () => {
-    const tokenUrl = `${keycloakUrl}/realms/master/protocol/openid-connect/token`;
+    const normalizedKeycloakUrl = normalizeServiceBaseUrl(keycloakUrl, 'CONFIG_EXPORT_KEYCLOAK_URL', {
+      allowBareInternalHttp: true,
+    });
+    const tokenUrl = buildServiceUrl(normalizedKeycloakUrl, 'realms/master/protocol/openid-connect/token');
     const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -41,7 +45,11 @@ export async function analyze(tenantId, domainData, options = {}) {
 
   const kcApi = credentials.kcApi ?? (async (method, path) => {
     const token = await getAdminToken();
-    const url = `${keycloakUrl}/admin/realms/${encodeURIComponent(realm)}${path}`;
+    const normalizedKeycloakUrl = normalizeServiceBaseUrl(keycloakUrl, 'CONFIG_EXPORT_KEYCLOAK_URL', {
+      allowBareInternalHttp: true,
+    });
+    const realmPath = encodePathSegment(realm, 'realm');
+    const url = buildServiceUrl(normalizedKeycloakUrl, `admin/realms/${realmPath}${path}`);
     const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Keycloak API ${method} ${path} returned ${res.status}`);

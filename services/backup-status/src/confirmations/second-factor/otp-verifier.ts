@@ -1,3 +1,5 @@
+import { normalizeServiceBaseUrl } from '../../shared/network.js'
+
 export interface OtpVerificationResult {
   valid: boolean
   error?: 'otp_invalid' | 'keycloak_unavailable' | 'mfa_not_enabled'
@@ -21,7 +23,10 @@ export async function verifyOtp(
   const timeout = setTimeout(() => controller.abort(), 5_000)
 
   try {
-    const response = await fetch(keycloakOtpVerifyUrl, {
+    const normalizedUrl = normalizeServiceBaseUrl(keycloakOtpVerifyUrl, 'keycloakOtpVerifyUrl', {
+      allowBareInternalHttp: true,
+    })
+    const response = await fetch(normalizedUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ otp_code: otpCode, requester_id: requesterId }),

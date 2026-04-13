@@ -5,6 +5,7 @@
 
 import { compareResources, resolveAction, buildDiff } from '../reprovision/diff.mjs';
 import { REDACTED_MARKER, zeroCounts } from '../reprovision/types.mjs';
+import { buildServiceUrl, encodePathSegment, normalizeServiceBaseUrl } from '../http/safe-url.mjs';
 
 const RESOURCE_TYPES = ['roles', 'groups', 'client_scopes', 'identity_providers'];
 const TIMESTAMP_KEYS = ['createdTimestamp', 'lastModifiedTimestamp', 'created_at', 'updated_at'];
@@ -37,7 +38,10 @@ export async function apply(tenantId, domainData, options = {}) {
 
   // Helper to get an admin token for Keycloak
   const getAdminToken = credentials.getAdminToken ?? (async () => {
-    const tokenUrl = `${keycloakUrl}/realms/master/protocol/openid-connect/token`;
+    const normalizedKeycloakUrl = normalizeServiceBaseUrl(keycloakUrl, 'CONFIG_IMPORT_KEYCLOAK_URL', {
+      allowBareInternalHttp: true,
+    });
+    const tokenUrl = buildServiceUrl(normalizedKeycloakUrl, 'realms/master/protocol/openid-connect/token');
     const res = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -50,7 +54,11 @@ export async function apply(tenantId, domainData, options = {}) {
   // Helper for Keycloak API calls
   const kcApi = credentials.kcApi ?? (async (method, path, body) => {
     const token = await getAdminToken();
-    const url = `${keycloakUrl}/admin/realms/${encodeURIComponent(realm)}${path}`;
+    const normalizedKeycloakUrl = normalizeServiceBaseUrl(keycloakUrl, 'CONFIG_IMPORT_KEYCLOAK_URL', {
+      allowBareInternalHttp: true,
+    });
+    const realmPath = encodePathSegment(realm, 'realm');
+    const url = buildServiceUrl(normalizedKeycloakUrl, `admin/realms/${realmPath}${path}`);
     const opts = { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
     if (body !== undefined) opts.body = JSON.stringify(body);
     return fetch(url, opts);
