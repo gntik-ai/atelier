@@ -818,6 +818,8 @@ test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG")" = '600'
 test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG")" = '600'
 test -n "$FALCONE_RESTORE_WORKSPACE_A"
 test -n "$FALCONE_RESTORE_LOCAL_PORT"
+FALCONE_RESTORE_PARITY_VERIFIED=false
+export FALCONE_RESTORE_PARITY_VERIFIED
 
 FALCONE_RESTORE_PARITY_DIR="$(mktemp -d /tmp/falcone-c25-parity.XXXXXX)"
 chmod 0700 "$FALCONE_RESTORE_PARITY_DIR"
@@ -840,14 +842,23 @@ cleanup_webhook_parity() {
 trap 'cleanup_webhook_parity; cleanup_webhook_kube_restore' EXIT HUP INT TERM
 
 FALCONE_RESTORE_API_BASE="http://127.0.0.1:${FALCONE_RESTORE_LOCAL_PORT}"
-until curl --silent --show-error --fail \
+FALCONE_RESTORE_READY_ATTEMPTS=0
+until curl --connect-timeout 2 --max-time 5 \
+  --silent --show-error --fail \
   "${FALCONE_RESTORE_API_BASE}/readyz" >/dev/null; do
   kill -0 "$FALCONE_RESTORE_PORT_FORWARD_PID"
+  FALCONE_RESTORE_READY_ATTEMPTS=$((FALCONE_RESTORE_READY_ATTEMPTS + 1))
+  if test "$FALCONE_RESTORE_READY_ATTEMPTS" -ge 60; then
+    printf '%s\n' 'restored-copy readiness timed out' >&2
+    exit 1
+  fi
   sleep 1
 done
+unset FALCONE_RESTORE_READY_ATTEMPTS
 
 FALCONE_RESTORE_EVENT_TYPES_STATUS="$(
   curl --config "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
+    --connect-timeout 5 --max-time 30 \
     --silent --show-error \
     --output "${FALCONE_RESTORE_PARITY_DIR}/event-types.json" \
     --write-out '%{http_code}' \
@@ -862,6 +873,7 @@ test "$(
 
 FALCONE_RESTORE_OWN_LIST_STATUS="$(
   curl --config "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
+    --connect-timeout 5 --max-time 30 \
     --silent --show-error \
     --output "${FALCONE_RESTORE_PARITY_DIR}/own-list.json" \
     --write-out '%{http_code}' \
@@ -876,6 +888,7 @@ test "$FALCONE_RESTORE_OWN_COUNT" -ge 0
 
 FALCONE_RESTORE_CROSS_SCOPE_STATUS="$(
   curl --config "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG" \
+    --connect-timeout 5 --max-time 30 \
     --silent --show-error \
     --output "${FALCONE_RESTORE_PARITY_DIR}/cross-scope.json" \
     --write-out '%{http_code}' \
