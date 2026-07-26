@@ -34,6 +34,9 @@ test('schema or key failure prevents configure and listen', async () => {
 test('bootstrap error sanitizer never returns raw database, key, or environment detail', () => {
   assert.equal(sanitizedWebhookBootstrapError({ code: 'WEBHOOK_KEY_FORMAT_INVALID', message: 'material' }), 'WEBHOOK_KEY_FORMAT_INVALID');
   assert.equal(sanitizedWebhookBootstrapError({ code: 'WEBHOOK_KEY_CONTEXT_NOT_VERIFIED', message: 'state detail' }), 'WEBHOOK_KEY_CONTEXT_NOT_VERIFIED');
+  assert.equal(sanitizedWebhookBootstrapError({ code: 'WEBHOOK_DATABASE_PRINCIPALS_INVALID', message: 'role details' }), 'WEBHOOK_DATABASE_PRINCIPALS_INVALID');
+  assert.equal(sanitizedWebhookBootstrapError({ code: 'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED', message: 'DSN detail' }), 'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED');
+  assert.equal(sanitizedWebhookBootstrapError({ code: 'WEBHOOK_POSTGRESQL_16_REQUIRED', message: 'catalog detail' }), 'WEBHOOK_POSTGRESQL_16_REQUIRED');
   assert.equal(sanitizedWebhookBootstrapError({ code: '23505', message: 'SQL and parameters' }), 'WEBHOOK_KEY_BOOTSTRAP_FAILED');
   assert.equal(sanitizedWebhookBootstrapError(new Error('raw environment value')), 'WEBHOOK_KEY_BOOTSTRAP_FAILED');
 });

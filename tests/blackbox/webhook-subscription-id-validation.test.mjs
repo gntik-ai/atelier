@@ -62,9 +62,9 @@ function memDb() {
     async getWorkspaceSubscriptionCount(t, w) {
       return [...subs.values()].filter((s) => s.tenant_id === t && s.workspace_id === w && !s.deleted_at).length;
     },
-    async insertSubscription(r) { subs.set(r.id, { ...r }); },
-    async insertSecret(id, enc, t, w, encryptionKeyId) {
-      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, encryption_key_id: encryptionKeyId, status: 'active', tenant_id: t, workspace_id: w });
+    async insertSubscriptionWithSecret(r, enc, encryptionKeyId) {
+      subs.set(r.id, { ...r });
+      secrets.push({ subscription_id: r.id, secret_cipher: enc.cipher, secret_iv: enc.iv, encryption_key_id: encryptionKeyId, status: 'active', tenant_id: r.tenant_id, workspace_id: r.workspace_id });
     },
     async listSubscriptions(ctx) {
       return [...subs.values()].filter((s) => s.tenant_id === ctx.tenantId && s.workspace_id === ctx.workspaceId && !s.deleted_at);
@@ -91,8 +91,20 @@ function memDb() {
 }
 
 // Build the ctx the control-plane server hands a local handler.
+const CONTROL_PLANE_POOL = { async query() {} };
+const WEBHOOK_RUNTIME_POOL = { async query() {} };
+const WEBHOOK_WRITE_POOL = { async query() {} };
 function ctx({ method = 'GET', url, body = {}, query = {}, identity, params = {} }) {
-  return { req: { method, url }, body, query, identity, params, pool: {} };
+  return {
+    req: { method, url },
+    body,
+    query,
+    identity,
+    params,
+    pool: CONTROL_PLANE_POOL,
+    webhookRuntimePool: WEBHOOK_RUNTIME_POOL,
+    webhookWritePool: WEBHOOK_WRITE_POOL,
+  };
 }
 const A = { sub: 'user-a', tenantId: 'tenant-a', workspaceId: 'ws-a', actorType: 'tenant_owner' };
 const ownedWs = (tenantId) => async (_pool, wsId) => ({ id: wsId, tenant_id: tenantId });

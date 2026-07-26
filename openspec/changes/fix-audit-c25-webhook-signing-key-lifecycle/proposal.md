@@ -28,6 +28,26 @@ must retain current authorization, isolation, webhook behavior, and usable recov
   additive migration `004`, strictly parse and resolve the configured key, verify its opaque identity
   and lifecycle state, and fail closed on missing, malformed, incompatible, incomplete, or ambiguous
   material.
+- Preserve the existing global `DB_URL`/`PG*` control-plane pool and its tenant/workspace, saga,
+  governance, and workspace-database duties. Authenticate webhook schema execution, ordinary
+  webhook runtime reads, encrypted writes, and lifecycle maintenance through four additional,
+  distinct bounded database logins and DSNs. A separate chart one-shot bootstrap, and only that
+  bootstrap, receives the PostgreSQL administrator credential and owns LOGIN/NOLOGIN role creation,
+  exact PostgreSQL 16 `ADMIN`/`INHERIT`/`SET` bindings under a declared durable grantor,
+  legacy-membership repair, credential persistence, and enumerated webhook-object ownership
+  transfer. Application migration replay validates the pre-created graph and deterministically
+  reconciles exact object ACL/function/RLS policy state, including complete dependent object-ACL
+  chains through owner-issued `CASCADE` at only the enumerated object/grantee boundary; it cannot
+  create roles or repair role memberships made by another grantor. Every pool verifies
+  `session_user = current_user`, rejects
+  privileged/startup-role aliases, and neither the global nor webhook runtime login owns the
+  signing table or can assume either fixed authority.
+- Make ordinary runtime webhook permissions explicit in migration `004` for both migration-003/RLS
+  present and absent deployments. Runtime retains tenant-scoped reads and non-secret operations but
+  cannot read lifecycle state or insert/update encrypted signing-secret columns; those writes remain
+  exclusive to the dedicated writer pool and fixed writer authority. Adapter construction rejects a
+  missing writer pool, a shared runtime/writer object, or a global-control-plane pool alias before
+  persistence.
 - Add explicit, idempotent maintenance operations for legacy adoption, canonical rotation, recovery,
   and finalization. Rotation quiesces webhook consumers and atomically decrypts and re-encrypts all
   existing `webhook_signing_secrets` rows under a new Secret name/key identity while preserving exact
@@ -49,7 +69,9 @@ must retain current authorization, isolation, webhook behavior, and usable recov
 
 ### New Capabilities
 
-<!-- None. -->
+- `operations`: define the PostgreSQL 16 minimum, exact durable role-edge/grantor contract,
+  global-versus-webhook pool boundary, enumerated ownership-transfer handoff, and fail-closed
+  authorization-drift recovery procedure.
 
 ### Modified Capabilities
 

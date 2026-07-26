@@ -163,6 +163,75 @@ Lifecycle tables are platform-global and accessible only through a dedicated mai
 Normal webhook database methods retain their tenant/workspace predicates and cannot invoke platform
 lifecycle operations. New and re-encrypted signing-secret rows carry the applicable
 `encryption_key_id` without changing their tenant/workspace columns or RLS/application predicates.
+Because the distinct lifecycle `LOGIN` has `INHERIT FALSE`, every lifecycle-repository read as well
+as every mutation begins a transaction and executes
+`SET LOCAL ROLE falcone_webhook_key_lifecycle` before touching either lifecycle table. Read-only
+resolution, status, and already-quiesced replay authorization use one repeatable-read, read-only
+transaction and release the leased connection after commit or rollback. Their leaf state/ledger
+helpers accept an already-leased transaction client, so a mutation reuses its existing exclusive
+transaction instead of nesting a transaction or querying through the pool. The transaction-local
+role therefore resets before later pooled work; direct lifecycle-LOGIN table reads remain denied.
+
+The existing global `DB_URL`/`PG*` pool remains the source boundary for tenant/workspace, saga,
+governance, saga recovery, and workspace-database creation. It is not rebound to a fixed webhook
+authority and does not enter webhook adapters. Four additional DSNs authenticate the webhook schema,
+ordinary runtime, encrypted-writer, and lifecycle `LOGIN`s. Schema and startup-lifecycle pools close
+after their bounded work; global, webhook-runtime, and webhook-writer pools remain serving.
+
+Before application DDL, an ordered chart one-shot bootstrap authenticates with the bundled
+PostgreSQL administrator Secret. PostgreSQL 16 is the minimum version. That bootstrap creates or
+validates the credentialed schema, runtime, writer, and lifecycle `LOGIN`s; creates or validates
+`falcone_app`, `falcone_webhook_key_lifecycle`, and `falcone_webhook_key_writer` as fixed `NOLOGIN`,
+non-superuser, non-`BYPASSRLS` authorities; declares one durable administrator grantor distinct from
+every application/fixed principal; repairs legacy memberships using that grantor; and establishes
+exactly these edges:
+
+- `falcone_app` → runtime: `ADMIN FALSE, INHERIT TRUE, SET FALSE`;
+- `falcone_webhook_key_writer` → writer:
+  `ADMIN FALSE, INHERIT FALSE, SET TRUE`;
+- `falcone_webhook_key_lifecycle` → lifecycle:
+  `ADMIN FALSE, INHERIT FALSE, SET TRUE`.
+
+It persists generated credentials for idempotent reuse. Its administrative credential is mounted
+only in that Job and is never injected into the control-plane Deployment or lifecycle Job. On
+upgrade from a legacy single-`falcone` owner, the bootstrap transfers only the four pre-C-25 webhook
+tables to the new schema LOGIN; if a prior partial attempt created C-25 objects, it also transfers
+only the two lifecycle tables and three enumerated webhook functions. The handoff validates that
+every current owner is either the proven legacy owner or the declared schema LOGIN and fails
+otherwise. It never uses a database-wide ownership reassignment.
+
+Migration `004` validates that all three fixed roles already exist with bounded attributes, verifies
+the exact PostgreSQL 16 edge options and declared grantor, and fails closed when the required graph
+is absent or invalid. It never creates/alters global roles, grants or revokes membership, binds
+logins, repairs implicit memberships, or claims it can revoke a role membership made by another
+grantor. As the bounded owner of only the enumerated webhook objects, it deterministically removes
+all PUBLIC, fixed-authority, unexpected-grantee, column-level, and function-execution excess,
+including alternate-grantor/downstream chains, with `CASCADE` at each exact enumerated
+object/grantee boundary before applying the exact allowlist. Non-enumerated objects and role
+memberships are outside that cascade boundary:
+`falcone_webhook_key_lifecycle` receives relation-scoped lifecycle grants and a
+signing-secret-only RLS policy; `falcone_webhook_key_writer` receives only grants/policies required
+for atomic encrypted writes; and `falcone_app` receives tenant-scoped webhook reads and non-secret
+operations in both migration-003/FORCE-RLS-present and RLS-absent paths. Runtime has no lifecycle
+table access and no INSERT/UPDATE privilege on encrypted signing-secret columns.
+
+For the migration-003 variant, replay drops and recreates the exact seven role-bound permissive
+policies with exact predicates and requires FORCE RLS on all four tenant relations. For the
+migration-003-absent variant, all four tenant relations remain without RLS and no policy survives.
+Lifecycle tables never enable RLS. Post-DDL verification checks exact ownership, relation and
+function ACLs and grantors, absence of column grants, RLS flags, and the complete policy inventory
+and definitions; drift cannot pass merely because ownership remains correct.
+
+Before DDL and again before listen, every real connection is leased and queried for both
+`session_user` and `current_user` before any transaction-local `SET ROLE`. The values must match and
+the global plus four webhook session users must be pairwise distinct. Each webhook login is
+non-superuser, non-`BYPASSRLS`, non-`CREATEROLE`, non-`CREATEDB`, and non-replication; the global
+login may retain only its existing `CREATEDB` capability among those attributes. All webhook
+sessions must equal their declared LOGIN names. The exact direct role graph, administrator grantor,
+enumerated webhook table/function ownership, object authorization, and RLS state must match the
+contract. The schema login owns/migrates only those objects but is not a runtime principal or
+writer/lifecycle member and is closed after migration/verification. An admin/superuser DSN hidden
+behind startup-role aliases therefore fails before lifecycle transactions or listen.
 
 *Alternative considered:* record a SHA-256 key fingerprint. Rejected because the architected
 verification ciphertext gives authenticated proof without spreading key-derived metadata.
@@ -181,6 +250,50 @@ singleton state and verification ciphertext. A database with rows but no lifecyc
 adopted explicitly and cannot auto-initialize. Management, delivery, retry, and any later webhook
 consumer receive the already-resolved `{keyBytes, keyId, mode}` context rather than independently
 reading or normalizing raw environment strings.
+
+Every ordinary adapter transaction that inserts encrypted signing-secret material, or rotates a
+per-subscription secret, takes the lifecycle advisory lock in shared transaction mode before any
+row write and asserts that durable state is `serving` with the same opaque key identity as its
+resolved context. Migration `004` also installs a database trigger over every encrypted
+signing-secret `INSERT` and relevant `UPDATE`: a statement trigger takes the same shared transaction
+lock before row discovery, and a security-invoker row trigger requires the effective
+`falcone_webhook_key_writer` role and compares the row label with the durable current identity
+obtained through a bounded security-definer function. It does not consult a caller-controlled GUC;
+the application-selected label and ciphertext therefore cannot confer write authority. A
+pre-C-25/direct runtime writer cannot bypass the fence or preserve a new label while writing old-key
+ciphertext. Before the first durable state exists only the bounded owner/superuser maintenance path
+may seed unlabeled fixtures; migration completion waits for pre-existing row writers, and adoption's
+later exclusive lock includes those writes in its all-row snapshot.
+
+Lifecycle-owned row transformations are admitted only when the transaction both holds the matching
+exclusive advisory lock and executes as the effective dedicated lifecycle role, effective table
+owner, or effective superuser. The trigger is security-invoker and evaluates `current_user`; it does
+not infer authority from `session_user`, role membership, a caller-controlled setting, or the fixed
+lock shape. Therefore even a superuser connection after `SET LOCAL ROLE falcone_app` is constrained
+as `falcone_app`, and acquiring `pg_advisory_xact_lock(723661,25)` cannot authorize a foreign-key
+INSERT/UPDATE. The lifecycle repository explicitly assumes the fixed role transaction-locally before
+taking the exclusive lock, so adoption, canonical rotation, and recovery take their transformation
+snapshot under the independently authorized effective identity. Consequently, an already-fenced
+ordinary writer commits before lifecycle can inspect all rows, while a stale source-context writer
+waiting behind a committed lifecycle operation fails with a bounded unavailable code before writing.
+
+The deployed PostgreSQL adapter also exposes one required
+`insertSubscriptionWithSecret(record, encrypted, keyId)` operation. It begins the shared-fence
+transaction before either insert, verifies the durable key identity, inserts the tenant/workspace
+subscription and its active encrypted signing-secret row, and commits both together. The production
+action has no fallback to the former split `insertSubscription` then `insertSecret` sequence. A fence,
+constraint, or secret insert failure rolls back the parent row, is mapped to a bounded application
+error, emits no created event, consumes no quota slot, and permits a corrected-key retry.
+
+`buildWebhookDb` also has no pool fallback: construction requires an explicit ordinary runtime pool
+and a distinct explicit writer pool. The handler rejects a missing pool, a shared runtime/writer
+object, or either webhook pool aliasing the global control-plane pool before it dispatches a
+persistence operation; the startup five-session verifier remains authoritative for authenticated
+database identities. A stale per-subscription rotation that reaches the shared fence returns the
+same bounded HTTP 503 `WEBHOOK_KEY_UNAVAILABLE` response as another expected encrypted write,
+changes no signing-secret row, and emits no rotation event. Unexpected database failures are
+collapsed to a storage-agnostic rotation error without SQLSTATE, constraint, key identity,
+ciphertext, IV, DSN, or exception-message detail.
 
 *Alternative considered:* validate lazily on the first webhook operation. Rejected because a pod
 could report ready and serve unrelated or partially working traffic with ambiguous encrypted state.
@@ -216,7 +329,8 @@ The maintenance command:
 1. quiesces and verifies the drain of all chart-owned consumers that can encrypt or decrypt webhook
    secrets;
 2. resolves and verifies source and target keys without printing them;
-3. takes the platform advisory lock and a database transaction lock;
+3. takes the platform advisory lock exclusively (after all ordinary shared-lock writer
+   transactions have committed) and a database transaction lock;
 4. decrypts every `webhook_signing_secrets` row with its recorded source identity;
 5. re-encrypts the exact plaintext with the canonical target using fresh AES-GCM IVs, verifies the
    result, and updates only ciphertext, IV, and `encryption_key_id`;
@@ -275,7 +389,10 @@ explicitly so the reference fix is not mistaken for end-to-end infrastructure ke
 The maintenance CLI has a read-only status mode that reports only action/request/rotation IDs, opaque
 Secret identities, managed/external custody mode, lifecycle state, counts, timestamps, and recovery
 deadline. Workload inspection shows one `secretKeyRef`, `optional: false`, and non-secret rollout
-annotations. P4/P10 do not need permission to read Secret data for these checks.
+annotations. Its lifecycle-table reads run through the same transaction-local fixed authority as
+resolution and quiesced-replay authorization; the bounded lifecycle LOGIN has no direct table grant
+and returns to its authenticated identity when the transaction ends. P4/P10 do not need permission
+to read Secret data for these checks.
 
 Logs, metrics, Kubernetes Events, CLI output/errors, test artifacts, screenshots, and audit evidence
 must use stable sanitized codes and non-secret identities. Neither success nor failure paths print

@@ -8,15 +8,12 @@
 //
 // We apply 001 (tables) + 002 (tenant_id/workspace_id columns on the secrets table)
 // + 004 (platform master-key lifecycle metadata)
-// ONLY. Migration 003 (FORCE ROW LEVEL SECURITY) is intentionally NOT applied here:
-// its policies key on current_setting('app.tenant_id') and FORCE RLS makes even the
-// table owner subject to them, so without a `SET LOCAL app.tenant_id` connection
-// wrapper EVERY webhook query would match zero rows and break the management plane.
-// On kind, tenant isolation is enforced in the webhook-db.mjs adapter SQL (every
-// scoped query carries an AND tenant_id = $ AND workspace_id = $ predicate) — the
-// same app-level model the runtime's other domain-B tables use. Rolling out
-// database-enforced RLS (with the GUC-setting connection wrapper) is the dedicated
-// RLS feature's job, not this change.
+// ONLY. Migration 003 (FORCE ROW LEVEL SECURITY) remains an independently managed
+// rollout and is intentionally not applied by this bootstrap. The runtime adapter
+// now supplies both defenses for either production state: explicit tenant/workspace
+// predicates and transaction-local app.tenant_id/app.workspace_id settings. Thus a
+// database where migration 003 is already present remains usable, while an
+// RLS-absent database does not rely on fixture-only grants or unscoped queries.
 //
 // Every statement is CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS, so
 // re-running boot is a no-op (idempotent). The packages/webhook-engine tree is
@@ -36,7 +33,7 @@ const DEFAULT_REPO_ROOT = process.env.REPO_ROOT || '/repo';
  * Apply the webhook schema (migrations 001 + 002 + 004) to the in_falcone database.
  * Idempotent. Injectable I/O for tests.
  *
- * @param {{query:(sql:string)=>Promise<any>}} pool  control-plane Postgres pool
+ * @param {{query:(sql:string)=>Promise<any>}} pool  bounded schema-owner Postgres pool
  * @param {object} [opts]
  * @param {string} [opts.repoRoot]
  * @param {(p:string,enc:string)=>Promise<string>} [opts.read]
@@ -44,12 +41,59 @@ const DEFAULT_REPO_ROOT = process.env.REPO_ROOT || '/repo';
  * @returns {Promise<string[]>}  the migration paths applied, in order
  */
 export async function applyWebhookSchema(pool, opts = {}) {
-  const { repoRoot = DEFAULT_REPO_ROOT, read = readFile, log = console } = opts;
+  const {
+    repoRoot = DEFAULT_REPO_ROOT,
+    read = readFile,
+    log = console,
+    principalNames,
+  } = opts;
+  if (!principalNames) {
+    throw Object.assign(
+      new Error('Webhook database principal configuration is incomplete'),
+      { code: 'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED' },
+    );
+  }
+  const client = typeof pool.connect === 'function' ? await pool.connect() : pool;
   const applied = [];
-  for (const rel of WEBHOOK_MIGRATIONS) {
-    const sql = await read(resolve(repoRoot, rel), 'utf8');
-    await pool.query(sql);
-    applied.push(rel);
+  try {
+    for (const rel of WEBHOOK_MIGRATIONS) {
+      const sql = await read(resolve(repoRoot, rel), 'utf8');
+      if (rel.endsWith('/004-webhook-master-key-lifecycle.sql')) {
+        let transactionStarted = false;
+        try {
+          await client.query('BEGIN');
+          transactionStarted = true;
+          await client.query(
+            `SELECT
+               set_config('falcone.webhook_schema_role', $1, true),
+               set_config('falcone.webhook_runtime_role', $2, true),
+               set_config('falcone.webhook_writer_role', $3, true),
+               set_config('falcone.webhook_lifecycle_role', $4, true),
+               set_config('falcone.webhook_authority_grantor_role', $5, true)`,
+            [
+              principalNames.schema,
+              principalNames.runtime,
+              principalNames.writer,
+              principalNames.lifecycle,
+              principalNames.grantor,
+            ],
+          );
+          await client.query(sql);
+          await client.query('COMMIT');
+          transactionStarted = false;
+        } catch (caught) {
+          if (transactionStarted) {
+            try { await client.query('ROLLBACK'); } catch { /* preserve migration failure */ }
+          }
+          throw caught;
+        }
+      } else {
+        await client.query(sql);
+      }
+      applied.push(rel);
+    }
+  } finally {
+    if (client !== pool) client.release?.();
   }
   log.log?.(`[control-plane] webhook schema ready (${applied.length} migrations)`);
   return applied;

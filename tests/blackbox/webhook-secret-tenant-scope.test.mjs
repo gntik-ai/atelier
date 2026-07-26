@@ -32,15 +32,17 @@ const kafka = { publish: async () => {} };
 const tenantA = { tenantId: 'tenant-a', workspaceId: 'ws-a', actorId: 'user-a' };
 const publicResolver = async () => ['93.184.216.34']; // example.com, public IP
 
-// Management db that records the exact args passed to insertSecret/rotateSecret.
+// Management db that records the exact args passed to the atomic create/rotate operations.
 function makeManagementDb(subscription) {
-  const calls = { insertSecret: [], rotateSecret: [] };
+  const calls = { insertSubscriptionWithSecret: [], rotateSecret: [] };
   return {
     calls,
     state: { subscriptions: new Map(), secrets: new Map() },
     async getWorkspaceSubscriptionCount() { return 0; },
-    async insertSubscription(row) { this.state.subscriptions.set(row.id, row); },
-    async insertSecret(...args) { calls.insertSecret.push(args); },
+    async insertSubscriptionWithSecret(...args) {
+      calls.insertSubscriptionWithSecret.push(args);
+      this.state.subscriptions.set(args[0].id, args[0]);
+    },
     // For rotate/getSubscription paths
     async getSubscription(id) { return subscription && subscription.id === id ? subscription : this.state.subscriptions.get(id); },
     async rotateSecret(...args) { calls.rotateSecret.push(args); }
@@ -50,7 +52,7 @@ function makeManagementDb(subscription) {
 // -------------------------------------------------------------------------
 // bbx-webhook-secret-scope-01: create propagates tenant_id/workspace_id
 // -------------------------------------------------------------------------
-test('bbx-webhook-secret-scope-01: insertSecret receives the subscription tenant_id and workspace_id', async () => {
+test('bbx-webhook-secret-scope-01: atomic create receives a tenant/workspace-scoped subscription', async () => {
   const db = makeManagementDb();
   const result = await managementMain({
     db, kafka, keyContext, env, auth: tenantA,
@@ -61,12 +63,13 @@ test('bbx-webhook-secret-scope-01: insertSecret receives the subscription tenant
   });
 
   assert.equal(result.statusCode, 201, `expected 201 but got ${result.statusCode}: ${JSON.stringify(result.body)}`);
-  assert.equal(db.calls.insertSecret.length, 1, 'insertSecret must be called exactly once');
+  assert.equal(db.calls.insertSubscriptionWithSecret.length, 1, 'atomic create must be called exactly once');
 
-  const args = db.calls.insertSecret[0];
-  // args: [subscriptionId, encrypted, tenant_id, workspace_id]
-  assert.ok(args.includes('tenant-a'), `insertSecret must be passed the subscription tenant_id; got args=${JSON.stringify(args)}`);
-  assert.ok(args.includes('ws-a'), `insertSecret must be passed the subscription workspace_id; got args=${JSON.stringify(args)}`);
+  const [record, encrypted, encryptionKeyId] = db.calls.insertSubscriptionWithSecret[0];
+  assert.equal(record.tenant_id, 'tenant-a');
+  assert.equal(record.workspace_id, 'ws-a');
+  assert.equal(typeof encrypted.cipher, 'string');
+  assert.equal(encryptionKeyId, keyContext.keyId);
 });
 
 // -------------------------------------------------------------------------
@@ -176,7 +179,11 @@ test('bbx-webhook-secret-scope-04: secret create is rejected when the subscripti
   });
 
   assert.notEqual(result.statusCode, 201, `secret create must be rejected for a record missing tenant_id (got ${result.statusCode})`);
-  assert.equal(db.calls.insertSecret.length, 0, 'insertSecret must NOT be called when tenant_id is missing');
+  assert.equal(
+    db.calls.insertSubscriptionWithSecret.length,
+    0,
+    'atomic create must NOT be called when tenant_id is missing',
+  );
 });
 
 // -------------------------------------------------------------------------

@@ -229,6 +229,19 @@ moves a manual installation into Helm. Existing manual `0.3.0` installations mus
 `0.3.0` and continue their existing manual process until a separate manual-to-Helm migration is
 approved and rehearsed; webhook key adoption does not transfer resource ownership.
 
+For C-25, preserve the control-plane's existing global `DB_URL`/`PG*` Secret wiring. It remains the
+tenant/workspace, saga, governance, and workspace-database path and must not be replaced with a
+bounded webhook login. The chart correction must add four independently persisted and
+TLS-verifying webhook DSNs—`WEBHOOK_SCHEMA_DATABASE_URL`, `WEBHOOK_RUNTIME_DATABASE_URL`,
+`WEBHOOK_KEY_WRITE_DATABASE_URL`, and `WEBHOOK_KEY_LIFECYCLE_DATABASE_URL`—plus their declared LOGIN
+names and `WEBHOOK_DATABASE_AUTHORITY_GRANTOR_ROLE`. Only the one-shot PostgreSQL bootstrap receives
+the administrator DSN. It must run on PostgreSQL 16 or newer, install the exact
+`ADMIN`/`INHERIT`/`SET` membership options documented in the
+[Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle), and transfer
+only the enumerated webhook objects from a proven legacy owner to the bounded schema LOGIN. The
+control-plane closes schema and startup-lifecycle pools after verification while retaining global,
+webhook-runtime, and webhook-writer pools for serving.
+
 ## Schema validation
 
 The chart ships a strict `values.schema.json`. `helm install` and `helm upgrade` validate values by

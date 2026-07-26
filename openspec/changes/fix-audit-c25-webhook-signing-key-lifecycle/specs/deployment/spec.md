@@ -78,6 +78,82 @@ missing or incompatible material SHALL fail closed rather than regenerate implic
 - **WHEN** referenced material has padding, whitespace, a non-base64url alphabet, an unknown version, a non-43-character payload, non-canonical encoding, or a decoded length other than 32 bytes
 - **THEN** validation fails closed without normalizing, hashing, replacing, logging, or deploying the malformed material
 
+### Requirement: PostgreSQL authority bootstrap is one-shot and absent from the control plane
+
+Before application DDL on install or upgrade, the chart SHALL run a separate PostgreSQL
+authority-bootstrap Job authenticated from the bundled PostgreSQL administrator Secret. The Job
+SHALL require PostgreSQL 16 or newer and create or validate four pairwise-distinct bounded webhook
+`LOGIN`s for schema ownership, ordinary runtime, encrypted writes, and lifecycle maintenance, plus
+fixed `NOLOGIN` authorities
+`falcone_app`, `falcone_webhook_key_writer`, and `falcone_webhook_key_lifecycle`. It SHALL remove
+legacy and implicit creator memberships using one declared durable administrator grantor distinct
+from every fixed, bounded webhook, and global application principal. It SHALL then bind exactly
+`falcone_app` to runtime with `ADMIN FALSE, INHERIT TRUE, SET FALSE`,
+`falcone_webhook_key_writer` to writer with `ADMIN FALSE, INHERIT FALSE, SET TRUE`, and
+`falcone_webhook_key_lifecycle` to lifecycle with `ADMIN FALSE, INHERIT FALSE, SET TRUE`.
+
+Every long-running webhook principal SHALL be `NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+NOBYPASSRLS`. The schema principal SHALL own and migrate only the enumerated webhook objects, SHALL
+hold none of the fixed runtime/writer/lifecycle roles, and SHALL be disconnected after startup
+verification. The existing global `DB_URL`/`PG*` principal SHALL remain separate, retain its current
+tenant/workspace, saga, governance, and workspace-database responsibilities, and MAY retain
+`CREATEDB`; the chart SHALL NOT replace that global DSN with the bounded webhook runtime DSN.
+
+On upgrade from the legacy single `falcone` owner, the bootstrap SHALL transfer only the existing
+`webhook_subscriptions`, `webhook_signing_secrets`, `webhook_deliveries`, and
+`webhook_delivery_attempts` tables to the bounded schema LOGIN before migration 004. If a replay or
+partial prior attempt already created them, it SHALL also validate/transfer only
+`webhook_master_key_state`, `webhook_master_key_rotations`,
+`falcone_webhook_key_write_current_id()`,
+`falcone_webhook_signing_secret_write_statement_fence()`, and
+`falcone_webhook_signing_secret_write_fence()`. Each transfer SHALL accept only the proven legacy
+owner or the declared schema LOGIN as current owner and fail otherwise. A database-wide
+`REASSIGN OWNED` SHALL NOT be used.
+
+Generated credentials SHALL be persisted and reused through a retained Kubernetes Secret without
+placing plaintext passwords or DSNs in Helm values, rendered manifests, annotations, command
+arguments, logs, Events, or evidence. The administrative Secret SHALL be mounted only by the
+authority-bootstrap Job. It SHALL NOT be referenced by the control-plane Deployment, application
+schema step, key lifecycle Job, or any long-running workload. The four bounded DSNs SHALL be
+assembled or stored through Secret data and injected only by required Secret references, in
+addition to the unchanged global DSN. Every
+connection SHALL verify the PostgreSQL server certificate and hostname using the configured CA.
+
+#### Scenario: Fresh install bootstraps the exact graph before DDL
+
+- **WHEN** a fresh bundled-PostgreSQL install reaches the authority phase
+- **THEN** the one-shot Job creates or validates four bounded distinct webhook logins and three bounded fixed authorities, persists reusable generated credentials, establishes only the three required membership edges with the exact PostgreSQL 16 options and durable grantor, and completes before the bounded schema login applies migration 004
+
+#### Scenario: Legacy upgrade transfers only enumerated webhook ownership
+
+- **WHEN** an upgrade starts from a database whose webhook objects are owned by the legacy single `falcone` login
+- **THEN** the Job creates a distinct bounded schema/runtime/writer/lifecycle graph, transfers only the enumerated webhook tables/functions from the proven legacy owner to the schema LOGIN, leaves all non-webhook ownership and the global DSN unchanged, and fails rather than taking ownership from an undeclared principal
+
+#### Scenario: Administrative credential never reaches application workloads
+
+- **WHEN** the chart renders or runs the control-plane Deployment, schema application, or lifecycle maintenance Job
+- **THEN** none references the PostgreSQL administrator Secret or receives a superuser/CREATEROLE DSN, while the authority-bootstrap Job is the only consumer of that Secret
+
+#### Scenario: Global control-plane DSN remains independent
+
+- **WHEN** the corrected chart renders the long-running control-plane workload
+- **THEN** it preserves the existing global `DB_URL`/`PG*` Secret contract and separately injects all four webhook DSNs, so global schema/saga/governance/workspace-database operations cannot be silently routed through the bounded webhook runtime
+
+#### Scenario: Bootstrap replay is idempotent and credential-stable
+
+- **WHEN** the pre-install/pre-upgrade hook is retried with an already valid role graph and persisted credential Secret
+- **THEN** it reuses the exact bounded login credentials, validates roles, memberships, ownership, grants, and TLS, makes no unnecessary change, and exposes no credential material
+
+#### Scenario: Authority or parity failure blocks rollout
+
+- **WHEN** role attributes, exact memberships, object ownership, ordinary runtime grants, credential persistence, backup preflight, or TLS verification cannot be proven
+- **THEN** the hook fails with a bounded secret-safe status before application rollout and preserves the prior Deployment, database, credentials, and recovery assets for diagnosis or restore
+
+#### Scenario: Reverse handoff is explicitly limited
+
+- **WHEN** an operator considers rollback after the four-principal handoff or a committed key transition
+- **THEN** the runbook requires a compatible database-and-Secret restore or the fixed chart's forward recovery path, forbids collapsing back to one privileged application DSN, and documents that Helm rollback alone cannot reverse role ownership, grants, ciphertext, or lifecycle state
+
 ### Requirement: Externally managed webhook Secrets remain externally owned
 
 The system SHALL treat `create=false` as read-only validation of an externally managed Secret. The

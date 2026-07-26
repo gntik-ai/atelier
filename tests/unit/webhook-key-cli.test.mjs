@@ -57,6 +57,11 @@ test('external Secret validation is read-only and managed missing ordinary upgra
 
 test('ordinary managed upgrade validates and reuses the existing bytes without mutation', async () => {
   const material = formatCanonicalWebhookKey(Buffer.alloc(32, 0x23));
+  const expectedKeyId = deriveWebhookKeyId(
+    'falcone-test',
+    baseEnv.WEBHOOK_SECRET_NAME,
+    baseEnv.WEBHOOK_SECRET_KEY,
+  );
   const existing = {
     immutable: true,
     metadata: {
@@ -67,6 +72,7 @@ test('ordinary managed upgrade validates and reuses the existing bytes without m
       annotations: {
         'meta.helm.sh/release-name': baseEnv.RELEASE_NAME,
         'meta.helm.sh/release-namespace': baseEnv.RELEASE_NAMESPACE,
+        'in-falcone.io/webhook-key-id': expectedKeyId,
       },
     },
     data: { key: Buffer.from(material).toString('base64') },
@@ -84,6 +90,62 @@ test('ordinary managed upgrade validates and reuses the existing bytes without m
     api: fakeApi({ ...existing, data: { key: Buffer.from('malformed').toString('base64') } }),
     argv: ['node', 'cli'],
   }), { code: 'WEBHOOK_KEY_FORMAT_INVALID' });
+});
+
+test('ordinary managed ensure rejects absent or mismatched opaque identity metadata', async () => {
+  const material = formatCanonicalWebhookKey(Buffer.alloc(32, 0x24));
+  const expectedKeyId = deriveWebhookKeyId(
+    'falcone-test',
+    baseEnv.WEBHOOK_SECRET_NAME,
+    baseEnv.WEBHOOK_SECRET_KEY,
+  );
+  const existing = {
+    immutable: true,
+    metadata: {
+      labels: {
+        'in-falcone.io/webhook-key-managed': 'true',
+        'app.kubernetes.io/instance': baseEnv.RELEASE_NAME,
+      },
+      annotations: {
+        'meta.helm.sh/release-name': baseEnv.RELEASE_NAME,
+        'meta.helm.sh/release-namespace': baseEnv.RELEASE_NAMESPACE,
+        'in-falcone.io/webhook-key-id': expectedKeyId,
+      },
+    },
+    data: { key: Buffer.from(material).toString('base64') },
+  };
+
+  for (const annotations of [
+    {
+      'meta.helm.sh/release-name': baseEnv.RELEASE_NAME,
+      'meta.helm.sh/release-namespace': baseEnv.RELEASE_NAMESPACE,
+    },
+    {
+      ...existing.metadata.annotations,
+      'in-falcone.io/webhook-key-id': `wk1:${'f'.repeat(64)}`,
+    },
+  ]) {
+    const api = fakeApi({
+      ...existing,
+      metadata: { ...existing.metadata, annotations },
+    });
+    await assert.rejects(
+      runWebhookCredentialLifecycle({
+        ...baseEnv,
+        WEBHOOK_KEY_IS_UPGRADE: 'true',
+      }, { api, argv: ['node', 'cli'] }),
+      (caught) => {
+        assert.equal(caught.code, 'CREDENTIAL_MANAGED_IDENTITY_CONFLICT');
+        assert.equal(caught.message, 'managed identity conflict');
+        assert.doesNotMatch(
+          caught.message,
+          /wk1:|webhook-master-key|falcone-test/,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(api.calls.map(({ action }) => action), ['get']);
+  }
 });
 
 test('finalization never deletes current or external Secret identities', async () => {

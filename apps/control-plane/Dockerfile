@@ -33,6 +33,7 @@ COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
      apps/control-plane/realtime-handlers.mjs \
      apps/control-plane/webhook-handlers.mjs apps/control-plane/webhook-db.mjs \
      apps/control-plane/webhook-schema.mjs apps/control-plane/webhook-key-runtime.mjs \
+     apps/control-plane/webhook-database-principals.mjs \
      apps/control-plane/webhook-runtime.mjs \
      apps/control-plane/webhook-key-lifecycle-cli.mjs \
      apps/control-plane/webhook-key-credential-cli.mjs \
@@ -42,6 +43,7 @@ COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
      apps/control-plane/transport-security.mjs \
      apps/control-plane/request-body.mjs \
      apps/control-plane/control-plane-startup.mjs \
+     apps/control-plane/control-plane-database-startup.mjs \
      apps/control-plane/tenant-config-export.mjs \
      apps/control-plane/route-map.runtime.json ./
 
@@ -71,6 +73,11 @@ RUN ln -sfn /repo/packages /packages
 # request 500'd with ERR_MODULE_NOT_FOUND at runtime. This static check turns a
 # missing COPY into a build failure instead of a runtime 500.
 RUN node -e "const fs=require('fs');const list=JSON.parse(fs.readFileSync('./route-map.runtime.json','utf8'));const mods=[...new Set(list.filter(r=>typeof r.module==='string').map(r=>r.module))];const miss=mods.filter(p=>!fs.existsSync(p));if(miss.length){console.error('[build] route map references missing handler modules:\n  '+miss.join('\n  '));process.exit(1)}console.log('[build] all '+mods.length+' route handler modules resolve')"
+
+# Import the side-effect-free database-startup seam that server.mjs imports at
+# boot. This makes an incomplete explicit COPY list fail during image build,
+# before the published image can crash-loop with ERR_MODULE_NOT_FOUND.
+RUN node -e "import('./control-plane-database-startup.mjs').then(()=>console.log('[build] control-plane database-startup import resolves')).catch((error)=>{console.error('[build] control-plane database-startup import failed:',error.code||error.name);process.exit(1)})"
 
 ENV NODE_ENV=production
 USER 1000

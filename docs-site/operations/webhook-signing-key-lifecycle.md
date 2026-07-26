@@ -5,10 +5,11 @@ webhook signing secret. It covers a fresh install, explicit adoption of pre-0.3.
 canonical rotation, forward recovery, finalization, incident response, and secret-safe evidence.
 
 > [!WARNING]
-> **Release status: unreleased and not yet live-verified.** This page is grounded in the Falcone and
-> `falcone-charts` C-25 source implementation on 2026-07-22. The compatible control-plane image,
-> chart release, cross-repository pin, disposable-kind rehearsal, and OpenShift rehearsal were not
-> complete at that point. Do not use an unpublished image/chart pair in production. Before use,
+> **Release status: unreleased and not yet live-verified.** This page is grounded in the Falcone
+> C-25 source implementation and the corrected PostgreSQL authority handoff specified on
+> 2026-07-25. The corresponding `falcone-charts` database-bootstrap implementation, compatible
+> control-plane image, chart release, cross-repository pin, disposable-kind rehearsal, and
+> OpenShift rehearsal are not complete. Do not use an unpublished image/chart pair in production. Before use,
 > confirm that both artifacts described in [Version compatibility](#version-compatibility) are
 > published and that your release notes contain the completed live-verification evidence.
 
@@ -96,6 +97,11 @@ The lifecycle transaction changes only each row's ciphertext, IV, and `encryptio
 preserves the signing-secret plaintext, IDs, tenant/workspace ownership, status, grace/revocation
 data, tenant authorization, quotas, per-subscription rotation behavior, and public webhook signature
 format.
+
+Ordinary webhook adapters require both a bounded runtime pool and a distinct explicit encrypted
+writer pool. Construction has no writer fallback. Missing or shared pools, and either webhook pool
+aliasing the global `DB_URL`/`PG*` control-plane pool at the handler seam, fail before webhook
+persistence. The five-session startup verifier remains the database-level authority.
 
 ## Version compatibility
 
@@ -462,6 +468,23 @@ Expected state:
 - the pre-install credential hook creates the missing managed Secret and is deleted after success;
 - the Secret is immutable, release-owned, annotated `helm.sh/resource-policy: keep`, and not stored
   in Helm manifests/history;
+- before application DDL, a separate PostgreSQL authority-bootstrap Job is the only workload that
+  receives the bundled administrator Secret; it creates/validates four bounded LOGINs and the three
+  fixed NOLOGIN authorities, persists reusable credentials, and establishes only
+  `falcone_app` → runtime (`ADMIN FALSE, INHERIT TRUE, SET FALSE`),
+  `falcone_webhook_key_writer` → writer
+  (`ADMIN FALSE, INHERIT FALSE, SET TRUE`), and
+  `falcone_webhook_key_lifecycle` → lifecycle
+  (`ADMIN FALSE, INHERIT FALSE, SET TRUE`), all recorded under one declared durable administrator
+  grantor;
+- the control-plane receives four Secret-backed, TLS-verifying webhook-only DSNs in addition to its
+  unchanged global `DB_URL`/`PG*` DSN, but never the administrator credential; schema startup proves
+  five distinct authenticated application sessions and exact ownership/role edges, applies only
+  webhook migration `004` through the schema pool, and closes that pool;
+- tenant/workspace, saga, governance, saga recovery, and workspace-database creation remain on the
+  existing global pool; ordinary webhook adapters use only `WEBHOOK_RUNTIME_DATABASE_URL`, encrypted
+  writes use only `WEBHOOK_KEY_WRITE_DATABASE_URL`, and startup key verification uses and then closes
+  `WEBHOOK_KEY_LIFECYCLE_DATABASE_URL`;
 - the control-plane Deployment references the Secret with `optional: false`;
 - startup creates canonical serving state only when the database has no legacy rows;
 - the Deployment rolls out and `/readyz` becomes available only after verification.
@@ -668,19 +691,77 @@ helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
 The credential hook first validates the external legacy Secret read-only. The upgrade-only lifecycle
 hook then:
 
-1. records the current replica count;
-2. scales the control-plane Deployment to zero and verifies drain;
-3. applies migration `004`;
-4. takes a PostgreSQL advisory/transaction lock with a 15-second lock timeout and 30-minute statement
-   timeout;
-5. authenticates/decrypts every legacy row with the exact historical normalization;
-6. atomically labels every row, creates the encrypted verification sentinel and legacy serving
+1. runs a separate, ordered PostgreSQL authority-bootstrap Job before any application DDL. Only this
+   one-shot Job receives the bundled PostgreSQL administrator Secret. It creates or validates the
+   distinct schema/runtime/writer/lifecycle LOGINs, creates or validates `falcone_app`,
+   `falcone_webhook_key_lifecycle`, and `falcone_webhook_key_writer` as fixed `NOLOGIN`,
+   non-superuser, non-`BYPASSRLS` authorities, repairs legacy memberships using one declared durable
+   administrator grantor, and binds exactly `falcone_app` → runtime
+   (`ADMIN FALSE, INHERIT TRUE, SET FALSE`), `falcone_webhook_key_writer` → writer
+   (`ADMIN FALSE, INHERIT FALSE, SET TRUE`), and `falcone_webhook_key_lifecycle` → lifecycle
+   (`ADMIN FALSE, INHERIT FALSE, SET TRUE`). PostgreSQL 16 or newer is required. For a legacy
+   single-`falcone` database, the Job transfers only
+   `webhook_subscriptions`, `webhook_signing_secrets`, `webhook_deliveries`, and
+   `webhook_delivery_attempts` from the proven legacy owner to the new schema LOGIN before migration
+   `004`. On replay or a partially completed prior attempt it additionally validates/transfers only
+   `webhook_master_key_state`, `webhook_master_key_rotations`,
+   `falcone_webhook_key_write_current_id()`,
+   `falcone_webhook_signing_secret_write_statement_fence()`, and
+   `falcone_webhook_signing_secret_write_fence()` when they already exist. It fails on any other
+   current owner and never uses `REASSIGN OWNED`, so non-webhook control-plane ownership remains
+   unchanged.
+   Generated login passwords are persisted and reused in Secret data without entering rendered
+   manifests, values, logs, Events, or command arguments. The administrator credential is never
+   mounted into the control-plane Deployment or lifecycle Job;
+2. authenticates the global control-plane session plus all four webhook-only application sessions
+   before DDL. Each connection must begin with `session_user = current_user`; all five session users
+   must be distinct. The webhook sessions are free of superuser, `BYPASSRLS`, `CREATEROLE`,
+   `CREATEDB`, and replication authority. The global session remains separate and may retain its
+   existing `CREATEDB` capability for workspace databases, but cannot be a fixed authority, webhook
+   schema owner, writer, lifecycle principal, or declared grantor. A superuser/admin session with
+   startup-role aliases is rejected. Tenant/workspace, saga, and governance schemas plus saga
+   recovery run through that unchanged global pool; the bounded schema login applies only the
+   additive, idempotent webhook schema set, including migration `004`, before Kubernetes
+   quiescence. This schema step creates nullable lifecycle metadata and tables and installs the
+   non-transforming shared/exclusive database write fence. Installing the trigger waits for any
+   pre-existing legacy row-writing transaction to finish before migration completion. Once the
+   trigger is active, a legacy writer that lacks the dedicated writer authority fails closed rather
+   than adding another unlabeled row; the hook proceeds directly to verified quiescence.
+   The schema step does not label, decrypt, re-encrypt, or otherwise transform existing
+   signing-secret rows. A schema failure therefore occurs before the hook changes the Deployment
+   replica count. Migration `004` validates the pre-created global roles and fails with a bounded
+   error when they or the graph are absent/invalid. It changes only object DDL and object
+   privileges: it cannot create roles, bind memberships, or claim to revoke a role membership made
+   by another grantor. It supplies ordinary runtime permissions in both FORCE-RLS-present and RLS-absent
+   paths, while revoking runtime encrypted-column writes and lifecycle-table access. After DDL, the
+   application re-authenticates the sessions; verifies the exact PostgreSQL 16 role
+   options/grantor, object ACLs, absence of column grants, function execution, RLS mode, exact policy
+   inventory/definitions, and schema ownership. For the six enumerated relations and three
+   enumerated functions, the bounded object owner uses `CASCADE` at each exact object/grantee
+   boundary so an alternate-grantor grant-option/downstream ACL chain cannot block replay or retain
+   excess access. This does not touch a non-enumerated object or any role membership. The
+   application then closes the schema pool. Ordinary webhook reads
+   and mutations then use only the dedicated bounded runtime pool. Startup verification uses and
+   closes the lifecycle pool; the global, webhook runtime, and webhook writer pools remain serving;
+3. records the current replica count;
+4. scales the control-plane Deployment to zero and verifies drain;
+5. takes the PostgreSQL lifecycle advisory lock exclusively, after migration `004` has made every
+   ordinary encrypted signing-secret insert/update take the matching shared transaction lock and
+   validate the durable serving-key identity. The repository first executes
+   `SET LOCAL ROLE falcone_webhook_key_lifecycle`, and the security-invoker trigger requires that
+   effective role (or the inherently privileged effective table owner/superuser) in addition to the
+   exclusive lock. Advisory-lock possession alone is never lifecycle authority: even a superuser
+   session after `SET LOCAL ROLE falcone_app` is constrained as `falcone_app`. The lifecycle
+   transaction uses a 15-second lock timeout and 30-minute statement timeout;
+6. authenticates/decrypts every legacy row with the exact historical normalization;
+7. atomically labels every row, creates the encrypted verification sentinel and legacy serving
    state, and records the sanitized ledger outcome;
-7. lets the Helm upgrade roll the verified legacy-mode workload back to its declared replicas.
+8. lets the Helm upgrade roll the verified legacy-mode workload back to its declared replicas.
 
-Any incompatible row rolls back the whole transaction. On a pre-commit failure, the hook attempts to
-restore the observed replica count. If replica restoration itself fails, Helm stays failed and the
-control plane remains stopped; use [Incident response](#incident-response).
+Any incompatible row rolls back the whole transformation transaction. A schema failure happens
+before drain. On a later pre-commit failure after quiescence, the hook attempts to restore the
+observed replica count. If replica restoration itself fails, Helm stays failed and the control plane
+remains stopped; use [Incident response](#incident-response).
 
 Verify `state.lifecycleState=serving`, `state.currentMode=legacy`, the expected opaque current ID,
 and a completed adoption entry whose `affectedCount` equals `verifiedCount`. Keep the legacy adoption
@@ -697,6 +778,15 @@ The command first applies the additive, idempotent webhook schema set and then r
 lifecycle tables. On an already healthy compatible deployment the schema step is a no-op, but this is
 not a no-database-write guarantee. Only P18 should invoke it. Its JSON does not read or return Secret
 data, verification ciphertext/IV, SQL parameters, or plaintext.
+
+The distinct lifecycle database LOGIN intentionally has no direct lifecycle-table access:
+`INHERIT FALSE` prevents it from inheriting the fixed authority's grants. Resolution preflight,
+status, and already-quiesced replay authorization each open a read-only transaction, execute
+`SET LOCAL ROLE falcone_webhook_key_lifecycle`, read through that one leased connection, and then
+commit or roll back before releasing it. The transaction-local role is cleared before the
+connection returns to the pool. A direct query authenticated only as the lifecycle LOGIN is expected
+to fail with SQLSTATE `42501`; do not add a direct grant, change `INHERIT`/`SET`, or substitute an
+owner/administrator DSN to make status work.
 
 ```bash
 kubectl --namespace "$FALCONE_NAMESPACE" exec \
@@ -1251,12 +1341,17 @@ Expected CLI failure output is one JSON object with `status: failed` and a stabl
 | `CREDENTIAL_EXTERNAL_SECRET_MISSING` | The external reference does not exist. Create/restore it through approved custody, without printing bytes, then retry the exact Helm request. |
 | `CREDENTIAL_MANAGED_SECRET_MISSING` | A current managed Secret disappeared on ordinary upgrade. Do not regenerate it. Restore the exact retained Secret from encrypted custody. |
 | `CREDENTIAL_MANAGED_OWNERSHIP_CONFLICT` | A managed name exists but immutability/release ownership does not match. Stop; do not claim, relabel, patch, or delete it. |
+| `CREDENTIAL_MANAGED_IDENTITY_CONFLICT` | A managed Secret's required opaque identity annotation is absent or does not match its namespace/name/data-key reference. Stop; do not patch metadata or inspect data. Restore the exact retained chart-owned object from approved custody, or use a new target identity through the explicit lifecycle. |
 | `CREDENTIAL_SECRET_KEY_MISSING`, `WEBHOOK_KEY_MISSING` | The referenced data key is absent or empty. Do not print the object. Correct/restore it through matching custody, then retry the exact binding. |
 | `CREDENTIAL_LEGACY_GENERATION_FORBIDDEN` | The chart was asked to generate legacy bytes. Set external custody and provision the exact historical bytes; never synthesize a replacement. |
 | `CREDENTIAL_MODE_INVALID`, `WEBHOOK_KEY_MODE_INVALID`, `WEBHOOK_KEY_LEGACY_NOT_AUTHORIZED` | Mode and lifecycle state do not authorize the supplied material. Stop; reconcile chart values with status/backup custody instead of changing bytes or bypassing validation. |
 | `CREDENTIAL_INPUT_INVALID`, `CREDENTIAL_ACTION_INVALID`, `CREDENTIAL_ARGUMENTS_FORBIDDEN`, `WEBHOOK_LIFECYCLE_INPUT_INVALID`, `WEBHOOK_LIFECYCLE_ARGUMENTS_FORBIDDEN` | The internal hook/CLI contract is invalid. Re-run install/steady-state lint plus the action-specific `helm template --is-upgrade` and inspect only reference/action fields. Do not pass CLI flags or keys as arguments; escalate a chart/image mismatch. |
 | `WEBHOOK_KEY_FORMAT_INVALID` | Canonical target/external material is malformed. Replace it only through a new, correctly provisioned external identity; never print it for diagnosis. A not-yet-current managed target may be abandoned only after the deletion checks below. |
+| `WEBHOOK_POSTGRESQL_16_REQUIRED` | The database does not expose the PostgreSQL 16 membership-option contract. Keep the listener stopped and upgrade PostgreSQL through its supported backup/restore or in-place procedure before retrying C-25; do not weaken the verifier. |
+| `WEBHOOK_DATABASE_PRINCIPALS_REQUIRED`, `WEBHOOK_DATABASE_PRINCIPALS_INVALID` | One or more global/schema/runtime/writer/lifecycle DSNs, declared LOGIN/grantor names, bounded role attributes, exact PostgreSQL 16 memberships, grantor, ownership, relation/column/function ACLs, RLS mode, or policy definitions do not match the contract. Keep the listener stopped. Re-run the chart's one-shot PostgreSQL authority bootstrap with its existing persisted credential Secret; never give the application administrator/CREATEROLE authority, replace global `DB_URL` with the webhook runtime DSN, or hide one privileged session behind startup roles. |
 | `WEBHOOK_KEY_CONFIG_REQUIRED` | Required Secret-sourced material, mode, or opaque ID did not reach startup. Verify the matched chart/image and field-selected `secretKeyRef`; do not add a direct environment value. |
+| `WEBHOOK_KEY_UNAVAILABLE` | Startup or an ordinary encrypted signing-secret write could not prove a stable current serving identity. Initial subscription creation places its parent row and active signing-secret row in one shared-fence transaction, so a rejected fence commits neither row, publishes no created event, and consumes no phantom quota slot. Per-subscription rotation uses the same distinct writer pool and shared-fence transaction; a stale identity changes neither the active nor grace rows, emits no rotation event, and returns the same bounded HTTP 503 response without SQLSTATE, constraint, key ID, ciphertext, IV, DSN, or exception-message detail. Keep the maintenance operation fail closed, wait for the matched target workload to pass startup verification, and retry the tenant operation through its normal API semantics. |
+| `WEBHOOK_CREATE_FAILED` | The initial subscription/signing-secret transaction failed after validation. Both inserts roll back together and raw SQLSTATE, trigger, constraint, key, cipher, tenant/workspace, and resource-ID details are intentionally suppressed. Correct the underlying database condition from bounded operator evidence, then retry the same tenant operation; a quota-one retry is not blocked by a parent-only row. |
 | `WEBHOOK_KEY_ID_INVALID`, `WEBHOOK_KEY_CONTEXT_INVALID` | The opaque reference identity/context is invalid. Reconcile namespace, Secret name, and data-key name through the fixed chart; never derive an ID from key bytes or edit database IDs. |
 | `WEBHOOK_ADOPTION_REQUIRED` | Existing unlabeled rows need explicit legacy adoption with the exact historical key. |
 | `WEBHOOK_KEY_VERIFICATION_FAILED` | Bytes at the reference do not match the database sentinel. For same-name external mutation, restore the exact prior manager version at that identity; do not treat the mutation as rotation. |

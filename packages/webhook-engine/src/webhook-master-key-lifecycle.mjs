@@ -7,10 +7,12 @@ import {
   createLifecycleWebhookKeyContext,
   createRuntimeWebhookKeyContext,
 } from './webhook-master-key.mjs';
+import {
+  acquireWebhookKeyLifecycleFence,
+  assumeWebhookKeyLifecycleAuthority,
+} from './webhook-master-key-fence.mjs';
 
 const VERIFY_SENTINEL = 'falcone:webhook-master-key:v1';
-const ADVISORY_LOCK_CLASS = 723661;
-const ADVISORY_LOCK_OBJECT = 25;
 const COMMIT_OUTCOME_UNKNOWN = Symbol('webhook.commit-outcome-unknown');
 const VALID_ACTIONS = new Set(['adopt', 'rotate', 'recover', 'finalize']);
 const VALID_LIFECYCLE_CODES = new Set([
@@ -112,7 +114,7 @@ async function withLockedTransaction(pool, work) {
     await client.query('BEGIN');
     await client.query("SET LOCAL lock_timeout = '15s'");
     await client.query("SET LOCAL statement_timeout = '30min'");
-    await client.query('SELECT pg_advisory_xact_lock($1, $2)', [ADVISORY_LOCK_CLASS, ADVISORY_LOCK_OBJECT]);
+    await acquireWebhookKeyLifecycleFence(client);
     const result = await work(client);
     commitAttempted = true;
     await client.query('COMMIT');
@@ -120,6 +122,36 @@ async function withLockedTransaction(pool, work) {
   } catch (caught) {
     try { await client.query('ROLLBACK'); } catch { /* keep the original bounded error */ }
     if (commitAttempted) throw commitOutcomeUnknown(caught);
+    throw caught;
+  } finally {
+    client.release?.();
+  }
+}
+
+/**
+ * Execute one repository read under the fixed lifecycle authority without
+ * widening the lifecycle LOGIN's direct privileges. The leaf read helpers
+ * below accept this already-leased client; mutating transactions call those
+ * helpers directly and therefore never start a nested transaction or lease a
+ * second connection.
+ */
+async function withLifecycleAuthorityRead(pool, work) {
+  const client = typeof pool.connect === 'function' ? await pool.connect() : pool;
+  let transactionStarted = false;
+  try {
+    await client.query(
+      'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY',
+    );
+    transactionStarted = true;
+    await assumeWebhookKeyLifecycleAuthority(client);
+    const result = await work(client);
+    await client.query('COMMIT');
+    transactionStarted = false;
+    return result;
+  } catch (caught) {
+    if (transactionStarted) {
+      try { await client.query('ROLLBACK'); } catch { /* preserve the original read failure */ }
+    }
     throw caught;
   } finally {
     client.release?.();
@@ -396,37 +428,42 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
 
   return Object.freeze({
     async getResolutionState() {
-      return readState(pool, false);
+      return withLifecycleAuthorityRead(
+        pool,
+        (client) => readState(client, false),
+      );
     },
 
     async status() {
-      const state = await readState(pool, false);
-      const { rows: recent } = await pool.query(
-        `SELECT request_id, action, rotation_id, source_key_id, target_key_id,
-                source_managed, target_managed, lifecycle_state,
-                affected_count, verified_count, recovery_deadline,
-                error_code, started_at, completed_at
-           FROM webhook_master_key_rotations
-          ORDER BY started_at DESC
-          LIMIT 20`,
-      );
-      return {
-        configured: Boolean(state),
-        state: state ? {
-          lifecycleState: state.lifecycle_state,
-          currentKeyId: state.current_key_id,
-          currentMode: state.current_mode,
-          currentManaged: state.current_managed,
-          recoveryKeyId: state.recovery_key_id ?? null,
-          recoveryMode: state.recovery_mode ?? null,
-          recoveryManaged: state.recovery_managed ?? null,
-          recoveryDeadline: state.recovery_deadline ?? null,
-          activeRequestId: state.active_request_id ?? null,
-          activeRotationId: state.active_rotation_id ?? null,
-          updatedAt: state.updated_at,
-        } : null,
-        recent: recent.map(ledgerResult),
-      };
+      return withLifecycleAuthorityRead(pool, async (client) => {
+        const state = await readState(client, false);
+        const { rows: recent } = await client.query(
+          `SELECT request_id, action, rotation_id, source_key_id, target_key_id,
+                  source_managed, target_managed, lifecycle_state,
+                  affected_count, verified_count, recovery_deadline,
+                  error_code, started_at, completed_at
+             FROM webhook_master_key_rotations
+            ORDER BY started_at DESC
+            LIMIT 20`,
+        );
+        return {
+          configured: Boolean(state),
+          state: state ? {
+            lifecycleState: state.lifecycle_state,
+            currentKeyId: state.current_key_id,
+            currentMode: state.current_mode,
+            currentManaged: state.current_managed,
+            recoveryKeyId: state.recovery_key_id ?? null,
+            recoveryMode: state.recovery_mode ?? null,
+            recoveryManaged: state.recovery_managed ?? null,
+            recoveryDeadline: state.recovery_deadline ?? null,
+            activeRequestId: state.active_request_id ?? null,
+            activeRotationId: state.active_rotation_id ?? null,
+            updatedAt: state.updated_at,
+          } : null,
+          recent: recent.map(ledgerResult),
+        };
+      });
     },
 
     async authorizeQuiescedReplay({
@@ -434,23 +471,25 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
       recoveryWindowSeconds = null, targetManaged,
     }) {
       const request_id = requireId(requestId);
-      const row = await readLedger(pool, request_id);
-      if (!row || !['completed', 'recovery_required'].includes(row.lifecycle_state)) return null;
-      const expected = {
-        action,
-        rotation_id: rotationId || null,
-        source_key_id: sourceKeyId || null,
-        target_key_id: targetKeyId || null,
-        source_mode: row.source_mode ?? null,
-        target_mode: row.target_mode ?? null,
-        recovery_window_seconds: recoveryWindowSeconds ?? null,
-      };
-      if (['adopt', 'rotate', 'recover'].includes(action)) {
-        if (typeof targetManaged !== 'boolean') fail('WEBHOOK_LIFECYCLE_INPUT_INVALID');
-        expected.target_managed = targetManaged;
-      }
-      assertLedgerBinding(row, expected);
-      return ledgerResult(row);
+      return withLifecycleAuthorityRead(pool, async (client) => {
+        const row = await readLedger(client, request_id);
+        if (!row || !['completed', 'recovery_required'].includes(row.lifecycle_state)) return null;
+        const expected = {
+          action,
+          rotation_id: rotationId || null,
+          source_key_id: sourceKeyId || null,
+          target_key_id: targetKeyId || null,
+          source_mode: row.source_mode ?? null,
+          target_mode: row.target_mode ?? null,
+          recovery_window_seconds: recoveryWindowSeconds ?? null,
+        };
+        if (['adopt', 'rotate', 'recover'].includes(action)) {
+          if (typeof targetManaged !== 'boolean') fail('WEBHOOK_LIFECYCLE_INPUT_INVALID');
+          expected.target_managed = targetManaged;
+        }
+        assertLedgerBinding(row, expected);
+        return ledgerResult(row);
+      });
     },
 
     async initializeOrVerify({ material, keyId, mode, managed = false, now = new Date() }) {

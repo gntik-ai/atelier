@@ -10,8 +10,16 @@ function makeDb() {
   return {
     state,
     async getWorkspaceSubscriptionCount(tenantId, workspaceId) { return [...state.subscriptions.values()].filter((row) => row.tenant_id === tenantId && row.workspace_id === workspaceId && !row.deleted_at).length; },
-    async insertSubscription(row) { state.subscriptions.set(row.id, row); },
-    async insertSecret(subscriptionId, encrypted, tenantId, workspaceId, encryptionKeyId) { state.secrets.set(subscriptionId, [{ subscription_id: subscriptionId, secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, encryption_key_id: encryptionKeyId, status: 'active' }]); },
+    async insertSubscriptionWithSecret(row, encrypted, encryptionKeyId) {
+      state.subscriptions.set(row.id, row);
+      state.secrets.set(row.id, [{
+        subscription_id: row.id,
+        secret_cipher: encrypted.cipher,
+        secret_iv: encrypted.iv,
+        encryption_key_id: encryptionKeyId,
+        status: 'active',
+      }]);
+    },
     async getSubscription(id) { return state.subscriptions.get(id); },
     async listSubscriptions(ctx, query) { return [...state.subscriptions.values()].filter((row) => row.tenant_id === ctx.tenantId && row.workspace_id === ctx.workspaceId && !row.deleted_at && (!query.status || row.status === query.status)); },
     async updateSubscription(id, patch) { const row = { ...state.subscriptions.get(id), ...patch, updated_at: new Date().toISOString() }; state.subscriptions.set(id, row); return row; },
@@ -90,4 +98,205 @@ test('management validation and isolation errors', async () => {
   assert.equal(quota.statusCode, 409);
   const wrongWorkspace = await managementMain({ db, kafka, keyContext, env, auth: { ...auth, workspaceId: 'other' }, method: 'GET', path: `/v1/webhooks/subscriptions/${ok.body.subscriptionId}` });
   assert.equal(wrongWorkspace.statusCode, 404);
+});
+
+test('create failure is bounded, atomic, and does not consume quota before retry', async () => {
+  const db = makeDb();
+  let rejectFence = true;
+  const atomicInsert = db.insertSubscriptionWithSecret.bind(db);
+  db.insertSubscriptionWithSecret = async (...args) => {
+    if (rejectFence) {
+      rejectFence = false;
+      throw Object.assign(new Error('internal trigger detail must not escape'), {
+        code: 'WEBHOOK_KEY_UNAVAILABLE',
+      });
+    }
+    return atomicInsert(...args);
+  };
+  const env = { WEBHOOK_MAX_SUBSCRIPTIONS_PER_WORKSPACE: '1' };
+  const params = {
+    db,
+    kafka: { publish: async () => {} },
+    keyContext: TEST_WEBHOOK_KEY_CONTEXT,
+    env,
+    auth,
+    resolver,
+    method: 'POST',
+    path: '/v1/webhooks/subscriptions',
+    body: { targetUrl: 'https://example.com/hook', eventTypes: ['document.created'] },
+  };
+
+  const rejected = await managementMain(params);
+  assert.deepEqual(rejected, {
+    statusCode: 503,
+    body: {
+      code: 'WEBHOOK_KEY_UNAVAILABLE',
+      message: 'Webhook key lifecycle is not ready',
+    },
+  });
+  assert.equal(db.state.subscriptions.size, 0);
+  assert.equal(db.state.secrets.size, 0);
+  assert.doesNotMatch(JSON.stringify(rejected), /trigger detail|55000|cipher|keyBytes/);
+
+  const retried = await managementMain(params);
+  assert.equal(retried.statusCode, 201);
+  assert.equal(db.state.subscriptions.size, 1);
+  assert.equal(db.state.secrets.size, 1);
+});
+
+test('create action collapses raw PostgreSQL codes and trigger messages', async () => {
+  const params = {
+    kafka: { publish: async () => assert.fail('failed create must not publish') },
+    keyContext: TEST_WEBHOOK_KEY_CONTEXT,
+    env: { WEBHOOK_MAX_SUBSCRIPTIONS_PER_WORKSPACE: '1' },
+    auth,
+    resolver,
+    method: 'POST',
+    path: '/v1/webhooks/subscriptions',
+    body: { targetUrl: 'https://example.com/hook', eventTypes: ['document.created'] },
+  };
+  const rawDatabase = await managementMain({
+    ...params,
+    db: {
+      async getWorkspaceSubscriptionCount() { return 0; },
+      async insertSubscriptionWithSecret() {
+        throw Object.assign(new Error('raw constraint detail'), { code: '23514' });
+      },
+    },
+  });
+  assert.deepEqual(rawDatabase, {
+    statusCode: 500,
+    body: {
+      code: 'WEBHOOK_CREATE_FAILED',
+      message: 'Webhook subscription could not be created',
+    },
+  });
+  const rawTrigger = await managementMain({
+    ...params,
+    db: {
+      async getWorkspaceSubscriptionCount() { return 0; },
+      async insertSubscriptionWithSecret() {
+        throw Object.assign(new Error('WEBHOOK_KEY_WRITE_FENCED'), { code: 'XX000' });
+      },
+    },
+  });
+  assert.deepEqual(rawTrigger, {
+    statusCode: 503,
+    body: {
+      code: 'WEBHOOK_KEY_UNAVAILABLE',
+      message: 'Webhook key lifecycle is not ready',
+    },
+  });
+  assert.doesNotMatch(JSON.stringify({ rawDatabase, rawTrigger }), /23514|XX000|WRITE_FENCED|constraint/);
+});
+
+test('per-subscription rotation maps a stale lifecycle fence to a bounded retryable response', async () => {
+  const db = makeDb();
+  const published = [];
+  const kafka = {
+    publish: async (topic, payload) => published.push({ topic, payload }),
+  };
+  const create = await managementMain({
+    db,
+    kafka,
+    keyContext: TEST_WEBHOOK_KEY_CONTEXT,
+    env: {},
+    auth,
+    resolver,
+    method: 'POST',
+    path: '/v1/webhooks/subscriptions',
+    body: {
+      targetUrl: 'https://example.com/hook',
+      eventTypes: ['document.created'],
+    },
+  });
+  assert.equal(create.statusCode, 201);
+  const subscriptionId = create.body.subscriptionId;
+  const before = structuredClone(db.state.secrets.get(subscriptionId));
+  const eventsBeforeRotation = published.length;
+  const rotate = db.rotateSecret.bind(db);
+  let stale = true;
+  db.rotateSecret = async (...args) => {
+    if (stale) {
+      stale = false;
+      throw Object.assign(
+        new Error('WEBHOOK_KEY_WRITE_FENCED raw table/key detail'),
+        { code: '55000' },
+      );
+    }
+    return rotate(...args);
+  };
+  const params = {
+    db,
+    kafka,
+    keyContext: TEST_WEBHOOK_KEY_CONTEXT,
+    env: {},
+    auth,
+    method: 'POST',
+    path: `/v1/webhooks/subscriptions/${subscriptionId}/rotate-secret`,
+    body: { gracePeriodSeconds: 60 },
+  };
+
+  const rejected = await managementMain(params);
+  assert.deepEqual(rejected, {
+    statusCode: 503,
+    body: {
+      code: 'WEBHOOK_KEY_UNAVAILABLE',
+      message: 'Webhook key lifecycle is not ready',
+    },
+  });
+  assert.deepEqual(db.state.secrets.get(subscriptionId), before);
+  assert.equal(published.length, eventsBeforeRotation);
+  assert.doesNotMatch(
+    JSON.stringify(rejected),
+    /55000|WRITE_FENCED|table|key detail|cipher|secret_iv|dsn/i,
+  );
+
+  const retried = await managementMain(params);
+  assert.equal(retried.statusCode, 200);
+  assert.equal(typeof retried.body.newSigningSecret, 'string');
+  assert.equal(db.state.secrets.get(subscriptionId).length, 2);
+  assert.equal(published.length, eventsBeforeRotation + 1);
+  assert.equal(published.at(-1).topic, 'console.webhook.secret.rotated');
+});
+
+test('per-subscription rotation collapses unexpected storage detail', async () => {
+  const db = makeDb();
+  const create = await managementMain({
+    db,
+    kafka: { publish: async () => {} },
+    keyContext: TEST_WEBHOOK_KEY_CONTEXT,
+    env: {},
+    auth,
+    resolver,
+    method: 'POST',
+    path: '/v1/webhooks/subscriptions',
+    body: {
+      targetUrl: 'https://example.com/hook',
+      eventTypes: ['document.created'],
+    },
+  });
+  const before = structuredClone(db.state.secrets.get(create.body.subscriptionId));
+  db.rotateSecret = async () => {
+    throw Object.assign(new Error('constraint ciphertext key_id'), { code: '23514' });
+  };
+  const response = await managementMain({
+    db,
+    kafka: { publish: async () => assert.fail('failed rotation must not publish') },
+    keyContext: TEST_WEBHOOK_KEY_CONTEXT,
+    env: {},
+    auth,
+    method: 'POST',
+    path: `/v1/webhooks/subscriptions/${create.body.subscriptionId}/rotate-secret`,
+    body: {},
+  });
+  assert.deepEqual(response, {
+    statusCode: 500,
+    body: {
+      code: 'WEBHOOK_ROTATE_FAILED',
+      message: 'Webhook signing secret could not be rotated',
+    },
+  });
+  assert.deepEqual(db.state.secrets.get(create.body.subscriptionId), before);
+  assert.doesNotMatch(JSON.stringify(response), /23514|constraint|cipher|key_id/);
 });

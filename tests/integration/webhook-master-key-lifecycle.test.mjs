@@ -30,15 +30,17 @@ class MemoryPg {
     this.calls = [];
     this.snapshot = null;
     this.loseCommitAckOnce = false;
+    this.releaseCount = 0;
   }
 
   async connect() { return this; }
-  release() {}
+  release() { this.releaseCount += 1; }
 
   async query(text, params = []) {
     const sql = String(text).replace(/\s+/g, ' ').trim();
     this.calls.push({ sql, params: copy(params) });
-    if (sql === 'BEGIN') {
+    if (sql === 'BEGIN'
+        || sql === 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY') {
       this.snapshot = copy({ state: this.state, rows: this.rows, ledgers: this.ledgers });
       return { rows: [] };
     }
@@ -219,6 +221,13 @@ test('empty database initializes once and changed bytes at the same identity fai
   const second = await repository.initializeOrVerify({ material: targetMaterial, keyId: targetId, mode: 'canonical-v1', managed: true });
   assert.equal(first.keyId, targetId);
   assert.strictEqual(second.keyId, first.keyId);
+  const assumedRole = pg.calls.findIndex(
+    ({ sql }) => sql === 'SET LOCAL ROLE falcone_webhook_key_lifecycle',
+  );
+  const exclusiveFence = pg.calls.findIndex(
+    ({ sql }) => /SELECT pg_advisory_xact_lock\(\$1, \$2\)/.test(sql),
+  );
+  assert.ok(assumedRole > 0 && exclusiveFence > assumedRole);
   const wrong = formatCanonicalWebhookKey(Buffer.alloc(32, 0x43));
   await assert.rejects(
     repository.initializeOrVerify({ material: wrong, keyId: targetId, mode: 'canonical-v1', managed: true }),
@@ -546,6 +555,61 @@ test('recovery custody mismatch fails before row locks or transforms and preserv
       /synthetic historical fixture|v1:[A-Za-z0-9_-]{43}/,
     );
   }
+});
+
+test('lifecycle read paths use bounded read-only role transactions and release on rollback', async () => {
+  const suffix = 'bounded-read-authority';
+  const { pg, repository } = await rotatedFixture(suffix);
+  const replayBinding = {
+    requestId: `rotate-deadline-${suffix}`,
+    action: 'rotate',
+    rotationId: `rotation-deadline-${suffix}`,
+    sourceKeyId: legacyId,
+    targetKeyId: targetId,
+    targetManaged: true,
+    recoveryWindowSeconds: 3600,
+  };
+  pg.calls.length = 0;
+  const releasesBefore = pg.releaseCount;
+
+  assert.equal((await repository.getResolutionState()).current_key_id, targetId);
+  assert.equal((await repository.status()).state.currentKeyId, targetId);
+  assert.equal(
+    (await repository.authorizeQuiescedReplay(replayBinding)).requestId,
+    replayBinding.requestId,
+  );
+  await assert.rejects(
+    repository.authorizeQuiescedReplay({
+      ...replayBinding,
+      targetManaged: false,
+    }),
+    { code: 'WEBHOOK_LIFECYCLE_REQUEST_CONFLICT' },
+  );
+
+  const beginSql = 'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY';
+  const begins = pg.calls
+    .map(({ sql }, index) => ({ sql, index }))
+    .filter(({ sql }) => sql === beginSql);
+  assert.equal(begins.length, 4);
+  for (let operation = 0; operation < begins.length; operation += 1) {
+    const start = begins[operation].index;
+    const end = operation + 1 < begins.length
+      ? begins[operation + 1].index
+      : pg.calls.length;
+    const transaction = pg.calls.slice(start, end).map(({ sql }) => sql);
+    assert.equal(transaction[1], 'SET LOCAL ROLE falcone_webhook_key_lifecycle');
+    assert.ok(transaction.some((sql) => /^SELECT /.test(sql)));
+    assert.ok(!transaction.some((sql) => /pg_advisory_xact_lock/.test(sql)));
+  }
+  assert.equal(
+    pg.calls.filter(({ sql }) => sql === 'COMMIT').length,
+    3,
+  );
+  assert.equal(
+    pg.calls.filter(({ sql }) => sql === 'ROLLBACK').length,
+    1,
+  );
+  assert.equal(pg.releaseCount - releasesBefore, 4);
 });
 
 test('recovery deadline is enforced before, at, and after the transaction-consistent clock boundary', async () => {

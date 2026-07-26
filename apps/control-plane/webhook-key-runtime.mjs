@@ -33,6 +33,9 @@ export async function resolveWebhookKeyBeforeServing(pool, env = process.env) {
 export function sanitizedWebhookBootstrapError(caught) {
   const allowed = new Set([
     'WEBHOOK_ADOPTION_REQUIRED',
+    'WEBHOOK_DATABASE_PRINCIPALS_INVALID',
+    'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED',
+    'WEBHOOK_POSTGRESQL_16_REQUIRED',
     'WEBHOOK_KEY_CONFIG_REQUIRED',
     'WEBHOOK_KEY_CONTEXT_NOT_VERIFIED',
     'WEBHOOK_KEY_FORMAT_INVALID',

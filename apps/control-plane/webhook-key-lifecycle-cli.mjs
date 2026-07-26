@@ -6,6 +6,11 @@ import { createKubernetesApi, waitForDeploymentDrain } from './kubernetes-api.mj
 import { finalizeWebhookCredential } from './webhook-key-credential-cli.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
 import { applyWebhookSchema } from './webhook-schema.mjs';
+import {
+  resolveWebhookDatabasePrincipalNames,
+  verifyWebhookLifecyclePrincipalConnections,
+  verifyWebhookLifecyclePrincipalSessions,
+} from './webhook-database-principals.mjs';
 
 const { Pool } = pg;
 
@@ -77,16 +82,53 @@ export async function runWebhookLifecycle(env = process.env, deps = {}) {
   if ((deps.argv ?? process.argv).length !== 2) throw Object.assign(new Error('arguments forbidden'), { code: 'WEBHOOK_LIFECYCLE_ARGUMENTS_FORBIDDEN' });
   const action = required(env, 'WEBHOOK_KEY_LIFECYCLE_ACTION');
   if (action !== 'status' && !isLifecycleAction(action)) throw Object.assign(new Error('invalid action'), { code: 'WEBHOOK_LIFECYCLE_INPUT_INVALID' });
-  const pool = deps.pool ?? new Pool(env.DB_URL
-    ? withPostgresSsl({ connectionString: env.DB_URL, max: 2 })
-    : withPostgresSsl({ max: 2 }));
-  const repository = deps.repository ?? buildWebhookMasterKeyRepository(pool, {
-    auditWriter: deps.auditWriter ?? recordAuditEventInTransaction,
-  });
+  let pool = deps.pool ?? null;
+  let schemaPool = deps.schemaPool ?? null;
+  let ownsPool = false;
+  let ownsSchemaPool = false;
   let restore = null;
   let alreadyQuiesced = false;
   try {
-    await (deps.applySchema ?? applyWebhookSchema)(pool, { log: { log() {} } });
+    if (!pool) {
+      pool = new Pool(withPostgresSsl({
+        connectionString: required(env, 'WEBHOOK_KEY_LIFECYCLE_DATABASE_URL'),
+        max: 2,
+      }));
+      ownsPool = true;
+    }
+    if (!schemaPool) {
+      if (deps.pool) {
+        schemaPool = pool;
+      } else {
+        schemaPool = new Pool(withPostgresSsl({
+          connectionString: required(env, 'WEBHOOK_SCHEMA_DATABASE_URL'),
+          max: 1,
+        }));
+        ownsSchemaPool = true;
+      }
+    }
+    const names = deps.applySchema ? null : resolveWebhookDatabasePrincipalNames(env);
+    if (!deps.applySchema) {
+      await verifyWebhookLifecyclePrincipalSessions({
+        schemaPool,
+        lifecyclePool: pool,
+        names,
+      });
+    }
+    const repository = deps.repository ?? buildWebhookMasterKeyRepository(pool, {
+      auditWriter: deps.auditWriter ?? recordAuditEventInTransaction,
+    });
+    await (deps.applySchema ?? applyWebhookSchema)(schemaPool, {
+      log: { log() {} },
+      principalNames: names,
+    });
+    if (!deps.applySchema) {
+      await verifyWebhookLifecyclePrincipalConnections({
+        schemaPool,
+        lifecyclePool: pool,
+        names,
+      });
+    }
     if (action === 'status') return await repository.status();
     const api = deps.api ?? await createKubernetesApi(env);
     const quiesced = await quiesce(
@@ -167,7 +209,12 @@ export async function runWebhookLifecycle(env = process.env, deps = {}) {
     }
     throw caught;
   } finally {
-    if (!deps.pool) await pool.end();
+    const cleanup = [];
+    if (ownsPool && pool) cleanup.push(pool.end());
+    if (ownsSchemaPool && schemaPool && schemaPool !== pool) {
+      cleanup.push(schemaPool.end());
+    }
+    await Promise.allSettled(cleanup);
   }
 }
 

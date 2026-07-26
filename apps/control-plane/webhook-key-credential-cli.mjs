@@ -121,8 +121,13 @@ export async function runWebhookCredentialLifecycle(env = process.env, deps = {}
       data: { [secretKey]: Buffer.from(material, 'utf8').toString('base64') },
     });
     created = true;
-  } else if (create && !isOwned(secret, env)) {
-    throw Object.assign(new Error('ownership conflict'), { code: 'CREDENTIAL_MANAGED_OWNERSHIP_CONFLICT' });
+  } else if (create) {
+    if (!isOwned(secret, env)) {
+      throw Object.assign(new Error('ownership conflict'), { code: 'CREDENTIAL_MANAGED_OWNERSHIP_CONFLICT' });
+    }
+    if (secret?.metadata?.annotations?.['in-falcone.io/webhook-key-id'] !== keyId) {
+      throw Object.assign(new Error('managed identity conflict'), { code: 'CREDENTIAL_MANAGED_IDENTITY_CONFLICT' });
+    }
   }
 
   validateMaterial(parseSecretValue(secret, secretKey), mode, keyId);

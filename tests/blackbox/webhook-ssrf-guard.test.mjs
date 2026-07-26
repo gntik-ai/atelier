@@ -25,9 +25,9 @@ function makeManagementDb() {
   return {
     state,
     async getWorkspaceSubscriptionCount() { return 0; },
-    async insertSubscription(row) { state.subscriptions.set(row.id, row); },
-    async insertSecret(subscriptionId, encrypted) {
-      state.secrets.set(subscriptionId, [{ subscription_id: subscriptionId, secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, status: 'active' }]);
+    async insertSubscriptionWithSecret(row, encrypted) {
+      state.subscriptions.set(row.id, row);
+      state.secrets.set(row.id, [{ subscription_id: row.id, secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, status: 'active' }]);
     }
   };
 }

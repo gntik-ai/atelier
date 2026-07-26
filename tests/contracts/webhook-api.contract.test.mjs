@@ -5,8 +5,7 @@ import { TEST_WEBHOOK_KEY_CONTEXT } from '../helpers/webhook-key.mjs';
 
 const db = {
   async getWorkspaceSubscriptionCount() { return 0; },
-  async insertSubscription() {},
-  async insertSecret() {},
+  async insertSubscriptionWithSecret() {},
   async listSubscriptions() { return []; }
 };
 

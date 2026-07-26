@@ -20,13 +20,9 @@ import pg from 'pg';
 import { createMultiRealmVerifier, deriveRealmTopology } from './jwt-verify.mjs';
 import { routes as seedRoutes } from './routes.mjs';
 import { LOCAL_HANDLERS } from './b-handlers.mjs';
-import { ensureSchema } from './tenant-store.mjs';
 import * as tenantStore from './tenant-store.mjs';
 import { createSaRevocationCheck } from './sa-revocation.mjs';
-import { ensureSagaSchema, recoverSagas } from './saga.mjs';
 import { runWithRetry, migrationRetryConfig } from './schema-retry.mjs';
-import { applyGovernanceSchema } from './governance-schema.mjs';
-import { applyWebhookSchema } from './webhook-schema.mjs';
 import { resolveWebhookKeyBeforeServing, sanitizedWebhookBootstrapError } from './webhook-key-runtime.mjs';
 import { setWebhookKeyContext } from './webhook-handlers.mjs';
 import { tenantIdentitiesEnabled } from './storage-handlers.mjs';
@@ -36,6 +32,8 @@ import { recordRouteAudit, recordRouteDenial } from './audit-writer.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
 import { listenAfterRequiredGates } from './control-plane-startup.mjs';
+import { resolveWebhookDatabasePrincipalNames } from './webhook-database-principals.mjs';
+import { prepareControlPlaneDatabases } from './control-plane-database-startup.mjs';
 
 const { Pool } = pg;
 
@@ -44,6 +42,11 @@ const PORT = Number(process.env.PORT ?? 8080);
 // (PGHOST/PGUSER/PGPASSWORD/PGDATABASE/PGPORT) — the secure path, with PGPASSWORD
 // injected from the postgres Secret via secretKeyRef (no plaintext password).
 const DB_URL = process.env.DB_URL || null;
+const WEBHOOK_SCHEMA_DATABASE_URL = process.env.WEBHOOK_SCHEMA_DATABASE_URL || null;
+const WEBHOOK_RUNTIME_DATABASE_URL = process.env.WEBHOOK_RUNTIME_DATABASE_URL || null;
+const WEBHOOK_KEY_WRITE_DATABASE_URL = process.env.WEBHOOK_KEY_WRITE_DATABASE_URL || null;
+const WEBHOOK_KEY_LIFECYCLE_DATABASE_URL =
+  process.env.WEBHOOK_KEY_LIFECYCLE_DATABASE_URL || null;
 const JWKS_URL = process.env.KEYCLOAK_JWKS_URL
   ?? 'http://falcone-keycloak:8080/realms/in-falcone-platform/protocol/openid-connect/certs';
 const ISSUER = process.env.KEYCLOAK_ISSUER || null;   // optional exact-match check
@@ -53,6 +56,35 @@ const ROUTE_MAP_FILE = process.env.ROUTE_MAP_FILE || null; // optional JSON merg
 const pool = DB_URL
   ? new Pool(withPostgresSsl({ connectionString: DB_URL, max: 12 }))
   : new Pool(withPostgresSsl({ max: 12 }));
+const webhookSchemaPool = WEBHOOK_SCHEMA_DATABASE_URL
+  ? new Pool(withPostgresSsl({ connectionString: WEBHOOK_SCHEMA_DATABASE_URL, max: 1 }))
+  : null;
+const webhookRuntimePool = WEBHOOK_RUNTIME_DATABASE_URL
+  ? new Pool(withPostgresSsl({ connectionString: WEBHOOK_RUNTIME_DATABASE_URL, max: 12 }))
+  : null;
+const webhookWritePool = WEBHOOK_KEY_WRITE_DATABASE_URL
+  ? new Pool(withPostgresSsl({ connectionString: WEBHOOK_KEY_WRITE_DATABASE_URL, max: 4 }))
+  : null;
+const webhookLifecyclePool = WEBHOOK_KEY_LIFECYCLE_DATABASE_URL
+  ? new Pool(withPostgresSsl({ connectionString: WEBHOOK_KEY_LIFECYCLE_DATABASE_URL, max: 1 }))
+  : null;
+
+async function closePools(...candidates) {
+  const pools = [...new Set(candidates.filter(Boolean))];
+  await Promise.allSettled(pools.map((candidate) => candidate.end()));
+}
+
+function listenForRequests() {
+  return new Promise((resolve, reject) => {
+    const onError = (caught) => reject(caught);
+    server.once('error', onError);
+    server.listen(PORT, () => {
+      server.off('error', onError);
+      console.log(`[control-plane] listening on :${PORT}; routes=${ROUTES.length}; jwks=${JWKS_URL}`);
+      resolve();
+    });
+  });
+}
 // Multi-realm JWT verifier (parity with apps/control-plane-executor/src/runtime/jwt-verify.mjs, #622): trusts
 // tokens from the platform realm AND from any per-tenant realm under the same Keycloak base (derived
 // from JWKS_URL/ISSUER), fetching each realm's JWKS on demand. For a tenant-realm token the tenant id
@@ -351,7 +383,22 @@ const server = http.createServer(async (req, res) => {
     if (route.localHandler) {
       const fn = LOCAL_HANDLERS[route.localHandler];
       if (typeof fn !== 'function') return sendJson(res, 500, { code: 'NO_HANDLER', message: `local handler ${route.localHandler} missing` });
-      const ctx = { params: matched.params, query, body, rawBody, contentType, rawBodyIsBinary, identity, pool, callerContext: identity ? callerContextFrom(identity, correlationId) : null, req, res, cors: CORS };
+      const ctx = {
+        params: matched.params,
+        query,
+        body,
+        rawBody,
+        contentType,
+        rawBodyIsBinary,
+        identity,
+        pool,
+        webhookRuntimePool,
+        webhookWritePool,
+        callerContext: identity ? callerContextFrom(identity, correlationId) : null,
+        req,
+        res,
+        cors: CORS,
+      };
       // Streaming routes (e.g. SSE consume) own the response: the handler writes
       // to `res` directly and ends it; we don't sendJson() after.
       if (route.stream) { await fn(ctx, res); return; }
@@ -427,35 +474,60 @@ const server = http.createServer(async (req, res) => {
 });
 
 export async function bootstrapControlPlane() {
-  loadRoutes();
-  if (ROUTE_MAP_FILE) {
-    try {
+  try {
+    loadRoutes();
+    if (ROUTE_MAP_FILE) {
       const extra = JSON.parse(await readFile(ROUTE_MAP_FILE, 'utf8'));
       loadRoutes(Array.isArray(extra) ? extra : []);
       console.log(`[control-plane] loaded ${ROUTES.length} routes (seed + route map)`);
-    } catch {
-      console.error('[control-plane] route map load failed');
-      process.exit(1);
     }
-  }
-
-  try {
+    if (!webhookSchemaPool
+        || !webhookRuntimePool
+        || !webhookWritePool
+        || !webhookLifecyclePool) {
+      throw Object.assign(
+        new Error('Webhook database principal configuration is incomplete'),
+        { code: 'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED' },
+      );
+    }
+    const webhookDatabasePrincipals = resolveWebhookDatabasePrincipalNames(process.env);
     await listenAfterRequiredGates({
-      applySchema: () => runWithRetry(async (attempt) => {
-        await ensureSchema(pool);
-        await ensureSagaSchema(pool);
-        await applyGovernanceSchema(pool);
-        await applyWebhookSchema(pool);
-        const n = await recoverSagas(pool);
-        console.log(`[control-plane] schema ready; recovered ${n} orphaned saga(s) (attempt ${attempt})`);
-        return n;
-      }, migrationRetryConfig()),
-      resolveWebhookKey: () => resolveWebhookKeyBeforeServing(pool, process.env),
+      applySchema: async () => {
+        await runWithRetry(async (attempt) => {
+          return prepareControlPlaneDatabases({
+            controlPlanePool: pool,
+            webhookSchemaPool,
+            webhookRuntimePool,
+            webhookWritePool,
+            webhookLifecyclePool,
+            webhookDatabasePrincipals,
+            attempt,
+          });
+        }, migrationRetryConfig());
+        await webhookSchemaPool.end();
+      },
+      resolveWebhookKey: async () => {
+        try {
+          return await resolveWebhookKeyBeforeServing(
+            webhookLifecyclePool,
+            process.env,
+          );
+        } finally {
+          await webhookLifecyclePool.end();
+        }
+      },
       configureWebhookKey: setWebhookKeyContext,
-      listen: () => server.listen(PORT, () => console.log(`[control-plane] listening on :${PORT}; routes=${ROUTES.length}; jwks=${JWKS_URL}`)),
+      listen: listenForRequests,
     });
   } catch (caught) {
     console.error(`[control-plane] webhook key bootstrap failed: ${sanitizedWebhookBootstrapError(caught)}`);
+    await closePools(
+      webhookSchemaPool,
+      webhookRuntimePool,
+      webhookLifecyclePool,
+      webhookWritePool,
+      pool,
+    );
     process.exit(1);
   }
 
@@ -473,4 +545,22 @@ export async function bootstrapControlPlane() {
 }
 
 await bootstrapControlPlane();
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => server.close(() => pool.end().finally(() => process.exit(0))));
+let shutdownStarted = false;
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    if (shutdownStarted) return;
+    shutdownStarted = true;
+    const closeServer = server.listening
+      ? new Promise((resolve) => server.close(resolve))
+      : Promise.resolve();
+    closeServer
+      .then(() => closePools(
+        webhookSchemaPool,
+        webhookRuntimePool,
+        webhookLifecyclePool,
+        webhookWritePool,
+        pool,
+      ))
+      .finally(() => process.exit(0));
+  });
+}

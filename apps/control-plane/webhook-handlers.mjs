@@ -4,7 +4,9 @@
 // wired onto the kind runtime (/v1/webhooks/* returned 404 / NO_ROUTE). This
 // local handler serves the management/subscription surface by wrapping the
 // product action `webhook-management.mjs::main(params)`:
-//   - builds the Postgres-backed db adapter from the runtime pool (webhook-db.mjs),
+//   - builds the Postgres-backed db adapter from the webhook-only runtime pool
+//     (webhook-db.mjs), while workspace authorization stays on the existing
+//     global control-plane pool,
 //   - maps the server's local-handler `ctx` to the action's single-arg params
 //     (method + pathname from ctx.req.url, body, query),
 //   - derives auth from the VERIFIED identity only (ctx.identity), so a request
@@ -25,7 +27,10 @@
 // delivery-worker -> retry-scheduler), which needs a background event consumer
 // that does not yet exist on the kind runtime. The /deliveries read endpoints are
 // served and return empty lists until that loop is wired.
-import { buildWebhookDb } from './webhook-db.mjs';
+import {
+  assertWebhookDatabasePoolBoundary,
+  buildWebhookDb,
+} from './webhook-db.mjs';
 import { getWorkspace } from './tenant-store.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
 import {
@@ -68,6 +73,24 @@ export async function webhookManage(ctx, deps = {}) {
   } catch {
     return { statusCode: 503, body: { code: 'WEBHOOK_KEY_UNAVAILABLE', message: 'Webhook key lifecycle is not ready' } };
   }
+  try {
+    assertWebhookDatabasePoolBoundary(
+      ctx.webhookRuntimePool,
+      ctx.webhookWritePool,
+      { controlPlanePool: ctx.pool },
+    );
+  } catch (caught) {
+    const code = caught?.code === 'WEBHOOK_DATABASE_PRINCIPALS_INVALID'
+      ? 'WEBHOOK_DATABASE_PRINCIPALS_INVALID'
+      : 'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED';
+    return {
+      statusCode: 503,
+      body: {
+        code,
+        message: 'Webhook database principal configuration is unavailable',
+      },
+    };
+  }
   const identity = ctx.identity ?? {};
   let path = pathnameOf(ctx.req?.url);
   let workspaceId = identity.workspaceId ?? null;
@@ -88,7 +111,7 @@ export async function webhookManage(ctx, deps = {}) {
   }
 
   const result = await main({
-    db: buildDb(ctx.pool),
+    db: buildDb(ctx.webhookRuntimePool, { writePool: ctx.webhookWritePool }),
     kafka: null, // audit events are best-effort; the action no-ops when kafka is absent
     keyContext,
     env: process.env,

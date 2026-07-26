@@ -15,16 +15,58 @@ The Postgres DSN is built from discrete vars, or supplied whole:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `DATA_DB_URL` / `DB_URL` | — | Full DSN (takes precedence over the discrete vars) |
+| `DATA_DB_URL` / `DB_URL` | — | Existing global control-plane DSN (takes precedence over the discrete vars); it retains tenant/workspace, saga, governance, and workspace-database creation responsibilities and is not a webhook schema/writer/lifecycle credential |
 | `PGHOST` | `localhost` | Host |
 | `PGPORT` | `5432` | Port |
-| `PGUSER` | `falcone_app` | **Non-`BYPASSRLS`** application role |
+| `PGUSER` | — | Existing global control-plane `LOGIN`; it is independent of the four webhook-only logins and may retain the deployment's existing `CREATEDB` capability for workspace-database provisioning |
 | `PGPASSWORD` | — | Password |
 | `PGDATABASE` | `falcone` | Database |
 | `CONTROL_DB_URL` | falls back to the data DSN | Pool for API-key storage |
+| `WEBHOOK_SCHEMA_DATABASE_URL` | — (required by C-25 control-plane bootstrap) | Bounded schema-owner DSN used only for application DDL and final graph verification, then closed; it must not be a superuser, role administrator, runtime principal, writer/lifecycle member, or startup-role alias |
+| `WEBHOOK_RUNTIME_DATABASE_URL` | — (required by C-25 control-plane bootstrap) | Dedicated ordinary-webhook runtime DSN; its bounded LOGIN inherits `falcone_app`, cannot `SET ROLE` to it, and is the only pool injected into ordinary webhook adapters |
+| `WEBHOOK_KEY_WRITE_DATABASE_URL` | — (required by C-25 control-plane bootstrap) | Dedicated encrypted-writer DSN; its unprivileged LOGIN is the only login bound to `falcone_webhook_key_writer` |
+| `WEBHOOK_KEY_LIFECYCLE_DATABASE_URL` | — (required by C-25 control-plane bootstrap and lifecycle CLI) | Dedicated maintenance DSN; its unprivileged LOGIN is the only login bound to `falcone_webhook_key_lifecycle` |
+| `WEBHOOK_SCHEMA_DATABASE_ROLE` | — (required by C-25 control-plane bootstrap and lifecycle CLI) | Expected authenticated bounded schema-owner LOGIN name |
+| `WEBHOOK_RUNTIME_DATABASE_ROLE` | — (required by C-25 control-plane bootstrap) | Expected authenticated LOGIN behind `WEBHOOK_RUNTIME_DATABASE_URL`; must be distinct, bounded, and not an object owner |
+| `WEBHOOK_KEY_WRITE_DATABASE_ROLE` | — (required by C-25 control-plane bootstrap) | Expected authenticated writer LOGIN name |
+| `WEBHOOK_KEY_LIFECYCLE_DATABASE_ROLE` | — (required by C-25 control-plane bootstrap and lifecycle CLI) | Expected authenticated lifecycle LOGIN name |
+| `WEBHOOK_DATABASE_AUTHORITY_GRANTOR_ROLE` | — (required by C-25 control-plane bootstrap and lifecycle CLI) | Durable PostgreSQL administrator role recorded as the grantor of all three exact webhook membership edges; its DSN is used only by the chart's one-shot bootstrap and is never injected into the application |
 
 > [!IMPORTANT]
-> `PGUSER` must be a **non-`BYPASSRLS`** role (default `falcone_app`). RLS does not apply to superusers, so connecting as one would silently disable tenant isolation.
+> Do not replace `DB_URL`/`PG*` with `WEBHOOK_RUNTIME_DATABASE_URL`. The former remains the global
+> control-plane/admin-capable application path, including workspace `CREATE DATABASE`; the latter is
+> a bounded webhook-only path. The fixed `falcone_app` authority is `NOLOGIN`, and the four webhook
+> sessions are rejected if any is a superuser or `BYPASSRLS`.
+
+The four authenticated users behind the webhook schema, runtime, writer, and lifecycle pools must be
+pairwise distinct. For every pool, the first application query requires
+`session_user = current_user`; a superuser DSN plus `options=-c role=...`, `SET ROLE`, or another
+startup alias is rejected. All four are
+`LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS`. The schema login owns and
+alters only the enumerated webhook tables/functions and is closed after migration and verification.
+It is not a runtime principal and has no membership in `falcone_app`,
+`falcone_webhook_key_writer`, or `falcone_webhook_key_lifecycle`.
+
+A separate chart one-shot PostgreSQL bootstrap, authenticated from the bundled database
+administrator Secret as the declared durable grantor, owns global role creation,
+legacy-membership repair, credential generation, and the exact PostgreSQL 16 bindings:
+
+- `falcone_app` → runtime LOGIN: `ADMIN FALSE, INHERIT TRUE, SET FALSE`;
+- `falcone_webhook_key_writer` → writer LOGIN: `ADMIN FALSE, INHERIT FALSE, SET TRUE`;
+- `falcone_webhook_key_lifecycle` → lifecycle LOGIN:
+  `ADMIN FALSE, INHERIT FALSE, SET TRUE`.
+
+No other membership touching a fixed authority or bounded webhook principal is allowed. The grantor
+must remain an administrator distinct from every fixed authority and bounded/global application
+principal; its credential is mounted only into that Job and never into the control-plane Deployment
+or lifecycle Job. PostgreSQL 16 is the minimum supported version because the verifier requires the
+catalogued `inherit_option`, `set_option`, and grantor identity.
+
+Supply four dedicated webhook DSNs from four persisted Kubernetes `Secret` keys, in addition to the
+unchanged global `DB_URL`/`PG*` contract, with
+server-certificate and hostname verification under the same PostgreSQL CA policy. Generated
+passwords are reused across idempotent hook replay; they must not appear in Helm values, rendered
+manifests, command arguments, logs, Events, or annotations.
 
 ## Document store (FerretDB / DocumentDB)
 
