@@ -17,11 +17,12 @@ import { parseAllDocuments } from 'yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
-const CHART_PATH = resolve(REPO_ROOT, '..', 'falcone-charts', 'charts', 'in-falcone');
-const KIND_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'deploy', 'kind', 'values-kind.yaml');
-const OPENSHIFT_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'deploy', 'openshift', 'values-openshift.yaml');
-const E2E_FLOWS_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'tests', 'e2e', 'values-flows-e2e.yaml');
-const E2E_FERRETDB_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'tests', 'e2e', 'values-ferretdb-realtime-e2e.yaml');
+const CHART_REPO_ROOT = resolve(REPO_ROOT, '..', 'falcone-charts');
+const CHART_PATH = resolve(CHART_REPO_ROOT, 'charts', 'in-falcone');
+const KIND_VALUES = resolve(CHART_REPO_ROOT, 'deploy', 'kind', 'values-kind.yaml');
+const OPENSHIFT_VALUES = resolve(CHART_REPO_ROOT, 'deploy', 'openshift', 'values-openshift.yaml');
+const E2E_FLOWS_VALUES = resolve(CHART_REPO_ROOT, 'tests', 'e2e', 'values-flows-e2e.yaml');
+const E2E_FERRETDB_VALUES = resolve(CHART_REPO_ROOT, 'tests', 'e2e', 'values-ferretdb-realtime-e2e.yaml');
 const CUTOVER_SCRIPTS = resolve(REPO_ROOT, 'scripts', 'system-changes', 'make-all-services-core');
 
 function helmAvailable() {
@@ -422,6 +423,19 @@ test('all-core-005b: Temporal schema upgrade skips setup and runs only safe upda
 });
 
 test('all-core-006: Helm owns the /v1/mcp route, executor RBAC, and pullable default image refs', SKIP, () => {
+  const ciWorkflow = readFileSync(resolve(REPO_ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const pinnedChartRef = ciWorkflow.match(/FALCONE_CHARTS_REF:\s*['"]([0-9a-f]{40})['"]/)?.[1];
+  assert.ok(pinnedChartRef, 'CI must pin the sibling falcone-charts checkout to a full commit SHA');
+  const chartHead = spawnSync('git', ['-C', CHART_REPO_ROOT, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+  });
+  assert.equal(chartHead.status, 0, `sibling chart checkout must expose its pinned commit: ${chartHead.stderr}`);
+  assert.equal(
+    chartHead.stdout.trim(),
+    pinnedChartRef,
+    'all-core image assertions must run against the exact CI-pinned sibling chart checkout',
+  );
+
   const base = assertRender();
   const baseImages = imageList(parseAllDocuments(base).map((doc) => doc.toJSON()).filter(Boolean));
   assert.match(base, /route-2018-mcp\.json:[\s\S]*"uri": "\/v1\/mcp\/\*"/, 'bootstrap payload must include the MCP APISIX route');
@@ -439,14 +453,22 @@ test('all-core-006: Helm owns the /v1/mcp route, executor RBAC, and pullable def
   assert.match(base, /image:\s*"docker\.io\/bitnamilegacy\/postgresql:17\.2\.0"/, 'PostgreSQL must use the verified bitnamilegacy image');
   assert.match(base, /image:\s*"docker\.io\/bitnamilegacy\/kafka:3\.9\.0"/, 'Kafka must use the verified bitnamilegacy image');
   assert.ok(baseImages.includes('docker.io/alpine/k8s:1.32.2'), 'bootstrap jobs must use the verified alpine/k8s image with bash, curl, jq, and kubectl');
-  const releaseTag = '0.3.0';
-  for (const image of [
-    'in-falcone-control-plane',
-    'in-falcone-control-plane-executor',
-    'in-falcone-workflow-worker',
-    'in-falcone-web-console',
-  ]) {
-    assert.match(base, new RegExp(`image:\\s*"ghcr\\.io/gntik-ai/${image}:${escapeRe(releaseTag)}"`), `${image} must use the chart app release tag`);
+  assert.match(
+    base,
+    /image:\s*"ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:27aedbfabdc8b72baae844b14dbdf72820c0f4d548a49013118d9ba7e0588d40"/,
+    'control plane must use the published C-25 image digest',
+  );
+  const compatibleReleaseTags = new Map([
+    ['in-falcone-control-plane-executor', '0.3.0'],
+    ['in-falcone-workflow-worker', '0.3.0'],
+    ['in-falcone-web-console', '0.3.0'],
+  ]);
+  for (const [image, expectedTag] of compatibleReleaseTags) {
+    assert.match(
+      base,
+      new RegExp(`image:\\s*"ghcr\\.io/gntik-ai/${image}:${escapeRe(expectedTag)}"`),
+      `${image} must use its declared C-25-compatible release tag`,
+    );
   }
   assert.match(base, /name:\s*in-falcone-runtime-env[\s\S]*MCP_RUNTIME_IMAGE:\s*"ghcr\.io\/gntik-ai\/in-falcone-mcp-runtime:0\.3\.0"/, 'default MCP runtime env must use the chart app release tag from the runtime env ConfigMap');
   assert.match(base, /name:\s*falcone-control-plane[\s\S]*envFrom:[\s\S]*name:\s*in-falcone-runtime-env/, 'control-plane must consume the parent-rendered runtime env ConfigMap');
@@ -466,7 +488,7 @@ test('all-core-006: Helm owns the /v1/mcp route, executor RBAC, and pullable def
   const mcpDockerfile = readFileSync(resolve(REPO_ROOT, 'apps', 'mcp-runtime', 'Dockerfile'), 'utf8');
   const allCoreInstallDoc = readFileSync(resolve(REPO_ROOT, 'docs', 'installation', 'all-core-platform-services.md'), 'utf8');
   assert.match(releaseWorkflow, /image:\s*in-falcone-mcp-runtime[\s\S]*dockerfile:\s*apps\/mcp-runtime\/Dockerfile/, 'release workflow must publish the MCP runtime image');
-  assert.match(mcpDockerfile, /COPY apps\/control-plane\/src\/mcp-official-server\.mjs/, 'MCP runtime image must build from the production MCP server modules');
+  assert.match(mcpDockerfile, /COPY apps\/control-plane-executor\/src\/mcp-official-server\.mjs/, 'MCP runtime image must build from the production MCP server modules');
   assert.match(allCoreInstallDoc, /GitHub Actions run\s*\n`29152340476`/, 'all-core install docs must record the six-image publication run');
   for (const image of [
     'in-falcone-control-plane',

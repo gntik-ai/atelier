@@ -54,7 +54,7 @@
   Retrying against the durable current identity SHALL succeed through the distinct writer pool in
   real PostgreSQL 16 tests for both RLS variants.
 
-- [ ] T13: Build and publish the compatible Falcone control-plane image before chart consumption. Verify the image contains the strict parser, migration 004, lifecycle repository/CLI, startup gate, and no fallback; declare the compatible chart minimum and migration/recovery notes without deploying the image alone into an unsafe legacy chart revision. Acceptance: image smoke tests start with a valid referenced key and fail before listen for missing/malformed/incompatible state; image/build logs and SBOM/evidence contain no key. Test target: Docker build, import/smoke, filesystem/package assertions, and secret-pattern scans.
+- [x] T13: Build and publish the compatible Falcone control-plane image before chart consumption. Verify the image contains the strict parser, migration 004, lifecycle repository/CLI, startup gate, and no fallback; declare the compatible chart minimum and migration/recovery notes without deploying the image alone into an unsafe legacy chart revision. Acceptance: image smoke tests start with a valid referenced key and fail before listen for missing/malformed/incompatible state; image/build logs and SBOM/evidence contain no key. Test target: Docker build, import/smoke, filesystem/package assertions, and secret-pattern scans.
 
 ## 4. falcone-charts values, templates, credentials, and RBAC
 
