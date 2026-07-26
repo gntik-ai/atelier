@@ -845,6 +845,44 @@ test('all-core-006f: docs do not advertise the legacy no-Helm reference as a C-2
   );
 });
 
+test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-safe dry-run gates', () => {
+  const runbook = readFileSync(
+    resolve(REPO_ROOT, 'docs-site', 'operations', 'webhook-signing-key-lifecycle.md'),
+    'utf8',
+  );
+
+  assert.match(runbook, /Release status: draft, unpublished, and partially live-verified/);
+  assert.match(runbook, /Helm revision 16/);
+  assert.match(
+    runbook,
+    /ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:27aedbfabdc8b72baae844b14dbdf72820c0f4d548a49013118d9ba7e0588d40/,
+  );
+  assert.match(runbook, /FALCONE_EXPECTED_CHART_SHA/);
+  assert.match(runbook, /FALCONE_EXPECTED_CONTROL_PLANE_IMAGE/);
+  assert.match(runbook, /test "\$FALCONE_SELECTED_CONTROL_PLANE_IMAGE" =/);
+
+  assert.match(runbook, /expected_first_handoff="\$2"/);
+  assert.match(runbook, /validate_webhook_lifecycle_upgrade '0\.3\.0' true/);
+  assert.match(runbook, /validate_webhook_lifecycle_upgrade '0\.3\.1' false/);
+  assert.match(runbook, /migration\.firstHandoff=\$\{expected_first_handoff\}/);
+  assert.match(runbook, /migration\.backupVerified=true/);
+  assert.match(runbook, /migration\.parityVerified=true/);
+  assert.match(runbook, /migration\.backupReference=\$\{FALCONE_BACKUP_REFERENCE\}/);
+  assert.match(runbook, /--dry-run=server --hide-secret >\/dev\/null/);
+  assert.match(runbook, /Do not change the adoption request ID for that replay/);
+  assert.match(runbook, /WEBHOOK-DATABASE-AUTHORITY\.md/);
+
+  assert.match(runbook, /Rehearse the bundled backup on disposable PostgreSQL 16/);
+  assert.match(runbook, /docker\.io\/library\/postgres:16\.14-alpine/);
+  assert.match(runbook, /--network none/);
+  assert.match(runbook, /test "\$FALCONE_SOURCE_INVENTORY" = "\$FALCONE_RESTORE_INVENTORY"/);
+  assert.match(runbook, /trap cleanup_webhook_restore EXIT HUP INT TERM/);
+  assert.match(runbook, /Rehearse matching-key startup and readiness on the restored copy/);
+  assert.match(runbook, /readinessProbe\.httpGet\.path/);
+  assert.match(runbook, /helm uninstall "\$FALCONE_RELEASE"/);
+  assert.match(runbook, /kubectl delete namespace "\$FALCONE_RESTORE_NAMESPACE" --wait/);
+});
+
 test('all-core-006i: E2E Helm overlays render without obsolete service lifecycle toggles', SKIP, () => {
   const forbiddenLifecycleAliases = [
     'bootstrap',

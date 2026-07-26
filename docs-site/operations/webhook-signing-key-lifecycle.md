@@ -5,13 +5,18 @@ webhook signing secret. It covers a fresh install, explicit adoption of pre-0.3.
 canonical rotation, forward recovery, finalization, incident response, and secret-safe evidence.
 
 > [!WARNING]
-> **Release status: unreleased and not yet live-verified.** This page is grounded in the Falcone
-> C-25 source implementation and the corrected PostgreSQL authority handoff specified on
-> 2026-07-25. The corresponding `falcone-charts` database-bootstrap implementation, compatible
-> control-plane image, chart release, cross-repository pin, disposable-kind rehearsal, and
-> OpenShift rehearsal are not complete. Do not use an unpublished image/chart pair in production. Before use,
-> confirm that both artifacts described in [Version compatibility](#version-compatibility) are
-> published and that your release notes contain the completed live-verification evidence.
+> **Release status: draft, unpublished, and partially live-verified.** On 2026-07-26 the authorized
+> staging environment verified external legacy adoption plus an idempotent readiness replay with
+> Falcone operational commit `35036dc72e6c8c72126b2148d60336d6aaca0248`, canonical chart commit
+> `f72bdd4902a68fd293b034686b1b5269254796e5`, staging overlay commit
+> `7acb07021df729e200f75afcd18c90532f545f2a`, and control-plane image
+> `ghcr.io/gntik-ai/in-falcone-control-plane@sha256:27aedbfabdc8b72baae844b14dbdf72820c0f4d548a49013118d9ba7e0588d40`.
+> The target was context `default`, namespace `in-falcone-staging` with UID
+> `1651dd61-20e7-4734-80a1-15afb5d5fcb4`, Helm revision 16. Kubernetes `/readyz` stayed false until
+> startup verification completed. No canonical rotation, recovery, or finalization was run.
+> The application and chart PRs remain draft/unmerged, and the full disposable-kind and live
+> OpenShift lifecycle rehearsals remain incomplete. Do not use this unpublished pair in production;
+> first confirm publication and the remaining release gates in the release notes.
 
 ## Audience, outcome, and document type
 
@@ -49,6 +54,8 @@ Required knowledge:
 Required tools and access:
 
 - `helm` 3, `kubectl`, `jq`, POSIX shell tools, and PostgreSQL client tools for backup inspection;
+- Docker or Podman for the local PostgreSQL 16 restore rehearsal, or an approved isolated
+  provider restore target with equivalent cleanup guarantees;
 - the exact Kubernetes context, namespace, Helm release, non-secret base values, and chart reference;
 - permission to inspect and update the Helm release and its control-plane Deployment;
 - permission to create or read the referenced Secret only when your custody model requires it;
@@ -248,14 +255,20 @@ export FALCONE_NAMESPACE='<release-namespace>'
 export FALCONE_RELEASE='<helm-release>'
 export FALCONE_CHART='<reviewed-local-chart-directory-or-packaged-chart>'
 export FALCONE_CHART_SOURCE='<matching-reviewed-falcone-charts-source-checkout>'
+export FALCONE_EXPECTED_CHART_SHA='<approved-chart-source-commit>'
+export FALCONE_EXPECTED_CONTROL_PLANE_IMAGE='<approved-image-reference-with-sha256-digest>'
 export FALCONE_BASE_VALUES='<reviewed-non-secret-base-values-file>'
 export FALCONE_KEY_VALUES='<reviewed-non-secret-install-or-action-none-key-values-file>'
 export FALCONE_ACTION_KEY_VALUES='<reviewed-non-secret-lifecycle-action-values-file>'
+export FALCONE_BACKUP_REFERENCE='<non-secret-backup-evidence-id>'
 export FALCONE_CONTROL_PLANE="${FALCONE_RELEASE}-control-plane"
 export FALCONE_POSTGRES="${FALCONE_RELEASE}-postgresql"
 
 test "$(kubectl config current-context)" = "$FALCONE_CONTEXT"
 kubectl get namespace "$FALCONE_NAMESPACE" >/dev/null
+test "$(git -C "$FALCONE_CHART_SOURCE" rev-parse HEAD)" = "$FALCONE_EXPECTED_CHART_SHA"
+test -z "$(git -C "$FALCONE_CHART_SOURCE" status --short)"
+test -n "$FALCONE_BACKUP_REFERENCE"
 helm version --short
 kubectl version --client
 ```
@@ -272,6 +285,29 @@ helm show chart "$FALCONE_CHART" |
 ```
 
 Expected fields are chart/app version `0.3.1`, minimum control-plane `0.3.1`, and lifecycle `v1`.
+Verify that the selected base/key values still render the approved digest-pinned control-plane
+image; this command renders only the control-plane workload and prints no Secret object:
+
+```bash
+FALCONE_SELECTED_CONTROL_PLANE_IMAGE="$(
+  helm template "$FALCONE_RELEASE" "$FALCONE_CHART" \
+    --namespace "$FALCONE_NAMESPACE" \
+    --show-only charts/controlPlane/templates/workload.yaml \
+    --values "$FALCONE_BASE_VALUES" \
+    --values "$FALCONE_KEY_VALUES" |
+    awk '
+      $0 ~ /^[[:space:]]*- name: control-plane$/ { control_plane = 1; next }
+      control_plane && $1 == "image:" {
+        gsub(/^"|"$/, "", $2)
+        print $2
+        exit
+      }
+    '
+)"
+test "$FALCONE_SELECTED_CONTROL_PLANE_IMAGE" = \
+  "$FALCONE_EXPECTED_CONTROL_PLANE_IMAGE"
+unset FALCONE_SELECTED_CONTROL_PLANE_IMAGE
+```
 
 For an existing release, record non-secret identity and replica posture:
 
@@ -386,10 +422,201 @@ copy when the inputs do not leave approved headroom. Do not invent a universal r
 the read-only scan measures AES transform or commit/WAL latency. Managed/external PostgreSQL users
 should run the equivalent provider-approved read-only sizing queries and capacity checks.
 
-Restore the dump into a disposable database with your approved restore procedure and verify the
-webhook lifecycle tables and application startup against the matching retained Secret. Do not claim
-a tested backup from archive listing alone. For managed/external PostgreSQL, use the provider's
-snapshot and isolated-restore procedure and record only the backup/snapshot ID in evidence.
+### Rehearse the bundled backup on disposable PostgreSQL 16
+
+Archive listing is not a restore rehearsal. The following local procedure restores the bundled
+backup into an isolated PostgreSQL 16 container with no published network port, compares bounded
+schema/row inventory with the source, and always removes the container. It never selects a
+signing-secret row, ciphertext, IV, tenant field, credential, or key material:
+
+```bash
+export FALCONE_RESTORE_CONTAINER="falcone-webhook-restore-$(date -u +%Y%m%d%H%M%S)"
+test -s "$FALCONE_DB_BACKUP"
+
+cleanup_webhook_restore() {
+  docker rm --force "$FALCONE_RESTORE_CONTAINER" >/dev/null 2>&1 || true
+}
+trap cleanup_webhook_restore EXIT HUP INT TERM
+
+docker run --detach \
+  --name "$FALCONE_RESTORE_CONTAINER" \
+  --network none \
+  --tmpfs /var/lib/postgresql/data:rw,nosuid,size=2g \
+  --env POSTGRES_HOST_AUTH_METHOD=trust \
+  docker.io/library/postgres:16.14-alpine >/dev/null
+
+until docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
+  pg_isready --quiet --username postgres; do
+  sleep 1
+done
+
+docker cp "$FALCONE_DB_BACKUP" \
+  "${FALCONE_RESTORE_CONTAINER}:/tmp/falcone-restore.dump"
+docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
+  createdb falcone_restore
+docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
+  pg_restore --exit-on-error --no-owner --no-acl \
+    --username postgres --dbname falcone_restore \
+    /tmp/falcone-restore.dump
+
+FALCONE_SOURCE_INVENTORY="$(
+  kubectl --namespace "$FALCONE_NAMESPACE" exec \
+    "statefulset/${FALCONE_POSTGRES}" -- sh -ec '
+      set +x
+      export PGPASSWORD="$POSTGRESQL_PASSWORD"
+      exec psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align \
+        --username="$POSTGRESQL_USERNAME" \
+        --dbname="$POSTGRESQL_DATABASE" \
+        --command="
+          SELECT json_build_array(
+            current_setting('"'"'server_version_num'"'"')::integer >= 160000,
+            (SELECT count(*) FROM pg_class
+              WHERE relnamespace = '"'"'public'"'"'::regnamespace
+                AND relkind = '"'"'r'"'"'
+                AND relname IN (
+                  '"'"'webhook_subscriptions'"'"',
+                  '"'"'webhook_signing_secrets'"'"',
+                  '"'"'webhook_deliveries'"'"',
+                  '"'"'webhook_delivery_attempts'"'"',
+                  '"'"'webhook_master_key_state'"'"',
+                  '"'"'webhook_master_key_rotations'"'"')),
+            (SELECT count(*) FROM pg_proc
+              WHERE pronamespace = '"'"'public'"'"'::regnamespace
+                AND proname IN (
+                  '"'"'falcone_webhook_key_write_current_id'"'"',
+                  '"'"'falcone_webhook_signing_secret_write_statement_fence'"'"',
+                  '"'"'falcone_webhook_signing_secret_write_fence'"'"')),
+            (SELECT count(*) FROM webhook_signing_secrets)
+          )"
+    '
+)"
+
+FALCONE_RESTORE_INVENTORY="$(
+  docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
+    psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align \
+      --username postgres --dbname falcone_restore \
+      --command="
+        SELECT json_build_array(
+          current_setting('server_version_num')::integer >= 160000,
+          (SELECT count(*) FROM pg_class
+            WHERE relnamespace = 'public'::regnamespace
+              AND relkind = 'r'
+              AND relname IN (
+                'webhook_subscriptions',
+                'webhook_signing_secrets',
+                'webhook_deliveries',
+                'webhook_delivery_attempts',
+                'webhook_master_key_state',
+                'webhook_master_key_rotations')),
+          (SELECT count(*) FROM pg_proc
+            WHERE pronamespace = 'public'::regnamespace
+              AND proname IN (
+                'falcone_webhook_key_write_current_id',
+                'falcone_webhook_signing_secret_write_statement_fence',
+                'falcone_webhook_signing_secret_write_fence')),
+          (SELECT count(*) FROM webhook_signing_secrets)
+        )"
+)"
+
+test "$FALCONE_SOURCE_INVENTORY" = "$FALCONE_RESTORE_INVENTORY"
+printf 'restore inventory verified: %s\n' "$FALCONE_RESTORE_INVENTORY"
+unset FALCONE_SOURCE_INVENTORY FALCONE_RESTORE_INVENTORY
+cleanup_webhook_restore
+trap - EXIT HUP INT TERM
+```
+
+An initial pre-0.3.1 backup normally reports four webhook tables and zero lifecycle functions; a
+post-handoff backup reports six tables and three functions. The signing-secret count must match in
+both cases. Do not hard-code either inventory: exact source/restore equality is the acceptance gate.
+
+### Rehearse matching-key startup and readiness on the restored copy
+
+Database parity alone does not prove key custody. Use an approved disposable Kubernetes context and
+namespace, never the audited/production namespace, to connect the reviewed chart to the isolated
+restored PostgreSQL 16 endpoint. For the bundled chart, restore the dump into that disposable
+release's PostgreSQL before applying the C-25 handoff. For managed PostgreSQL, clone the
+backup/snapshot to a new endpoint and create a restricted, non-production values file that selects
+that endpoint through the installation's already-supported database contract. Never restore over
+the source endpoint.
+
+Prepare:
+
+- `FALCONE_RESTORE_CONTEXT` and a unique `FALCONE_RESTORE_NAMESPACE`;
+- `FALCONE_RESTORE_BASE_VALUES`, containing only the isolated restored endpoint/reference wiring;
+- `FALCONE_RESTORE_ACTION_KEY_VALUES`, referencing the matching retained key through a newly
+  provisioned Secret in the disposable namespace;
+- a truthful restored source version and the same non-secret backup evidence ID.
+
+Then run the same validation and server-side dry-run used by the real handoff, apply only after both
+pass, and verify that Kubernetes readiness is driven by `/readyz`:
+
+```bash
+test "$(kubectl config current-context)" = "$FALCONE_RESTORE_CONTEXT"
+test "$FALCONE_RESTORE_NAMESPACE" != "$FALCONE_NAMESPACE"
+
+if kubectl --namespace "$FALCONE_RESTORE_NAMESPACE" get configmap \
+  in-falcone-webhook-database-credentials-initialized >/dev/null 2>&1; then
+  FALCONE_RESTORE_FIRST_HANDOFF=false
+else
+  FALCONE_RESTORE_FIRST_HANDOFF=true
+fi
+export FALCONE_RESTORE_FIRST_HANDOFF
+
+helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  --values "$FALCONE_RESTORE_BASE_VALUES" \
+  --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
+  --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set \
+    "global.webhookDatabase.migration.firstHandoff=${FALCONE_RESTORE_FIRST_HANDOFF}" \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
+  --dry-run=server --hide-secret >/dev/null
+
+helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  --values "$FALCONE_RESTORE_BASE_VALUES" \
+  --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
+  --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set \
+    "global.webhookDatabase.migration.firstHandoff=${FALCONE_RESTORE_FIRST_HANDOFF}" \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
+  --wait --timeout 40m
+
+kubectl --namespace "$FALCONE_RESTORE_NAMESPACE" rollout status \
+  "deployment/${FALCONE_RELEASE}-control-plane" --timeout 10m
+test "$(
+  kubectl --namespace "$FALCONE_RESTORE_NAMESPACE" get deployment \
+    "${FALCONE_RELEASE}-control-plane" \
+    -o jsonpath='{.spec.template.spec.containers[?(@.name=="control-plane")].readinessProbe.httpGet.path}'
+)" = '/readyz'
+```
+
+P18 must also run the bounded lifecycle status command in
+[Read secret-safe lifecycle status](#read-secret-safe-lifecycle-status) and verify `serving`, the
+expected mode, matching affected/verified counts, and no recovery-required state. Exercise one
+read-only application health check and the scoped tenant/public parity suite approved for the
+environment; never copy tenant payloads into evidence.
+
+Always clean up the disposable release and restored provider instance after preserving only the
+bounded pass/fail evidence and the provider backup/clone ID:
+
+```bash
+helm uninstall "$FALCONE_RELEASE" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" --wait
+kubectl delete namespace "$FALCONE_RESTORE_NAMESPACE" --wait
+```
+
+For a managed provider, delete the isolated restored instance through the provider's approved
+workflow and verify deletion separately. If the provider cannot create an isolated clone, if the
+chart cannot target it through an already-supported database contract, or if teardown cannot be
+proved, the restore gate remains incomplete; do not substitute `pg_restore --list` or use the source
+database.
 
 ### Back up key custody without exporting it as evidence
 
@@ -570,6 +797,13 @@ Define this validator once in the same shell used for the maintenance procedure:
 ```bash
 validate_webhook_lifecycle_upgrade() {
   expected_source_version="$1"
+  expected_first_handoff="$2"
+
+  case "$expected_first_handoff" in
+    true|false) ;;
+    *) printf '%s\n' 'first-handoff argument must be true or false' >&2; return 2 ;;
+  esac
+  test -n "$FALCONE_BACKUP_REFERENCE"
 
   FALCONE_INSTALLED_VERSION="$(
     helm list --namespace "$FALCONE_NAMESPACE" \
@@ -605,7 +839,24 @@ validate_webhook_lifecycle_upgrade() {
     --values "$FALCONE_BASE_VALUES" \
     --values "$FALCONE_ACTION_KEY_VALUES" \
     --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+    --set "global.webhookDatabase.migration.firstHandoff=${expected_first_handoff}" \
+    --set global.webhookDatabase.migration.backupVerified=true \
+    --set global.webhookDatabase.migration.parityVerified=true \
+    --set-string \
+      "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
     >/dev/null
+
+  helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
+    --namespace "$FALCONE_NAMESPACE" \
+    --values "$FALCONE_BASE_VALUES" \
+    --values "$FALCONE_ACTION_KEY_VALUES" \
+    --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+    --set "global.webhookDatabase.migration.firstHandoff=${expected_first_handoff}" \
+    --set global.webhookDatabase.migration.backupVerified=true \
+    --set global.webhookDatabase.migration.parityVerified=true \
+    --set-string \
+      "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
+    --dry-run=server --hide-secret >/dev/null
 
   test -f "$FALCONE_CHART_SOURCE/tests/webhook-signing-key-chart.test.mjs"
   (
@@ -615,8 +866,9 @@ validate_webhook_lifecycle_upgrade() {
 }
 ```
 
-Expected result: the install/steady-state lint, action-specific upgrade render, exact installed
-source-version check, chart `0.3.1` target check, and focused chart lifecycle suite all succeed.
+Expected result: the install/steady-state lint, action-specific client render, Secret-hidden
+server-side dry-run, exact installed source-version check, chart `0.3.1` target check, and focused
+chart lifecycle suite all succeed.
 The target version is the selected chart's `appVersion`; `deployment.upgrade.currentVersion` is the
 truthful installed source. Do not falsify either side of that pair. The chart does not define a
 `deployment.upgrade.targetVersion` value, so do not invent one.
@@ -671,7 +923,7 @@ Preview schema/template validity, but do not save or attach a pre-C-25 release m
 dump. The new values contain references only:
 
 ```bash
-validate_webhook_lifecycle_upgrade '0.3.0'
+validate_webhook_lifecycle_upgrade '0.3.0' true
 ```
 
 Use `0.2.0` instead only when `helm list` truthfully reports that source version. The selected target
@@ -685,8 +937,40 @@ helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
   --values "$FALCONE_BASE_VALUES" \
   --values "$FALCONE_ACTION_KEY_VALUES" \
   --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set global.webhookDatabase.migration.firstHandoff=true \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --wait --timeout 40m
 ```
+
+`firstHandoff=true` is authorized only for the initial pre-0.3.1 database-credential/ownership
+handoff. After that first upgrade succeeds, retain the same legacy Secret reference and the same
+adoption request ID, set `firstHandoff=false`, take and restore-test a current backup, update
+`FALCONE_BACKUP_REFERENCE`, and use the exact same validation/apply procedure for an idempotent
+replay:
+
+```bash
+validate_webhook_lifecycle_upgrade '0.3.1' false
+
+helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
+  --namespace "$FALCONE_NAMESPACE" \
+  --values "$FALCONE_BASE_VALUES" \
+  --values "$FALCONE_ACTION_KEY_VALUES" \
+  --set-string deployment.upgrade.currentVersion=0.3.1 \
+  --set global.webhookDatabase.migration.firstHandoff=false \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
+  --wait --timeout 40m
+```
+
+Do not change the adoption request ID for that replay and do not add a rotation action. The retained
+database-credential marker prevents regeneration. The chart-side
+[Webhook Database Authority guide](https://github.com/gntik-ai/falcone-charts/blob/main/charts/in-falcone/WEBHOOK-DATABASE-AUTHORITY.md)
+defines the same initial-handoff/replay boundary and bounded PostgreSQL ownership contract.
 
 The credential hook first validates the external legacy Secret read-only. The upgrade-only lifecycle
 hook then:
@@ -900,13 +1184,18 @@ Validate the installed chart `0.3.1` to target chart `0.3.1` pair, then apply th
 upgrade:
 
 ```bash
-validate_webhook_lifecycle_upgrade '0.3.1'
+validate_webhook_lifecycle_upgrade '0.3.1' false
 
 helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
   --namespace "$FALCONE_NAMESPACE" \
   --values "$FALCONE_BASE_VALUES" \
   --values "$FALCONE_ACTION_KEY_VALUES" \
   --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set global.webhookDatabase.migration.firstHandoff=false \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --wait --timeout 40m
 ```
 
@@ -936,6 +1225,11 @@ helm template "$FALCONE_RELEASE" "$FALCONE_CHART" \
   --values "$FALCONE_BASE_VALUES" \
   --values "$FALCONE_KEY_VALUES" \
   --set-string deployment.upgrade.currentVersion=0.3.1 \
+  --set global.webhookDatabase.migration.firstHandoff=false \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   >/dev/null
 
 helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
@@ -943,6 +1237,11 @@ helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
   --values "$FALCONE_BASE_VALUES" \
   --values "$FALCONE_KEY_VALUES" \
   --set-string deployment.upgrade.currentVersion=0.3.1 \
+  --set global.webhookDatabase.migration.firstHandoff=false \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --wait --timeout 40m
 ```
 
@@ -1040,13 +1339,18 @@ Validate the installed chart `0.3.1` to target chart `0.3.1` pair, then apply th
 upgrade:
 
 ```bash
-validate_webhook_lifecycle_upgrade '0.3.1'
+validate_webhook_lifecycle_upgrade '0.3.1' false
 
 helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
   --namespace "$FALCONE_NAMESPACE" \
   --values "$FALCONE_BASE_VALUES" \
   --values "$FALCONE_ACTION_KEY_VALUES" \
   --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set global.webhookDatabase.migration.firstHandoff=false \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --wait --timeout 40m
 ```
 
@@ -1098,13 +1402,18 @@ Validate the installed chart `0.3.1` to target chart `0.3.1` pair, then apply th
 upgrade:
 
 ```bash
-validate_webhook_lifecycle_upgrade '0.3.1'
+validate_webhook_lifecycle_upgrade '0.3.1' false
 
 helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
   --namespace "$FALCONE_NAMESPACE" \
   --values "$FALCONE_BASE_VALUES" \
   --values "$FALCONE_ACTION_KEY_VALUES" \
   --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set global.webhookDatabase.migration.firstHandoff=false \
+  --set global.webhookDatabase.migration.backupVerified=true \
+  --set global.webhookDatabase.migration.parityVerified=true \
+  --set-string \
+    "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --wait --timeout 40m
 ```
 
