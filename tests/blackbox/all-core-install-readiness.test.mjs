@@ -857,9 +857,15 @@ test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-
     runbook,
     /ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:27aedbfabdc8b72baae844b14dbdf72820c0f4d548a49013118d9ba7e0588d40/,
   );
-  assert.match(runbook, /FALCONE_EXPECTED_CHART_SHA/);
+  assert.match(
+    runbook,
+    /test "\$\(git -C "\$FALCONE_CHART_SOURCE" rev-parse HEAD\)" = "\$FALCONE_EXPECTED_CHART_SHA"/,
+  );
+  assert.match(
+    runbook,
+    /test -z "\$\(git -C "\$FALCONE_CHART_SOURCE" status --short\)"/,
+  );
   assert.match(runbook, /FALCONE_EXPECTED_CONTROL_PLANE_IMAGE/);
-  assert.match(runbook, /git -C "\$FALCONE_CHART_SOURCE" status --short/);
   assert.match(
     runbook,
     /test "\$\(realpath -- "\$FALCONE_CHART"\)" = \\\n  "\$\(realpath -- "\$FALCONE_CHART_SOURCE\/charts\/in-falcone"\)"/,
@@ -889,25 +895,26 @@ test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-
   assert.match(runbook, /test "\$FALCONE_SOURCE_INVENTORY" = "\$FALCONE_RESTORE_INVENTORY"/);
   assert.match(runbook, /trap cleanup_webhook_restore EXIT HUP INT TERM/);
   assert.match(runbook, /Rehearse matching-key startup and readiness on the restored copy/);
-  assert.match(runbook, /FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA/);
   assert.match(
     runbook,
     /FALCONE_RESTORE_SOURCE_CHART="\$\{FALCONE_RESTORE_SOURCE_CHART_SOURCE\}\/charts\/in-falcone"/,
   );
   assert.match(
     runbook,
-    /git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" rev-parse HEAD/,
+    /test "\$\(\n  git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" rev-parse HEAD\n\)" = "\$FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA"/,
   );
   assert.match(
     runbook,
-    /git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" status --short/,
+    /test -z "\$\(git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" status --short\)"/,
   );
   assert.match(
     runbook,
     /realpath -- "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE\/charts\/in-falcone"/,
   );
-  assert.match(runbook, /helm show chart "\$FALCONE_RESTORE_SOURCE_CHART"/);
-  assert.match(runbook, /awk '\$1 == "appVersion:"/);
+  assert.match(
+    runbook,
+    /test "\$\(\n  helm show chart "\$FALCONE_RESTORE_SOURCE_CHART" \|\n    awk '\$1 == "appVersion:" \{ gsub\(\/"\/, "", \$2\); print \$2; exit \}'\n\)" = "\$FALCONE_RESTORE_INSTALLED_VERSION"/,
+  );
   assert.match(runbook, /install "\$FALCONE_RESTORE_RELEASE" "\$FALCONE_RESTORE_SOURCE_CHART"/);
   assert.match(runbook, /cat > \/tmp\/falcone-restore\.dump/);
   assert.match(runbook, /--owner="\$POSTGRESQL_USERNAME" falcone_restore/);
@@ -930,8 +937,14 @@ test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-
   const restoredParity = runbook.match(
     /Before cleanup, use two supported disposable logins([\s\S]*?)Always clean up the disposable release/,
   )?.[1] ?? '';
-  assert.match(restoredParity, /stat -c '%a'.*FALCONE_RESTORE_TENANT_A_CURL_CONFIG/);
-  assert.match(restoredParity, /stat -c '%a'.*FALCONE_RESTORE_TENANT_B_CURL_CONFIG/);
+  assert.match(
+    restoredParity,
+    /test "\$\(stat -c '%a' "\$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"\)" = '600'/,
+  );
+  assert.match(
+    restoredParity,
+    /test "\$\(stat -c '%a' "\$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"\)" = '600'/,
+  );
   assert.match(restoredParity, /FALCONE_RESTORE_PARITY_VERIFIED=false/);
   assert.match(restoredParity, /mktemp -d \/tmp\/falcone-c25-parity\.XXXXXX/);
   assert.match(restoredParity, /chmod 0700 "\$FALCONE_RESTORE_PARITY_DIR"/);
@@ -953,6 +966,45 @@ test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-
   );
   assert.equal((restoredParity.match(/--connect-timeout/g) ?? []).length, 4);
   assert.equal((restoredParity.match(/--max-time/g) ?? []).length, 4);
+  const eventTypesRequest = restoredParity.match(
+    /FALCONE_RESTORE_EVENT_TYPES_STATUS="\$\(([\s\S]*?)test "\$FALCONE_RESTORE_EVENT_TYPES_STATUS" = '200'/,
+  )?.[0] ?? '';
+  assert.match(
+    eventTypesRequest,
+    /curl --config "\$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"/,
+  );
+  assert.match(
+    eventTypesRequest,
+    /\/v1\/workspaces\/\$\{FALCONE_RESTORE_WORKSPACE_A\}\/webhooks\/event-types"/,
+  );
+  assert.match(eventTypesRequest, /test "\$FALCONE_RESTORE_EVENT_TYPES_STATUS" = '200'/);
+  const ownListRequest = restoredParity.match(
+    /FALCONE_RESTORE_OWN_LIST_STATUS="\$\(([\s\S]*?)test "\$FALCONE_RESTORE_OWN_LIST_STATUS" = '200'/,
+  )?.[0] ?? '';
+  assert.match(
+    ownListRequest,
+    /curl --config "\$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"/,
+  );
+  assert.match(
+    ownListRequest,
+    /\/v1\/workspaces\/\$\{FALCONE_RESTORE_WORKSPACE_A\}\/webhooks\/subscriptions"/,
+  );
+  assert.match(ownListRequest, /test "\$FALCONE_RESTORE_OWN_LIST_STATUS" = '200'/);
+  const crossScopeRequest = restoredParity.match(
+    /FALCONE_RESTORE_CROSS_SCOPE_STATUS="\$\(([\s\S]*?)case "\$FALCONE_RESTORE_CROSS_SCOPE_STATUS" in\n  403\|404\)/,
+  )?.[0] ?? '';
+  assert.match(
+    crossScopeRequest,
+    /curl --config "\$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"/,
+  );
+  assert.match(
+    crossScopeRequest,
+    /\/v1\/workspaces\/\$\{FALCONE_RESTORE_WORKSPACE_A\}\/webhooks\/subscriptions"/,
+  );
+  assert.match(
+    crossScopeRequest,
+    /case "\$FALCONE_RESTORE_CROSS_SCOPE_STATUS" in\n  403\|404\)/,
+  );
   assert.match(runbook, /cleanup_webhook_kube_restore/);
   assert.match(runbook, /delete namespace "\$FALCONE_RESTORE_NAMESPACE" --wait/);
 });
