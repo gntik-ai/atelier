@@ -54,7 +54,7 @@ Required knowledge:
 Required tools and access:
 
 - `helm` 3, `kubectl`, `jq`, POSIX shell tools, and PostgreSQL client tools for backup inspection;
-- Docker or Podman for the local PostgreSQL 16 restore rehearsal, or an approved isolated
+- Docker or Podman for the local PostgreSQL 17.2 restore rehearsal, or an approved isolated
   provider restore target with equivalent cleanup guarantees;
 - the exact Kubernetes context, namespace, Helm release, non-secret base values, and chart reference;
 - permission to inspect and update the Helm release and its control-plane Deployment;
@@ -253,8 +253,8 @@ set +x
 export FALCONE_CONTEXT='<exact-kube-context>'
 export FALCONE_NAMESPACE='<release-namespace>'
 export FALCONE_RELEASE='<helm-release>'
-export FALCONE_CHART='<reviewed-local-chart-directory-or-packaged-chart>'
 export FALCONE_CHART_SOURCE='<matching-reviewed-falcone-charts-source-checkout>'
+export FALCONE_CHART="${FALCONE_CHART_SOURCE}/charts/in-falcone"
 export FALCONE_EXPECTED_CHART_SHA='<approved-chart-source-commit>'
 export FALCONE_EXPECTED_CONTROL_PLANE_IMAGE='<approved-image-reference-with-sha256-digest>'
 export FALCONE_BASE_VALUES='<reviewed-non-secret-base-values-file>'
@@ -268,6 +268,8 @@ test "$(kubectl config current-context)" = "$FALCONE_CONTEXT"
 kubectl get namespace "$FALCONE_NAMESPACE" >/dev/null
 test "$(git -C "$FALCONE_CHART_SOURCE" rev-parse HEAD)" = "$FALCONE_EXPECTED_CHART_SHA"
 test -z "$(git -C "$FALCONE_CHART_SOURCE" status --short)"
+test "$(realpath -- "$FALCONE_CHART")" = \
+  "$(realpath -- "$FALCONE_CHART_SOURCE/charts/in-falcone")"
 test -n "$FALCONE_BACKUP_REFERENCE"
 helm version --short
 kubectl version --client
@@ -422,10 +424,11 @@ copy when the inputs do not leave approved headroom. Do not invent a universal r
 the read-only scan measures AES transform or commit/WAL latency. Managed/external PostgreSQL users
 should run the equivalent provider-approved read-only sizing queries and capacity checks.
 
-### Rehearse the bundled backup on disposable PostgreSQL 16
+### Rehearse the bundled backup on matching PostgreSQL 17.2
 
 Archive listing is not a restore rehearsal. The following local procedure restores the bundled
-backup into an isolated PostgreSQL 16 container with no published network port, compares bounded
+PostgreSQL 17.2 backup into an isolated PostgreSQL 17.2 container with no published network port,
+compares bounded
 schema/row inventory with the source, and always removes the container. It never selects a
 signing-secret row, ciphertext, IV, tenant field, credential, or key material:
 
@@ -443,7 +446,7 @@ docker run --detach \
   --network none \
   --tmpfs /var/lib/postgresql/data:rw,nosuid,size=2g \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
-  docker.io/library/postgres:16.14-alpine >/dev/null
+  docker.io/library/postgres:17.2-alpine >/dev/null
 
 until docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
   pg_isready --quiet --username postgres; do
@@ -469,7 +472,7 @@ FALCONE_SOURCE_INVENTORY="$(
         --dbname="$POSTGRESQL_DATABASE" \
         --command="
           SELECT json_build_array(
-            current_setting('"'"'server_version_num'"'"')::integer >= 160000,
+            current_setting('"'"'server_version_num'"'"')::integer / 10000,
             (SELECT count(*) FROM pg_class
               WHERE relnamespace = '"'"'public'"'"'::regnamespace
                 AND relkind = '"'"'r'"'"'
@@ -497,7 +500,7 @@ FALCONE_RESTORE_INVENTORY="$(
       --username postgres --dbname falcone_restore \
       --command="
         SELECT json_build_array(
-          current_setting('server_version_num')::integer >= 160000,
+          current_setting('server_version_num')::integer / 10000,
           (SELECT count(*) FROM pg_class
             WHERE relnamespace = 'public'::regnamespace
               AND relkind = 'r'
@@ -520,7 +523,7 @@ FALCONE_RESTORE_INVENTORY="$(
 
 test "$FALCONE_SOURCE_INVENTORY" = "$FALCONE_RESTORE_INVENTORY"
 printf 'restore inventory verified: %s\n' "$FALCONE_RESTORE_INVENTORY"
-unset FALCONE_SOURCE_INVENTORY FALCONE_RESTORE_INVENTORY
+unset FALCONE_RESTORE_INVENTORY
 cleanup_webhook_restore
 trap - EXIT HUP INT TERM
 ```
@@ -528,33 +531,162 @@ trap - EXIT HUP INT TERM
 An initial pre-0.3.1 backup normally reports four webhook tables and zero lifecycle functions; a
 post-handoff backup reports six tables and three functions. The signing-secret count must match in
 both cases. Do not hard-code either inventory: exact source/restore equality is the acceptance gate.
+`pg_dump` archives are not guaranteed to be readable by an older major-version client or server.
+The bundled chart currently runs PostgreSQL `17.2.0`, so this literal procedure deliberately uses
+the matching `17.2` image. For another supported source, select an approved image at the source
+server's major version or newer and prove compatibility before treating the restore gate as passed;
+never rehearse a PostgreSQL 17 archive with PostgreSQL 16 tooling.
 
 ### Rehearse matching-key startup and readiness on the restored copy
 
 Database parity alone does not prove key custody. Use an approved disposable Kubernetes context and
-namespace, never the audited/production namespace, to connect the reviewed chart to the isolated
-restored PostgreSQL 16 endpoint. For the bundled chart, restore the dump into that disposable
-release's PostgreSQL before applying the C-25 handoff. For managed PostgreSQL, clone the
-backup/snapshot to a new endpoint and create a restricted, non-production values file that selects
-that endpoint through the installation's already-supported database contract. Never restore over
-the source endpoint.
+namespace, never the audited/production namespace. The literal bundled-database procedure below
+installs the truthful pre-C-25 source chart, restores the backup into a new database owned by the
+legacy application role in that release's PostgreSQL 17.2 instance, and then upgrades the same
+release with the reviewed C-25 chart. The ordinary source database remains separate; only the
+candidate's bounded webhook database connections select the restored database.
 
 Prepare:
 
-- `FALCONE_RESTORE_CONTEXT` and a unique `FALCONE_RESTORE_NAMESPACE`;
-- `FALCONE_RESTORE_BASE_VALUES`, containing only the isolated restored endpoint/reference wiring;
+- `FALCONE_RESTORE_CONTEXT`, which must be an approved disposable context, and a unique
+  `FALCONE_RESTORE_NAMESPACE`;
+- `FALCONE_RESTORE_RELEASE`, a unique release name;
+- `FALCONE_RESTORE_SOURCE_CHART`, the reviewed pre-C-25 chart package or checkout matching
+  `FALCONE_RESTORE_INSTALLED_VERSION`;
+- `FALCONE_RESTORE_SOURCE_VALUES`, the isolated non-production values for that source release;
+- `FALCONE_RESTORE_BASE_VALUES`, the reviewed C-25 non-secret base values;
 - `FALCONE_RESTORE_ACTION_KEY_VALUES`, referencing the matching retained key through a newly
   provisioned Secret in the disposable namespace;
-- a truthful restored source version and the same non-secret backup evidence ID.
+- a truthful restored source version and the same non-secret backup evidence ID. Provision the
+  matching Secret through the approved external-manager or P18 custody workflow; never put its
+  value in a Helm value, command argument, terminal output, or evidence file.
 
-Then run the same validation and server-side dry-run used by the real handoff, apply only after both
-pass, and verify that Kubernetes readiness is driven by `/readyz`:
+The following commands create the namespace and source release, stream the restricted backup into
+that release without printing it, restore it under the legacy application owner, compare the same
+bounded inventory used above, and leave a cleanup trap active for every failure path:
 
 ```bash
+export FALCONE_RESTORE_DATABASE='falcone_restore'
+test -n "$FALCONE_SOURCE_INVENTORY"
 test "$(kubectl config current-context)" = "$FALCONE_RESTORE_CONTEXT"
 test "$FALCONE_RESTORE_NAMESPACE" != "$FALCONE_NAMESPACE"
+test "$FALCONE_RESTORE_RELEASE" != "$FALCONE_RELEASE"
+test "$FALCONE_RESTORE_INSTALLED_VERSION" = '0.3.0'
+test "$(
+  helm show chart "$FALCONE_RESTORE_SOURCE_CHART" |
+    awk '$1 == "appVersion:" { gsub(/"/, "", $2); print $2; exit }'
+)" = "$FALCONE_RESTORE_INSTALLED_VERSION"
+test -s "$FALCONE_DB_BACKUP"
 
-if kubectl --namespace "$FALCONE_RESTORE_NAMESPACE" get configmap \
+cleanup_webhook_kube_restore() {
+  if helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" \
+    status "$FALCONE_RESTORE_RELEASE" >/dev/null 2>&1; then
+    helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+      --namespace "$FALCONE_RESTORE_NAMESPACE" \
+      uninstall "$FALCONE_RESTORE_RELEASE" --wait
+  fi
+  if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    get namespace "$FALCONE_RESTORE_NAMESPACE" >/dev/null 2>&1; then
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      delete namespace "$FALCONE_RESTORE_NAMESPACE" --wait
+  fi
+}
+trap cleanup_webhook_kube_restore EXIT HUP INT TERM
+
+if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  get namespace "$FALCONE_RESTORE_NAMESPACE" >/dev/null 2>&1; then
+  printf '%s\n' 'refusing restore rehearsal: namespace already exists' >&2
+  exit 1
+fi
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  create namespace "$FALCONE_RESTORE_NAMESPACE"
+
+helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+  install "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+  --wait --timeout 40m
+
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" rollout status \
+  "statefulset/${FALCONE_RESTORE_RELEASE}-postgresql" --timeout 10m
+
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" exec -i \
+  "statefulset/${FALCONE_RESTORE_RELEASE}-postgresql" -- \
+  sh -ec 'umask 077; cat > /tmp/falcone-restore.dump' \
+  < "$FALCONE_DB_BACKUP"
+
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" exec \
+  "statefulset/${FALCONE_RESTORE_RELEASE}-postgresql" -- \
+  sh -ec '
+    set +x
+    export PGPASSWORD="$POSTGRESQL_POSTGRES_PASSWORD"
+    test "$(
+      psql --no-psqlrc --tuples-only --no-align \
+        --host=127.0.0.1 --username=postgres --dbname=postgres \
+        --command="SELECT count(*) FROM pg_database WHERE datname='"'"'falcone_restore'"'"'"
+    )" = "0"
+    createdb --host=127.0.0.1 --username=postgres \
+      --owner="$POSTGRESQL_USERNAME" falcone_restore
+    export PGPASSWORD="$POSTGRESQL_PASSWORD"
+    pg_restore --exit-on-error --no-owner --no-acl \
+      --host=127.0.0.1 \
+      --username="$POSTGRESQL_USERNAME" \
+      --dbname=falcone_restore \
+      /tmp/falcone-restore.dump
+    rm -f /tmp/falcone-restore.dump
+  '
+
+FALCONE_RESTORED_CLUSTER_INVENTORY="$(
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" exec \
+    "statefulset/${FALCONE_RESTORE_RELEASE}-postgresql" -- sh -ec '
+      set +x
+      export PGPASSWORD="$POSTGRESQL_PASSWORD"
+      exec psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align \
+        --host=127.0.0.1 \
+        --username="$POSTGRESQL_USERNAME" \
+        --dbname=falcone_restore \
+        --command="
+          SELECT json_build_array(
+            current_setting('"'"'server_version_num'"'"')::integer / 10000,
+            (SELECT count(*) FROM pg_class
+              WHERE relnamespace = '"'"'public'"'"'::regnamespace
+                AND relkind = '"'"'r'"'"'
+                AND relname IN (
+                  '"'"'webhook_subscriptions'"'"',
+                  '"'"'webhook_signing_secrets'"'"',
+                  '"'"'webhook_deliveries'"'"',
+                  '"'"'webhook_delivery_attempts'"'"',
+                  '"'"'webhook_master_key_state'"'"',
+                  '"'"'webhook_master_key_rotations'"'"')),
+            (SELECT count(*) FROM pg_proc
+              WHERE pronamespace = '"'"'public'"'"'::regnamespace
+                AND proname IN (
+                  '"'"'falcone_webhook_key_write_current_id'"'"',
+                  '"'"'falcone_webhook_signing_secret_write_statement_fence'"'"',
+                  '"'"'falcone_webhook_signing_secret_write_fence'"'"')),
+            (SELECT count(*) FROM webhook_signing_secrets)
+          )"
+    '
+)"
+test "$FALCONE_SOURCE_INVENTORY" = "$FALCONE_RESTORED_CLUSTER_INVENTORY"
+printf 'cluster restore inventory verified: %s\n' \
+  "$FALCONE_RESTORED_CLUSTER_INVENTORY"
+unset FALCONE_RESTORED_CLUSTER_INVENTORY
+```
+
+Run the same server-side dry-run used by the real handoff, explicitly point the candidate's webhook
+connections at the restored database, apply only after validation passes, and verify that Kubernetes
+readiness is driven by `/readyz`:
+
+```bash
+
+if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" get configmap \
   in-falcone-webhook-database-credentials-initialized >/dev/null 2>&1; then
   FALCONE_RESTORE_FIRST_HANDOFF=false
 else
@@ -562,11 +694,17 @@ else
 fi
 export FALCONE_RESTORE_FIRST_HANDOFF
 
-helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
+helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+  upgrade "$FALCONE_RESTORE_RELEASE" "$FALCONE_CHART" \
   --namespace "$FALCONE_RESTORE_NAMESPACE" \
   --values "$FALCONE_RESTORE_BASE_VALUES" \
   --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
-  --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set-string \
+    "deployment.upgrade.currentVersion=${FALCONE_RESTORE_INSTALLED_VERSION}" \
+  --set-string \
+    "global.webhookDatabase.connection.host=${FALCONE_RESTORE_RELEASE}-postgresql" \
+  --set-string \
+    "global.webhookDatabase.connection.database=${FALCONE_RESTORE_DATABASE}" \
   --set \
     "global.webhookDatabase.migration.firstHandoff=${FALCONE_RESTORE_FIRST_HANDOFF}" \
   --set global.webhookDatabase.migration.backupVerified=true \
@@ -575,11 +713,17 @@ helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
     "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --dry-run=server --hide-secret >/dev/null
 
-helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
+helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+  upgrade "$FALCONE_RESTORE_RELEASE" "$FALCONE_CHART" \
   --namespace "$FALCONE_RESTORE_NAMESPACE" \
   --values "$FALCONE_RESTORE_BASE_VALUES" \
   --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
-  --set-string "deployment.upgrade.currentVersion=${FALCONE_INSTALLED_VERSION}" \
+  --set-string \
+    "deployment.upgrade.currentVersion=${FALCONE_RESTORE_INSTALLED_VERSION}" \
+  --set-string \
+    "global.webhookDatabase.connection.host=${FALCONE_RESTORE_RELEASE}-postgresql" \
+  --set-string \
+    "global.webhookDatabase.connection.database=${FALCONE_RESTORE_DATABASE}" \
   --set \
     "global.webhookDatabase.migration.firstHandoff=${FALCONE_RESTORE_FIRST_HANDOFF}" \
   --set global.webhookDatabase.migration.backupVerified=true \
@@ -588,28 +732,61 @@ helm upgrade "$FALCONE_RELEASE" "$FALCONE_CHART" \
     "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" \
   --wait --timeout 40m
 
-kubectl --namespace "$FALCONE_RESTORE_NAMESPACE" rollout status \
-  "deployment/${FALCONE_RELEASE}-control-plane" --timeout 10m
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" rollout status \
+  "deployment/${FALCONE_RESTORE_RELEASE}-control-plane" --timeout 10m
 test "$(
-  kubectl --namespace "$FALCONE_RESTORE_NAMESPACE" get deployment \
-    "${FALCONE_RELEASE}-control-plane" \
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" get deployment \
+    "${FALCONE_RESTORE_RELEASE}-control-plane" \
     -o jsonpath='{.spec.template.spec.containers[?(@.name=="control-plane")].readinessProbe.httpGet.path}'
 )" = '/readyz'
+
+test "$(
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" get --raw \
+    "/api/v1/namespaces/${FALCONE_RESTORE_NAMESPACE}/services/http:${FALCONE_RESTORE_RELEASE}-control-plane:http/proxy/readyz" |
+    jq -r .status
+)" = 'ok'
+
+FALCONE_RESTORE_STATUS="$(
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" exec \
+    "deployment/${FALCONE_RESTORE_RELEASE}-control-plane" -- \
+    env WEBHOOK_KEY_LIFECYCLE_ACTION=status \
+    node /app/webhook-key-lifecycle-cli.mjs |
+    jq -c .
+)"
+test "$(printf '%s\n' "$FALCONE_RESTORE_STATUS" | jq -r .state.lifecycleState)" = 'serving'
+test "$(printf '%s\n' "$FALCONE_RESTORE_STATUS" | jq -r .state.currentMode)" = 'legacy'
+test "$(printf '%s\n' "$FALCONE_RESTORE_STATUS" | jq -r .state.recoveryKeyId)" = 'null'
+test "$(
+  printf '%s\n' "$FALCONE_RESTORE_STATUS" |
+    jq '[.recent[] |
+      select(
+        .action == "adopt" and
+        .state == "completed" and
+        .affectedCount == .verifiedCount
+      )
+    ] | length'
+)" -ge 1
+unset FALCONE_RESTORE_STATUS
 ```
 
-P18 must also run the bounded lifecycle status command in
-[Read secret-safe lifecycle status](#read-secret-safe-lifecycle-status) and verify `serving`, the
-expected mode, matching affected/verified counts, and no recovery-required state. Exercise one
-read-only application health check and the scoped tenant/public parity suite approved for the
-environment; never copy tenant payloads into evidence.
+The literal checks above verify the service-proxied `/readyz` response, `serving`, legacy mode,
+matching adoption affected/verified counts, and no recovery identity. P18 should review
+[Read secret-safe lifecycle status](#read-secret-safe-lifecycle-status) for the complete output
+contract. Exercise the scoped tenant/public parity suite approved for the environment; never copy
+tenant payloads into evidence.
 
 Always clean up the disposable release and restored provider instance after preserving only the
-bounded pass/fail evidence and the provider backup/clone ID:
+bounded pass/fail evidence and the provider backup/clone ID. For the bundled procedure, invoke the
+already-installed cleanup trap explicitly, then remove it:
 
 ```bash
-helm uninstall "$FALCONE_RELEASE" \
-  --namespace "$FALCONE_RESTORE_NAMESPACE" --wait
-kubectl delete namespace "$FALCONE_RESTORE_NAMESPACE" --wait
+cleanup_webhook_kube_restore
+trap - EXIT HUP INT TERM
+unset FALCONE_SOURCE_INVENTORY
 ```
 
 For a managed provider, delete the isolated restored instance through the provider's approved
