@@ -877,12 +877,26 @@ test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-
   assert.match(runbook, /WEBHOOK-DATABASE-AUTHORITY\.md/);
 
   assert.match(runbook, /Rehearse the bundled backup on matching PostgreSQL 17\.2/);
-  assert.match(runbook, /docker\.io\/library\/postgres:17\.2-alpine/);
+  assert.match(
+    runbook,
+    /docker\.io\/library\/postgres:17\.2-alpine@sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96/,
+  );
+  assert.match(runbook, /pg_restore --list \/tmp\/falcone-backup\.dump/);
+  assert.doesNotMatch(runbook, /pg_restore --list "\$FALCONE_DB_BACKUP"/);
   assert.match(runbook, /never rehearse a PostgreSQL 17 archive with PostgreSQL 16 tooling/);
   assert.match(runbook, /--network none/);
   assert.match(runbook, /test "\$FALCONE_SOURCE_INVENTORY" = "\$FALCONE_RESTORE_INVENTORY"/);
   assert.match(runbook, /trap cleanup_webhook_restore EXIT HUP INT TERM/);
   assert.match(runbook, /Rehearse matching-key startup and readiness on the restored copy/);
+  assert.match(runbook, /FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA/);
+  assert.match(
+    runbook,
+    /git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" rev-parse HEAD/,
+  );
+  assert.match(
+    runbook,
+    /realpath -- "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE\/charts\/in-falcone"/,
+  );
   assert.match(runbook, /install "\$FALCONE_RESTORE_RELEASE" "\$FALCONE_RESTORE_SOURCE_CHART"/);
   assert.match(runbook, /cat > \/tmp\/falcone-restore\.dump/);
   assert.match(runbook, /--owner="\$POSTGRESQL_USERNAME" falcone_restore/);
@@ -897,6 +911,11 @@ test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-
   assert.match(runbook, /services\/http:\$\{FALCONE_RESTORE_RELEASE\}-control-plane:http\/proxy\/readyz/);
   assert.match(runbook, /FALCONE_RESTORE_STATUS/);
   assert.match(runbook, /\.affectedCount == \.verifiedCount/);
+  assert.match(runbook, /FALCONE_RESTORE_TENANT_A_CURL_CONFIG/);
+  assert.match(runbook, /FALCONE_RESTORE_TENANT_B_CURL_CONFIG/);
+  assert.match(runbook, /FALCONE_RESTORE_CROSS_SCOPE_STATUS/);
+  assert.match(runbook, /tenant\/public parity verified: ownRoutes=2/);
+  assert.match(runbook, /test "\$FALCONE_RESTORE_PARITY_VERIFIED" = 'true'/);
   assert.match(runbook, /cleanup_webhook_kube_restore/);
   assert.match(runbook, /delete namespace "\$FALCONE_RESTORE_NAMESPACE" --wait/);
 });

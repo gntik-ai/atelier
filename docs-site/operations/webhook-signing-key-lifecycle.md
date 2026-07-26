@@ -53,7 +53,7 @@ Required knowledge:
 
 Required tools and access:
 
-- `helm` 3, `kubectl`, `jq`, POSIX shell tools, and PostgreSQL client tools for backup inspection;
+- `helm` 3, `kubectl`, `jq`, `curl`, POSIX shell tools, and Docker or Podman;
 - Docker or Podman for the local PostgreSQL 17.2 restore rehearsal, or an approved isolated
   provider restore target with equivalent cleanup guarantees;
 - the exact Kubernetes context, namespace, Helm release, non-secret base values, and chart reference;
@@ -355,7 +355,9 @@ password. The password and user already enter the database pod from its Kubernet
 
 ```bash
 export FALCONE_DB_BACKUP='<restricted-backup-path>/in-falcone-pre-webhook-key.dump'
+export FALCONE_RESTORE_POSTGRES_IMAGE='docker.io/library/postgres:17.2-alpine@sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96'
 test ! -e "$FALCONE_DB_BACKUP"
+test "${FALCONE_DB_BACKUP#/}" != "$FALCONE_DB_BACKUP"
 umask 077
 
 kubectl --namespace "$FALCONE_NAMESPACE" exec "statefulset/${FALCONE_POSTGRES}" -- \
@@ -369,12 +371,18 @@ kubectl --namespace "$FALCONE_NAMESPACE" exec "statefulset/${FALCONE_POSTGRES}" 
 
 test -s "$FALCONE_DB_BACKUP"
 chmod 0600 "$FALCONE_DB_BACKUP"
-pg_restore --list "$FALCONE_DB_BACKUP" >/dev/null
+docker run --rm --network none \
+  --mount \
+    "type=bind,source=${FALCONE_DB_BACKUP},target=/tmp/falcone-backup.dump,readonly" \
+  "$FALCONE_RESTORE_POSTGRES_IMAGE" \
+  pg_restore --list /tmp/falcone-backup.dump >/dev/null
 sha256sum "$FALCONE_DB_BACKUP" > "${FALCONE_DB_BACKUP}.sha256"
 ```
 
 Expected state: the dump and checksum exist under restricted backup custody; no database password or
-master-key byte was printed. `pg_restore --list` checks archive readability, not restoration.
+master-key byte was printed. The archive-list check uses the same digest-pinned PostgreSQL 17.2
+tooling as the restore rehearsal, not an unversioned host client. `pg_restore --list` checks archive
+readability, not restoration.
 
 ### Size the maintenance transaction
 
@@ -428,8 +436,7 @@ should run the equivalent provider-approved read-only sizing queries and capacit
 
 Archive listing is not a restore rehearsal. The following local procedure restores the bundled
 PostgreSQL 17.2 backup into an isolated PostgreSQL 17.2 container with no published network port,
-compares bounded
-schema/row inventory with the source, and always removes the container. It never selects a
+compares bounded schema/row inventory with the source, and always removes the container. It never selects a
 signing-secret row, ciphertext, IV, tenant field, credential, or key material:
 
 ```bash
@@ -446,7 +453,7 @@ docker run --detach \
   --network none \
   --tmpfs /var/lib/postgresql/data:rw,nosuid,size=2g \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
-  docker.io/library/postgres:17.2-alpine >/dev/null
+  "$FALCONE_RESTORE_POSTGRES_IMAGE" >/dev/null
 
 until docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
   pg_isready --quiet --username postgres; do
@@ -551,8 +558,11 @@ Prepare:
 - `FALCONE_RESTORE_CONTEXT`, which must be an approved disposable context, and a unique
   `FALCONE_RESTORE_NAMESPACE`;
 - `FALCONE_RESTORE_RELEASE`, a unique release name;
-- `FALCONE_RESTORE_SOURCE_CHART`, the reviewed pre-C-25 chart package or checkout matching
-  `FALCONE_RESTORE_INSTALLED_VERSION`;
+- `FALCONE_RESTORE_SOURCE_CHART_SOURCE`, a clean reviewed pre-C-25 chart checkout at
+  `FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA`; the audited canonical 0.3.0 source is
+  `9aab27e7695e20156b7a4f61b5f2f789f59ee59a`;
+- `FALCONE_RESTORE_SOURCE_CHART`, derived only as
+  `${FALCONE_RESTORE_SOURCE_CHART_SOURCE}/charts/in-falcone`;
 - `FALCONE_RESTORE_SOURCE_VALUES`, the isolated non-production values for that source release;
 - `FALCONE_RESTORE_BASE_VALUES`, the reviewed C-25 non-secret base values;
 - `FALCONE_RESTORE_ACTION_KEY_VALUES`, referencing the matching retained key through a newly
@@ -567,11 +577,21 @@ bounded inventory used above, and leave a cleanup trap active for every failure 
 
 ```bash
 export FALCONE_RESTORE_DATABASE='falcone_restore'
+export FALCONE_RESTORE_SOURCE_CHART_SOURCE='<reviewed-pre-C-25-falcone-charts-checkout>'
+export FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA='<approved-pre-C-25-chart-source-commit>'
+export FALCONE_RESTORE_SOURCE_CHART="${FALCONE_RESTORE_SOURCE_CHART_SOURCE}/charts/in-falcone"
 test -n "$FALCONE_SOURCE_INVENTORY"
 test "$(kubectl config current-context)" = "$FALCONE_RESTORE_CONTEXT"
 test "$FALCONE_RESTORE_NAMESPACE" != "$FALCONE_NAMESPACE"
 test "$FALCONE_RESTORE_RELEASE" != "$FALCONE_RELEASE"
 test "$FALCONE_RESTORE_INSTALLED_VERSION" = '0.3.0'
+test "$(
+  git -C "$FALCONE_RESTORE_SOURCE_CHART_SOURCE" rev-parse HEAD
+)" = "$FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA"
+test -z "$(git -C "$FALCONE_RESTORE_SOURCE_CHART_SOURCE" status --short)"
+test "$(realpath -- "$FALCONE_RESTORE_SOURCE_CHART")" = "$(
+  realpath -- "$FALCONE_RESTORE_SOURCE_CHART_SOURCE/charts/in-falcone"
+)"
 test "$(
   helm show chart "$FALCONE_RESTORE_SOURCE_CHART" |
     awk '$1 == "appVersion:" { gsub(/"/, "", $2); print $2; exit }'
@@ -776,17 +796,119 @@ unset FALCONE_RESTORE_STATUS
 The literal checks above verify the service-proxied `/readyz` response, `serving`, legacy mode,
 matching adoption affected/verified counts, and no recovery identity. P18 should review
 [Read secret-safe lifecycle status](#read-secret-safe-lifecycle-status) for the complete output
-contract. Exercise the scoped tenant/public parity suite approved for the environment; never copy
-tenant payloads into evidence.
+contract.
+
+Before cleanup, use two supported disposable logins to prove read-only public-contract and
+cross-scope behavior through the restored control plane. Prepare:
+
+- `FALCONE_RESTORE_TENANT_A_CURL_CONFIG` and `FALCONE_RESTORE_TENANT_B_CURL_CONFIG`, mode `0600`
+  curl config files produced by the supported disposable superadmin/user flow. Each file contains
+  only its login's `Authorization` header; never print, attach, or pass the token in an argument;
+- `FALCONE_RESTORE_WORKSPACE_A`, a real workspace visible to tenant A and outside tenant B;
+- `FALCONE_RESTORE_LOCAL_PORT`, an unused loopback port.
+
+The smoke reads event types and subscription inventory as tenant A, rejects tenant B at tenant A's
+workspace boundary, retains response bodies only in a mode-`0700` temporary directory, and emits
+only bounded status/count evidence:
+
+```bash
+test -r "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"
+test -r "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"
+test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG")" = '600'
+test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG")" = '600'
+test -n "$FALCONE_RESTORE_WORKSPACE_A"
+test -n "$FALCONE_RESTORE_LOCAL_PORT"
+
+FALCONE_RESTORE_PARITY_DIR="$(mktemp -d /tmp/falcone-c25-parity.XXXXXX)"
+chmod 0700 "$FALCONE_RESTORE_PARITY_DIR"
+FALCONE_RESTORE_PORT_FORWARD_LOG="${FALCONE_RESTORE_PARITY_DIR}/port-forward.log"
+
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" port-forward \
+  "service/${FALCONE_RESTORE_RELEASE}-control-plane" \
+  "${FALCONE_RESTORE_LOCAL_PORT}:http" \
+  >"$FALCONE_RESTORE_PORT_FORWARD_LOG" 2>&1 &
+FALCONE_RESTORE_PORT_FORWARD_PID=$!
+
+cleanup_webhook_parity() {
+  if kill -0 "$FALCONE_RESTORE_PORT_FORWARD_PID" >/dev/null 2>&1; then
+    kill "$FALCONE_RESTORE_PORT_FORWARD_PID"
+    wait "$FALCONE_RESTORE_PORT_FORWARD_PID" 2>/dev/null || true
+  fi
+  rm -rf "$FALCONE_RESTORE_PARITY_DIR"
+}
+trap 'cleanup_webhook_parity; cleanup_webhook_kube_restore' EXIT HUP INT TERM
+
+FALCONE_RESTORE_API_BASE="http://127.0.0.1:${FALCONE_RESTORE_LOCAL_PORT}"
+until curl --silent --show-error --fail \
+  "${FALCONE_RESTORE_API_BASE}/readyz" >/dev/null; do
+  kill -0 "$FALCONE_RESTORE_PORT_FORWARD_PID"
+  sleep 1
+done
+
+FALCONE_RESTORE_EVENT_TYPES_STATUS="$(
+  curl --config "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
+    --silent --show-error \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/event-types.json" \
+    --write-out '%{http_code}' \
+    "${FALCONE_RESTORE_API_BASE}/v1/workspaces/${FALCONE_RESTORE_WORKSPACE_A}/webhooks/event-types"
+)"
+test "$FALCONE_RESTORE_EVENT_TYPES_STATUS" = '200'
+test "$(
+  jq 'if (.eventTypes | type) == "array" then (.eventTypes | length)
+      else -1 end' \
+    "${FALCONE_RESTORE_PARITY_DIR}/event-types.json"
+)" -ge 0
+
+FALCONE_RESTORE_OWN_LIST_STATUS="$(
+  curl --config "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
+    --silent --show-error \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/own-list.json" \
+    --write-out '%{http_code}' \
+    "${FALCONE_RESTORE_API_BASE}/v1/workspaces/${FALCONE_RESTORE_WORKSPACE_A}/webhooks/subscriptions"
+)"
+test "$FALCONE_RESTORE_OWN_LIST_STATUS" = '200'
+FALCONE_RESTORE_OWN_COUNT="$(
+  jq 'if (.items | type) == "array" then (.items | length) else -1 end' \
+    "${FALCONE_RESTORE_PARITY_DIR}/own-list.json"
+)"
+test "$FALCONE_RESTORE_OWN_COUNT" -ge 0
+
+FALCONE_RESTORE_CROSS_SCOPE_STATUS="$(
+  curl --config "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG" \
+    --silent --show-error \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/cross-scope.json" \
+    --write-out '%{http_code}' \
+    "${FALCONE_RESTORE_API_BASE}/v1/workspaces/${FALCONE_RESTORE_WORKSPACE_A}/webhooks/subscriptions"
+)"
+case "$FALCONE_RESTORE_CROSS_SCOPE_STATUS" in
+  403|404) ;;
+  *) printf '%s\n' 'restored-copy cross-scope request did not fail closed' >&2; exit 1 ;;
+esac
+
+FALCONE_RESTORE_PARITY_VERIFIED=true
+export FALCONE_RESTORE_PARITY_VERIFIED
+printf 'tenant/public parity verified: ownRoutes=2 ownItems=%s crossScope=1\n' \
+  "$FALCONE_RESTORE_OWN_COUNT"
+unset FALCONE_RESTORE_EVENT_TYPES_STATUS FALCONE_RESTORE_OWN_LIST_STATUS
+unset FALCONE_RESTORE_OWN_COUNT FALCONE_RESTORE_CROSS_SCOPE_STATUS
+```
+
+Expected evidence is one bounded line with `ownRoutes=2` and `crossScope=1`; no token, response
+body, tenant/workspace identifier, subscription ID, or payload is printed. Any failed assertion
+leaves the release gate failed while the trap still removes the temporary responses, port-forward,
+Helm release, and namespace.
 
 Always clean up the disposable release and restored provider instance after preserving only the
 bounded pass/fail evidence and the provider backup/clone ID. For the bundled procedure, invoke the
 already-installed cleanup trap explicitly, then remove it:
 
 ```bash
+test "$FALCONE_RESTORE_PARITY_VERIFIED" = 'true'
+cleanup_webhook_parity
 cleanup_webhook_kube_restore
 trap - EXIT HUP INT TERM
-unset FALCONE_SOURCE_INVENTORY
+unset FALCONE_SOURCE_INVENTORY FALCONE_RESTORE_PARITY_VERIFIED
 ```
 
 For a managed provider, delete the isolated restored instance through the provider's approved
