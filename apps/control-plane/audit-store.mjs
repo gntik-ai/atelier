@@ -93,45 +93,50 @@ export function auditActionCategoryForType(actionType, explicitCategory = null) 
   return ACTION_CATEGORY_BY_TYPE[key] ?? 'configuration_change';
 }
 
-// Record a single action-audit event. Best-effort by design: auditing must NEVER
-// fail the action it describes, so callers wrap this and swallow errors.
-//
-// The row carries the TRUE `outcome` (succeeded/denied/failed/error) and is linked
-// into a per-tenant append-only HASH CHAIN (#644): within one transaction holding a
-// per-tenant advisory lock (to serialize concurrent audit writes for the tenant), we
-// read the tenant's latest row_hash as prev_hash, generate id + created_at in-app so
-// they are covered by the hash, compute row_hash, and INSERT atomically.
-export async function recordAuditEvent(db, {
+// Append one event using the caller's transaction. Platform maintenance operations
+// use this seam so their data transform, lifecycle ledger, and established internal
+// audit row either commit together or all roll back. HTTP callers continue to use
+// recordAuditEvent(), which owns the surrounding transaction below.
+export async function recordAuditEventInTransaction(client, {
   actionType, actorId, tenantId = null, workspaceId = null, outcome = 'succeeded',
   previousState = null, newState = {}, correlationId = null
-} = {}) {
+} = {}, { id = randomUUID(), createdAt = new Date().toISOString() } = {}) {
   const merged = workspaceId ? { ...(newState ?? {}), workspaceId } : (newState ?? {});
-  const id = randomUUID();
-  const createdAt = new Date().toISOString();
   const at = String(actionType ?? 'action').slice(0, 64);
   const actor = String(actorId ?? 'unknown');
   const tid = tenantId ?? null;
 
+  // Serialize per-scope chain appends so concurrent global maintenance records
+  // cannot fork the same hash chain. IS NOT DISTINCT FROM is required for the
+  // platform-global (tenant_id NULL) chain.
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::int8)', [`audit:${tid ?? 'global'}`]);
+  const prev = await client.query(
+    'SELECT row_hash FROM plan_audit_events WHERE tenant_id IS NOT DISTINCT FROM $1 ORDER BY created_at DESC, id DESC LIMIT 1',
+    [tid]
+  );
+  const prevHash = prev.rows[0]?.row_hash ?? '';
+  const rowHash = computeRowHash(auditCanonical({ id, actionType: at, actorId: actor, tenantId: tid, outcome, createdAt, newState: merged }), prevHash);
+  const res = await client.query(
+    `INSERT INTO plan_audit_events (id, action_type, actor_id, tenant_id, plan_id, previous_state, new_state, outcome, correlation_id, created_at, prev_hash, row_hash)
+     VALUES ($1,$2,$3,$4,NULL,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11)
+     RETURNING id, action_type, actor_id, tenant_id, previous_state, new_state, outcome, correlation_id, created_at, prev_hash, row_hash`,
+    [id, at, actor, tid, previousState == null ? null : JSON.stringify(previousState), JSON.stringify(merged ?? {}), outcome, correlationId ?? null, createdAt, prevHash, rowHash]
+  );
+  return res.rows[0] ?? null;
+}
+
+// Record a single action-audit event. Best-effort remains the policy of ordinary
+// request dispatch callers, which invoke this asynchronously and swallow errors.
+// The durable platform-maintenance lifecycle instead calls the transactional seam
+// above directly and treats an audit failure as a transaction failure.
+export async function recordAuditEvent(db, event = {}) {
   const usePooled = typeof db.connect === 'function';
   const client = usePooled ? await db.connect() : db;
   try {
     await client.query('BEGIN');
-    // Serialize per-tenant chain appends so two concurrent writes can't fork it.
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::int8)', [`audit:${tid ?? 'global'}`]);
-    const prev = await client.query(
-      'SELECT row_hash FROM plan_audit_events WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT 1',
-      [tid]
-    );
-    const prevHash = prev.rows[0]?.row_hash ?? '';
-    const rowHash = computeRowHash(auditCanonical({ id, actionType: at, actorId: actor, tenantId: tid, outcome, createdAt, newState: merged }), prevHash);
-    const res = await client.query(
-      `INSERT INTO plan_audit_events (id, action_type, actor_id, tenant_id, plan_id, previous_state, new_state, outcome, correlation_id, created_at, prev_hash, row_hash)
-       VALUES ($1,$2,$3,$4,NULL,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11)
-       RETURNING id, action_type, actor_id, tenant_id, previous_state, new_state, outcome, correlation_id, created_at, prev_hash, row_hash`,
-      [id, at, actor, tid, previousState == null ? null : JSON.stringify(previousState), JSON.stringify(merged ?? {}), outcome, correlationId ?? null, createdAt, prevHash, rowHash]
-    );
+    const result = await recordAuditEventInTransaction(client, event);
     await client.query('COMMIT');
-    return res.rows[0] ?? null;
+    return result;
   } catch (e) {
     try { await client.query('ROLLBACK'); } catch { /* ignore */ }
     throw e;

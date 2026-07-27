@@ -43,7 +43,7 @@ test('deployment contract carries profile, exposure, and upgrade defaults', () =
   assert.equal(values.publicSurface.tls.mode, 'clusterManaged');
   assert.equal(loadBalancerValues.platform.network.exposureKind, 'LoadBalancer');
   assert.equal(loadBalancerValues.publicSurface.tls.mode, 'external');
-  assert.deepEqual(values.deployment.upgrade.supportedPreviousVersions, ['0.2.0']);
+  assert.deepEqual(values.deployment.upgrade.supportedPreviousVersions, ['0.2.0', '0.3.0', '0.3.1']);
 });
 
 test('bootstrap contract keeps one-shot catalogs and upgrade reconciliation explicit', () => {

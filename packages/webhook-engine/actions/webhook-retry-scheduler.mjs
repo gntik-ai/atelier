@@ -12,7 +12,7 @@ export async function main(params) {
   if (hasRetriesRemaining(attemptCount, delivery.max_attempts ?? policy.maxAttempts)) {
     const nextAttemptAt = computeNextAttemptAt(attemptCount, policy);
     await db.updateDelivery(deliveryId, { status: 'pending', next_attempt_at: nextAttemptAt });
-    if (invoker?.invoke) await invoker.invoke('webhook-delivery-worker', { deliveryId, scheduledFor: nextAttemptAt });
+    if (invoker) await invoker.invokeWebhookDelivery({ deliveryId, scheduledFor: nextAttemptAt });
     return { status: 'scheduled', nextAttemptAt };
   }
   const updatedDelivery = await db.updateDelivery(deliveryId, { status: 'permanently_failed', next_attempt_at: null });

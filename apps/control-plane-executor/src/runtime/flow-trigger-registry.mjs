@@ -12,7 +12,7 @@
 //                     The tenant + workspace are structurally encoded in the id so no schedule can
 //                     be addressed across tenant boundaries. Overlap policy + catch-up window are
 //                     taken verbatim from the DSL trigger options.
-//   webhook        -> per-trigger HMAC secret (generateSigningSecret + encryptSecret), stored in
+//   webhook        -> per-trigger HMAC secret (generateSigningSecret + executor-local encryption), stored in
 //                     flow_trigger_secrets keyed by (trigger_id, tenant_id, workspace_id). The
 //                     webhook route loads + verifies it before any Temporal call (route handler in
 //                     server.mjs). The secret is returned ONCE at publish.
@@ -32,10 +32,12 @@
 import { randomUUID } from 'node:crypto';
 import {
   generateSigningSecret,
-  encryptSecret,
-  decryptSecret,
   verifyIncomingWebhook,
 } from '../../../../packages/webhook-engine/src/webhook-signing.mjs';
+import {
+  encryptFlowTriggerSecret,
+  decryptFlowTriggerSecret,
+} from './flow-trigger-secret-crypto.mjs';
 import { clientError } from './errors.mjs';
 
 const WORKFLOW_TYPE = 'DslInterpreterWorkflow';
@@ -523,7 +525,7 @@ export function createFlowTriggerRegistry({
   temporalClient,
   getTemporalClient,
   temporalTaskQueue = 'flows-main',
-  // Master key for encrypting per-trigger HMAC secrets at rest (AES-256-GCM via encryptSecret).
+  // Master key for encrypting per-trigger HMAC secrets at rest with the executor-local codec.
   // Resolved fail-closed (#636): a real key MUST be supplied via FLOW_TRIGGER_SECRET_KEY in
   // production; absent it, this is null and trigger-secret operations are refused (never a
   // hardcoded default). A non-production profile falls back to the dev key for local/test runs.
@@ -576,7 +578,7 @@ export function createFlowTriggerRegistry({
     }
     const triggerId = triggerIdFor(flowId, trigger);
     const secret = generateSigningSecret();
-    const { cipher, iv } = encryptSecret(secret, secretMasterKey);
+    const { cipher, iv } = encryptFlowTriggerSecret(secret, secretMasterKey);
     await store.upsertSecret({
       tenantId: identity.tenantId, workspaceId: identity.workspaceId, flowId, triggerId, cipher, iv,
     });
@@ -597,7 +599,7 @@ export function createFlowTriggerRegistry({
     if (!row) return false;
     let secret;
     try {
-      secret = decryptSecret(row.cipher, row.iv, secretMasterKey);
+      secret = decryptFlowTriggerSecret(row.cipher, row.iv, secretMasterKey);
     } catch {
       return false;
     }

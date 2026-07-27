@@ -31,13 +31,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEST_WEBHOOK_KEY_CONTEXT } from '../helpers/webhook-key.mjs';
 
 // The handler lazily imports the action from ${REPO_ROOT}/packages/webhook-engine/...
 // Point REPO_ROOT at this checkout so the import resolves outside the image.
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 process.env.REPO_ROOT = REPO_ROOT;
 
-const { webhookManage } = await import('../../apps/control-plane/webhook-handlers.mjs');
+const { webhookManage, setWebhookKeyContext } = await import('../../apps/control-plane/webhook-handlers.mjs');
+setWebhookKeyContext(TEST_WEBHOOK_KEY_CONTEXT);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -60,9 +62,9 @@ function memDb() {
     async getWorkspaceSubscriptionCount(t, w) {
       return [...subs.values()].filter((s) => s.tenant_id === t && s.workspace_id === w && !s.deleted_at).length;
     },
-    async insertSubscription(r) { subs.set(r.id, { ...r }); },
-    async insertSecret(id, enc, t, w) {
-      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, status: 'active', tenant_id: t, workspace_id: w });
+    async insertSubscriptionWithSecret(r, enc, encryptionKeyId) {
+      subs.set(r.id, { ...r });
+      secrets.push({ subscription_id: r.id, secret_cipher: enc.cipher, secret_iv: enc.iv, encryption_key_id: encryptionKeyId, status: 'active', tenant_id: r.tenant_id, workspace_id: r.workspace_id });
     },
     async listSubscriptions(ctx) {
       return [...subs.values()].filter((s) => s.tenant_id === ctx.tenantId && s.workspace_id === ctx.workspaceId && !s.deleted_at);
@@ -75,9 +77,9 @@ function memDb() {
     async updateSubscription(id, patch) { const s = { ...subs.get(id), ...patch, updated_at: new Date().toISOString() }; subs.set(id, s); return s; },
     async replaceSubscription(rec) { subs.set(rec.id, { ...rec }); return subs.get(rec.id); },
     async cancelPendingDeliveries() {},
-    async rotateSecret(id, enc, grace, t, w) {
+    async rotateSecret(id, enc, grace, t, w, encryptionKeyId) {
       for (const s of secrets) if (s.subscription_id === id && s.status === 'active') { s.status = 'grace'; s.grace_expires_at = grace; }
-      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, status: 'active', tenant_id: t, workspace_id: w });
+      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, encryption_key_id: encryptionKeyId, status: 'active', tenant_id: t, workspace_id: w });
     },
     async listDeliveries(id) { return deliveries.filter((d) => d.subscription_id === id); },
     async getDelivery(id, did) {
@@ -89,8 +91,20 @@ function memDb() {
 }
 
 // Build the ctx the control-plane server hands a local handler.
+const CONTROL_PLANE_POOL = { async query() {} };
+const WEBHOOK_RUNTIME_POOL = { async query() {} };
+const WEBHOOK_WRITE_POOL = { async query() {} };
 function ctx({ method = 'GET', url, body = {}, query = {}, identity, params = {} }) {
-  return { req: { method, url }, body, query, identity, params, pool: {} };
+  return {
+    req: { method, url },
+    body,
+    query,
+    identity,
+    params,
+    pool: CONTROL_PLANE_POOL,
+    webhookRuntimePool: WEBHOOK_RUNTIME_POOL,
+    webhookWritePool: WEBHOOK_WRITE_POOL,
+  };
 }
 const A = { sub: 'user-a', tenantId: 'tenant-a', workspaceId: 'ws-a', actorType: 'tenant_owner' };
 const ownedWs = (tenantId) => async (_pool, wsId) => ({ id: wsId, tenant_id: tenantId });

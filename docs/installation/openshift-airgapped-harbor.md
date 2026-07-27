@@ -1,21 +1,36 @@
-# Falcone on OpenShift — Air‑gapped (Harbor‑only) Installation Guide
+# Legacy 0.3.0 OpenShift/Harbor Plain-Manifest Reference
 
-> **Scope.** This is a single authoritative runbook for deploying the **entire Falcone
-> multitenant BaaS platform** on **OpenShift 4.14+** inside a locked‑down enterprise
-> network, using **plain declarative manifests applied with `oc apply -f` only** — no
-> Helm, Kustomize, or templating tools for the Falcone manifests. OpenShift Serverless
-> is a prerequisite for the runtime-created Functions and MCP Knative Services. Every
-> image (including build base images, init containers and sidecars) is pulled
-> **exclusively from a private Harbor registry**.
+> [!WARNING]
+> **Unsupported for new C-25/chart 0.3.1 installs and upgrades.** These frozen manual manifests
+> target Falcone `0.3.0` and omit the mandatory chart-managed webhook signing-key Secret reference,
+> credential/lifecycle Jobs, and lifecycle RBAC introduced for C-25. Copying only a newer
+> control-plane or other image into these manifests is unsafe and unsupported.
 >
-> **How this guide was produced.** The manifests below were derived from the project's
-> own deployment source of truth — the umbrella Helm chart `../falcone-charts/charts/in-falcone` (its
-> `values.yaml`, sub‑chart templates and the component‑wrapper workload template), the
-> service `Dockerfile`s, and `tests/env/docker-compose.yml`. Helm was used **only as an
-> off‑cluster extraction aid** to confirm exact env vars, ports, probes and image tags;
-> the operator never runs Helm. Image tags are taken verbatim from the chart — none were
-> invented. Where a value is unpinned, a placeholder, or an internal inconsistency
-> exists, it is called out with a **[VERIFY]** note.
+> New and fresh users, and users upgrading an existing Helm-managed release, must use the
+> [matched Helm chart](/operations/helm-configuration), the
+> [OpenShift Install guide](/operations/openshift-install), and the
+> [Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle). Existing
+> `0.3.0` manual installations must remain pinned to `0.3.0` and continue their existing manual
+> process until a separate manual-to-Helm migration is approved and safely rehearsed. No supported
+> resource-import path moves these plain-manifest resources into Helm; webhook key adoption does not
+> import or transfer ownership of them.
+
+**Legacy scope only.** The remainder of this page records a no-Helm procedure for the historical
+`0.3.0` release. It is not an installation choice for C-25/chart `0.3.1`. The archived procedure
+describes deploying the **entire Falcone multitenant BaaS platform** on **OpenShift 4.14+** inside a
+locked-down enterprise network, using **plain declarative manifests applied with `oc apply -f`
+only** — no Helm, Kustomize, or templating tools for the Falcone manifests. OpenShift Serverless is a
+prerequisite for the runtime-created Functions and MCP Knative Services. Every image (including
+build base images, init containers and sidecars) is pulled **exclusively from a private Harbor
+registry**.
+
+**How this legacy reference was produced.** The manifests below were derived from the project's own
+deployment source of truth — the umbrella Helm chart `../falcone-charts/charts/in-falcone` (its
+`values.yaml`, sub-chart templates and the component-wrapper workload template), the service
+`Dockerfile`s, and `tests/env/docker-compose.yml`. Helm was used **only as an off-cluster extraction
+aid** to confirm exact env vars, ports, probes and image tags; the operator never runs Helm. Image
+tags are taken verbatim from the chart — none were invented. Where a value is unpinned, a
+placeholder, or an internal inconsistency exists, it is called out with a **[VERIFY]** note.
 
 ## Conventions used throughout
 

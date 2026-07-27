@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import { main as managementMain } from '../../packages/webhook-engine/actions/webhook-management.mjs';
 import { main as deliveryMain } from '../../packages/webhook-engine/actions/webhook-delivery-worker.mjs';
 import { encryptSecret } from '../../packages/webhook-engine/src/webhook-signing.mjs';
+import { TEST_WEBHOOK_KEY_CONTEXT } from '../helpers/webhook-key.mjs';
 
 // Minimal in-memory db stub for the POST subscription path
 function makeManagementDb() {
@@ -24,15 +25,16 @@ function makeManagementDb() {
   return {
     state,
     async getWorkspaceSubscriptionCount() { return 0; },
-    async insertSubscription(row) { state.subscriptions.set(row.id, row); },
-    async insertSecret(subscriptionId, encrypted) {
-      state.secrets.set(subscriptionId, [{ subscription_id: subscriptionId, secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, status: 'active' }]);
+    async insertSubscriptionWithSecret(row, encrypted) {
+      state.subscriptions.set(row.id, row);
+      state.secrets.set(row.id, [{ subscription_id: row.id, secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, status: 'active' }]);
     }
   };
 }
 
 const auth = { tenantId: 't1', workspaceId: 'w1', actorId: 'u1' };
-const env = { WEBHOOK_SIGNING_KEY: 'test-signing-key' };
+const env = {};
+const keyContext = TEST_WEBHOOK_KEY_CONTEXT;
 const kafka = { publish: async () => {} };
 
 // -------------------------------------------------------------------------
@@ -41,7 +43,7 @@ const kafka = { publish: async () => {} };
 test('bbx-webhook-ssrf-01: https://169.254.169.254/latest/meta-data/ → INVALID_URL', async () => {
   const db = makeManagementDb();
   const result = await managementMain({
-    db, kafka, env, auth,
+    db, kafka, keyContext, env, auth,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
     body: { targetUrl: 'https://169.254.169.254/latest/meta-data/', eventTypes: ['document.created'] }
@@ -57,7 +59,7 @@ test('bbx-webhook-ssrf-01: https://169.254.169.254/latest/meta-data/ → INVALID
 test('bbx-webhook-ssrf-02: https://2852039166/path → INVALID_URL (decimal encoding)', async () => {
   const db = makeManagementDb();
   const result = await managementMain({
-    db, kafka, env, auth,
+    db, kafka, keyContext, env, auth,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
     body: { targetUrl: 'https://2852039166/path', eventTypes: ['document.created'] }
@@ -73,7 +75,7 @@ test('bbx-webhook-ssrf-02: https://2852039166/path → INVALID_URL (decimal enco
 test('bbx-webhook-ssrf-03: https://0.0.0.0/path → INVALID_URL', async () => {
   const db = makeManagementDb();
   const result = await managementMain({
-    db, kafka, env, auth,
+    db, kafka, keyContext, env, auth,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
     body: { targetUrl: 'https://0.0.0.0/path', eventTypes: ['document.created'] }
@@ -91,7 +93,7 @@ test('bbx-webhook-ssrf-04: DNS hostname resolving to 169.254.169.254 → INVALID
   const db = makeManagementDb();
   const resolver = async () => ['169.254.169.254'];
   const result = await managementMain({
-    db, kafka, env, auth,
+    db, kafka, keyContext, env, auth,
     resolver,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
@@ -109,7 +111,7 @@ test('bbx-webhook-ssrf-05: DNS resolution failure → INVALID_URL (fail-closed)'
   const db = makeManagementDb();
   const resolver = async () => { throw new Error('ENOTFOUND'); };
   const result = await managementMain({
-    db, kafka, env, auth,
+    db, kafka, keyContext, env, auth,
     resolver,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
@@ -127,7 +129,7 @@ test('bbx-webhook-ssrf-06: legitimate public HTTPS URL is accepted → 201', asy
   const db = makeManagementDb();
   const resolver = async () => ['93.184.216.34']; // example.com, public IP
   const result = await managementMain({
-    db, kafka, env, auth,
+    db, kafka, keyContext, env, auth,
     resolver,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
@@ -141,7 +143,7 @@ test('bbx-webhook-ssrf-06: legitimate public HTTPS URL is accepted → 201', asy
 // Shared delivery-db factory for delivery-worker black-box tests
 // -------------------------------------------------------------------------
 function makeDeliveryDb(targetUrl = 'https://hooks.example.com/endpoint') {
-  const encrypted = encryptSecret('signing-secret', 'test-signing-key');
+  const encrypted = encryptSecret('signing-secret', keyContext);
   return {
     state: {
       deliveries: new Map([['d1', {
@@ -163,7 +165,7 @@ function makeDeliveryDb(targetUrl = 'https://hooks.example.com/endpoint') {
         status: 'active',
         consecutive_failures: 0
       }]]),
-      secrets: new Map([['s1', [{ status: 'active', secret_cipher: encrypted.cipher, secret_iv: encrypted.iv }]]]),
+      secrets: new Map([['s1', [{ status: 'active', secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, encryption_key_id: keyContext.keyId }]]]),
       events: new Map([['e1', { eventId: 'e1', data: { ok: true } }]]),
       attempts: []
     },
@@ -211,11 +213,12 @@ test('bbx-webhook-ssrf-07: DNS rebinding at delivery time → abort, permanently
   const result = await deliveryMain({
     db: deliveryDb,
     kafka: { publish: async () => {} },
+    keyContext,
     scheduler,
     http,
     resolver,
     deliveryId: 'd1',
-    env: { WEBHOOK_SIGNING_KEY: 'test-signing-key', WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
+    env: { WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
   });
 
   assert.equal(httpCalled, false, 'http must NOT be called when SSRF guard triggers');
@@ -237,9 +240,10 @@ test('bbx-webhook-rebind: rebind to blocked IP at delivery → permanently_faile
   await deliveryMain({
     db: deliveryDb,
     kafka: { publish: async () => {} },
+    keyContext,
     scheduler, http, resolver,
     deliveryId: 'd1',
-    env: { WEBHOOK_SIGNING_KEY: 'test-signing-key', WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
+    env: { WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
   });
 
   assert.equal(httpCalled, false, 'http must NOT be called on rebind');
@@ -278,10 +282,11 @@ test('bbx-webhook-pin-01: delivery pins HTTP connection to the validated IP addr
   const result = await deliveryMain({
     db: deliveryDb,
     kafka: { publish: async () => {} },
+    keyContext,
     scheduler, http, resolver,
     dispatcherFactory,
     deliveryId: 'd1',
-    env: { WEBHOOK_SIGNING_KEY: 'test-signing-key', WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
+    env: { WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
   });
 
   assert.equal(result.status, 'succeeded', `expected succeeded but got ${result.status}`);
@@ -321,10 +326,11 @@ test('bbx-webhook-redirect-01: 302 redirect to blocked IP → permanently_failed
   const result = await deliveryMain({
     db: deliveryDb,
     kafka: { publish: async () => {} },
+    keyContext,
     scheduler, http, resolver,
     dispatcherFactory,
     deliveryId: 'd1',
-    env: { WEBHOOK_SIGNING_KEY: 'test-signing-key', WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
+    env: { WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
   });
 
   assert.equal(result.status, 'permanently_failed', `expected permanently_failed but got ${result.status}`);

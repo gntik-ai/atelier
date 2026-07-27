@@ -12,7 +12,9 @@ For install walkthroughs, see [Installation](/guide/installation),
 
 ## Chart identity
 
-The chart version and application version in `Chart.yaml` are `0.3.0`. The chart is published as:
+The C-25 chart source sets chart and application version `0.3.1`. It declares control-plane minimum
+`0.3.1` and webhook key lifecycle `v1`; use that pair only after the image/chart release and live
+verification gates complete. The chart is published as:
 
 ```text
 oci://ghcr.io/gntik-ai/charts/in-falcone
@@ -29,7 +31,7 @@ helm dependency build ../falcone-charts/charts/in-falcone
 
 | Key | Controls |
 | --- | --- |
-| `global` | Namespace, environment, air-gap state, private registry, image pull secrets, default storage class, and pod security defaults. |
+| `global` | Namespace, environment, air-gap state, private registry, image pull secrets, default storage class, pod security defaults, and the Secret-reference-only `webhookSigningKey` lifecycle contract. |
 | `publicSurface` | Public hostnames, route prefixes, Ingress/Route/LoadBalancer settings, and TLS mode. |
 | `deployment` | Active sizing profile and values-layer metadata. |
 | `platform` | Target platform, exposure kind, OpenShift flag, and security profile. |
@@ -217,11 +219,38 @@ global:
 ```
 
 For OpenShift + Harbor, use [OpenShift Install](/operations/openshift-install#openshift-with-harbor-or-air-gap).
-For the no-Helm-at-apply-time runbook, use
-[OpenShift Air-gapped (Harbor)](/operations/openshift-airgapped-harbor).
+The former [no-Helm-at-apply-time guide](/operations/openshift-airgapped-harbor) is a legacy `0.3.0`
+reference and is unsupported for new, fresh, or upgrade C-25/chart `0.3.1` deployments. Copying only
+a newer control-plane image into those manifests is unsafe and unsupported. Use the matched chart,
+the OpenShift install guide, and the
+[Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle) only for new,
+fresh, or already Helm-managed deployments. No supported or safely rehearsed resource-import path
+moves a manual installation into Helm. Existing manual `0.3.0` installations must remain pinned to
+`0.3.0` and continue their existing manual process until a separate manual-to-Helm migration is
+approved and rehearsed; webhook key adoption does not transfer resource ownership.
+
+For C-25, preserve the control-plane's existing global `DB_URL`/`PG*` Secret wiring. It remains the
+tenant/workspace, saga, governance, and workspace-database path and must not be replaced with a
+bounded webhook login. The chart correction must add four independently persisted and
+TLS-verifying webhook DSNs—`WEBHOOK_SCHEMA_DATABASE_URL`, `WEBHOOK_RUNTIME_DATABASE_URL`,
+`WEBHOOK_KEY_WRITE_DATABASE_URL`, and `WEBHOOK_KEY_LIFECYCLE_DATABASE_URL`—plus their declared LOGIN
+names and `WEBHOOK_DATABASE_AUTHORITY_GRANTOR_ROLE`. Only the one-shot PostgreSQL bootstrap receives
+the administrator DSN. It must run on PostgreSQL 16 or newer, install the exact
+`ADMIN`/`INHERIT`/`SET` membership options documented in the
+[Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle), and transfer
+only the enumerated webhook objects from a proven legacy owner to the bounded schema LOGIN. The
+control-plane closes schema and startup-lifecycle pools after verification while retaining global,
+webhook-runtime, and webhook-writer pools for serving.
 
 ## Schema validation
 
 The chart ships a strict `values.schema.json`. `helm install` and `helm upgrade` validate values by
 default. Use `--skip-schema-validation` only when intentionally rendering a partial or experimental
 values set for inspection.
+
+Do not skip validation for webhook signing-key work. `global.webhookSigningKey` rejects inline key
+material; template validation rejects the reserved `WEBHOOK_SIGNING_KEY` name in
+`controlPlane.env`, `global.transportSecurity.env`, and `controlPlane.config.inline`; and lifecycle
+validation rejects incomplete actions or a same source/target identity. Follow the complete
+[Webhook Signing Master-Key Lifecycle Runbook](/operations/webhook-signing-key-lifecycle); key bytes
+must never enter `--set`, a values file, rendered YAML, or Helm history.

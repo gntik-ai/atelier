@@ -11,7 +11,8 @@ The deployment source is the sibling Helm chart:
 ../falcone-charts/charts/in-falcone
 ```
 
-The chart version in `Chart.yaml` is `0.3.0`. The chart is also published as:
+The C-25 chart source in `Chart.yaml` is `0.3.1`. Use it only with a compatible control-plane image
+and after its release/live-verification gates complete. The chart is published as:
 
 ```text
 oci://ghcr.io/gntik-ai/charts/in-falcone
@@ -33,7 +34,15 @@ helm dependency build ../falcone-charts/charts/in-falcone
 | Remote Kubernetes | [Kubernetes Install](/operations/kubernetes-install) | `Ingress` | `values/prod.yaml`, `values/platform-kubernetes.yaml`, profile values |
 | OpenShift | [OpenShift Install](/operations/openshift-install) | `Route` | `values/prod.yaml`, `values/platform-openshift.yaml`, profile values |
 | OpenShift with internal Harbor | [OpenShift Install](/operations/openshift-install#openshift-with-harbor-or-air-gap) | `Route` | OpenShift values plus `deploy/openshift/values-openshift.yaml` |
-| Plain manifests, no Helm at apply time | [OpenShift Air-gapped (Harbor)](/operations/openshift-airgapped-harbor) | `Route` | Rendered/derived manifest runbook |
+
+The [legacy `0.3.0` plain-manifest reference](/operations/openshift-airgapped-harbor) is not a
+supported C-25/chart `0.3.1` install or upgrade path. Use the matched Helm/OpenShift path for new,
+fresh, and already Helm-managed deployments and the
+[Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle); copying only a
+newer image into the legacy manifests is unsafe and unsupported. No supported or safely rehearsed
+resource-import path moves a manual installation into Helm. Existing manual `0.3.0` installations
+must remain pinned to `0.3.0` and continue their existing manual process until a separate
+manual-to-Helm migration is approved and rehearsed.
 
 ## Required cluster decisions
 
@@ -77,3 +86,6 @@ oc -n falcone get pods
 - [Kubernetes Install](/operations/kubernetes-install) for remote Kubernetes.
 - [OpenShift Install](/operations/openshift-install) for Route, restricted-v2, and Harbor guidance.
 - [Backup & Restore](/operations/backup-restore) for tenant and platform backup evidence.
+- [Webhook Signing Master-Key Lifecycle](/operations/webhook-signing-key-lifecycle) for the
+  version-coupled install, legacy adoption, rotation, recovery, finalization, and secret-safe
+  evidence procedure.

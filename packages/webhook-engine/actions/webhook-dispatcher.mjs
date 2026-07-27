@@ -14,7 +14,7 @@ export async function main(params) {
     const inserted = await db.insertDelivery(delivery);
     if (!inserted) continue;
     queued += 1;
-    if (invoker?.invoke) await invoker.invoke('webhook-delivery-worker', { deliveryId: delivery.id });
+    if (invoker) await invoker.invokeWebhookDelivery({ deliveryId: delivery.id });
   }
   return { queued };
 }

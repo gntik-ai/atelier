@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeSignature, decryptSecret, encryptSecret, verifyAgainstSecretSet, verifyIncomingWebhook } from '../../packages/webhook-engine/src/webhook-signing.mjs';
+import { TEST_WEBHOOK_KEY_CONTEXT } from '../helpers/webhook-key.mjs';
 
 test('signatures are deterministic and tamper sensitive', () => {
   const key = 'secret';
@@ -13,8 +14,8 @@ test('signatures are deterministic and tamper sensitive', () => {
 });
 
 test('encrypt and decrypt round trip', () => {
-  const encrypted = encryptSecret('hello', 'master-key');
-  assert.equal(decryptSecret(encrypted.cipher, encrypted.iv, 'master-key'), 'hello');
+  const encrypted = encryptSecret('hello', TEST_WEBHOOK_KEY_CONTEXT);
+  assert.equal(decryptSecret(encrypted.cipher, encrypted.iv, TEST_WEBHOOK_KEY_CONTEXT), 'hello');
 });
 
 test('secret set respects grace period and revocation', () => {

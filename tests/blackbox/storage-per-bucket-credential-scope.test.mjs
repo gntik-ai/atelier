@@ -96,6 +96,24 @@ const superadminIdentity = { sub: 'sa', tenantId: null, actorType: 'superadmin' 
 // Extract the posted Job's container env as a {NAME: value} map.
 const jobEnv = (manifest) => Object.fromEntries(manifest.spec.template.spec.containers[0].env.map((e) => [e.name, e.value]));
 const jobCmd = (manifest) => manifest.spec.template.spec.containers[0].command.join(' ');
+const assertRestrictedJob = (manifest, { openshiftRestricted = false } = {}) => {
+  assert.deepEqual(
+    manifest.spec.template.spec.securityContext,
+    { seccompProfile: { type: 'RuntimeDefault' } },
+    'the one-shot pod satisfies restricted Pod Security',
+  );
+  assert.deepEqual(
+    manifest.spec.template.spec.containers[0].securityContext,
+    {
+      allowPrivilegeEscalation: false,
+      capabilities: { drop: ['ALL'] },
+      readOnlyRootFilesystem: true,
+      runAsNonRoot: true,
+      ...(!openshiftRestricted ? { runAsUser: 1000, runAsGroup: 1000 } : {}),
+    },
+    'the one-shot container is non-root, immutable, and drops all capabilities',
+  );
+};
 
 // ===========================================================================
 // Scenario "Per-bucket scope enforced" — distinct buckets get distinct identities,
@@ -120,6 +138,13 @@ test('bbx-673-02: each bucket identity is seeded scoped to ONLY its own bucket',
   const cmd = jobCmd(m);
   assert.ok(cmd.includes('-buckets %s') && cmd.includes('"$BUCKET"'), 'grant is -buckets scoped (no wildcard/global)');
   assert.doesNotMatch(cmd, /-buckets\s+\*/, 'no wildcard bucket');
+  assert.ok(cmd.includes('-filer="$SW_FILER"'), 'the IAM client receives the explicit filer endpoint');
+  assert.equal(
+    m.spec.template.spec.containers[0].image,
+    'chrislusf/seaweedfs@sha256:f0b358973e81f884304737645dd3b278c590c2c9d47d60089729d46324f70495',
+    'the standalone fallback is immutable rather than a mutable public tag',
+  );
+  assertRestrictedJob(m);
 });
 
 // ===========================================================================
@@ -142,11 +167,65 @@ test('bbx-673-04: revoke Job deletes the identity by name (and carries no key ma
   assert.ok(!('AK' in env) && !('SK' in env), 'revoke carries no access/secret key');
   assert.equal(env.ID_NAME, bucketIdentityName(BUCKET_A1));
   assert.equal(m.spec.template.metadata.labels['app.kubernetes.io/name'], 'seaweedfs', 'labelled for the netpol');
+  assert.ok(cmd.includes('-filer="$SW_FILER"'), 'the IAM client receives the explicit filer endpoint');
+  assertRestrictedJob(m);
 });
 
 test('bbx-673-05: revokeBucketIdentity refuses an empty bucket (fail-closed)', async () => {
   await assert.rejects(() => revokeBucketIdentity({ bucket: '' }), /bucket/);
   assert.throws(() => revokeJobManifest({ ns: 'falcone', name: 'x', identityName: '' }), /identityName/);
+});
+
+test('bbx-673-05b: every runtime IAM Job inherits Harbor pull policy/secrets and restricted-v2 UID assignment', () => {
+  const runtime = {
+    ns: 'falcone-prod',
+    image: 'harbor.example.com/falcone/chrislusf/seaweedfs@sha256:f0b358973e81f884304737645dd3b278c590c2c9d47d60089729d46324f70495',
+    imagePullPolicy: 'Always',
+    imagePullSecrets: ['harbor-pull', 'harbor-pull', 'backup-pull'],
+    openshiftRestricted: true,
+    master: 'release-seaweedfs-master.falcone-prod:9333',
+    filer: 'release-seaweedfs-filer.falcone-prod:8888',
+  };
+  const manifests = [
+    seedJobManifest({
+      ...runtime,
+      name: 'seed',
+      identityName: bucketIdentityName(BUCKET_A1),
+      accessKey: 'ak',
+      secretKey: 'sk',
+      bucket: BUCKET_A1,
+    }),
+    revokeJobManifest({
+      ...runtime,
+      name: 'revoke',
+      identityName: bucketIdentityName(BUCKET_A1),
+    }),
+    legacyCleanupJobManifest({ ...runtime, name: 'cleanup' }),
+  ];
+
+  for (const manifest of manifests) {
+    const pod = manifest.spec.template.spec;
+    const container = pod.containers[0];
+    assert.equal(container.image, runtime.image);
+    assert.equal(container.imagePullPolicy, 'Always');
+    assert.deepEqual(
+      pod.imagePullSecrets,
+      [{ name: 'harbor-pull' }, { name: 'backup-pull' }],
+      'pull Secret names are normalized and de-duplicated',
+    );
+    assertRestrictedJob(manifest, { openshiftRestricted: true });
+    assert.equal('runAsUser' in container.securityContext, false, 'restricted-v2 assigns the UID');
+    assert.equal('runAsGroup' in container.securityContext, false, 'restricted-v2 assigns the GID');
+  }
+
+  assert.throws(
+    () => revokeJobManifest({ ...runtime, name: 'bad-policy', identityName: 'identity', imagePullPolicy: 'Sometimes' }),
+    /invalid SEAWEEDFS_IMAGE_PULL_POLICY/,
+  );
+  assert.throws(
+    () => legacyCleanupJobManifest({ ...runtime, name: 'bad-secret', imagePullSecrets: ['NOT_A_SECRET'] }),
+    /invalid Kubernetes Secret name/,
+  );
 });
 
 // ===========================================================================
@@ -247,7 +326,12 @@ test('bbx-673-12: re-issuing a bucket keeps one identity name and always delete-
 // invalidates them on deploy.
 // ===========================================================================
 test('bbx-673-13: legacyCleanupJobManifest deletes EVERY falcone-ws-* identity via s3.configure -delete -apply (no wildcard/Admin)', () => {
-  const m = legacyCleanupJobManifest({ ns: 'falcone', name: 'ws-legacy-cleanup-x', master: 'falcone-seaweedfs-master.falcone:9333' });
+  const m = legacyCleanupJobManifest({
+    ns: 'falcone',
+    name: 'ws-legacy-cleanup-x',
+    master: 'release-seaweedfs-master.falcone:9333',
+    filer: 'release-seaweedfs-filer.falcone:8888',
+  });
   const cmd = jobCmd(m);
   // enumerates legacy identities from the LIVE config dump (catches orphaned ones), not the DB
   assert.ok(cmd.includes('s3.configure') && cmd.includes('weed shell'), 'dumps the live identity config via weed shell s3.configure');
@@ -263,7 +347,10 @@ test('bbx-673-13: legacyCleanupJobManifest deletes EVERY falcone-ws-* identity v
   // labelled for the SeaweedFS NetworkPolicy, like the seed/revoke Jobs
   assert.equal(m.spec.template.metadata.labels['app.kubernetes.io/name'], 'seaweedfs');
   const env = jobEnv(m);
-  assert.equal(env.SW_MASTER, 'falcone-seaweedfs-master.falcone:9333', 'master endpoint wired via env');
+  assert.equal(env.SW_MASTER, 'release-seaweedfs-master.falcone:9333', 'master endpoint wired via env');
+  assert.equal(env.SW_FILER, 'release-seaweedfs-filer.falcone:8888', 'filer endpoint wired explicitly so IAM calls do not hang on discovery');
+  assert.ok(cmd.includes('-filer="$SW_FILER"'), 'every IAM shell call uses the explicit filer');
+  assertRestrictedJob(m);
 });
 
 test('bbx-673-13b: the legacy-identity matcher catches every workspaceIdentityName (and the dump format) but NOT per-bucket identities', () => {

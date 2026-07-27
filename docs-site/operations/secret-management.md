@@ -9,7 +9,7 @@ Secrets reconciled from OpenBao after the secret backend is ready.
 
 ## Model
 
-```
+```text
 credential bootstrap hook ──▶ Kubernetes Secret ──▶ Pods
                                      │
                                      ▼
@@ -31,7 +31,7 @@ config:
     postgresCredentials:    { existingSecret: in-falcone-postgresql, keys: [POSTGRESQL_USERNAME, POSTGRESQL_PASSWORD, POSTGRESQL_POSTGRES_PASSWORD] }
     mongoCredentials:       { existingSecret: in-falcone-documentdb, keys: [POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB] }
     kafkaCredentials:       { existingSecret: in-falcone-kafka, keys: [KAFKA_CFG_NODE_ID, KAFKA_CFG_PROCESS_ROLES, KAFKA_CFG_CONTROLLER_LISTENER_NAMES, KAFKA_CFG_CONTROLLER_QUORUM_VOTERS, KAFKA_CFG_LISTENERS, KAFKA_CFG_ADVERTISED_LISTENERS, KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP] }
-    objectStorageCredentials:{ existingSecret: in-falcone-storage, keys: [s3_access_key, s3_secret_key] }
+    objectStorageCredentials: { existingSecret: in-falcone-storage, keys: [s3_access_key, s3_secret_key] }
     identityClient:         { existingSecret: in-falcone-identity-client, keys: [client-id, client-secret] }
     gatewayTls:             { existingSecret: in-falcone-dev-api-tls, keys: [tls.crt, tls.key] }
 ```
@@ -65,3 +65,16 @@ Air-gapped installs add a registry pull secret and CA bundle (`global.imagePullS
 ## TLS
 
 Gateway TLS comes from the `gatewayTls` secret (`tls.crt` / `tls.key`); the active mode is set by `publicSurface.tls.mode`.
+
+## Webhook signing master key
+
+The platform-global webhook signing master key uses a dedicated
+`global.webhookSigningKey` contract. It is not a `config.secretRefs` entry and C-25 does not add a
+KMS, ESO, Vault/OpenBao, or other manager integration for it. A managed fresh install generates an
+immutable retained Secret inside the credential hook; `create: false` validates an externally
+created Kubernetes Secret read-only.
+
+Never provide this key through `--set`, values, `controlPlane.env`, rendered Secret YAML, Git, logs,
+or evidence. Adoption and rotation also couple the database backup to matching current/recovery key
+custody. Use the [Webhook Signing Master-Key Lifecycle Runbook](/operations/webhook-signing-key-lifecycle),
+including its external-manager in-place mutation warning and finalization deletion boundaries.

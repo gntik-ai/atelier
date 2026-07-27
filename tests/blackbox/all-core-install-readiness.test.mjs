@@ -17,11 +17,12 @@ import { parseAllDocuments } from 'yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '..', '..');
-const CHART_PATH = resolve(REPO_ROOT, '..', 'falcone-charts', 'charts', 'in-falcone');
-const KIND_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'deploy', 'kind', 'values-kind.yaml');
-const OPENSHIFT_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'deploy', 'openshift', 'values-openshift.yaml');
-const E2E_FLOWS_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'tests', 'e2e', 'values-flows-e2e.yaml');
-const E2E_FERRETDB_VALUES = resolve(REPO_ROOT, '..', 'falcone-charts', 'tests', 'e2e', 'values-ferretdb-realtime-e2e.yaml');
+const CHART_REPO_ROOT = resolve(REPO_ROOT, '..', 'falcone-charts');
+const CHART_PATH = resolve(CHART_REPO_ROOT, 'charts', 'in-falcone');
+const KIND_VALUES = resolve(CHART_REPO_ROOT, 'deploy', 'kind', 'values-kind.yaml');
+const OPENSHIFT_VALUES = resolve(CHART_REPO_ROOT, 'deploy', 'openshift', 'values-openshift.yaml');
+const E2E_FLOWS_VALUES = resolve(CHART_REPO_ROOT, 'tests', 'e2e', 'values-flows-e2e.yaml');
+const E2E_FERRETDB_VALUES = resolve(CHART_REPO_ROOT, 'tests', 'e2e', 'values-ferretdb-realtime-e2e.yaml');
 const CUTOVER_SCRIPTS = resolve(REPO_ROOT, 'scripts', 'system-changes', 'make-all-services-core');
 
 function helmAvailable() {
@@ -400,7 +401,14 @@ test('all-core-005: Temporal DB bootstrap is wired before schema setup', SKIP, (
 
 test('all-core-005b: Temporal schema upgrade skips setup and runs only safe updates', SKIP, () => {
   const installDocs = renderDocs();
-  const upgradeDocs = renderDocs(['--is-upgrade', '--set', 'deployment.upgrade.currentVersion=0.2.0']);
+  const upgradeDocs = renderDocs([
+    '--is-upgrade',
+    '--set', 'deployment.upgrade.currentVersion=0.2.0',
+    '--set', 'global.webhookDatabase.migration.firstHandoff=true',
+    '--set', 'global.webhookDatabase.migration.backupVerified=true',
+    '--set', 'global.webhookDatabase.migration.parityVerified=true',
+    '--set-string', 'global.webhookDatabase.migration.backupReference=all-core-005b',
+  ]);
   const installSchema = findDoc(installDocs, 'Job', 'falcone-temporal-schema');
   const upgradeDbBootstrap = findDoc(upgradeDocs, 'Job', 'falcone-temporal-db-bootstrap');
   const upgradeSchema = findDoc(upgradeDocs, 'Job', 'falcone-temporal-schema');
@@ -422,6 +430,19 @@ test('all-core-005b: Temporal schema upgrade skips setup and runs only safe upda
 });
 
 test('all-core-006: Helm owns the /v1/mcp route, executor RBAC, and pullable default image refs', SKIP, () => {
+  const ciWorkflow = readFileSync(resolve(REPO_ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const pinnedChartRef = ciWorkflow.match(/FALCONE_CHARTS_REF:\s*['"]([0-9a-f]{40})['"]/)?.[1];
+  assert.ok(pinnedChartRef, 'CI must pin the sibling falcone-charts checkout to a full commit SHA');
+  const chartHead = spawnSync('git', ['-C', CHART_REPO_ROOT, 'rev-parse', 'HEAD'], {
+    encoding: 'utf8',
+  });
+  assert.equal(chartHead.status, 0, `sibling chart checkout must expose its pinned commit: ${chartHead.stderr}`);
+  assert.equal(
+    chartHead.stdout.trim(),
+    pinnedChartRef,
+    'all-core image assertions must run against the exact CI-pinned sibling chart checkout',
+  );
+
   const base = assertRender();
   const baseImages = imageList(parseAllDocuments(base).map((doc) => doc.toJSON()).filter(Boolean));
   assert.match(base, /route-2018-mcp\.json:[\s\S]*"uri": "\/v1\/mcp\/\*"/, 'bootstrap payload must include the MCP APISIX route');
@@ -439,14 +460,22 @@ test('all-core-006: Helm owns the /v1/mcp route, executor RBAC, and pullable def
   assert.match(base, /image:\s*"docker\.io\/bitnamilegacy\/postgresql:17\.2\.0"/, 'PostgreSQL must use the verified bitnamilegacy image');
   assert.match(base, /image:\s*"docker\.io\/bitnamilegacy\/kafka:3\.9\.0"/, 'Kafka must use the verified bitnamilegacy image');
   assert.ok(baseImages.includes('docker.io/alpine/k8s:1.32.2'), 'bootstrap jobs must use the verified alpine/k8s image with bash, curl, jq, and kubectl');
-  const releaseTag = '0.3.0';
-  for (const image of [
-    'in-falcone-control-plane',
-    'in-falcone-control-plane-executor',
-    'in-falcone-workflow-worker',
-    'in-falcone-web-console',
-  ]) {
-    assert.match(base, new RegExp(`image:\\s*"ghcr\\.io/gntik-ai/${image}:${escapeRe(releaseTag)}"`), `${image} must use the chart app release tag`);
+  assert.match(
+    base,
+    /image:\s*"ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:a6f90cd0c3e6e5ee5e783bba1d9fbce3c03be10590c85753cde3339fbcd4ad1d"/,
+    'control plane must use the published C-25 image digest',
+  );
+  const compatibleReleaseTags = new Map([
+    ['in-falcone-control-plane-executor', '0.3.0'],
+    ['in-falcone-workflow-worker', '0.3.0'],
+    ['in-falcone-web-console', '0.3.0'],
+  ]);
+  for (const [image, expectedTag] of compatibleReleaseTags) {
+    assert.match(
+      base,
+      new RegExp(`image:\\s*"ghcr\\.io/gntik-ai/${image}:${escapeRe(expectedTag)}"`),
+      `${image} must use its declared C-25-compatible release tag`,
+    );
   }
   assert.match(base, /name:\s*in-falcone-runtime-env[\s\S]*MCP_RUNTIME_IMAGE:\s*"ghcr\.io\/gntik-ai\/in-falcone-mcp-runtime:0\.3\.0"/, 'default MCP runtime env must use the chart app release tag from the runtime env ConfigMap');
   assert.match(base, /name:\s*falcone-control-plane[\s\S]*envFrom:[\s\S]*name:\s*in-falcone-runtime-env/, 'control-plane must consume the parent-rendered runtime env ConfigMap');
@@ -466,7 +495,7 @@ test('all-core-006: Helm owns the /v1/mcp route, executor RBAC, and pullable def
   const mcpDockerfile = readFileSync(resolve(REPO_ROOT, 'apps', 'mcp-runtime', 'Dockerfile'), 'utf8');
   const allCoreInstallDoc = readFileSync(resolve(REPO_ROOT, 'docs', 'installation', 'all-core-platform-services.md'), 'utf8');
   assert.match(releaseWorkflow, /image:\s*in-falcone-mcp-runtime[\s\S]*dockerfile:\s*apps\/mcp-runtime\/Dockerfile/, 'release workflow must publish the MCP runtime image');
-  assert.match(mcpDockerfile, /COPY apps\/control-plane\/src\/mcp-official-server\.mjs/, 'MCP runtime image must build from the production MCP server modules');
+  assert.match(mcpDockerfile, /COPY apps\/control-plane-executor\/src\/mcp-official-server\.mjs/, 'MCP runtime image must build from the production MCP server modules');
   assert.match(allCoreInstallDoc, /GitHub Actions run\s*\n`29152340476`/, 'all-core install docs must record the six-image publication run');
   for (const image of [
     'in-falcone-control-plane',
@@ -640,8 +669,14 @@ test('all-core-006d: OpenShift Harbor overlay renders Harbor-only coherent relea
   assert.doesNotMatch(out, /\b(?:docker\.io|ghcr\.io|quay\.io|gcr\.io|registry\.k8s\.io)\//, 'Harbor render must not contain public registry references');
   assert.doesNotMatch(out, /\bin-falcone-[^:\s"']+:(?:0\.1\.0|0\.2\.11|0\.6\.2|0\.9\.3)\b/, 'OpenShift first-party images must not mix stale tags');
 
+  assert.ok(
+    images.includes(
+      'harbor.example.com/falcone/gntik-ai/in-falcone-control-plane'
+      + '@sha256:a6f90cd0c3e6e5ee5e783bba1d9fbce3c03be10590c85753cde3339fbcd4ad1d',
+    ),
+    'the C-25 control plane must render from Harbor at the reviewed digest',
+  );
   for (const image of [
-    'in-falcone-control-plane',
     'in-falcone-control-plane-executor',
     'in-falcone-workflow-worker',
     'in-falcone-web-console',
@@ -766,6 +801,344 @@ test('all-core-006e: OpenShift Harbor documentation mirrors stay synchronized', 
   const installation = readFileSync(resolve(REPO_ROOT, 'docs', 'installation', 'openshift-airgapped-harbor.md'), 'utf8');
   const site = readFileSync(resolve(REPO_ROOT, 'docs-site', 'operations', 'openshift-airgapped-harbor.md'), 'utf8');
   assert.equal(site, installation, 'docs-site OpenShift Harbor guide must mirror docs/installation');
+  assert.match(site, /^# Legacy 0\.3\.0 OpenShift\/Harbor Plain-Manifest Reference/m);
+  assert.match(site, /Unsupported for new C-25\/chart 0\.3\.1 installs and upgrades/);
+  assert.match(site, /omit the mandatory chart-managed webhook signing-key Secret reference,\s+> credential\/lifecycle Jobs, and lifecycle RBAC/);
+  assert.match(site, /Copying only a newer\s+> control-plane or other image into these manifests is unsafe and unsupported/);
+  assert.match(site, /\[matched Helm chart\]\(\/operations\/helm-configuration\)/);
+  assert.match(site, /\[OpenShift Install guide\]\(\/operations\/openshift-install\)/);
+  assert.match(site, /\[Webhook Signing-Key Lifecycle runbook\]\(\/operations\/webhook-signing-key-lifecycle\)/);
+  assert.match(site, /Existing\s+> `0\.3\.0` manual installations must remain pinned to `0\.3\.0` and continue their existing manual\s+> process until a separate manual-to-Helm migration is approved and safely rehearsed/);
+  assert.match(site, /No supported\s+> resource-import path moves these plain-manifest resources into Helm/);
+  assert.match(site, /webhook key adoption does not\s+> import or transfer ownership of them/);
+});
+
+test('all-core-006f: docs do not advertise the legacy no-Helm reference as a C-25 install choice', () => {
+  const advertisements = [
+    'docs-site/guide/installation.md',
+    'docs-site/personas/operator.md',
+    'docs-site/operations/helm-configuration.md',
+    'docs-site/operations/openshift-install.md',
+    'docs-site/operations/webhook-signing-key-lifecycle.md',
+  ];
+  for (const rel of advertisements) {
+    const text = readFileSync(resolve(REPO_ROOT, rel), 'utf8');
+    assert.match(
+      text,
+      /legacy\s+`?0\.3\.0`?|frozen\s+`0\.3\.0`/i,
+      `${rel} must label the manual guide as legacy 0.3.0`,
+    );
+    assert.match(
+      text,
+      /not\s+a\s+supported|unsupported\s+for/i,
+      `${rel} must reject the manual guide as a C-25 install/upgrade choice`,
+    );
+    assert.match(
+      text,
+      /unsafe and unsupported/,
+      `${rel} must warn against copying only a newer image into the legacy manifests`,
+    );
+    assert.match(
+      text,
+      /manual (?:`0\.3\.0` (?:OpenShift )?installations?|OpenShift installation on legacy\s+`0\.3\.0`)[\s\S]{0,300}?must\s+remain pinned to\s+`0\.3\.0`/i,
+      `${rel} must keep existing manual installations pinned`,
+    );
+    assert.match(
+      text,
+      /manual-to-Helm migration\s+is\s+approved\s+and\s+(?:safely\s+)?rehearsed/i,
+      `${rel} must require an approved and rehearsed manual-to-Helm migration`,
+    );
+  }
+
+  const sidebar = readFileSync(resolve(REPO_ROOT, 'docs-site', '.vitepress', 'config.mts'), 'utf8');
+  assert.match(
+    sidebar,
+    /Legacy 0\.3\.0 Manual \(Unsupported\).*\/operations\/openshift-airgapped-harbor/,
+    'the operations sidebar must label the no-Helm page as a legacy unsupported reference',
+  );
+});
+
+test('all-core-006j: C-25 runbook includes literal handoff, restore, and secret-safe dry-run gates', () => {
+  const runbook = readFileSync(
+    resolve(REPO_ROOT, 'docs-site', 'operations', 'webhook-signing-key-lifecycle.md'),
+    'utf8',
+  );
+
+  assert.match(runbook, /Release status: draft, unpublished, and partially live-verified/);
+  assert.match(runbook, /Helm revision 16/);
+  assert.match(
+    runbook,
+    /ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:27aedbfabdc8b72baae844b14dbdf72820c0f4d548a49013118d9ba7e0588d40/,
+  );
+  assert.match(
+    runbook,
+    /ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:a6f90cd0c3e6e5ee5e783bba1d9fbce3c03be10590c85753cde3339fbcd4ad1d/,
+  );
+  assert.match(
+    runbook,
+    /kind-falcone-c25-20260726-2[\s\S]*revision 18[\s\S]*two-tenant legacy[\s\S]*separate canonical rotation[\s\S]*forward recovery[\s\S]*finalization[\s\S]*exact replay/,
+  );
+  assert.match(
+    runbook,
+    /serving:legacy:false[\s\S]*four subscriptions[\s\S]*four signing-secret rows[\s\S]*four completed ledger actions/,
+  );
+  assert.match(
+    runbook,
+    /Revision 17 is retained as failed evidence[\s\S]*local-path[\s\S]*revision[\s>]+18[\s\S]*every non-completed workload Ready/,
+  );
+  assert.match(runbook, /live OpenShift lifecycle rehearsal is[\s>]+still incomplete/);
+  assert.match(runbook, /loginWithEmailAllowed: true[\s\S]*routeId: "0000"/);
+  assert.match(runbook, /create_disposable_restore_namespace\(\)/);
+  assert.match(
+    runbook,
+    /FALCONE_RESTORE_NAMESPACE_CREATED=true\nFALCONE_RESTORE_NAMESPACE_UID="\$\(/,
+  );
+  assert.match(
+    runbook,
+    /test "\$\(git -C "\$FALCONE_CHART_SOURCE" rev-parse HEAD\)" = "\$FALCONE_EXPECTED_CHART_SHA"/,
+  );
+  assert.match(
+    runbook,
+    /test -z "\$\(git -C "\$FALCONE_CHART_SOURCE" status --short\)"/,
+  );
+  assert.match(runbook, /FALCONE_EXPECTED_CONTROL_PLANE_IMAGE/);
+  assert.match(
+    runbook,
+    /FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE='ghcr\.io\/gntik-ai\/in-falcone-control-plane@sha256:[0-9a-f]{64}'/,
+  );
+  assert.match(
+    runbook,
+    /FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_PULL_POLICY[\s\S]*= 'Never'/,
+  );
+  assert.match(
+    runbook,
+    /FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_PULL_POLICY[\s\S]*= 'Never'/,
+  );
+  assert.match(
+    runbook,
+    /test "\$\(realpath -- "\$FALCONE_CHART"\)" = \\\n  "\$\(realpath -- "\$FALCONE_CHART_SOURCE\/charts\/in-falcone"\)"/,
+  );
+  assert.match(runbook, /test "\$FALCONE_SELECTED_CONTROL_PLANE_IMAGE" =/);
+
+  assert.match(runbook, /expected_first_handoff="\$2"/);
+  assert.match(runbook, /validate_webhook_lifecycle_upgrade '0\.3\.0' true/);
+  assert.match(runbook, /validate_webhook_lifecycle_upgrade '0\.3\.1' false/);
+  assert.match(runbook, /migration\.firstHandoff=\$\{expected_first_handoff\}/);
+  assert.match(runbook, /migration\.backupVerified=true/);
+  assert.match(runbook, /migration\.parityVerified=true/);
+  assert.match(runbook, /migration\.backupReference=\$\{FALCONE_BACKUP_REFERENCE\}/);
+  assert.match(runbook, /--dry-run=server --hide-secret >\/dev\/null/);
+  assert.match(runbook, /Do not change the adoption request ID for that replay/);
+  assert.match(runbook, /WEBHOOK-DATABASE-AUTHORITY\.md/);
+
+  assert.match(runbook, /Rehearse the bundled backup on matching PostgreSQL 17\.2/);
+  assert.match(
+    runbook,
+    /docker\.io\/library\/postgres:17\.2-alpine@sha256:7e5df973a74872482e320dcbdeb055e178d6f42de0558b083892c50cda833c96/,
+  );
+  assert.match(runbook, /pg_restore --list \/tmp\/falcone-backup\.dump/);
+  assert.doesNotMatch(runbook, /pg_restore --list "\$FALCONE_DB_BACKUP"/);
+  assert.match(runbook, /never rehearse a PostgreSQL 17 archive with PostgreSQL 16 tooling/);
+  assert.match(runbook, /--network none/);
+  assert.match(runbook, /test "\$FALCONE_SOURCE_INVENTORY" = "\$FALCONE_RESTORE_INVENTORY"/);
+  assert.match(runbook, /trap cleanup_webhook_restore EXIT/);
+  assert.match(runbook, /trap 'exit 129' HUP/);
+  assert.match(runbook, /trap 'exit 130' INT/);
+  assert.match(runbook, /trap 'exit 143' TERM/);
+  assert.match(runbook, /trap cleanup_webhook_kube_restore EXIT/);
+  assert.match(
+    runbook,
+    /trap 'cleanup_webhook_parity; cleanup_webhook_kube_restore' EXIT/,
+  );
+  assert.match(runbook, /Rehearse matching-key startup and readiness on the restored copy/);
+  assert.match(
+    runbook,
+    /FALCONE_RESTORE_SOURCE_CHART="\$\{FALCONE_RESTORE_SOURCE_CHART_SOURCE\}\/charts\/in-falcone"/,
+  );
+  assert.match(
+    runbook,
+    /test "\$\(\n  git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" rev-parse HEAD\n\)" = "\$FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA"/,
+  );
+  assert.match(
+    runbook,
+    /test -z "\$\(git -C "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE" status --short\)"/,
+  );
+  assert.match(
+    runbook,
+    /realpath -- "\$FALCONE_RESTORE_SOURCE_CHART_SOURCE\/charts\/in-falcone"/,
+  );
+  assert.match(
+    runbook,
+    /test "\$\(\n  helm show chart "\$FALCONE_RESTORE_SOURCE_CHART" \|\n    awk '\$1 == "appVersion:" \{ gsub\(\/"\/, "", \$2\); print \$2; exit \}'\n\)" = "\$FALCONE_RESTORE_INSTALLED_VERSION"/,
+  );
+  assert.match(runbook, /"\$@" "\$FALCONE_RESTORE_RELEASE" "\$FALCONE_RESTORE_SOURCE_CHART"/);
+  assert.match(runbook, /source_chart_attempt install/);
+  assert.match(runbook, /--wait=false --timeout 40m/);
+  assert.match(runbook, /source install using `--wait=true` can therefore deadlock/);
+  assert.match(runbook, /FALCONE_RESTORE_EXPECTED_CLUSTER_UID/);
+  assert.match(runbook, /test "\$FALCONE_RESTORE_CONTEXT" != 'default'/);
+  assert.match(runbook, /test "\$FALCONE_RESTORE_CONTEXT" != "\$FALCONE_CONTEXT"/);
+  assert.match(
+    runbook,
+    /test "\$FALCONE_RESTORE_CLUSTER_UID" = "\$FALCONE_RESTORE_EXPECTED_CLUSTER_UID"/,
+  );
+  assert.match(
+    runbook,
+    /docker\.io\/bitnamilegacy\/kubectl:1\.32\.4/,
+    'the pre-C-25 source must use a verified kubectl+OpenSSL compatibility image',
+  );
+  assert.match(
+    runbook,
+    /sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333/,
+  );
+  assert.match(runbook, /SOURCE_TLS_BOOTSTRAP_IMAGE_PASS/);
+  assert.match(runbook, /FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_IMAGE/);
+  assert.match(runbook, /FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_IMAGE/);
+  assert.match(runbook, /FALCONE_RESTORE_SELECTED_CONTROL_PLANE_IMAGE/);
+  assert.match(
+    runbook,
+    /--values "\$FALCONE_RESTORE_BASE_VALUES" \\\n    --values "\$FALCONE_RESTORE_ACTION_KEY_VALUES"/,
+    'candidate image proof must use the exact restore values pair',
+  );
+  assert.match(runbook, /cat > \/tmp\/falcone-restore\.dump/);
+  assert.match(runbook, /--owner="\$POSTGRESQL_USERNAME" falcone_restore/);
+  assert.match(runbook, /--dbname=falcone_restore/);
+  assert.match(
+    runbook,
+    /test "\$FALCONE_SOURCE_INVENTORY" = "\$FALCONE_RESTORED_CLUSTER_INVENTORY"/,
+  );
+  assert.match(runbook, /global\.webhookDatabase\.connection\.host=/);
+  assert.match(runbook, /global\.webhookDatabase\.connection\.database=/);
+  assert.match(runbook, /readinessProbe\.httpGet\.path/);
+  assert.match(runbook, /services\/http:\$\{FALCONE_RESTORE_RELEASE\}-control-plane:http\/proxy\/readyz/);
+  assert.match(runbook, /FALCONE_RESTORE_STATUS/);
+  assert.match(runbook, /\.affectedCount == \.verifiedCount/);
+  assert.match(runbook, /FALCONE_RESTORE_TENANT_A_CURL_CONFIG/);
+  assert.match(runbook, /FALCONE_RESTORE_TENANT_B_CURL_CONFIG/);
+  assert.match(runbook, /POST "\$\{FALCONE_RESTORE_API_BASE\}\/v1\/tenants"/);
+  assert.match(
+    runbook,
+    /realms\/\$\{FALCONE_RESTORE_TENANT_A\}\/protocol\/openid-connect\/token/,
+  );
+  assert.match(runbook, /FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG/);
+  assert.match(runbook, /"password@\$\{FALCONE_RESTORE_PARITY_DIR\}\/tenant-a-password"/);
+  assert.match(runbook, /\[Quickstart tenant provisioning\]\(\/guide\/quickstart\)/);
+  assert.match(runbook, /\[tenant login flow\]\(\/guide\/developer-end-to-end\)/);
+  assert.match(runbook, /FALCONE_RESTORE_CROSS_SCOPE_STATUS/);
+  assert.match(
+    runbook,
+    /tenant\/public parity verified: tenants=2 workspaces=2 subscriptions=2 ownRoutes=2/,
+  );
+  assert.match(runbook, /test "\$FALCONE_RESTORE_PARITY_VERIFIED" = 'true'/);
+  assert.match(
+    runbook,
+    /kind delete cluster --name "\$FALCONE_RESTORE_KIND_CLUSTER_NAME"/,
+  );
+  assert.match(runbook, /disposable kind cluster still exists after cleanup/);
+  const restoredParity = runbook.match(
+    /Before cleanup, provision two disposable tenant owners([\s\S]*?)Always clean up the disposable release/,
+  )?.[1] ?? '';
+  assert.match(
+    restoredParity,
+    /test "\$\(stat -c '%a' "\$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"\)" = '600'/,
+  );
+  assert.match(
+    restoredParity,
+    /test "\$\(stat -c '%a' "\$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"\)" = '600'/,
+  );
+  assert.match(restoredParity, /FALCONE_RESTORE_PARITY_VERIFIED=false/);
+  assert.match(restoredParity, /mktemp -d \/tmp\/falcone-c25-parity\.XXXXXX/);
+  assert.match(restoredParity, /chmod 0700 "\$FALCONE_RESTORE_PARITY_DIR"/);
+  assert.match(restoredParity, /http:\/\/127\.0\.0\.1:\$\{FALCONE_RESTORE_LOCAL_PORT\}/);
+  assert.match(restoredParity, /\.eventTypes \| type/);
+  assert.match(restoredParity, /\.items \| type/);
+  assert.match(restoredParity, /403\|404/);
+  assert.match(restoredParity, /rm -rf "\$FALCONE_RESTORE_PARITY_DIR"/);
+  assert.match(
+    restoredParity,
+    /trap 'cleanup_webhook_parity; cleanup_webhook_kube_restore' EXIT/,
+  );
+  assert.match(restoredParity, /FALCONE_RESTORE_READY_ATTEMPTS/);
+  assert.match(restoredParity, /-ge 60/);
+  assert.match(restoredParity, /restored-copy readiness timed out/);
+  assert.match(restoredParity, /FALCONE_RESTORE_TENANT_TOKEN_ATTEMPTS/);
+  assert.match(restoredParity, /disposable tenant login readiness timed out/);
+  const tenantSmoke = restoredParity.slice(
+    restoredParity.indexOf('FALCONE_RESTORE_EVENT_TYPES_STATUS'),
+    restoredParity.indexOf('FALCONE_RESTORE_PARITY_VERIFIED=true'),
+  );
+  assert.equal(
+    (tenantSmoke.match(/(?:^|\n)[ \t]*curl --/g) ?? []).length,
+    3,
+  );
+  assert.equal((tenantSmoke.match(/--connect-timeout/g) ?? []).length, 3);
+  assert.equal((tenantSmoke.match(/--max-time/g) ?? []).length, 3);
+  const eventTypesRequest = restoredParity.match(
+    /FALCONE_RESTORE_EVENT_TYPES_STATUS="\$\(([\s\S]*?)test "\$FALCONE_RESTORE_EVENT_TYPES_STATUS" = '200'/,
+  )?.[0] ?? '';
+  assert.match(
+    eventTypesRequest,
+    /curl --config "\$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"/,
+  );
+  assert.match(
+    eventTypesRequest,
+    /\/v1\/workspaces\/\$\{FALCONE_RESTORE_WORKSPACE_A\}\/webhooks\/event-types"/,
+  );
+  assert.match(eventTypesRequest, /test "\$FALCONE_RESTORE_EVENT_TYPES_STATUS" = '200'/);
+  const ownListRequest = restoredParity.match(
+    /FALCONE_RESTORE_OWN_LIST_STATUS="\$\(([\s\S]*?)test "\$FALCONE_RESTORE_OWN_LIST_STATUS" = '200'/,
+  )?.[0] ?? '';
+  assert.match(
+    ownListRequest,
+    /curl --config "\$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"/,
+  );
+  assert.match(
+    ownListRequest,
+    /\/v1\/workspaces\/\$\{FALCONE_RESTORE_WORKSPACE_A\}\/webhooks\/subscriptions"/,
+  );
+  assert.match(ownListRequest, /test "\$FALCONE_RESTORE_OWN_LIST_STATUS" = '200'/);
+  const crossScopeRequest = restoredParity.match(
+    /FALCONE_RESTORE_CROSS_SCOPE_STATUS="\$\(([\s\S]*?)case "\$FALCONE_RESTORE_CROSS_SCOPE_STATUS" in\n  403\|404\)/,
+  )?.[0] ?? '';
+  assert.match(
+    crossScopeRequest,
+    /curl --config "\$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"/,
+  );
+  assert.match(
+    crossScopeRequest,
+    /\/v1\/workspaces\/\$\{FALCONE_RESTORE_WORKSPACE_A\}\/webhooks\/subscriptions"/,
+  );
+  assert.match(
+    crossScopeRequest,
+    /case "\$FALCONE_RESTORE_CROSS_SCOPE_STATUS" in\n  403\|404\)/,
+  );
+  assert.match(runbook, /cleanup_webhook_kube_restore/);
+  assert.match(
+    runbook,
+    /delete namespace "\$FALCONE_RESTORE_NAMESPACE" --wait --timeout=10m/,
+  );
+  assert.match(runbook, /uninstall "\$FALCONE_RESTORE_RELEASE" --wait --timeout 10m/);
+  assert.match(runbook, /FALCONE_RESTORE_NAMESPACE_CREATED=false/);
+  assert.match(runbook, /FALCONE_RESTORE_NAMESPACE_UID/);
+  assert.match(runbook, /falcone\.io\/disposable-run/);
+  assert.match(runbook, /FALCONE_RESTORE_PG_READY_ATTEMPTS/);
+  assert.match(runbook, /restore PostgreSQL readiness timed out/);
+
+  const restoreSection = runbook.slice(
+    runbook.indexOf('### Rehearse matching-key startup and readiness on the restored copy'),
+    runbook.indexOf('### Back up key custody without exporting it as evidence'),
+  );
+  const namespaceGuard = restoreSection.indexOf(
+    'refusing restore rehearsal: namespace already exists',
+  );
+  const cleanupTrap = restoreSection.indexOf(
+    'trap cleanup_webhook_kube_restore EXIT',
+  );
+  assert.ok(namespaceGuard >= 0);
+  assert.ok(
+    cleanupTrap > namespaceGuard,
+    'the destructive cleanup trap must not be armed until the pre-existing namespace guard passes',
+  );
 });
 
 test('all-core-006i: E2E Helm overlays render without obsolete service lifecycle toggles', SKIP, () => {

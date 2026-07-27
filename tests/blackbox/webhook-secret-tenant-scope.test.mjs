@@ -24,21 +24,25 @@ import crypto from 'node:crypto';
 import { main as managementMain } from '../../packages/webhook-engine/actions/webhook-management.mjs';
 import { main as deliveryMain } from '../../packages/webhook-engine/actions/webhook-delivery-worker.mjs';
 import { encryptSecret } from '../../packages/webhook-engine/src/webhook-signing.mjs';
+import { TEST_WEBHOOK_KEY_CONTEXT } from '../helpers/webhook-key.mjs';
 
-const env = { WEBHOOK_SIGNING_KEY: 'test-signing-key' };
+const env = {};
+const keyContext = TEST_WEBHOOK_KEY_CONTEXT;
 const kafka = { publish: async () => {} };
 const tenantA = { tenantId: 'tenant-a', workspaceId: 'ws-a', actorId: 'user-a' };
 const publicResolver = async () => ['93.184.216.34']; // example.com, public IP
 
-// Management db that records the exact args passed to insertSecret/rotateSecret.
+// Management db that records the exact args passed to the atomic create/rotate operations.
 function makeManagementDb(subscription) {
-  const calls = { insertSecret: [], rotateSecret: [] };
+  const calls = { insertSubscriptionWithSecret: [], rotateSecret: [] };
   return {
     calls,
     state: { subscriptions: new Map(), secrets: new Map() },
     async getWorkspaceSubscriptionCount() { return 0; },
-    async insertSubscription(row) { this.state.subscriptions.set(row.id, row); },
-    async insertSecret(...args) { calls.insertSecret.push(args); },
+    async insertSubscriptionWithSecret(...args) {
+      calls.insertSubscriptionWithSecret.push(args);
+      this.state.subscriptions.set(args[0].id, args[0]);
+    },
     // For rotate/getSubscription paths
     async getSubscription(id) { return subscription && subscription.id === id ? subscription : this.state.subscriptions.get(id); },
     async rotateSecret(...args) { calls.rotateSecret.push(args); }
@@ -48,10 +52,10 @@ function makeManagementDb(subscription) {
 // -------------------------------------------------------------------------
 // bbx-webhook-secret-scope-01: create propagates tenant_id/workspace_id
 // -------------------------------------------------------------------------
-test('bbx-webhook-secret-scope-01: insertSecret receives the subscription tenant_id and workspace_id', async () => {
+test('bbx-webhook-secret-scope-01: atomic create receives a tenant/workspace-scoped subscription', async () => {
   const db = makeManagementDb();
   const result = await managementMain({
-    db, kafka, env, auth: tenantA,
+    db, kafka, keyContext, env, auth: tenantA,
     resolver: publicResolver,
     method: 'POST',
     path: '/v1/webhooks/subscriptions',
@@ -59,12 +63,13 @@ test('bbx-webhook-secret-scope-01: insertSecret receives the subscription tenant
   });
 
   assert.equal(result.statusCode, 201, `expected 201 but got ${result.statusCode}: ${JSON.stringify(result.body)}`);
-  assert.equal(db.calls.insertSecret.length, 1, 'insertSecret must be called exactly once');
+  assert.equal(db.calls.insertSubscriptionWithSecret.length, 1, 'atomic create must be called exactly once');
 
-  const args = db.calls.insertSecret[0];
-  // args: [subscriptionId, encrypted, tenant_id, workspace_id]
-  assert.ok(args.includes('tenant-a'), `insertSecret must be passed the subscription tenant_id; got args=${JSON.stringify(args)}`);
-  assert.ok(args.includes('ws-a'), `insertSecret must be passed the subscription workspace_id; got args=${JSON.stringify(args)}`);
+  const [record, encrypted, encryptionKeyId] = db.calls.insertSubscriptionWithSecret[0];
+  assert.equal(record.tenant_id, 'tenant-a');
+  assert.equal(record.workspace_id, 'ws-a');
+  assert.equal(typeof encrypted.cipher, 'string');
+  assert.equal(encryptionKeyId, keyContext.keyId);
 });
 
 // -------------------------------------------------------------------------
@@ -87,7 +92,7 @@ test('bbx-webhook-secret-scope-02: rotateSecret receives the subscription tenant
   const db = makeManagementDb(subscription);
 
   const result = await managementMain({
-    db, kafka, env, auth: tenantA,
+    db, kafka, keyContext, env, auth: tenantA,
     resolver: publicResolver,
     method: 'POST',
     path: `/v1/webhooks/subscriptions/${subscriptionId}/rotate-secret`,
@@ -107,7 +112,7 @@ test('bbx-webhook-secret-scope-02: rotateSecret receives the subscription tenant
 // bbx-webhook-secret-scope-03: delivery propagates tenant_id/workspace_id to listSecrets
 // -------------------------------------------------------------------------
 test('bbx-webhook-secret-scope-03: listSecrets receives the subscription tenant_id and workspace_id at delivery time', async () => {
-  const encrypted = encryptSecret('signing-secret', 'test-signing-key');
+  const encrypted = encryptSecret('signing-secret', keyContext);
   const listSecretsCalls = [];
   const deliveryDb = {
     state: {
@@ -126,7 +131,7 @@ test('bbx-webhook-secret-scope-03: listSecrets receives the subscription tenant_
     async getSubscription(id) { return this.state.subscriptions.get(id); },
     async listSecrets(...args) {
       listSecretsCalls.push(args);
-      return [{ status: 'active', secret_cipher: encrypted.cipher, secret_iv: encrypted.iv }];
+      return [{ status: 'active', secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, encryption_key_id: keyContext.keyId }];
     },
     async getEvent(id) { return this.state.events.get(id); },
     async insertAttempt(row) { this.state.attempts.push(row); },
@@ -143,9 +148,9 @@ test('bbx-webhook-secret-scope-03: listSecrets receives the subscription tenant_
   const scheduler = { main: async () => ({ status: 'scheduled' }), invoker: { invoke: async () => {} } };
 
   const result = await deliveryMain({
-    db: deliveryDb, kafka, scheduler, http, resolver, dispatcherFactory,
+    db: deliveryDb, kafka, keyContext, scheduler, http, resolver, dispatcherFactory,
     deliveryId: 'd1',
-    env: { WEBHOOK_SIGNING_KEY: 'test-signing-key', WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
+    env: { WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
   });
 
   assert.equal(result.status, 'succeeded', `expected succeeded but got ${result.status}`);
@@ -165,7 +170,7 @@ test('bbx-webhook-secret-scope-04: secret create is rejected when the subscripti
   const db = makeManagementDb();
 
   const result = await managementMain({
-    db, kafka, env,
+    db, kafka, keyContext, env,
     auth: { tenantId: '', workspaceId: 'ws-a', actorId: 'user-a' },
     resolver: publicResolver,
     method: 'POST',
@@ -174,7 +179,11 @@ test('bbx-webhook-secret-scope-04: secret create is rejected when the subscripti
   });
 
   assert.notEqual(result.statusCode, 201, `secret create must be rejected for a record missing tenant_id (got ${result.statusCode})`);
-  assert.equal(db.calls.insertSecret.length, 0, 'insertSecret must NOT be called when tenant_id is missing');
+  assert.equal(
+    db.calls.insertSubscriptionWithSecret.length,
+    0,
+    'atomic create must NOT be called when tenant_id is missing',
+  );
 });
 
 // -------------------------------------------------------------------------
@@ -184,9 +193,9 @@ test('bbx-webhook-secret-scope-04: secret create is rejected when the subscripti
 // mismatched tenant, so delivery signs nothing (no http call / failure).
 // -------------------------------------------------------------------------
 test('bbx-webhook-secret-scope-05: tenant-scoping listSecrets returns no rows for a mismatched tenant', async () => {
-  const encrypted = encryptSecret('signing-secret', 'test-signing-key');
+  const encrypted = encryptSecret('signing-secret', keyContext);
   // Secret physically belongs to tenant-a; the db enforces the predicate.
-  const storedSecret = { status: 'active', secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, tenant_id: 'tenant-a', workspace_id: 'ws-a' };
+  const storedSecret = { status: 'active', secret_cipher: encrypted.cipher, secret_iv: encrypted.iv, encryption_key_id: keyContext.keyId, tenant_id: 'tenant-a', workspace_id: 'ws-a' };
 
   let httpCalled = false;
   const deliveryDb = {
@@ -228,9 +237,9 @@ test('bbx-webhook-secret-scope-05: tenant-scoping listSecrets returns no rows fo
   let result;
   try {
     result = await deliveryMain({
-      db: deliveryDb, kafka, scheduler, http, resolver, dispatcherFactory,
+      db: deliveryDb, kafka, keyContext, scheduler, http, resolver, dispatcherFactory,
       deliveryId: 'd1',
-      env: { WEBHOOK_SIGNING_KEY: 'test-signing-key', WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
+      env: { WEBHOOK_MAX_PAYLOAD_BYTES: '524288', WEBHOOK_RESPONSE_TIMEOUT_MS: '5000' }
     });
   } catch {
     threw = true;

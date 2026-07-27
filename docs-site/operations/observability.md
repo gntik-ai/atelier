@@ -41,6 +41,12 @@ kubectl -n falcone get pods
 
 Governed operations (function deployments, admin actions, rollbacks, quota enforcement) produce **query-safe audit records** (`domain-model.json`), retained for compliance and surfaced through the audit query/export/correlation surfaces.
 
+The webhook signing master-key lifecycle does not add a public audit API or console view. Its
+operator CLI reports only opaque Secret-reference identities, custody modes, state, counts,
+timestamps, recovery deadline, request/rotation IDs, and sanitized codes. P4/P10 evidence must not
+include raw Secret/workload objects, Helm values/history, pod environment, ciphertext, or key bytes.
+Use [Webhook Signing Master-Key Lifecycle: Collect audit and support evidence](/operations/webhook-signing-key-lifecycle#collect-audit-and-support-evidence).
+
 ## Flows & MCP signals *(Preview)*
 
 The AI-native capabilities are first-class in the same stack:

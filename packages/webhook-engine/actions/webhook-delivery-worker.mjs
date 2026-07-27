@@ -5,6 +5,7 @@ import { deliverySucceededEvent } from '../src/webhook-audit.mjs';
 import { computeSignature } from '../src/webhook-signing.mjs';
 import { revealSecretRecords } from './webhook-management.mjs';
 import { isBlockedIp } from '../src/webhook-subscription.mjs';
+import { assertLifecycleVerifiedWebhookKeyContext } from '../src/webhook-master-key.mjs';
 
 async function defaultResolver(hostname) {
   const results = await dns.promises.lookup(hostname, { all: true });
@@ -81,10 +82,12 @@ export async function main(params) {
     scheduler,
     http = fetch,
     deliveryId,
+    keyContext,
     env = process.env,
     resolver: paramResolver,
     dispatcherFactory = defaultDispatcherFactory
   } = params;
+  assertLifecycleVerifiedWebhookKeyContext(keyContext);
 
   const resolver = paramResolver ?? defaultResolver;
 
@@ -94,7 +97,10 @@ export async function main(params) {
   // an AND tenant_id = $N AND workspace_id = $M predicate so that a known or
   // guessed subscription_id alone can never load another tenant's secrets into
   // the signing context.
-  const secretRows = revealSecretRecords(await db.listSecrets(subscription.id, subscription.tenant_id, subscription.workspace_id), env);
+  const secretRows = revealSecretRecords(
+    await db.listSecrets(subscription.id, subscription.tenant_id, subscription.workspace_id),
+    keyContext,
+  );
   const secret = secretRows.find((row) => row.status === 'active') ?? secretRows[0];
   const event = await db.getEvent(delivery.event_id);
   const payloadEnvelope = buildPayloadEnvelope(delivery, event);

@@ -380,12 +380,18 @@ scripts/system-changes/make-all-services-core/restore-kv.sh \
   --dry-run
 ```
 
-## Plain-manifest Harbor runbook
+## Legacy plain-manifest reference
 
-For the repository's no-Helm-at-apply-time OpenShift/Harbor path, use
-[OpenShift Air-gapped (Harbor)](/operations/openshift-airgapped-harbor). That page is a specialized
-plain-manifest runbook derived from the chart and includes image-mirror tables and `[VERIFY]` notes
-for steps that still require clean-cluster confirmation.
+The repository's [no-Helm OpenShift/Harbor page](/operations/openshift-airgapped-harbor) is a frozen
+`0.3.0` reference, not a supported new, fresh, or upgrade path for C-25/chart `0.3.1`. It omits the
+mandatory webhook signing-key credential and lifecycle resources. Copying only a newer image into
+those manifests is unsafe and unsupported. Use this matched Helm guide and the
+[Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle) only for new,
+fresh, or already Helm-managed deployments. No supported or safely rehearsed resource-import path
+moves a manual installation into Helm. An existing manual `0.3.0` installation must remain pinned to
+`0.3.0` and continue its existing manual process until a separate manual-to-Helm migration is
+approved and rehearsed. The lifecycle runbook's legacy adoption migrates webhook ciphertext inside
+an existing Helm release; it does not import or transfer ownership of plain-manifest resources.
 
 ## Teardown
 

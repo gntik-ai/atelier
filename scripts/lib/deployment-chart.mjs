@@ -49,7 +49,7 @@ export const REQUIRED_VALUE_LAYERS = ['common', 'environment', 'customer', 'plat
 export const RECOMMENDED_DEPLOYMENT_PROFILES = ['all-in-one', 'standard', 'ha'];
 export const SUPPORTED_TLS_MODES = ['clusterManaged', 'external'];
 export const SUPPORTED_LOADBALANCER_PORT_KEYS = ['api', 'console', 'identity', 'realtime'];
-export const EXPECTED_SUPPORTED_PREVIOUS_VERSIONS = ['0.2.0'];
+export const EXPECTED_SUPPORTED_PREVIOUS_VERSIONS = ['0.2.0', '0.3.0', '0.3.1'];
 export const REQUIRED_BOOTSTRAP_TEMPLATES = [
   '../falcone-charts/charts/in-falcone/templates/bootstrap-rbac.yaml',
   '../falcone-charts/charts/in-falcone/templates/bootstrap-payload-configmap.yaml',

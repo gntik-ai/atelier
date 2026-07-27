@@ -102,6 +102,13 @@ scripts/system-changes/make-all-services-core/restore-kv.sh \
   --revision <helm-revision>
 ```
 
+> [!DANGER]
+> Do not use this Helm-rollback option across a webhook signing master-key adoption, rotation,
+> recovery, or finalization. A historical revision may expose the old literal key and can point the
+> application at a key that does not decrypt the restored database. Use the fixed chart's forward
+> replay/recovery procedure in the
+> [Webhook Signing Master-Key Lifecycle Runbook](/operations/webhook-signing-key-lifecycle).
+
 ## Recommended practice
 
 - Schedule per-tenant backups so each tenant can be restored independently — this is what keeps restore from being an all-or-nothing platform operation.
@@ -111,3 +118,6 @@ scripts/system-changes/make-all-services-core/restore-kv.sh \
   state, and PersistentVolumes before chart upgrades or migration scripts.
 - Do not paste real credentials into issue comments, docs, or terminal transcripts. Use placeholders
   when sharing evidence.
+- Couple every backup containing `webhook_signing_secrets` with the matching current/recovery Secret
+  identity and protected custody version. The generic KV archive is secret-bearing recovery custody,
+  not audit evidence, and does not replace the PostgreSQL backup.

@@ -32,11 +32,18 @@ COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
      apps/control-plane/vault-secrets.mjs \
      apps/control-plane/realtime-handlers.mjs \
      apps/control-plane/webhook-handlers.mjs apps/control-plane/webhook-db.mjs \
-     apps/control-plane/webhook-schema.mjs \
+     apps/control-plane/webhook-schema.mjs apps/control-plane/webhook-key-runtime.mjs \
+     apps/control-plane/webhook-database-principals.mjs \
+     apps/control-plane/webhook-runtime.mjs \
+     apps/control-plane/webhook-key-lifecycle-cli.mjs \
+     apps/control-plane/webhook-key-credential-cli.mjs \
+     apps/control-plane/kubernetes-api.mjs \
      apps/control-plane/audit-store.mjs apps/control-plane/audit-writer.mjs \
      apps/control-plane/audit-hash.mjs \
      apps/control-plane/transport-security.mjs \
      apps/control-plane/request-body.mjs \
+     apps/control-plane/control-plane-startup.mjs \
+     apps/control-plane/control-plane-database-startup.mjs \
      apps/control-plane/tenant-config-export.mjs \
      apps/control-plane/route-map.runtime.json ./
 
@@ -55,12 +62,22 @@ COPY packages/webhook-engine            /repo/packages/webhook-engine
 COPY packages/workspace-docs-service    /repo/packages/workspace-docs-service
 COPY apps/control-plane-executor                 /repo/apps/control-plane-executor
 
+# Source modules under apps/control-plane use repository-relative ../../packages imports.
+# The image flattens control-plane files into /app, so preserve that resolved absolute seam
+# without duplicating package contents.
+RUN ln -sfn /repo/packages /packages
+
 # Fail the BUILD if the route map references a handler module the image did not COPY
 # (fix-scheduling-handler-dockerfile): `/v1/scheduling/*` dispatched to
 # /repo/packages/scheduling-engine/... which was never COPY'd, so every scheduling
 # request 500'd with ERR_MODULE_NOT_FOUND at runtime. This static check turns a
 # missing COPY into a build failure instead of a runtime 500.
 RUN node -e "const fs=require('fs');const list=JSON.parse(fs.readFileSync('./route-map.runtime.json','utf8'));const mods=[...new Set(list.filter(r=>typeof r.module==='string').map(r=>r.module))];const miss=mods.filter(p=>!fs.existsSync(p));if(miss.length){console.error('[build] route map references missing handler modules:\n  '+miss.join('\n  '));process.exit(1)}console.log('[build] all '+mods.length+' route handler modules resolve')"
+
+# Import the side-effect-free database-startup seam that server.mjs imports at
+# boot. This makes an incomplete explicit COPY list fail during image build,
+# before the published image can crash-loop with ERR_MODULE_NOT_FOUND.
+RUN node -e "import('./control-plane-database-startup.mjs').then(()=>console.log('[build] control-plane database-startup import resolves')).catch((error)=>{console.error('[build] control-plane database-startup import failed:',error.code||error.name);process.exit(1)})"
 
 ENV NODE_ENV=production
 USER 1000

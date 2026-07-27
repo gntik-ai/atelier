@@ -6,7 +6,8 @@ Falcone is installed from the umbrella Helm chart in the sibling chart repositor
 ../falcone-charts/charts/in-falcone
 ```
 
-The chart version in `Chart.yaml` is `0.3.0`. The same chart is released as:
+The C-25 chart version in `Chart.yaml` is `0.3.1`. Use it only with a compatible `0.3.1`
+control-plane image. The same chart is released as:
 
 ```text
 oci://ghcr.io/gntik-ai/charts/in-falcone
@@ -27,7 +28,17 @@ helm dependency build ../falcone-charts/charts/in-falcone
 | Install on remote Kubernetes | [Kubernetes Install](/operations/kubernetes-install) |
 | Install on OpenShift | [OpenShift Install](/operations/openshift-install) |
 | Install on OpenShift with private Harbor or air-gap constraints | [OpenShift Install](/operations/openshift-install#openshift-with-harbor-or-air-gap) |
-| Apply a plain-manifest OpenShift/Harbor runbook with no Helm at apply time | [OpenShift Air-gapped (Harbor)](/operations/openshift-airgapped-harbor) |
+
+The former [plain-manifest OpenShift/Harbor guide](/operations/openshift-airgapped-harbor) is a
+legacy `0.3.0` reference, not a supported install or upgrade choice for C-25/chart `0.3.1`. New,
+fresh, and already Helm-managed upgrade deployments must use the matched Helm chart, the
+[OpenShift Install guide](/operations/openshift-install), and the
+[Webhook Signing-Key Lifecycle runbook](/operations/webhook-signing-key-lifecycle). Copying only a
+newer image into the legacy manifests is unsafe and unsupported. No supported or safely rehearsed
+resource-import path moves a manual installation into Helm. Existing manual `0.3.0` installations
+must remain pinned to `0.3.0` and continue their existing manual process until a separate
+manual-to-Helm migration is approved and rehearsed; webhook key adoption does not import or transfer
+ownership of their Kubernetes resources.
 
 ## Chart shape
 

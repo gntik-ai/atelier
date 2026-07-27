@@ -1,16 +1,12 @@
 import crypto from 'node:crypto';
-
-function normaliseKey(masterKey) {
-  const keyBuffer = Buffer.isBuffer(masterKey) ? masterKey : Buffer.from(masterKey, 'utf8');
-  return keyBuffer.length === 32 ? keyBuffer : crypto.createHash('sha256').update(keyBuffer).digest();
-}
+import { assertWebhookKeyContext } from './webhook-master-key.mjs';
 
 export function generateSigningSecret() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export function encryptSecret(plaintext, masterKey) {
-  const key = normaliseKey(masterKey);
+export function encryptSecret(plaintext, keyContext) {
+  const { keyBytes: key } = assertWebhookKeyContext(keyContext);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   const ciphertext = Buffer.concat([cipher.update(String(plaintext), 'utf8'), cipher.final()]);
@@ -21,8 +17,8 @@ export function encryptSecret(plaintext, masterKey) {
   };
 }
 
-export function decryptSecret(cipher, iv, masterKey) {
-  const key = normaliseKey(masterKey);
+export function decryptSecret(cipher, iv, keyContext) {
+  const { keyBytes: key } = assertWebhookKeyContext(keyContext);
   const rawCipher = Buffer.from(cipher, 'base64');
   const ivBuffer = Buffer.from(iv, 'base64');
   const ciphertext = rawCipher.subarray(0, rawCipher.length - 16);

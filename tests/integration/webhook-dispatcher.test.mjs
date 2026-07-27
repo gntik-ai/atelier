@@ -32,7 +32,7 @@ function makeDb() {
 test('dispatcher fans out within workspace, deduplicates, and respects rate limit', async () => {
   const db = makeDb();
   const invoked = [];
-  const invoker = { invoke: async (name, payload) => invoked.push({ name, payload }) };
+  const invoker = { invokeWebhookDelivery: async (payload) => invoked.push(payload) };
   const env = { WEBHOOK_MAX_DELIVERIES_PER_MINUTE_PER_WORKSPACE: '1', WEBHOOK_MAX_RETRY_ATTEMPTS: '5' };
   const first = await dispatcherMain({ db, invoker, env, event: { tenantId: 't1', workspaceId: 'w1', eventType: 'document.created', eventId: 'e1', data: {} } });
   assert.equal(first.queued, 1);
@@ -41,4 +41,7 @@ test('dispatcher fans out within workspace, deduplicates, and respects rate limi
   const isolated = await dispatcherMain({ db, invoker, env, event: { tenantId: 'other-tenant', workspaceId: 'w2', eventType: 'document.created', eventId: 'e2', data: {} } });
   assert.equal(isolated.queued, 0);
   assert.equal(invoked.length, 1);
+  assert.deepEqual(Object.keys(invoked[0]), ['deliveryId']);
+  assert.equal('keyContext' in invoked[0], false);
+  assert.equal('keyBytes' in invoked[0], false);
 });

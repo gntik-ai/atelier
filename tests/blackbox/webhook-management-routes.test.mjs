@@ -22,13 +22,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEST_WEBHOOK_KEY_CONTEXT } from '../helpers/webhook-key.mjs';
 
 // The handler lazily imports the action from ${REPO_ROOT}/packages/webhook-engine/...
 // Point REPO_ROOT at this checkout so the import resolves outside the image.
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 process.env.REPO_ROOT = REPO_ROOT;
 
-const { webhookManage } = await import('../../apps/control-plane/webhook-handlers.mjs');
+const { webhookManage, setWebhookKeyContext } = await import('../../apps/control-plane/webhook-handlers.mjs');
+setWebhookKeyContext(TEST_WEBHOOK_KEY_CONTEXT);
 const { routes } = await import('../../apps/control-plane/routes.mjs');
 const { LOCAL_HANDLERS } = await import('../../apps/control-plane/b-handlers.mjs');
 
@@ -42,9 +44,9 @@ function memDb() {
     async getWorkspaceSubscriptionCount(t, w) {
       return [...subs.values()].filter((s) => s.tenant_id === t && s.workspace_id === w && !s.deleted_at).length;
     },
-    async insertSubscription(r) { subs.set(r.id, { ...r }); },
-    async insertSecret(id, enc, t, w) {
-      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, status: 'active', tenant_id: t, workspace_id: w });
+    async insertSubscriptionWithSecret(r, enc, encryptionKeyId) {
+      subs.set(r.id, { ...r });
+      secrets.push({ subscription_id: r.id, secret_cipher: enc.cipher, secret_iv: enc.iv, encryption_key_id: encryptionKeyId, status: 'active', tenant_id: r.tenant_id, workspace_id: r.workspace_id });
     },
     async listSubscriptions(ctx) {
       return [...subs.values()].filter((s) => s.tenant_id === ctx.tenantId && s.workspace_id === ctx.workspaceId && !s.deleted_at);
@@ -53,9 +55,9 @@ function memDb() {
     async updateSubscription(id, patch) { const s = { ...subs.get(id), ...patch, updated_at: new Date().toISOString() }; subs.set(id, s); return s; },
     async replaceSubscription(rec) { subs.set(rec.id, { ...rec }); return subs.get(rec.id); },
     async cancelPendingDeliveries() {},
-    async rotateSecret(id, enc, grace, t, w) {
+    async rotateSecret(id, enc, grace, t, w, encryptionKeyId) {
       for (const s of secrets) if (s.subscription_id === id && s.status === 'active') { s.status = 'grace'; s.grace_expires_at = grace; }
-      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, status: 'active', tenant_id: t, workspace_id: w });
+      secrets.push({ subscription_id: id, secret_cipher: enc.cipher, secret_iv: enc.iv, encryption_key_id: encryptionKeyId, status: 'active', tenant_id: t, workspace_id: w });
     },
     async listDeliveries(id) { return deliveries.filter((d) => d.subscription_id === id); },
     async getDelivery(id, did) { return deliveries.find((d) => d.subscription_id === id && d.id === did) ?? null; },
@@ -63,8 +65,20 @@ function memDb() {
 }
 
 // Build the ctx the control-plane server hands a local handler.
+const CONTROL_PLANE_POOL = { kind: 'global-control-plane', async query() {} };
+const WEBHOOK_RUNTIME_POOL = { kind: 'webhook-runtime', async query() {} };
+const WEBHOOK_WRITE_POOL = { kind: 'webhook-writer', async query() {} };
 function ctx({ method = 'GET', url, body = {}, query = {}, identity, params = {} }) {
-  return { req: { method, url }, body, query, identity, params, pool: {} };
+  return {
+    req: { method, url },
+    body,
+    query,
+    identity,
+    params,
+    pool: CONTROL_PLANE_POOL,
+    webhookRuntimePool: WEBHOOK_RUNTIME_POOL,
+    webhookWritePool: WEBHOOK_WRITE_POOL,
+  };
 }
 const A = { sub: 'user-a', tenantId: 'tenant-a', workspaceId: 'ws-a', actorType: 'tenant_owner' };
 const B = { sub: 'user-b', tenantId: 'tenant-b', workspaceId: 'ws-b', actorType: 'tenant_owner' };
@@ -196,4 +210,119 @@ test('bbx-643-rt-11: workspace-path event-types -> 200 (workspace authorized, pa
   const res = await webhookManage(ctx({ method: 'GET', url: '/v1/workspaces/ws-a/webhooks/event-types', identity: A, params: { workspaceId: 'ws-a' } }), { buildDb: () => db, getWorkspace: ownedWs('tenant-a') });
   assert.equal(res.statusCode, 200);
   assert.ok(Array.isArray(res.body.eventTypes));
+});
+
+test('bbx-c25-pools: webhook adapter never receives the global control-plane pool', async () => {
+  const db = memDb();
+  let adapterRuntimePool;
+  let adapterWritePool;
+  let workspacePool;
+  const res = await webhookManage(ctx({
+    method: 'GET',
+    url: '/v1/workspaces/ws-a/webhooks/event-types',
+    identity: A,
+    params: { workspaceId: 'ws-a' },
+  }), {
+    buildDb(runtimePool, { writePool }) {
+      adapterRuntimePool = runtimePool;
+      adapterWritePool = writePool;
+      return db;
+    },
+    async getWorkspace(pool, wsId) {
+      workspacePool = pool;
+      return { id: wsId, tenant_id: 'tenant-a' };
+    },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.strictEqual(workspacePool, CONTROL_PLANE_POOL);
+  assert.strictEqual(adapterRuntimePool, WEBHOOK_RUNTIME_POOL);
+  assert.strictEqual(adapterWritePool, WEBHOOK_WRITE_POOL);
+  assert.notStrictEqual(adapterRuntimePool, CONTROL_PLANE_POOL);
+  assert.notStrictEqual(adapterWritePool, CONTROL_PLANE_POOL);
+});
+
+test('bbx-c25-pools-invalid: missing, shared, and global webhook pools fail before dispatch', async () => {
+  for (const [label, overrides, expectedCode] of [
+    [
+      'missing writer',
+      { webhookWritePool: null },
+      'WEBHOOK_DATABASE_PRINCIPALS_REQUIRED',
+    ],
+    [
+      'shared runtime/writer',
+      { webhookWritePool: WEBHOOK_RUNTIME_POOL },
+      'WEBHOOK_DATABASE_PRINCIPALS_INVALID',
+    ],
+    [
+      'global writer',
+      { webhookWritePool: CONTROL_PLANE_POOL },
+      'WEBHOOK_DATABASE_PRINCIPALS_INVALID',
+    ],
+  ]) {
+    let dispatched = false;
+    const requestContext = {
+      ...ctx({
+        method: 'GET',
+        url: '/v1/webhooks/event-types',
+        identity: A,
+      }),
+      ...overrides,
+    };
+    const response = await webhookManage(requestContext, {
+      buildDb() {
+        dispatched = true;
+        return memDb();
+      },
+    });
+    assert.deepEqual(
+      response,
+      {
+        statusCode: 503,
+        body: {
+          code: expectedCode,
+          message: 'Webhook database principal configuration is unavailable',
+        },
+      },
+      label,
+    );
+    assert.equal(dispatched, false, `${label} must fail before adapter dispatch`);
+  }
+});
+
+test('bbx-c25-rotate-fence: stale lifecycle rotation returns bounded 503 without changing rows', async () => {
+  const db = memDb();
+  const options = { buildDb: () => db };
+  const created = await webhookManage(ctx({
+    method: 'POST',
+    url: '/v1/webhooks/subscriptions',
+    identity: A,
+    body: { targetUrl: TARGET, eventTypes: ['document.created'] },
+  }), options);
+  assert.equal(created.statusCode, 201);
+  const before = structuredClone(db._secrets);
+  db.rotateSecret = async () => {
+    throw Object.assign(
+      new Error('WEBHOOK_KEY_WRITE_FENCED cipher key_id sql detail'),
+      { code: '55000' },
+    );
+  };
+
+  const response = await webhookManage(ctx({
+    method: 'POST',
+    url: `/v1/webhooks/subscriptions/${created.body.subscriptionId}/rotate-secret`,
+    identity: A,
+    body: { gracePeriodSeconds: 60 },
+  }), options);
+  assert.deepEqual(response, {
+    statusCode: 503,
+    body: {
+      code: 'WEBHOOK_KEY_UNAVAILABLE',
+      message: 'Webhook key lifecycle is not ready',
+    },
+  });
+  assert.deepEqual(db._secrets, before);
+  assert.doesNotMatch(
+    JSON.stringify(response),
+    /55000|WRITE_FENCED|cipher|key_id|sql|dsn/i,
+  );
 });
