@@ -38,6 +38,7 @@ const SECURITY_HEADERS = {
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
 };
+const BAD_REQUEST_BODY = 'Bad Request';
 const gzipAsync = promisify(gzip);
 const brotliAsync = promisify(brotliCompress);
 
@@ -105,7 +106,19 @@ const server = http.createServer(async (req, res) => {
     req.pipe(upstream);
     return;
   }
-  let p = normalize(decodeURIComponent((req.url ?? '/').split('?')[0])).replace(/^(\.\.[/\\])+/, '');
+  const pathname = (req.url ?? '/').split('?')[0];
+  let decodedPathname;
+  try {
+    decodedPathname = decodeURIComponent(pathname);
+  } catch {
+    res.writeHead(400, {
+      'content-type': 'text/plain; charset=utf-8',
+      'content-length': Buffer.byteLength(BAD_REQUEST_BODY)
+    });
+    res.end(BAD_REQUEST_BODY);
+    return;
+  }
+  let p = normalize(decodedPathname).replace(/^(\.\.[/\\])+/, '');
   if (p === '/' || p === '\\') p = '/index.html';
   try {
     const body = await readFile(join(ROOT, p));

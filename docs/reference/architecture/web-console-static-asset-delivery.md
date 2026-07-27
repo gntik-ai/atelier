@@ -1,14 +1,47 @@
 # Web console static asset delivery
 
+This reference is for platform operators (P3), release engineers (P18), and documentation
+maintainers (P17) who need to verify the console's static-delivery and same-origin API boundary.
+
 Falcone serves the built web-console SPA through the co-located release runtime under
 `apps/web-console`:
 
 - `apps/web-console/Dockerfile` is the release Dockerfile for `in-falcone-web-console`.
 - `apps/web-console/static-server.mjs` is the restricted-profile Node server used by the release
-  image and local compatibility images. It also proxies same-origin `/v1/*` requests to
-  `GATEWAY_UPSTREAM` before the SPA fallback.
+  image and local compatibility images. Both `apps/web-console/Dockerfile` and
+  `deploy/kind/web-console/Dockerfile` copy it and run it as their single Node command. It also
+  proxies same-origin `/v1/*` requests to `GATEWAY_UPSTREAM` before the SPA fallback.
 - `apps/web-console/nginx.conf` and `deploy/kind/web-console/nginx.conf` are legacy compatibility
   configs only; they are not the release image runtime.
+
+## Request routing and malformed static pathnames
+
+The shared Node server classifies exact `/healthz` and raw `/v1` or `/v1/*` targets before static
+pathname processing. `/healthz` keeps its `200` response with body `ok`. Raw API targets—including
+`/v1/%ZZ`—are forwarded unchanged to `GATEWAY_UPSTREAM`; the gateway remains responsible for API
+meaning, authentication, authorization, and tenant isolation.
+
+For every remaining request, the server separates the pathname from its query before decoding the
+pathname. An invalid or incomplete percent escape, such as `/%ZZ` or `/%`, or percent-encoded bytes
+that are not valid UTF-8 receive this complete response before any static file read or SPA
+fallback:
+
+```http
+HTTP/1.1 400 Bad Request
+Content-Type: text/plain; charset=utf-8
+
+Bad Request
+```
+
+The response is fixed and does not reflect the request target or expose filesystem paths, static
+or SPA content, exception details, environment values, credentials, or tenant/workspace data. The
+decode failure is contained to that request: repeated malformed requests do not terminate or
+restart the Node process, close its listener, or make `/healthz`, static assets, SPA routes, or the
+same-origin API proxy unavailable.
+
+Malformed percent syntax in a query does not reject an otherwise valid static or SPA pathname.
+Valid percent-encoded pathnames continue through the existing asset or SPA-fallback behavior,
+including MIME type, compression, cache, and browser security headers.
 
 ## Header policy
 
@@ -74,7 +107,9 @@ serve a compressed variant to a client that did not request it.
 
 ## Test and runtime overrides
 
-The Node static server keeps its container defaults:
+The supported image runtime is Node 22, as pinned by both Dockerfiles. Reproducing behavior under a
+newer local Node version does not widen that supported runtime scope. The Node static server keeps
+its container defaults:
 
 - `WEB_CONSOLE_STATIC_ROOT=/app/dist`
 - `PORT=3000`
@@ -82,3 +117,14 @@ The Node static server keeps its container defaults:
 Focused tests may override those variables to serve a temporary `dist` directory on an ephemeral
 port. The overrides are test hooks only; they do not change the container defaults or require extra
 runtime dependencies.
+
+Run the deterministic local process-boundary suite with:
+
+```bash
+node --test tests/unit/web-console-static-server.test.mjs
+```
+
+The suite uses a temporary static root, `PORT=0`, and an ephemeral local mock gateway. It verifies
+malformed-path `400` responses, same-PID recovery, valid encoded/static/SPA behavior, raw `/v1`
+proxy fidelity, and the existing `GATEWAY_UNREACHABLE` `502` response without Docker, Kubernetes,
+fixed ports, repository fixture writes, or external network access.
