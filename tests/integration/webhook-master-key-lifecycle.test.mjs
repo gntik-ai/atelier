@@ -17,6 +17,8 @@ const alternateId = deriveWebhookKeyId('ns', 'canonical-key-alternate', 'key');
 const legacyMaterial = 'synthetic historical fixture';
 const targetMaterial = formatCanonicalWebhookKey(Buffer.alloc(32, 0x42));
 const alternateMaterial = formatCanonicalWebhookKey(Buffer.alloc(32, 0x44));
+const wrongTargetMaterial = formatCanonicalWebhookKey(Buffer.alloc(32, 0x43));
+const wrongLegacyMaterial = 'synthetic historical fixture with changed bytes';
 
 function copy(value) {
   return structuredClone(value);
@@ -265,6 +267,12 @@ test('legacy adoption is atomic, preserves ciphertext/plaintext metadata, and re
   const updates = pg.calls.filter(({ sql }) => /SET encryption_key_id/.test(sql)).length;
   assert.deepEqual(await repository.adopt({ material: legacyMaterial, keyId: legacyId, requestId: 'adopt-001' }), adopted);
   assert.equal(pg.calls.filter(({ sql }) => /SET encryption_key_id/.test(sql)).length, updates);
+  assert.equal((await repository.authorizeQuiescedReplay({
+    requestId: 'adopt-001',
+    action: 'adopt',
+    targetKeyId: legacyId,
+    targetManaged: false,
+  })).requestId, 'adopt-001');
   await assert.rejects(
     repository.adopt({
       material: legacyMaterial,
@@ -414,9 +422,9 @@ test('recovery swaps durable custody for every managed/external direction and bi
       targetKeyId: legacyId,
       targetManaged: direction.recoveryManaged,
     };
-    assert.equal(
-      (await repository.authorizeQuiescedReplay(adoptBinding)).targetManaged,
-      direction.recoveryManaged,
+    await assert.rejects(
+      repository.authorizeQuiescedReplay(adoptBinding),
+      { code: 'WEBHOOK_KEY_STATE_CONFLICT' },
     );
     await assert.rejects(
       repository.authorizeQuiescedReplay({
@@ -446,6 +454,23 @@ test('recovery swaps durable custody for every managed/external direction and bi
       }),
       { code: 'WEBHOOK_LIFECYCLE_REQUEST_CONFLICT' },
     );
+    const rotatedReplay = await repository.rotate({
+      sourceMaterial: legacyMaterial,
+      sourceKeyId: legacyId,
+      // This is what the CLI observes after the first commit: durable current
+      // mode is now the target mode. The repository must recover the original
+      // source mode from the completed request binding before parsing.
+      sourceMode: 'canonical-v1',
+      targetMaterial,
+      targetKeyId: targetId,
+      targetManaged: direction.currentManaged,
+      requestId: rotateBinding.requestId,
+      rotationId: rotateBinding.rotationId,
+      recoveryWindowSeconds: rotateBinding.recoveryWindowSeconds,
+      quiesced: true,
+    });
+    assert.equal(rotatedReplay.requestId, rotateBinding.requestId);
+    assert.equal(rotatedReplay.state, 'completed');
 
     const recoverRequest = {
       currentMaterial: targetMaterial,
@@ -475,6 +500,15 @@ test('recovery swaps durable custody for every managed/external direction and bi
     assert.equal(audit.newState.sourceManaged, direction.currentManaged);
     assert.equal(audit.newState.targetManaged, direction.recoveryManaged);
 
+    const recoveredReplay = await repository.recover({
+      ...recoverRequest,
+      // Recovery has swapped the durable modes. Exact replay must use the
+      // ledger-bound original canonical source and legacy target modes.
+      currentMode: 'legacy',
+      targetMode: 'canonical-v1',
+    });
+    assert.equal(recoveredReplay.requestId, recoverRequest.requestId);
+    assert.equal(recoveredReplay.state, 'completed');
     const recoverBinding = {
       requestId: recoverRequest.requestId,
       action: 'recover',
@@ -503,6 +537,74 @@ test('recovery swaps durable custody for every managed/external direction and bi
       { code: 'WEBHOOK_LIFECYCLE_REQUEST_CONFLICT' },
     );
   }
+});
+
+test('completed replays authenticate supplied bytes and reject superseded lifecycle requests', async () => {
+  const { pg, repository } = await rotatedFixture('verified-replay');
+  const rotateRequest = {
+    sourceMaterial: legacyMaterial,
+    sourceKeyId: legacyId,
+    sourceMode: 'canonical-v1',
+    targetMaterial,
+    targetKeyId: targetId,
+    targetManaged: true,
+    requestId: 'rotate-deadline-verified-replay',
+    rotationId: 'rotation-deadline-verified-replay',
+    recoveryWindowSeconds: 3600,
+    quiesced: true,
+  };
+
+  await assert.rejects(repository.rotate({
+    ...rotateRequest,
+    targetMaterial: wrongTargetMaterial,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  await assert.rejects(repository.rotate({
+    ...rotateRequest,
+    sourceMaterial: wrongLegacyMaterial,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+
+  const recoverRequest = {
+    currentMaterial: targetMaterial,
+    currentKeyId: targetId,
+    currentMode: 'canonical-v1',
+    targetMaterial: legacyMaterial,
+    targetKeyId: legacyId,
+    targetMode: 'legacy',
+    targetManaged: false,
+    requestId: 'recover-verified-replay',
+    rotationId: 'recovery-verified-replay',
+    recoveryWindowSeconds: 3600,
+    quiesced: true,
+  };
+  await repository.recover(recoverRequest);
+
+  await assert.rejects(repository.authorizeQuiescedReplay({
+    requestId: rotateRequest.requestId,
+    action: 'rotate',
+    rotationId: rotateRequest.rotationId,
+    sourceKeyId: legacyId,
+    targetKeyId: targetId,
+    targetManaged: true,
+    recoveryWindowSeconds: 3600,
+  }), { code: 'WEBHOOK_KEY_STATE_CONFLICT' });
+  await assert.rejects(repository.rotate(rotateRequest), {
+    code: 'WEBHOOK_KEY_STATE_CONFLICT',
+  });
+  await assert.rejects(repository.recover({
+    ...recoverRequest,
+    currentMode: 'legacy',
+    targetMode: 'canonical-v1',
+    targetMaterial: wrongLegacyMaterial,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  await assert.rejects(repository.recover({
+    ...recoverRequest,
+    currentMode: 'legacy',
+    targetMode: 'canonical-v1',
+    currentMaterial: wrongTargetMaterial,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+
+  assert.equal(pg.state.active_request_id, recoverRequest.requestId);
+  assert.ok(pg.rows.every((row) => row.encryption_key_id === legacyId));
 });
 
 test('recovery custody mismatch fails before row locks or transforms and preserves durable state', async () => {
@@ -689,6 +791,32 @@ test('finalize locks and verifies every current row before clearing recovery met
   const lockIndex = pg.calls.findIndex(({ sql }) => /ORDER BY id FOR UPDATE/.test(sql));
   const clearIndex = pg.calls.findIndex(({ sql }) => /SET recovery_key_id = NULL/.test(sql));
   assert.ok(lockIndex >= 0 && clearIndex > lockIndex);
+  assert.equal((await repository.finalize({
+    material: targetMaterial,
+    keyId: targetId,
+    mode: 'canonical-v1',
+    recoveryKeyId: legacyId,
+    requestId: 'finalize-current',
+    now: new Date('2026-07-23T12:00:00.000Z'),
+  })).requestId, 'finalize-current');
+
+  await assert.rejects(repository.finalize({
+    material: wrongTargetMaterial,
+    keyId: targetId,
+    mode: 'canonical-v1',
+    recoveryKeyId: legacyId,
+    requestId: 'finalize-current',
+    now: new Date('2026-07-23T12:00:00.000Z'),
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  pg.rows[0].encryption_key_id = alternateId;
+  await assert.rejects(repository.finalize({
+    material: targetMaterial,
+    keyId: targetId,
+    mode: 'canonical-v1',
+    recoveryKeyId: legacyId,
+    requestId: 'finalize-current',
+    now: new Date('2026-07-23T12:00:00.000Z'),
+  }), { code: 'WEBHOOK_ROW_KEY_MISMATCH' });
 });
 
 test('internal platform-maintenance audit is sanitized and transaction-coupled to transforms', async () => {
@@ -801,6 +929,28 @@ test('lost rotation commit acknowledgement records recovery-required and identic
     repository.rotate({ ...request, targetManaged: false }),
     { code: 'WEBHOOK_LIFECYCLE_REQUEST_CONFLICT' },
   );
+  await assert.rejects(
+    repository.rotate({ ...request, sourceMaterial: wrongLegacyMaterial }),
+    { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' },
+  );
+  const originalRotationId = pg.state.active_rotation_id;
+  pg.state.active_rotation_id = 'synthetic-wrong-active-rotation';
+  await assert.rejects(repository.authorizeQuiescedReplay(replayBinding), {
+    code: 'WEBHOOK_KEY_STATE_CONFLICT',
+  });
+  pg.state.active_rotation_id = originalRotationId;
+  const originalRecoveryManaged = pg.state.recovery_managed;
+  pg.state.recovery_managed = !originalRecoveryManaged;
+  await assert.rejects(repository.authorizeQuiescedReplay(replayBinding), {
+    code: 'WEBHOOK_KEY_CUSTODY_CONFLICT',
+  });
+  pg.state.recovery_managed = originalRecoveryManaged;
+  const originalRowKeyId = pg.rows[0].encryption_key_id;
+  pg.rows[0].encryption_key_id = alternateId;
+  await assert.rejects(repository.authorizeQuiescedReplay(replayBinding), {
+    code: 'WEBHOOK_ROW_KEY_MISMATCH',
+  });
+  pg.rows[0].encryption_key_id = originalRowKeyId;
   const transformations = pg.calls.filter(({ sql }) => /UPDATE webhook_signing_secrets SET secret_cipher/.test(sql)).length;
 
   const resumed = await repository.rotate(request);

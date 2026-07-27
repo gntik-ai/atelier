@@ -391,6 +391,112 @@ test('new or conflicting lifecycle request stays fail-closed while deployment is
   }
 });
 
+test('failed completed-finalize verification cannot reach managed recovery Secret deletion', async () => {
+  const api = zeroReplicaApi();
+  api.deleteSecret = async (name) => api.calls.push(`delete:${name}`);
+  api.getSecret = async (name) => {
+    api.calls.push(`secret:${name}`);
+    return { metadata: { name } };
+  };
+  const verificationFailure = Object.assign(
+    new Error('bounded verification failure'),
+    { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' },
+  );
+  const repository = {
+    async authorizeQuiescedReplay() { return { state: 'completed' }; },
+    async getResolutionState() { return { current_mode: 'canonical-v1' }; },
+    async finalize() { throw verificationFailure; },
+  };
+  await assert.rejects(runWebhookLifecycle({
+    WEBHOOK_KEY_LIFECYCLE_ACTION: 'finalize',
+    WEBHOOK_CONTROL_PLANE_DEPLOYMENT: 'falcone-control-plane',
+    WEBHOOK_CONTROL_PLANE_REPLICAS: '2',
+    WEBHOOK_SIGNING_KEY: formatCanonicalWebhookKey(Buffer.alloc(32, 0x55)),
+    WEBHOOK_SIGNING_KEY_ID: `wk1:${'b'.repeat(64)}`,
+    WEBHOOK_SOURCE_SIGNING_KEY_ID: `wk1:${'a'.repeat(64)}`,
+    WEBHOOK_LIFECYCLE_REQUEST_ID: 'finalize-cli-retry',
+    WEBHOOK_SOURCE_SECRET_NAME: 'managed-recovery-key',
+    WEBHOOK_SOURCE_SECRET_KEY: 'key',
+    WEBHOOK_RECOVERY_MANAGED: 'true',
+    RELEASE_NAME: 'falcone',
+    RELEASE_NAMESPACE: 'falcone-test',
+  }, {
+    api,
+    pool: { async query() { return { rows: [] }; } },
+    repository,
+    argv: ['node', 'cli'],
+    applySchema: async () => {},
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  assert.deepEqual(api.calls, ['get']);
+});
+
+test('verified completed-finalize replay can retry exact managed recovery Secret deletion', async () => {
+  const sourceName = 'managed-recovery-key';
+  const sourceKeyId = deriveWebhookKeyId('falcone-test', sourceName, 'key');
+  const api = zeroReplicaApi();
+  const owned = {
+    immutable: true,
+    metadata: {
+      name: sourceName,
+      labels: {
+        'in-falcone.io/webhook-key-managed': 'true',
+        'app.kubernetes.io/instance': 'falcone',
+      },
+      annotations: {
+        'meta.helm.sh/release-name': 'falcone',
+        'meta.helm.sh/release-namespace': 'falcone-test',
+        'in-falcone.io/webhook-key-id': sourceKeyId,
+      },
+    },
+  };
+  api.getSecret = async (name) => {
+    api.calls.push(`secret:${name}`);
+    return owned;
+  };
+  api.deleteSecret = async (name) => api.calls.push(`delete:${name}`);
+  const repository = {
+    async authorizeQuiescedReplay() { return { state: 'completed' }; },
+    async getResolutionState() { return { current_mode: 'canonical-v1' }; },
+    async finalize() {
+      return {
+        action: 'finalize',
+        requestId: 'finalize-cli-retry',
+        state: 'completed',
+        sourceKeyId,
+        sourceManaged: true,
+      };
+    },
+  };
+  const result = await runWebhookLifecycle({
+    WEBHOOK_KEY_LIFECYCLE_ACTION: 'finalize',
+    WEBHOOK_CONTROL_PLANE_DEPLOYMENT: 'falcone-control-plane',
+    WEBHOOK_CONTROL_PLANE_REPLICAS: '2',
+    WEBHOOK_SIGNING_KEY: formatCanonicalWebhookKey(Buffer.alloc(32, 0x55)),
+    WEBHOOK_SIGNING_KEY_ID: `wk1:${'b'.repeat(64)}`,
+    WEBHOOK_SOURCE_SIGNING_KEY_ID: sourceKeyId,
+    WEBHOOK_LIFECYCLE_REQUEST_ID: 'finalize-cli-retry',
+    WEBHOOK_SECRET_NAME: 'current-key',
+    WEBHOOK_SECRET_KEY: 'key',
+    WEBHOOK_SOURCE_SECRET_NAME: sourceName,
+    WEBHOOK_SOURCE_SECRET_KEY: 'key',
+    WEBHOOK_RECOVERY_MANAGED: 'true',
+    RELEASE_NAME: 'falcone',
+    RELEASE_NAMESPACE: 'falcone-test',
+  }, {
+    api,
+    pool: { async query() { return { rows: [] }; } },
+    repository,
+    argv: ['node', 'cli'],
+    applySchema: async () => {},
+  });
+  assert.equal(result.credential.deleted, true);
+  assert.deepEqual(api.calls, [
+    'get',
+    `secret:${sourceName}`,
+    `delete:${sourceName}`,
+  ]);
+});
+
 test('lost commit acknowledgement leaves the deployment stopped for exact Helm reconciliation', async () => {
   const scales = [];
   let drained = false;

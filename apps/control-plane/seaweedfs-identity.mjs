@@ -50,8 +50,84 @@ export function isInCluster(token = readToken()) {
 }
 const HOST = process.env.KUBERNETES_SERVICE_HOST || 'kubernetes.default.svc';
 const PORT = process.env.KUBERNETES_SERVICE_PORT || '443';
-const SW_IMAGE = process.env.SEAWEEDFS_IMAGE || 'chrislusf/seaweedfs:4.33';
+const DEFAULT_SW_IMAGE = 'chrislusf/seaweedfs@sha256:f0b358973e81f884304737645dd3b278c590c2c9d47d60089729d46324f70495';
+const IMAGE_PULL_POLICIES = new Set(['Always', 'IfNotPresent', 'Never']);
+const K8S_SECRET_NAME_RE = /^[a-z0-9](?:[-a-z0-9.]*[a-z0-9])?$/;
+
+function imagePullPolicy(value) {
+  const policy = String(value ?? 'IfNotPresent').trim();
+  if (!IMAGE_PULL_POLICIES.has(policy)) {
+    throw new Error(`invalid SEAWEEDFS_IMAGE_PULL_POLICY: ${policy}`);
+  }
+  return policy;
+}
+
+function imagePullSecrets(value) {
+  if (!Array.isArray(value)) {
+    throw new Error('SEAWEEDFS_IMAGE_PULL_SECRETS must be a JSON array');
+  }
+  return [...new Set(value.map((entry) => {
+    const name = String(typeof entry === 'string' ? entry : entry?.name ?? '').trim();
+    if (!name || name.length > 253 || !K8S_SECRET_NAME_RE.test(name)) {
+      throw new Error('SEAWEEDFS_IMAGE_PULL_SECRETS contains an invalid Kubernetes Secret name');
+    }
+    return name;
+  }))];
+}
+
+function imagePullSecretsFromEnv(value = '[]') {
+  try {
+    return imagePullSecrets(JSON.parse(value || '[]'));
+  } catch (error) {
+    throw new Error(`invalid SEAWEEDFS_IMAGE_PULL_SECRETS: ${error.message}`);
+  }
+}
+
+function booleanEnv(name, value, fallback = false) {
+  if (value === undefined || value === '') return fallback;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${name} must be "true" or "false"`);
+}
+
+const SW_IMAGE = process.env.SEAWEEDFS_IMAGE || DEFAULT_SW_IMAGE;
+const SW_IMAGE_PULL_POLICY = imagePullPolicy(process.env.SEAWEEDFS_IMAGE_PULL_POLICY);
+const SW_IMAGE_PULL_SECRETS = imagePullSecretsFromEnv(process.env.SEAWEEDFS_IMAGE_PULL_SECRETS);
+const SW_OPENSHIFT_RESTRICTED = booleanEnv(
+  'SEAWEEDFS_OPENSHIFT_RESTRICTED',
+  process.env.SEAWEEDFS_OPENSHIFT_RESTRICTED,
+);
 const SW_MASTER = process.env.SEAWEEDFS_MASTER || `falcone-seaweedfs-master.${NS}:9333`;
+const SW_FILER = process.env.SEAWEEDFS_FILER || `falcone-seaweedfs-filer.${NS}:8888`;
+
+function restrictedJobPodSecurityContext() {
+  return { seccompProfile: { type: 'RuntimeDefault' } };
+}
+
+function restrictedJobContainerSecurityContext({ openshiftRestricted = false } = {}) {
+  return {
+    allowPrivilegeEscalation: false,
+    capabilities: { drop: ['ALL'] },
+    readOnlyRootFilesystem: true,
+    runAsNonRoot: true,
+    ...(!openshiftRestricted ? { runAsUser: 1000, runAsGroup: 1000 } : {}),
+  };
+}
+
+function restrictedJobPodSpec({
+  container,
+  pullSecrets = SW_IMAGE_PULL_SECRETS,
+}) {
+  const names = imagePullSecrets(pullSecrets);
+  return {
+    restartPolicy: 'Never',
+    securityContext: restrictedJobPodSecurityContext(),
+    ...(names.length > 0
+      ? { imagePullSecrets: names.map((name) => ({ name })) }
+      : {}),
+    containers: [container],
+  };
+}
 
 function k8s(method, path, body) {
   return new Promise((resolve, reject) => {
@@ -114,16 +190,31 @@ export function generateStorageKeys(rand = randomBytes) {
 // re-provision is a clean rotate: keys/grants never accumulate (#673). `s3.configure
 // -delete -apply` is the canonical delete-and-live-reload (matches the shippable
 // packages/adapters/src/seaweedfs-iam-client.mjs delete path).
-export function seedJobManifest({ ns, name, image = SW_IMAGE, master = SW_MASTER, identityName, accessKey, secretKey, bucket, actions = ['Read', 'Write', 'List'] }) {
+export function seedJobManifest({
+  ns,
+  name,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  master = SW_MASTER,
+  filer = SW_FILER,
+  identityName,
+  accessKey,
+  secretKey,
+  bucket,
+  actions = ['Read', 'Write', 'List'],
+}) {
   if (!bucket) throw new Error('seedJobManifest requires a bucket (refusing an unscoped identity)');
+  const resolvedPullPolicy = imagePullPolicy(pullPolicy);
   // Delete any prior identity of this name (idempotent — a missing identity is fine),
   // then apply exactly one key scoped to the one bucket. `|| true` on the delete keeps
   // a first-ever provision (nothing to delete) from failing the Job.
   const seedCmd = [
-    'printf \'s3.configure -delete -apply -user %s\\n\' "$ID_NAME" | weed shell -master="$SW_MASTER" || true;',
+    'printf \'s3.configure -delete -apply -user %s\\n\' "$ID_NAME" | weed shell -master="$SW_MASTER" -filer="$SW_FILER" || true;',
     'printf \'s3.configure -apply -user %s -access_key %s -secret_key %s -buckets %s -actions %s\\n\'',
     '"$ID_NAME" "$AK" "$SK" "$BUCKET" "$ACTIONS"',
-    '| weed shell -master="$SW_MASTER"',
+    '| weed shell -master="$SW_MASTER" -filer="$SW_FILER"',
     '| grep -q "$ID_NAME"',
   ].join(' ');
   return {
@@ -133,18 +224,20 @@ export function seedJobManifest({ ns, name, image = SW_IMAGE, master = SW_MASTER
       backoffLimit: 4, ttlSecondsAfterFinished: 300,
       template: {
         metadata: { labels: { 'app.kubernetes.io/name': 'seaweedfs', role: 'ws-identity-seed' } },
-        spec: {
-          restartPolicy: 'Never',
-          containers: [{
-            name: 'seed', image, imagePullPolicy: 'IfNotPresent',
+        spec: restrictedJobPodSpec({
+          pullSecrets,
+          container: {
+            name: 'seed', image, imagePullPolicy: resolvedPullPolicy,
             env: [
               { name: 'ID_NAME', value: identityName }, { name: 'AK', value: accessKey },
               { name: 'SK', value: secretKey }, { name: 'BUCKET', value: bucket },
               { name: 'ACTIONS', value: actions.join(',') }, { name: 'SW_MASTER', value: master },
+              { name: 'SW_FILER', value: filer },
             ],
             command: ['/bin/sh', '-ec', seedCmd],
-          }],
-        },
+            securityContext: restrictedJobContainerSecurityContext({ openshiftRestricted }),
+          },
+        }),
       },
     },
   };
@@ -154,11 +247,22 @@ export function seedJobManifest({ ns, name, image = SW_IMAGE, master = SW_MASTER
 // -apply -user <identityName>` so the identity AND all of its keys are removed and the
 // gateway reloads live — the prior access key no longer authenticates (#673). No keys
 // are needed (delete by name only); fail-closed on a missing identity name.
-export function revokeJobManifest({ ns, name, image = SW_IMAGE, master = SW_MASTER, identityName }) {
+export function revokeJobManifest({
+  ns,
+  name,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  master = SW_MASTER,
+  filer = SW_FILER,
+  identityName,
+}) {
   if (!identityName) throw new Error('revokeJobManifest requires an identityName (nothing to revoke)');
+  const resolvedPullPolicy = imagePullPolicy(pullPolicy);
   const revokeCmd = [
     'printf \'s3.configure -delete -apply -user %s\\n\' "$ID_NAME"',
-    '| weed shell -master="$SW_MASTER"',
+    '| weed shell -master="$SW_MASTER" -filer="$SW_FILER"',
   ].join(' ');
   return {
     apiVersion: 'batch/v1', kind: 'Job',
@@ -167,16 +271,18 @@ export function revokeJobManifest({ ns, name, image = SW_IMAGE, master = SW_MAST
       backoffLimit: 4, ttlSecondsAfterFinished: 300,
       template: {
         metadata: { labels: { 'app.kubernetes.io/name': 'seaweedfs', role: 'ws-identity-revoke' } },
-        spec: {
-          restartPolicy: 'Never',
-          containers: [{
-            name: 'revoke', image, imagePullPolicy: 'IfNotPresent',
+        spec: restrictedJobPodSpec({
+          pullSecrets,
+          container: {
+            name: 'revoke', image, imagePullPolicy: resolvedPullPolicy,
             env: [
               { name: 'ID_NAME', value: identityName }, { name: 'SW_MASTER', value: master },
+              { name: 'SW_FILER', value: filer },
             ],
             command: ['/bin/sh', '-ec', revokeCmd],
-          }],
-        },
+            securityContext: restrictedJobContainerSecurityContext({ openshiftRestricted }),
+          },
+        }),
       },
     },
   };
@@ -207,21 +313,31 @@ export const LEGACY_WS_IDENTITY_RE = /falcone-ws-[a-z0-9_-]+/g;
 // gateway reloads live and every pre-fix key is rejected. A no-op when none exist (the grep
 // matches nothing → the loop body never runs). Best-effort: `|| true` keeps a partial/empty
 // run from failing the Job. NEVER introduces a wildcard/Admin grant (delete-only).
-export function legacyCleanupJobManifest({ ns, name, image = SW_IMAGE, master = SW_MASTER }) {
+export function legacyCleanupJobManifest({
+  ns,
+  name,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  master = SW_MASTER,
+  filer = SW_FILER,
+}) {
+  const resolvedPullPolicy = imagePullPolicy(pullPolicy);
   // 1) dump the config; 2) extract legacy identity names (grep -oE), unique; 3) for each,
   // emit a `s3.configure -delete -apply -user <name>` line and pipe the whole batch into a
   // single `weed shell` invocation. The grep prefix MUST stay in lock-step with
   // LEGACY_WS_IDENTITY_PREFIX / workspaceIdentityName.
   const cleanupCmd = [
     // Dump once; tolerate a transiently-unreachable master without failing the Job.
-    "DUMP=$(printf 's3.configure\\n' | weed shell -master=\"$SW_MASTER\" 2>/dev/null || true);",
+    "DUMP=$(printf 's3.configure\\n' | weed shell -master=\"$SW_MASTER\" -filer=\"$SW_FILER\" 2>/dev/null || true);",
     // Extract unique legacy identity names from the JSON dump.
     "NAMES=$(printf '%s' \"$DUMP\" | grep -oE 'falcone-ws-[a-z0-9_-]+' | sort -u || true);",
     // No legacy identities -> clean no-op.
     'if [ -z "$NAMES" ]; then echo "no legacy falcone-ws-* identities to remove"; exit 0; fi;',
     // Delete each legacy identity (delete-and-live-reload); best-effort per name.
     'for N in $NAMES; do',
-    'printf \'s3.configure -delete -apply -user %s\\n\' "$N" | weed shell -master="$SW_MASTER" || true;',
+    'printf \'s3.configure -delete -apply -user %s\\n\' "$N" | weed shell -master="$SW_MASTER" -filer="$SW_FILER" || true;',
     'echo "removed legacy identity $N";',
     'done',
   ].join(' ');
@@ -232,14 +348,15 @@ export function legacyCleanupJobManifest({ ns, name, image = SW_IMAGE, master = 
       backoffLimit: 2, ttlSecondsAfterFinished: 300,
       template: {
         metadata: { labels: { 'app.kubernetes.io/name': 'seaweedfs', role: 'ws-identity-legacy-cleanup' } },
-        spec: {
-          restartPolicy: 'Never',
-          containers: [{
-            name: 'legacy-cleanup', image, imagePullPolicy: 'IfNotPresent',
-            env: [{ name: 'SW_MASTER', value: master }],
+        spec: restrictedJobPodSpec({
+          pullSecrets,
+          container: {
+            name: 'legacy-cleanup', image, imagePullPolicy: resolvedPullPolicy,
+            env: [{ name: 'SW_MASTER', value: master }, { name: 'SW_FILER', value: filer }],
             command: ['/bin/sh', '-ec', cleanupCmd],
-          }],
-        },
+            securityContext: restrictedJobContainerSecurityContext({ openshiftRestricted }),
+          },
+        }),
       },
     },
   };
@@ -275,13 +392,42 @@ function jobNameFor(prefix, identityName, suffix) {
  * does.
  * @returns {Promise<{identityName:string, bucket:string, accessKey:string, secretKey:string, actions:string[]}>}
  */
-export async function issueBucketIdentity({ bucket, workspaceId, actions = ['Read', 'Write', 'List'], ns = NS, master = SW_MASTER, image = SW_IMAGE, client = k8s, keys, jobSuffix, wait = true }) {
+export async function issueBucketIdentity({
+  bucket,
+  workspaceId,
+  actions = ['Read', 'Write', 'List'],
+  ns = NS,
+  master = SW_MASTER,
+  filer = SW_FILER,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  client = k8s,
+  keys,
+  jobSuffix,
+  wait = true,
+}) {
   if (!bucket) throw new Error('issueBucketIdentity requires a bucket');
   const identityName = bucketIdentityName(bucket);
   const cred = keys ?? generateStorageKeys();
   const suffix = (jobSuffix ?? randomBytes(4).toString('hex')).toLowerCase();
   const jobName = jobNameFor('bktid', identityName, suffix);
-  const manifest = seedJobManifest({ ns, name: jobName, image, master, identityName, accessKey: cred.accessKey, secretKey: cred.secretKey, bucket, actions });
+  const manifest = seedJobManifest({
+    ns,
+    name: jobName,
+    image,
+    imagePullPolicy: pullPolicy,
+    imagePullSecrets: pullSecrets,
+    openshiftRestricted,
+    master,
+    filer,
+    identityName,
+    accessKey: cred.accessKey,
+    secretKey: cred.secretKey,
+    bucket,
+    actions,
+  });
   await client('POST', `/apis/batch/v1/namespaces/${ns}/jobs`, manifest);
   if (wait) await waitJobComplete(ns, jobName, { client });
   return { identityName, bucket, accessKey: cred.accessKey, secretKey: cred.secretKey, actions };
@@ -304,11 +450,34 @@ export async function issueWorkspaceIdentity(opts = {}) {
  * client for tests. Fail-closed on an empty name.
  * @returns {Promise<{identityName:string, revoked:true}>}
  */
-export async function revokeIdentityByName({ identityName, jobPrefix = 'idrm', ns = NS, master = SW_MASTER, image = SW_IMAGE, client = k8s, jobSuffix, wait = true }) {
+export async function revokeIdentityByName({
+  identityName,
+  jobPrefix = 'idrm',
+  ns = NS,
+  master = SW_MASTER,
+  filer = SW_FILER,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  client = k8s,
+  jobSuffix,
+  wait = true,
+}) {
   if (!identityName) throw new Error('revokeIdentityByName requires an identityName');
   const suffix = (jobSuffix ?? randomBytes(4).toString('hex')).toLowerCase();
   const jobName = jobNameFor(jobPrefix, identityName, suffix);
-  const manifest = revokeJobManifest({ ns, name: jobName, image, master, identityName });
+  const manifest = revokeJobManifest({
+    ns,
+    name: jobName,
+    image,
+    imagePullPolicy: pullPolicy,
+    imagePullSecrets: pullSecrets,
+    openshiftRestricted,
+    master,
+    filer,
+    identityName,
+  });
   await client('POST', `/apis/batch/v1/namespaces/${ns}/jobs`, manifest);
   if (wait) await waitJobComplete(ns, jobName, { client });
   return { identityName, revoked: true };
@@ -320,10 +489,35 @@ export async function revokeIdentityByName({ identityName, jobPrefix = 'idrm', n
  * Injectable client for tests. Returns the deleted identity name.
  * @returns {Promise<{identityName:string, bucket:string, revoked:true}>}
  */
-export async function revokeBucketIdentity({ bucket, ns = NS, master = SW_MASTER, image = SW_IMAGE, client = k8s, jobSuffix, wait = true }) {
+export async function revokeBucketIdentity({
+  bucket,
+  ns = NS,
+  master = SW_MASTER,
+  filer = SW_FILER,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  client = k8s,
+  jobSuffix,
+  wait = true,
+}) {
   if (!bucket) throw new Error('revokeBucketIdentity requires a bucket');
   const identityName = bucketIdentityName(bucket);
-  const { revoked } = await revokeIdentityByName({ identityName, jobPrefix: 'bktrm', ns, master, image, client, jobSuffix, wait });
+  const { revoked } = await revokeIdentityByName({
+    identityName,
+    jobPrefix: 'bktrm',
+    ns,
+    master,
+    filer,
+    image,
+    imagePullPolicy: pullPolicy,
+    imagePullSecrets: pullSecrets,
+    openshiftRestricted,
+    client,
+    jobSuffix,
+    wait,
+  });
   return { identityName, bucket, revoked };
 }
 
@@ -341,7 +535,19 @@ export async function revokeBucketIdentity({ bucket, ns = NS, master = SW_MASTER
  * Job completing). Returns a small status object for logging; never rejects.
  * @returns {Promise<{posted:boolean, jobName?:string, skipped?:string, error?:string}>}
  */
-export async function cleanupLegacyWorkspaceIdentities({ ns = NS, master = SW_MASTER, image = SW_IMAGE, client = k8s, token, jobSuffix, wait = false } = {}) {
+export async function cleanupLegacyWorkspaceIdentities({
+  ns = NS,
+  master = SW_MASTER,
+  filer = SW_FILER,
+  image = SW_IMAGE,
+  imagePullPolicy: pullPolicy = SW_IMAGE_PULL_POLICY,
+  imagePullSecrets: pullSecrets = SW_IMAGE_PULL_SECRETS,
+  openshiftRestricted = SW_OPENSHIFT_RESTRICTED,
+  client = k8s,
+  token,
+  jobSuffix,
+  wait = false,
+} = {}) {
   try {
     // Skip cleanly when not in a pod with a usable SA token (local/test/dev runs): we
     // cannot post a Job, and that must be a logged no-op, not a crash.
@@ -350,7 +556,16 @@ export async function cleanupLegacyWorkspaceIdentities({ ns = NS, master = SW_MA
     }
     const suffix = (jobSuffix ?? randomBytes(4).toString('hex')).toLowerCase();
     const jobName = jobNameFor('ws-legacy-cleanup', 'falcone-ws', suffix);
-    const manifest = legacyCleanupJobManifest({ ns, name: jobName, image, master });
+    const manifest = legacyCleanupJobManifest({
+      ns,
+      name: jobName,
+      image,
+      imagePullPolicy: pullPolicy,
+      imagePullSecrets: pullSecrets,
+      openshiftRestricted,
+      master,
+      filer,
+    });
     await client('POST', `/apis/batch/v1/namespaces/${ns}/jobs`, manifest);
     if (wait) await waitJobComplete(ns, jobName, { client });
     return { posted: true, jobName };

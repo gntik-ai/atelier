@@ -14,9 +14,31 @@ canonical rotation, forward recovery, finalization, incident response, and secre
 > The target was context `default`, namespace `in-falcone-staging` with UID
 > `1651dd61-20e7-4734-80a1-15afb5d5fcb4`, Helm revision 16. Kubernetes `/readyz` stayed false until
 > startup verification completed. No canonical rotation, recovery, or finalization was run.
-> The application and chart PRs remain draft/unmerged, and the full disposable-kind and live
-> OpenShift lifecycle rehearsals remain incomplete. Do not use this unpublished pair in production;
-> first confirm publication and the remaining release gates in the release notes.
+>
+> On 2026-07-27 a separate disposable-kind rehearsal then restored the audited source chart at
+> `9aab27e7695e20156b7a4f61b5f2f789f59ee59a` with source control-plane image
+> `ghcr.io/gntik-ai/in-falcone-control-plane@sha256:0e7c3aec8193280b7a319941d57354d5e375e8af13d683132111663b8a518fbd`,
+> upgraded draft candidates derived from Falcone PR baseline head
+> `a46754f9ac24d16e5fd80345a04424bfe250f03a` and reviewed chart candidate
+> `8237a209bf7c2ff187c2d25cd496cbc9787502e7`, and finished with the published control-plane
+> candidate `ghcr.io/gntik-ai/in-falcone-control-plane@sha256:a6f90cd0c3e6e5ee5e783bba1d9fbce3c03be10590c85753cde3339fbcd4ad1d`.
+> In isolated context `kind-falcone-c25-20260726-2`, release `c25restore2` revision 18 completed
+> two-tenant legacy
+> adoption, separate canonical rotation, forward recovery, finalization, and exact replay. It ended
+> `serving:legacy:false` with four subscriptions and four signing-secret rows across four scopes
+> (two restored and two public-API smoke-test scopes), four completed ledger actions, unchanged
+> external key bytes, no managed recovery Secret, and no `FailedCreate` event for the final
+> restricted lifecycle or runtime-IAM Job identities. Revision 17 is retained as failed evidence:
+> the immutable SeaweedFS digest forced the first storage restart, exposing historical `root:root`
+> files on the kind `local-path` hostPath, which does not apply CSI `fsGroup`. The fixture converged
+> only those three exact SeaweedFS PV ownerships to UID/GID 1000 without changing content; revision
+> 18 then made every non-completed workload Ready under the namespace's existing `restricted`
+> policy. The control-plane image reference and runtime image ID both matched the published digest,
+> `/readyz` returned 200, and the successful OpenBao init hook left no Job or Pod behind.
+>
+> The application and chart PRs remain draft/unmerged, and a live OpenShift lifecycle rehearsal is
+> still incomplete. Do not use this unpublished pair in production; first confirm publication and
+> the remaining release gates in the release notes.
 
 ## Audience, outcome, and document type
 
@@ -53,7 +75,7 @@ Required knowledge:
 
 Required tools and access:
 
-- `helm` 3, `kubectl`, `jq`, `curl`, POSIX shell tools, and Docker or Podman;
+- `helm` 3, `kubectl`, `kind`, `jq`, `curl`, `openssl`, POSIX shell tools, and Docker or Podman;
 - Docker or Podman for the local PostgreSQL 17.2 restore rehearsal, or an approved isolated
   provider restore target with equivalent cleanup guarantees;
 - the exact Kubernetes context, namespace, Helm release, non-secret base values, and chart reference;
@@ -446,7 +468,10 @@ test -s "$FALCONE_DB_BACKUP"
 cleanup_webhook_restore() {
   docker rm --force "$FALCONE_RESTORE_CONTAINER" >/dev/null 2>&1 || true
 }
-trap cleanup_webhook_restore EXIT HUP INT TERM
+trap cleanup_webhook_restore EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 docker run --detach \
   --name "$FALCONE_RESTORE_CONTAINER" \
@@ -455,10 +480,17 @@ docker run --detach \
   --env POSTGRES_HOST_AUTH_METHOD=trust \
   "$FALCONE_RESTORE_POSTGRES_IMAGE" >/dev/null
 
+FALCONE_RESTORE_PG_READY_ATTEMPTS=0
 until docker exec --user postgres "$FALCONE_RESTORE_CONTAINER" \
   pg_isready --quiet --username postgres; do
+  FALCONE_RESTORE_PG_READY_ATTEMPTS=$((FALCONE_RESTORE_PG_READY_ATTEMPTS + 1))
+  if test "$FALCONE_RESTORE_PG_READY_ATTEMPTS" -ge 60; then
+    printf '%s\n' 'restore PostgreSQL readiness timed out' >&2
+    exit 1
+  fi
   sleep 1
 done
+unset FALCONE_RESTORE_PG_READY_ATTEMPTS
 
 docker cp "$FALCONE_DB_BACKUP" \
   "${FALCONE_RESTORE_CONTAINER}:/tmp/falcone-restore.dump"
@@ -496,7 +528,9 @@ FALCONE_SOURCE_INVENTORY="$(
                   '"'"'falcone_webhook_key_write_current_id'"'"',
                   '"'"'falcone_webhook_signing_secret_write_statement_fence'"'"',
                   '"'"'falcone_webhook_signing_secret_write_fence'"'"')),
-            (SELECT count(*) FROM webhook_signing_secrets)
+            (SELECT count(*) FROM webhook_signing_secrets),
+            (SELECT count(DISTINCT (tenant_id, workspace_id))
+               FROM webhook_signing_secrets)
           )"
     '
 )"
@@ -524,11 +558,15 @@ FALCONE_RESTORE_INVENTORY="$(
                 'falcone_webhook_key_write_current_id',
                 'falcone_webhook_signing_secret_write_statement_fence',
                 'falcone_webhook_signing_secret_write_fence')),
-          (SELECT count(*) FROM webhook_signing_secrets)
+          (SELECT count(*) FROM webhook_signing_secrets),
+          (SELECT count(DISTINCT (tenant_id, workspace_id))
+             FROM webhook_signing_secrets)
         )"
 )"
 
 test "$FALCONE_SOURCE_INVENTORY" = "$FALCONE_RESTORE_INVENTORY"
+test "$(printf '%s\n' "$FALCONE_SOURCE_INVENTORY" | jq -r '.[3]')" -ge 2
+test "$(printf '%s\n' "$FALCONE_SOURCE_INVENTORY" | jq -r '.[4]')" -ge 2
 printf 'restore inventory verified: %s\n' "$FALCONE_RESTORE_INVENTORY"
 unset FALCONE_RESTORE_INVENTORY
 cleanup_webhook_restore
@@ -537,7 +575,10 @@ trap - EXIT HUP INT TERM
 
 An initial pre-0.3.1 backup normally reports four webhook tables and zero lifecycle functions; a
 post-handoff backup reports six tables and three functions. The signing-secret count must match in
-both cases. Do not hard-code either inventory: exact source/restore equality is the acceptance gate.
+both cases. This full lifecycle rehearsal also requires at least two signing-secret rows across two
+distinct tenant/workspace scopes, created before the backup through Falcone's supported API; that
+makes adoption/rotation/recovery evidence non-vacuous. Do not hard-code either inventory: exact
+source/restore equality plus the bounded two-row/two-scope minimum is the acceptance gate.
 `pg_dump` archives are not guaranteed to be readable by an older major-version client or server.
 The bundled chart currently runs PostgreSQL `17.2.0`, so this literal procedure deliberately uses
 the matching `17.2` image. For another supported source, select an approved image at the source
@@ -547,23 +588,72 @@ never rehearse a PostgreSQL 17 archive with PostgreSQL 16 tooling.
 ### Rehearse matching-key startup and readiness on the restored copy
 
 Database parity alone does not prove key custody. Use an approved disposable Kubernetes context and
-namespace, never the audited/production namespace. The literal bundled-database procedure below
+namespace, never the audited/production namespace. This literal procedure is for a dedicated
+disposable **kind** cluster whose kube-system UID was recorded when the cluster was created. It
 installs the truthful pre-C-25 source chart, restores the backup into a new database owned by the
 legacy application role in that release's PostgreSQL 17.2 instance, and then upgrades the same
 release with the reviewed C-25 chart. The ordinary source database remains separate; only the
 candidate's bounded webhook database connections select the restored database.
 
+The audited chart `0.3.0` source has a known bootstrap defect: its default
+`docker.io/alpine/k8s:1.32.2` image does not contain OpenSSL although its OpenBao self-signed hook
+requires it. The literal rehearsal therefore preloads the reviewed
+`docker.io/bitnamilegacy/kubectl:1.32.4` compatibility image at digest
+`sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333`,
+proves that it runs as UID 1000 with both `kubectl` and `openssl`, and sets `pullPolicy: Never` in
+the source-only values. This workaround is confined to the immutable source release; the candidate
+chart uses its separate digest-pinned OpenSSL generator and Kubernetes client. An OpenShift
+rehearsal must mirror the exact reviewed images into its approved registry and verify the mirror
+digests instead of using kind image loading.
+
+Chart `0.3.0` also creates its Temporal namespace in a post-install hook while its workflow worker
+waits for that namespace. A source install using `--wait=true` can therefore deadlock before the
+post-install hook runs. The source-only command below uses `--wait=false`, still waits for every
+Helm hook under the 40-minute timeout, and then explicitly waits for the PostgreSQL StatefulSet
+needed by the restore. The candidate upgrade uses `--wait` after the namespace already exists.
+
+Two further source-only defects are relevant to a non-default release name. The 0.3.0 default
+Keycloak realm payload nests login flags under a field Keycloak 26 rejects, and its standalone
+APISIX mode has no admin API even though the bootstrap tries to reconcile routes through that API.
+`FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES` must therefore contain the reviewed source corrections:
+set `bootstrap.oneShot.keycloak.realm.login: null`, place
+`loginWithEmailAllowed`, `registrationAllowed`, `rememberMe`, `verifyEmail`, and
+`resetPasswordAllowed` at the realm top level, and replace the APISIX reconcile list with one
+placeholder route whose `enabledInModes` does not include the active mode. These are the same
+source-owned corrections in `deploy/kind/values-kind.yaml`; keep them in a small dedicated values
+file so its fixed release names and test-registry image overrides are not imported accidentally.
+
+The source chart can also lose its first ESO webhook readiness race: the umbrella release may be
+created before the newly installed validating webhook accepts the first custom resource. The
+commands below treat only that bounded first-attempt state as retryable, wait for the exact
+release-owned ESO webhook Deployment, and replay the same source chart and values once. Any second
+failure, missing release, wrong owner label, or unrelated hook failure stops the rehearsal.
+
 Prepare:
 
-- `FALCONE_RESTORE_CONTEXT`, which must be an approved disposable context, and a unique
-  `FALCONE_RESTORE_NAMESPACE`;
+- `FALCONE_RESTORE_CONTEXT`, which must be an approved disposable non-`default` context distinct
+  from `FALCONE_CONTEXT`;
+- `FALCONE_RESTORE_EXPECTED_CLUSTER_UID`, the exact kube-system namespace UID captured from the
+  newly created disposable cluster, and `FALCONE_RESTORE_KIND_CLUSTER_NAME`, whose expected context
+  is `kind-${FALCONE_RESTORE_KIND_CLUSTER_NAME}`;
+- a unique `FALCONE_RESTORE_RUN_TAG`, `FALCONE_RESTORE_NAMESPACE`,
+  `FALCONE_RESTORE_OPENBAO_NAMESPACE`, and `FALCONE_RESTORE_ESO_NAMESPACE`, all dedicated to this
+  rehearsal;
 - `FALCONE_RESTORE_RELEASE`, a unique release name;
 - `FALCONE_RESTORE_SOURCE_CHART_SOURCE`, a clean reviewed pre-C-25 chart checkout at
   `FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA`; the audited canonical 0.3.0 source is
   `9aab27e7695e20156b7a4f61b5f2f789f59ee59a`;
 - `FALCONE_RESTORE_SOURCE_CHART`, derived only as
   `${FALCONE_RESTORE_SOURCE_CHART_SOURCE}/charts/in-falcone`;
-- `FALCONE_RESTORE_SOURCE_VALUES`, the isolated non-production values for that source release;
+- `FALCONE_RESTORE_SOURCE_VALUES`, the isolated non-production values for that source release. It
+  must select the source control-plane image expected by
+  `FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE` with `controlPlane.image.digest`, set
+  `controlPlane.image.pullPolicy: Never`, and set
+  `openbao.openbao.tls.bootstrap.image.repository: docker.io/bitnamilegacy/kubectl`,
+  `tag: "1.32.4"`, and `pullPolicy: Never`;
+- `FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES`, the source-only Keycloak/APISIX correction described
+  above, set to a new protected path which the literal commands below create; it contains no
+  credentials or environment-specific image names;
 - `FALCONE_RESTORE_BASE_VALUES`, the reviewed C-25 non-secret base values;
 - `FALCONE_RESTORE_ACTION_KEY_VALUES`, referencing the matching retained key through a newly
   provisioned Secret in the disposable namespace;
@@ -580,11 +670,68 @@ export FALCONE_RESTORE_DATABASE='falcone_restore'
 export FALCONE_RESTORE_SOURCE_CHART_SOURCE='<reviewed-pre-C-25-falcone-charts-checkout>'
 export FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA='<approved-pre-C-25-chart-source-commit>'
 export FALCONE_RESTORE_SOURCE_CHART="${FALCONE_RESTORE_SOURCE_CHART_SOURCE}/charts/in-falcone"
+export FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE='ghcr.io/gntik-ai/in-falcone-control-plane@sha256:0e7c3aec8193280b7a319941d57354d5e375e8af13d683132111663b8a518fbd'
+export FALCONE_RESTORE_EXPECTED_CONTROL_PLANE_IMAGE="$FALCONE_EXPECTED_CONTROL_PLANE_IMAGE"
+export FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_IMAGE='docker.io/bitnamilegacy/kubectl:1.32.4'
+export FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_DIGEST='sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333'
+export FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES='<new-protected-source-bootstrap-values-path>'
+test -n "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES"
+if test -e "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES"; then
+  printf '%s\n' 'refusing restore rehearsal: source-bootstrap values path already exists' >&2
+  exit 1
+fi
+umask 077
+install -m 0600 /dev/null "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES"
+cat > "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" <<'YAML'
+bootstrap:
+  oneShot:
+    keycloak:
+      realm:
+        login: null
+        loginWithEmailAllowed: true
+        registrationAllowed: true
+        rememberMe: true
+        verifyEmail: true
+        resetPasswordAllowed: true
+  reconcile:
+    apisix:
+      routes:
+        - routeId: "0000"
+          name: noop-standalone-placeholder
+          uri: /__noop__
+          priority: 1
+          enabledInModes:
+            - disabled
+          upstream:
+            component: controlPlane
+            port: 8080
+YAML
 test -n "$FALCONE_SOURCE_INVENTORY"
+printf '%s\n' "$FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE" |
+  grep -Eq '^[^@[:space:]]+@sha256:[0-9a-f]{64}$'
 test "$(kubectl config current-context)" = "$FALCONE_RESTORE_CONTEXT"
+test "$FALCONE_RESTORE_CONTEXT" != 'default'
+test "$FALCONE_RESTORE_CONTEXT" != "$FALCONE_CONTEXT"
+test "$FALCONE_RESTORE_CONTEXT" = "kind-${FALCONE_RESTORE_KIND_CLUSTER_NAME}"
 test "$FALCONE_RESTORE_NAMESPACE" != "$FALCONE_NAMESPACE"
 test "$FALCONE_RESTORE_RELEASE" != "$FALCONE_RELEASE"
+test -n "$FALCONE_RESTORE_RUN_TAG"
+test -n "$FALCONE_RESTORE_EXPECTED_CLUSTER_UID"
+test -n "$FALCONE_RESTORE_OPENBAO_NAMESPACE"
+test -n "$FALCONE_RESTORE_ESO_NAMESPACE"
+test "$FALCONE_RESTORE_OPENBAO_NAMESPACE" != 'secret-store'
+test "$FALCONE_RESTORE_ESO_NAMESPACE" != 'eso-system'
+test "$FALCONE_RESTORE_OPENBAO_NAMESPACE" != "$FALCONE_RESTORE_NAMESPACE"
+test "$FALCONE_RESTORE_ESO_NAMESPACE" != "$FALCONE_RESTORE_NAMESPACE"
+test "$FALCONE_RESTORE_ESO_NAMESPACE" != "$FALCONE_RESTORE_OPENBAO_NAMESPACE"
+test -s "$FALCONE_RESTORE_SOURCE_VALUES"
+test -s "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES"
 test "$FALCONE_RESTORE_INSTALLED_VERSION" = '0.3.0'
+FALCONE_RESTORE_CLUSTER_UID="$(
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    get namespace kube-system -o jsonpath='{.metadata.uid}'
+)"
+test "$FALCONE_RESTORE_CLUSTER_UID" = "$FALCONE_RESTORE_EXPECTED_CLUSTER_UID"
 test "$(
   git -C "$FALCONE_RESTORE_SOURCE_CHART_SOURCE" rev-parse HEAD
 )" = "$FALCONE_RESTORE_EXPECTED_SOURCE_CHART_SHA"
@@ -598,39 +745,358 @@ test "$(
 )" = "$FALCONE_RESTORE_INSTALLED_VERSION"
 test -s "$FALCONE_DB_BACKUP"
 
-cleanup_webhook_kube_restore() {
-  if helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+docker pull "$FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_IMAGE" >/dev/null
+docker image inspect \
+  --format '{{json .RepoDigests}}' \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_IMAGE" |
+  jq --exit-status --arg digest "@${FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_DIGEST}" \
+    'any(.[]; endswith($digest))' >/dev/null
+docker run --rm --user 1000:1000 --entrypoint /bin/sh \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_IMAGE" -ec '
+    command -v kubectl >/dev/null
+    command -v openssl >/dev/null
+    D="$(mktemp -d)"
+    openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+      -keyout "$D/tls.key" -out "$D/tls.crt" -subj /CN=falcone-c25-test \
+      >/dev/null 2>&1
+    test -s "$D/tls.key"
+    test -s "$D/tls.crt"
+    printf "%s\n" "SOURCE_TLS_BOOTSTRAP_IMAGE_PASS"
+  '
+docker pull "$FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE" >/dev/null
+docker image inspect \
+  --format '{{json .RepoDigests}}' \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE" |
+  jq --exit-status \
+    --arg expected "$FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE" \
+    'index($expected) != null' >/dev/null
+kind load docker-image \
+  --name "$FALCONE_RESTORE_KIND_CLUSTER_NAME" \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_IMAGE"
+kind load docker-image \
+  --name "$FALCONE_RESTORE_KIND_CLUSTER_NAME" \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE"
+
+FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_IMAGE="$(
+  helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
     --namespace "$FALCONE_RESTORE_NAMESPACE" \
-    status "$FALCONE_RESTORE_RELEASE" >/dev/null 2>&1; then
-    helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
-      --namespace "$FALCONE_RESTORE_NAMESPACE" \
-      uninstall "$FALCONE_RESTORE_RELEASE" --wait
-  fi
-  if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
-    get namespace "$FALCONE_RESTORE_NAMESPACE" >/dev/null 2>&1; then
-    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
-      delete namespace "$FALCONE_RESTORE_NAMESPACE" --wait
-  fi
-}
-trap cleanup_webhook_kube_restore EXIT HUP INT TERM
+    --show-only charts/controlPlane/templates/workload.yaml \
+    --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+    --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+    --set-string "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+    --set-string "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+    awk '
+      $0 ~ /^[[:space:]]*- name: control-plane$/ { selected = 1; next }
+      selected && $1 == "image:" {
+        gsub(/^"|"$/, "", $2)
+        print $2
+        exit
+      }
+    '
+)"
+test "$FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_IMAGE" = \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_CONTROL_PLANE_IMAGE"
+FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_PULL_POLICY="$(
+  helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" \
+    --show-only charts/controlPlane/templates/workload.yaml \
+    --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+    --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+    --set-string "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+    --set-string "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+    awk '
+      $0 ~ /^[[:space:]]*- name: control-plane$/ { selected = 1; next }
+      selected && $1 == "imagePullPolicy:" { print $2; exit }
+    '
+)"
+test "$FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_PULL_POLICY" = 'Never'
+unset FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_IMAGE
+unset FALCONE_RESTORE_SELECTED_SOURCE_CONTROL_PLANE_PULL_POLICY
+
+FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_IMAGE="$(
+  helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" \
+    --show-only charts/openbao/templates/openbao-tls-bootstrap.yaml \
+    --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+    --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+    --set-string "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+    --set-string "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+    awk '
+      $0 ~ /^[[:space:]]*- name: tls-bootstrap$/ { selected = 1; next }
+      selected && $1 == "image:" {
+        gsub(/^"|"$/, "", $2)
+        print $2
+        exit
+      }
+    '
+)"
+test "$FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_IMAGE" = \
+  "$FALCONE_RESTORE_EXPECTED_SOURCE_TLS_BOOTSTRAP_IMAGE"
+FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_PULL_POLICY="$(
+  helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" \
+    --show-only charts/openbao/templates/openbao-tls-bootstrap.yaml \
+    --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+    --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+    --set-string "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+    --set-string "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+    awk '
+      $0 ~ /^[[:space:]]*- name: tls-bootstrap$/ { selected = 1; next }
+      selected && $1 == "imagePullPolicy:" { print $2; exit }
+    '
+)"
+test "$FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_PULL_POLICY" = 'Never'
+unset FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_IMAGE
+unset FALCONE_RESTORE_SELECTED_SOURCE_TLS_BOOTSTRAP_PULL_POLICY
+
+helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  --show-only templates/bootstrap-payload-configmap.yaml \
+  --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+  --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+  --set-string "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+  --set-string "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+  kubectl create --dry-run=client -f - -o json |
+  jq --exit-status '
+    (.data["realm.json"] | fromjson) as $realm |
+    $realm.login == null and
+    $realm.loginWithEmailAllowed == true and
+    $realm.registrationAllowed == true and
+    $realm.rememberMe == true and
+    $realm.verifyEmail == true and
+    $realm.resetPasswordAllowed == true and
+    (.data | has("route-0000.json") | not)
+  ' >/dev/null
+helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  --show-only templates/bootstrap-script-configmap.yaml \
+  --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+  --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+  --set-string "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+  --set-string "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+  kubectl create --dry-run=client -f - -o json |
+  jq --exit-status '
+    .data["bootstrap.sh"] |
+    contains("ensure_apisix_route \"0000\"") | not
+  ' >/dev/null
 
 if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
   get namespace "$FALCONE_RESTORE_NAMESPACE" >/dev/null 2>&1; then
   printf '%s\n' 'refusing restore rehearsal: namespace already exists' >&2
   exit 1
 fi
-kubectl --context "$FALCONE_RESTORE_CONTEXT" \
-  create namespace "$FALCONE_RESTORE_NAMESPACE"
+if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  get namespace "$FALCONE_RESTORE_OPENBAO_NAMESPACE" >/dev/null 2>&1; then
+  printf '%s\n' 'refusing restore rehearsal: OpenBao namespace already exists' >&2
+  exit 1
+fi
+if kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  get namespace "$FALCONE_RESTORE_ESO_NAMESPACE" >/dev/null 2>&1; then
+  printf '%s\n' 'refusing restore rehearsal: ESO namespace already exists' >&2
+  exit 1
+fi
 
-helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
-  install "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
-  --namespace "$FALCONE_RESTORE_NAMESPACE" \
-  --values "$FALCONE_RESTORE_SOURCE_VALUES" \
-  --wait --timeout 40m
+FALCONE_RESTORE_NAMESPACE_CREATED=false
+FALCONE_RESTORE_OPENBAO_NAMESPACE_CREATED=false
+FALCONE_RESTORE_ESO_NAMESPACE_CREATED=false
+FALCONE_RESTORE_RELEASE_STARTED=false
+FALCONE_RESTORE_NAMESPACE_UID=''
+FALCONE_RESTORE_OPENBAO_NAMESPACE_UID=''
+FALCONE_RESTORE_ESO_NAMESPACE_UID=''
+
+assert_disposable_restore_namespace() {
+  target_namespace="$1"
+  expected_uid="$2"
+  actual_uid="$(
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      get namespace "$target_namespace" -o jsonpath='{.metadata.uid}'
+  )"
+  test "$(
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      get namespace "$target_namespace" \
+      -o jsonpath='{.metadata.labels.falcone\.io/disposable-run}'
+  )" = "$FALCONE_RESTORE_RUN_TAG"
+  if test -n "$expected_uid"; then
+    test "$actual_uid" = "$expected_uid"
+  fi
+}
+
+create_disposable_restore_namespace() {
+  target_namespace="$1"
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    create namespace "$target_namespace" --dry-run=client -o json |
+    jq --arg run_tag "$FALCONE_RESTORE_RUN_TAG" \
+      '.metadata.labels["falcone.io/disposable-run"] = $run_tag' |
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      create -f - -o jsonpath='{.metadata.uid}'
+}
+
+cleanup_webhook_kube_restore() {
+  current_cluster_uid="$(
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      get namespace kube-system -o jsonpath='{.metadata.uid}' 2>/dev/null || true
+  )"
+  if test "$current_cluster_uid" != "$FALCONE_RESTORE_EXPECTED_CLUSTER_UID"; then
+    printf '%s\n' 'refusing restore cleanup: disposable cluster identity changed' >&2
+    return 1
+  fi
+  if test "$FALCONE_RESTORE_NAMESPACE_CREATED" = true &&
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      get namespace "$FALCONE_RESTORE_NAMESPACE" >/dev/null 2>&1; then
+    assert_disposable_restore_namespace \
+      "$FALCONE_RESTORE_NAMESPACE" "$FALCONE_RESTORE_NAMESPACE_UID" || {
+        printf '%s\n' 'refusing restore cleanup: namespace ownership changed' >&2
+        return 1
+      }
+    if test "$FALCONE_RESTORE_RELEASE_STARTED" = true &&
+      helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+        --namespace "$FALCONE_RESTORE_NAMESPACE" \
+        status "$FALCONE_RESTORE_RELEASE" >/dev/null 2>&1; then
+      helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+        --namespace "$FALCONE_RESTORE_NAMESPACE" \
+        uninstall "$FALCONE_RESTORE_RELEASE" --wait --timeout 10m
+    fi
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      delete namespace "$FALCONE_RESTORE_NAMESPACE" --wait --timeout=10m
+  fi
+  if test "$FALCONE_RESTORE_OPENBAO_NAMESPACE_CREATED" = true &&
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      get namespace "$FALCONE_RESTORE_OPENBAO_NAMESPACE" >/dev/null 2>&1; then
+    assert_disposable_restore_namespace \
+      "$FALCONE_RESTORE_OPENBAO_NAMESPACE" "$FALCONE_RESTORE_OPENBAO_NAMESPACE_UID" || {
+        printf '%s\n' 'refusing restore cleanup: OpenBao namespace ownership changed' >&2
+        return 1
+      }
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      delete namespace "$FALCONE_RESTORE_OPENBAO_NAMESPACE" --wait --timeout=10m
+  fi
+  if test "$FALCONE_RESTORE_ESO_NAMESPACE_CREATED" = true &&
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      get namespace "$FALCONE_RESTORE_ESO_NAMESPACE" >/dev/null 2>&1; then
+    assert_disposable_restore_namespace \
+      "$FALCONE_RESTORE_ESO_NAMESPACE" "$FALCONE_RESTORE_ESO_NAMESPACE_UID" || {
+        printf '%s\n' 'refusing restore cleanup: ESO namespace ownership changed' >&2
+        return 1
+      }
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      delete namespace "$FALCONE_RESTORE_ESO_NAMESPACE" --wait --timeout=10m
+  fi
+}
+trap cleanup_webhook_kube_restore EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+FALCONE_RESTORE_NAMESPACE_CREATED=true
+FALCONE_RESTORE_NAMESPACE_UID="$(
+  create_disposable_restore_namespace "$FALCONE_RESTORE_NAMESPACE"
+)"
+assert_disposable_restore_namespace \
+  "$FALCONE_RESTORE_NAMESPACE" "$FALCONE_RESTORE_NAMESPACE_UID"
+
+FALCONE_RESTORE_OPENBAO_NAMESPACE_CREATED=true
+FALCONE_RESTORE_OPENBAO_NAMESPACE_UID="$(
+  create_disposable_restore_namespace "$FALCONE_RESTORE_OPENBAO_NAMESPACE"
+)"
+assert_disposable_restore_namespace \
+  "$FALCONE_RESTORE_OPENBAO_NAMESPACE" "$FALCONE_RESTORE_OPENBAO_NAMESPACE_UID"
+
+FALCONE_RESTORE_ESO_NAMESPACE_CREATED=true
+FALCONE_RESTORE_ESO_NAMESPACE_UID="$(
+  create_disposable_restore_namespace "$FALCONE_RESTORE_ESO_NAMESPACE"
+)"
+assert_disposable_restore_namespace \
+  "$FALCONE_RESTORE_ESO_NAMESPACE" "$FALCONE_RESTORE_ESO_NAMESPACE_UID"
+
+FALCONE_RESTORE_RELEASE_STARTED=true
+source_chart_attempt() {
+  helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+    "$@" "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" \
+    --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+    --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+    --set-string \
+      "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+    --set-string \
+      "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string \
+      "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string \
+      "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --wait=false --timeout 40m
+}
+if ! source_chart_attempt install; then
+  test "$(
+    helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
+      --namespace "$FALCONE_RESTORE_NAMESPACE" \
+      status "$FALCONE_RESTORE_RELEASE" -o json |
+      jq -r .info.status
+  )" = 'failed'
+  test "$(
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      --namespace "$FALCONE_RESTORE_ESO_NAMESPACE" \
+      get job eso-webhook-wait -o jsonpath='{.status.failed}'
+  )" -ge 1
+  test "$(
+    kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+      --namespace "$FALCONE_RESTORE_ESO_NAMESPACE" \
+      get deployment eso-external-secrets-webhook \
+      -o jsonpath='{.metadata.labels.app\.kubernetes\.io/instance}'
+  )" = "$FALCONE_RESTORE_RELEASE"
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_ESO_NAMESPACE" \
+    rollout status deployment/eso-external-secrets-webhook --timeout 10m
+  source_chart_attempt upgrade
+fi
+unset -f source_chart_attempt
 
 kubectl --context "$FALCONE_RESTORE_CONTEXT" \
   --namespace "$FALCONE_RESTORE_NAMESPACE" rollout status \
   "statefulset/${FALCONE_RESTORE_RELEASE}-postgresql" --timeout 10m
+
+# The 0.3.0 worker waits for falcone-flows before Helm can reach its post-hook.
+# Run that exact source-owned hook once against the already-created frontend.
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" rollout status \
+  "deployment/${FALCONE_RESTORE_RELEASE}-temporal-frontend" --timeout 10m
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" delete job \
+  "${FALCONE_RESTORE_RELEASE}-temporal-bootstrap" \
+  --ignore-not-found --wait --timeout=60s
+helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_RESTORE_SOURCE_CHART" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  --show-only templates/temporal/bootstrap-job.yaml \
+  --values "$FALCONE_RESTORE_SOURCE_VALUES" \
+  --values "$FALCONE_RESTORE_SOURCE_BOOTSTRAP_VALUES" \
+  --set-string \
+    "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+  --set-string \
+    "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string \
+    "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string \
+    "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" |
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" apply -f -
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" wait \
+  --for=condition=complete \
+  "job/${FALCONE_RESTORE_RELEASE}-temporal-bootstrap" --timeout=10m
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" delete job \
+  "${FALCONE_RESTORE_RELEASE}-temporal-bootstrap" --wait --timeout=60s
 
 kubectl --context "$FALCONE_RESTORE_CONTEXT" \
   --namespace "$FALCONE_RESTORE_NAMESPACE" exec -i \
@@ -689,7 +1155,9 @@ FALCONE_RESTORED_CLUSTER_INVENTORY="$(
                   '"'"'falcone_webhook_key_write_current_id'"'"',
                   '"'"'falcone_webhook_signing_secret_write_statement_fence'"'"',
                   '"'"'falcone_webhook_signing_secret_write_fence'"'"')),
-            (SELECT count(*) FROM webhook_signing_secrets)
+            (SELECT count(*) FROM webhook_signing_secrets),
+            (SELECT count(DISTINCT (tenant_id, workspace_id))
+               FROM webhook_signing_secrets)
           )"
     '
 )"
@@ -714,6 +1182,46 @@ else
 fi
 export FALCONE_RESTORE_FIRST_HANDOFF
 
+FALCONE_RESTORE_SELECTED_CONTROL_PLANE_IMAGE="$(
+  helm template "$FALCONE_RESTORE_RELEASE" "$FALCONE_CHART" \
+    --namespace "$FALCONE_RESTORE_NAMESPACE" \
+    --is-upgrade \
+    --show-only charts/controlPlane/templates/workload.yaml \
+    --values "$FALCONE_RESTORE_BASE_VALUES" \
+    --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
+    --set-string \
+      "deployment.upgrade.currentVersion=${FALCONE_RESTORE_INSTALLED_VERSION}" \
+    --set-string \
+      "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+    --set-string \
+      "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string \
+      "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string \
+      "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+    --set-string \
+      "global.webhookDatabase.connection.host=${FALCONE_RESTORE_RELEASE}-postgresql" \
+    --set-string \
+      "global.webhookDatabase.connection.database=${FALCONE_RESTORE_DATABASE}" \
+    --set \
+      "global.webhookDatabase.migration.firstHandoff=${FALCONE_RESTORE_FIRST_HANDOFF}" \
+    --set global.webhookDatabase.migration.backupVerified=true \
+    --set global.webhookDatabase.migration.parityVerified=true \
+    --set-string \
+      "global.webhookDatabase.migration.backupReference=${FALCONE_BACKUP_REFERENCE}" |
+    awk '
+      $0 ~ /^[[:space:]]*- name: control-plane$/ { selected = 1; next }
+      selected && $1 == "image:" {
+        gsub(/^"|"$/, "", $2)
+        print $2
+        exit
+      }
+    '
+)"
+test "$FALCONE_RESTORE_SELECTED_CONTROL_PLANE_IMAGE" = \
+  "$FALCONE_RESTORE_EXPECTED_CONTROL_PLANE_IMAGE"
+unset FALCONE_RESTORE_SELECTED_CONTROL_PLANE_IMAGE
+
 helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
   upgrade "$FALCONE_RESTORE_RELEASE" "$FALCONE_CHART" \
   --namespace "$FALCONE_RESTORE_NAMESPACE" \
@@ -721,6 +1229,14 @@ helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
   --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
   --set-string \
     "deployment.upgrade.currentVersion=${FALCONE_RESTORE_INSTALLED_VERSION}" \
+  --set-string \
+    "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+  --set-string \
+    "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string \
+    "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string \
+    "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" \
   --set-string \
     "global.webhookDatabase.connection.host=${FALCONE_RESTORE_RELEASE}-postgresql" \
   --set-string \
@@ -740,6 +1256,14 @@ helm --kube-context "$FALCONE_RESTORE_CONTEXT" \
   --values "$FALCONE_RESTORE_ACTION_KEY_VALUES" \
   --set-string \
     "deployment.upgrade.currentVersion=${FALCONE_RESTORE_INSTALLED_VERSION}" \
+  --set-string \
+    "openbao.openbao.namespace=${FALCONE_RESTORE_OPENBAO_NAMESPACE}" \
+  --set-string \
+    "openbao.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string \
+    "eso.eso.namespace=${FALCONE_RESTORE_ESO_NAMESPACE}" \
+  --set-string \
+    "eso.external-secrets.namespaceOverride=${FALCONE_RESTORE_ESO_NAMESPACE}" \
   --set-string \
     "global.webhookDatabase.connection.host=${FALCONE_RESTORE_RELEASE}-postgresql" \
   --set-string \
@@ -798,32 +1322,56 @@ matching adoption affected/verified counts, and no recovery identity. P18 should
 [Read secret-safe lifecycle status](#read-secret-safe-lifecycle-status) for the complete output
 contract.
 
-Before cleanup, use two supported disposable logins to prove read-only public-contract and
-cross-scope behavior through the restored control plane. Prepare:
+Before cleanup, provision two disposable tenant owners through Falcone's supported superadmin API
+and obtain their JWTs through their supported tenant-realm clients. This is the same product flow
+documented in [Quickstart tenant provisioning](/guide/quickstart) and the
+[tenant login flow](/guide/developer-end-to-end); it does not edit Keycloak, PostgreSQL, or either
+datastore directly. The unique run tag prevents identity reuse, and namespace deletion removes all
+disposable principals with the release.
 
-- `FALCONE_RESTORE_TENANT_A_CURL_CONFIG` and `FALCONE_RESTORE_TENANT_B_CURL_CONFIG`, mode `0600`
-  curl config files produced by the supported disposable superadmin/user flow. Each file contains
-  only its login's `Authorization` header; never print, attach, or pass the token in an argument;
-- `FALCONE_RESTORE_WORKSPACE_A`, a real workspace visible to tenant A and outside tenant B;
-- `FALCONE_RESTORE_LOCAL_PORT`, an unused loopback port.
+Prepare `FALCONE_RESTORE_LOCAL_PORT` and `FALCONE_RESTORE_KEYCLOAK_LOCAL_PORT` as two unused loopback
+ports. The commands below:
 
-The smoke reads event types and subscription inventory as tenant A, rejects tenant B at tenant A's
-workspace boundary, retains response bodies only in a mode-`0700` temporary directory, and emits
-only bounded status/count evidence:
+- read the disposable release's generated superadmin password into a mode-`0600` file;
+- use file-backed password form fields, never a credential command argument;
+- preserve Keycloak's internal release Service in the HTTP `Host` header while using loopback
+  port-forwarding, so the minted `iss` exactly matches the control-plane trusted issuer;
+- create two tenants and tenant owners through `POST /v1/tenants`;
+- create one workspace and one webhook subscription per tenant through supported routes;
+- use the documentation-only public IP literal in the disposable callback URL so cluster DNS is not
+  an unstated prerequisite; no delivery is sent by this smoke;
+- mint the two tenant-owner tokens through their generated realm/client pairs;
+- write only `Authorization` headers to mode-`0600` curl config files; and
+- delete passwords, tokens, API bodies, and port-forward logs through the active cleanup trap.
+
+The final smoke reads event types and subscription inventory as tenant A, rejects tenant B at tenant
+A's workspace boundary, and emits only bounded status/count evidence:
 
 ```bash
-test -r "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"
-test -r "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"
-test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG")" = '600'
-test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG")" = '600'
-test -n "$FALCONE_RESTORE_WORKSPACE_A"
 test -n "$FALCONE_RESTORE_LOCAL_PORT"
+test -n "$FALCONE_RESTORE_KEYCLOAK_LOCAL_PORT"
 FALCONE_RESTORE_PARITY_VERIFIED=false
 export FALCONE_RESTORE_PARITY_VERIFIED
 
 FALCONE_RESTORE_PARITY_DIR="$(mktemp -d /tmp/falcone-c25-parity.XXXXXX)"
 chmod 0700 "$FALCONE_RESTORE_PARITY_DIR"
-FALCONE_RESTORE_PORT_FORWARD_LOG="${FALCONE_RESTORE_PARITY_DIR}/port-forward.log"
+FALCONE_RESTORE_PORT_FORWARD_LOG="${FALCONE_RESTORE_PARITY_DIR}/control-plane-port-forward.log"
+FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_LOG="${FALCONE_RESTORE_PARITY_DIR}/keycloak-port-forward.log"
+
+cleanup_webhook_parity() {
+  if test -n "${FALCONE_RESTORE_PORT_FORWARD_PID:-}" &&
+    kill -0 "$FALCONE_RESTORE_PORT_FORWARD_PID" >/dev/null 2>&1; then
+    kill "$FALCONE_RESTORE_PORT_FORWARD_PID"
+    wait "$FALCONE_RESTORE_PORT_FORWARD_PID" 2>/dev/null || true
+  fi
+  if test -n "${FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_PID:-}" &&
+    kill -0 "$FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_PID" >/dev/null 2>&1; then
+    kill "$FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_PID"
+    wait "$FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_PID" 2>/dev/null || true
+  fi
+  rm -rf "$FALCONE_RESTORE_PARITY_DIR"
+}
+trap 'cleanup_webhook_parity; cleanup_webhook_kube_restore' EXIT
 
 kubectl --context "$FALCONE_RESTORE_CONTEXT" \
   --namespace "$FALCONE_RESTORE_NAMESPACE" port-forward \
@@ -832,21 +1380,26 @@ kubectl --context "$FALCONE_RESTORE_CONTEXT" \
   >"$FALCONE_RESTORE_PORT_FORWARD_LOG" 2>&1 &
 FALCONE_RESTORE_PORT_FORWARD_PID=$!
 
-cleanup_webhook_parity() {
-  if kill -0 "$FALCONE_RESTORE_PORT_FORWARD_PID" >/dev/null 2>&1; then
-    kill "$FALCONE_RESTORE_PORT_FORWARD_PID"
-    wait "$FALCONE_RESTORE_PORT_FORWARD_PID" 2>/dev/null || true
-  fi
-  rm -rf "$FALCONE_RESTORE_PARITY_DIR"
-}
-trap 'cleanup_webhook_parity; cleanup_webhook_kube_restore' EXIT HUP INT TERM
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" port-forward \
+  "service/${FALCONE_RESTORE_RELEASE}-keycloak" \
+  "${FALCONE_RESTORE_KEYCLOAK_LOCAL_PORT}:http" \
+  >"$FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_LOG" 2>&1 &
+FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_PID=$!
 
 FALCONE_RESTORE_API_BASE="http://127.0.0.1:${FALCONE_RESTORE_LOCAL_PORT}"
+FALCONE_RESTORE_KEYCLOAK_BASE="http://127.0.0.1:${FALCONE_RESTORE_KEYCLOAK_LOCAL_PORT}"
 FALCONE_RESTORE_READY_ATTEMPTS=0
 until curl --connect-timeout 2 --max-time 5 \
   --silent --show-error --fail \
-  "${FALCONE_RESTORE_API_BASE}/readyz" >/dev/null; do
+  "${FALCONE_RESTORE_API_BASE}/readyz" >/dev/null &&
+  curl --connect-timeout 2 --max-time 5 \
+    --silent --show-error --fail \
+    --header "Host: ${FALCONE_RESTORE_RELEASE}-keycloak:8080" \
+    "${FALCONE_RESTORE_KEYCLOAK_BASE}/realms/in-falcone-platform/.well-known/openid-configuration" \
+    >/dev/null; do
   kill -0 "$FALCONE_RESTORE_PORT_FORWARD_PID"
+  kill -0 "$FALCONE_RESTORE_KEYCLOAK_PORT_FORWARD_PID"
   FALCONE_RESTORE_READY_ATTEMPTS=$((FALCONE_RESTORE_READY_ATTEMPTS + 1))
   if test "$FALCONE_RESTORE_READY_ATTEMPTS" -ge 60; then
     printf '%s\n' 'restored-copy readiness timed out' >&2
@@ -855,6 +1408,246 @@ until curl --connect-timeout 2 --max-time 5 \
   sleep 1
 done
 unset FALCONE_RESTORE_READY_ATTEMPTS
+
+kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+  --namespace "$FALCONE_RESTORE_NAMESPACE" \
+  get secret in-falcone-superadmin \
+  -o jsonpath='{.data.password}' |
+  base64 -d > "${FALCONE_RESTORE_PARITY_DIR}/superadmin-password"
+chmod 0600 "${FALCONE_RESTORE_PARITY_DIR}/superadmin-password"
+
+curl --request POST \
+  --connect-timeout 5 --max-time 30 \
+  --silent --show-error --fail \
+  --header "Host: ${FALCONE_RESTORE_RELEASE}-keycloak:8080" \
+  --header 'content-type: application/x-www-form-urlencoded' \
+  --data grant_type=password \
+  --data client_id=in-falcone-console \
+  --data username=superadmin \
+  --data-urlencode \
+    "password@${FALCONE_RESTORE_PARITY_DIR}/superadmin-password" \
+  --data scope=openid \
+  --output "${FALCONE_RESTORE_PARITY_DIR}/superadmin-token.json" \
+  "${FALCONE_RESTORE_KEYCLOAK_BASE}/realms/in-falcone-platform/protocol/openid-connect/token"
+test -n "$(
+  jq --raw-output '.access_token // empty' \
+    "${FALCONE_RESTORE_PARITY_DIR}/superadmin-token.json"
+)"
+
+FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG="${FALCONE_RESTORE_PARITY_DIR}/superadmin.curl-config"
+jq --raw-output \
+  '"header = \"authorization: Bearer \(.access_token)\""' \
+  "${FALCONE_RESTORE_PARITY_DIR}/superadmin-token.json" \
+  > "$FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG"
+chmod 0600 "$FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG"
+
+openssl rand -base64 32 | tr -d '\n' \
+  > "${FALCONE_RESTORE_PARITY_DIR}/tenant-a-password"
+openssl rand -base64 32 | tr -d '\n' \
+  > "${FALCONE_RESTORE_PARITY_DIR}/tenant-b-password"
+chmod 0600 \
+  "${FALCONE_RESTORE_PARITY_DIR}/tenant-a-password" \
+  "${FALCONE_RESTORE_PARITY_DIR}/tenant-b-password"
+
+FALCONE_RESTORE_TENANT_A_SLUG="c25-a-${FALCONE_RESTORE_RUN_TAG}"
+FALCONE_RESTORE_TENANT_B_SLUG="c25-b-${FALCONE_RESTORE_RUN_TAG}"
+jq --null-input \
+  --arg displayName 'C25 disposable tenant A' \
+  --arg slug "$FALCONE_RESTORE_TENANT_A_SLUG" \
+  --arg ownerUsername "c25-a-${FALCONE_RESTORE_RUN_TAG}" \
+  --arg ownerEmail "c25-a-${FALCONE_RESTORE_RUN_TAG}@example.test" \
+  --rawfile ownerPassword "${FALCONE_RESTORE_PARITY_DIR}/tenant-a-password" \
+  '{
+    displayName: $displayName,
+    slug: $slug,
+    ownerUsername: $ownerUsername,
+    ownerEmail: $ownerEmail,
+    ownerPassword: ($ownerPassword | rtrimstr("\n"))
+  }' > "${FALCONE_RESTORE_PARITY_DIR}/tenant-a-request.json"
+jq --null-input \
+  --arg displayName 'C25 disposable tenant B' \
+  --arg slug "$FALCONE_RESTORE_TENANT_B_SLUG" \
+  --arg ownerUsername "c25-b-${FALCONE_RESTORE_RUN_TAG}" \
+  --arg ownerEmail "c25-b-${FALCONE_RESTORE_RUN_TAG}@example.test" \
+  --rawfile ownerPassword "${FALCONE_RESTORE_PARITY_DIR}/tenant-b-password" \
+  '{
+    displayName: $displayName,
+    slug: $slug,
+    ownerUsername: $ownerUsername,
+    ownerEmail: $ownerEmail,
+    ownerPassword: ($ownerPassword | rtrimstr("\n"))
+  }' > "${FALCONE_RESTORE_PARITY_DIR}/tenant-b-request.json"
+
+test "$(
+  curl --config "$FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG" \
+    --request POST "${FALCONE_RESTORE_API_BASE}/v1/tenants" \
+    --connect-timeout 5 --max-time 60 \
+    --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@${FALCONE_RESTORE_PARITY_DIR}/tenant-a-request.json" \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/tenant-a.json" \
+    --write-out '%{http_code}'
+)" = '201'
+test "$(
+  curl --config "$FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG" \
+    --request POST "${FALCONE_RESTORE_API_BASE}/v1/tenants" \
+    --connect-timeout 5 --max-time 60 \
+    --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@${FALCONE_RESTORE_PARITY_DIR}/tenant-b-request.json" \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/tenant-b.json" \
+    --write-out '%{http_code}'
+)" = '201'
+
+FALCONE_RESTORE_TENANT_A="$(
+  jq --raw-output '.tenantId // empty' "${FALCONE_RESTORE_PARITY_DIR}/tenant-a.json"
+)"
+FALCONE_RESTORE_TENANT_B="$(
+  jq --raw-output '.tenantId // empty' "${FALCONE_RESTORE_PARITY_DIR}/tenant-b.json"
+)"
+test -n "$FALCONE_RESTORE_TENANT_A"
+test -n "$FALCONE_RESTORE_TENANT_B"
+
+jq --null-input \
+  '{displayName:"C25 disposable workspace A",slug:"c25-webhooks",environment:"dev"}' \
+  > "${FALCONE_RESTORE_PARITY_DIR}/workspace-a-request.json"
+test "$(
+  curl --config "$FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG" \
+    --request POST \
+    "${FALCONE_RESTORE_API_BASE}/v1/tenants/${FALCONE_RESTORE_TENANT_A}/workspaces" \
+    --connect-timeout 5 --max-time 60 \
+    --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@${FALCONE_RESTORE_PARITY_DIR}/workspace-a-request.json" \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/workspace-a.json" \
+    --write-out '%{http_code}'
+)" = '201'
+FALCONE_RESTORE_WORKSPACE_A="$(
+  jq --raw-output '.workspaceId // empty' "${FALCONE_RESTORE_PARITY_DIR}/workspace-a.json"
+)"
+test -n "$FALCONE_RESTORE_WORKSPACE_A"
+
+jq --null-input \
+  '{displayName:"C25 disposable workspace B",slug:"c25-webhooks-b",environment:"dev"}' \
+  > "${FALCONE_RESTORE_PARITY_DIR}/workspace-b-request.json"
+test "$(
+  curl --config "$FALCONE_RESTORE_SUPERADMIN_CURL_CONFIG" \
+    --request POST \
+    "${FALCONE_RESTORE_API_BASE}/v1/tenants/${FALCONE_RESTORE_TENANT_B}/workspaces" \
+    --connect-timeout 5 --max-time 60 \
+    --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@${FALCONE_RESTORE_PARITY_DIR}/workspace-b-request.json" \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/workspace-b.json" \
+    --write-out '%{http_code}'
+)" = '201'
+FALCONE_RESTORE_WORKSPACE_B="$(
+  jq --raw-output '.workspaceId // empty' "${FALCONE_RESTORE_PARITY_DIR}/workspace-b.json"
+)"
+test -n "$FALCONE_RESTORE_WORKSPACE_B"
+
+FALCONE_RESTORE_TENANT_TOKEN_ATTEMPTS=0
+while :; do
+  FALCONE_RESTORE_TENANT_A_TOKEN_STATUS="$(
+    curl --request POST \
+      --connect-timeout 5 --max-time 30 \
+      --silent --show-error \
+      --header "Host: ${FALCONE_RESTORE_RELEASE}-keycloak:8080" \
+      --header 'content-type: application/x-www-form-urlencoded' \
+      --data grant_type=password \
+      --data "client_id=${FALCONE_RESTORE_TENANT_A_SLUG}-app" \
+      --data "username=c25-a-${FALCONE_RESTORE_RUN_TAG}" \
+      --data-urlencode \
+        "password@${FALCONE_RESTORE_PARITY_DIR}/tenant-a-password" \
+      --data scope=openid \
+      --output "${FALCONE_RESTORE_PARITY_DIR}/tenant-a-token.json" \
+      --write-out '%{http_code}' \
+      "${FALCONE_RESTORE_KEYCLOAK_BASE}/realms/${FALCONE_RESTORE_TENANT_A}/protocol/openid-connect/token"
+  )"
+  FALCONE_RESTORE_TENANT_B_TOKEN_STATUS="$(
+    curl --request POST \
+      --connect-timeout 5 --max-time 30 \
+      --silent --show-error \
+      --header "Host: ${FALCONE_RESTORE_RELEASE}-keycloak:8080" \
+      --header 'content-type: application/x-www-form-urlencoded' \
+      --data grant_type=password \
+      --data "client_id=${FALCONE_RESTORE_TENANT_B_SLUG}-app" \
+      --data "username=c25-b-${FALCONE_RESTORE_RUN_TAG}" \
+      --data-urlencode \
+        "password@${FALCONE_RESTORE_PARITY_DIR}/tenant-b-password" \
+      --data scope=openid \
+      --output "${FALCONE_RESTORE_PARITY_DIR}/tenant-b-token.json" \
+      --write-out '%{http_code}' \
+      "${FALCONE_RESTORE_KEYCLOAK_BASE}/realms/${FALCONE_RESTORE_TENANT_B}/protocol/openid-connect/token"
+  )"
+  if test "$FALCONE_RESTORE_TENANT_A_TOKEN_STATUS" = '200' &&
+    test "$FALCONE_RESTORE_TENANT_B_TOKEN_STATUS" = '200'; then
+    break
+  fi
+  FALCONE_RESTORE_TENANT_TOKEN_ATTEMPTS=$((FALCONE_RESTORE_TENANT_TOKEN_ATTEMPTS + 1))
+  if test "$FALCONE_RESTORE_TENANT_TOKEN_ATTEMPTS" -ge 60; then
+    printf '%s\n' 'disposable tenant login readiness timed out' >&2
+    exit 1
+  fi
+  sleep 1
+done
+unset FALCONE_RESTORE_TENANT_TOKEN_ATTEMPTS
+unset FALCONE_RESTORE_TENANT_A_TOKEN_STATUS FALCONE_RESTORE_TENANT_B_TOKEN_STATUS
+
+FALCONE_RESTORE_TENANT_A_CURL_CONFIG="${FALCONE_RESTORE_PARITY_DIR}/tenant-a.curl-config"
+FALCONE_RESTORE_TENANT_B_CURL_CONFIG="${FALCONE_RESTORE_PARITY_DIR}/tenant-b.curl-config"
+jq --raw-output \
+  '"header = \"authorization: Bearer \(.access_token)\""' \
+  "${FALCONE_RESTORE_PARITY_DIR}/tenant-a-token.json" \
+  > "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"
+jq --raw-output \
+  '"header = \"authorization: Bearer \(.access_token)\""' \
+  "${FALCONE_RESTORE_PARITY_DIR}/tenant-b-token.json" \
+  > "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"
+chmod 0600 \
+  "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
+  "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"
+test -r "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG"
+test -r "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG"
+test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG")" = '600'
+test "$(stat -c '%a' "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG")" = '600'
+
+jq --null-input \
+  '{targetUrl:"https://93.184.216.34/falcone-c25-a",eventTypes:["document.created"]}' \
+  > "${FALCONE_RESTORE_PARITY_DIR}/subscription-a-request.json"
+jq --null-input \
+  '{targetUrl:"https://93.184.216.34/falcone-c25-b",eventTypes:["document.created"]}' \
+  > "${FALCONE_RESTORE_PARITY_DIR}/subscription-b-request.json"
+test "$(
+  curl --config "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
+    --request POST \
+    "${FALCONE_RESTORE_API_BASE}/v1/workspaces/${FALCONE_RESTORE_WORKSPACE_A}/webhooks/subscriptions" \
+    --connect-timeout 5 --max-time 60 \
+    --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@${FALCONE_RESTORE_PARITY_DIR}/subscription-a-request.json" \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/subscription-a.json" \
+    --write-out '%{http_code}'
+)" = '201'
+test "$(
+  curl --config "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG" \
+    --request POST \
+    "${FALCONE_RESTORE_API_BASE}/v1/workspaces/${FALCONE_RESTORE_WORKSPACE_B}/webhooks/subscriptions" \
+    --connect-timeout 5 --max-time 60 \
+    --silent --show-error \
+    --header 'content-type: application/json' \
+    --data-binary "@${FALCONE_RESTORE_PARITY_DIR}/subscription-b-request.json" \
+    --output "${FALCONE_RESTORE_PARITY_DIR}/subscription-b.json" \
+    --write-out '%{http_code}'
+)" = '201'
+for response in \
+  "${FALCONE_RESTORE_PARITY_DIR}/subscription-a.json" \
+  "${FALCONE_RESTORE_PARITY_DIR}/subscription-b.json"; do
+  jq --exit-status \
+    '(.subscriptionId | strings | length > 0) and
+     (.signingSecret | strings | length > 0)' \
+    "$response" >/dev/null
+done
 
 FALCONE_RESTORE_EVENT_TYPES_STATUS="$(
   curl --config "$FALCONE_RESTORE_TENANT_A_CURL_CONFIG" \
@@ -884,7 +1677,7 @@ FALCONE_RESTORE_OWN_COUNT="$(
   jq 'if (.items | type) == "array" then (.items | length) else -1 end' \
     "${FALCONE_RESTORE_PARITY_DIR}/own-list.json"
 )"
-test "$FALCONE_RESTORE_OWN_COUNT" -ge 0
+test "$FALCONE_RESTORE_OWN_COUNT" -ge 1
 
 FALCONE_RESTORE_CROSS_SCOPE_STATUS="$(
   curl --config "$FALCONE_RESTORE_TENANT_B_CURL_CONFIG" \
@@ -901,16 +1694,16 @@ esac
 
 FALCONE_RESTORE_PARITY_VERIFIED=true
 export FALCONE_RESTORE_PARITY_VERIFIED
-printf 'tenant/public parity verified: ownRoutes=2 ownItems=%s crossScope=1\n' \
+printf 'tenant/public parity verified: tenants=2 workspaces=2 subscriptions=2 ownRoutes=2 ownItems=%s crossScope=1\n' \
   "$FALCONE_RESTORE_OWN_COUNT"
 unset FALCONE_RESTORE_EVENT_TYPES_STATUS FALCONE_RESTORE_OWN_LIST_STATUS
 unset FALCONE_RESTORE_OWN_COUNT FALCONE_RESTORE_CROSS_SCOPE_STATUS
 ```
 
-Expected evidence is one bounded line with `ownRoutes=2` and `crossScope=1`; no token, response
-body, tenant/workspace identifier, subscription ID, or payload is printed. Any failed assertion
-leaves the release gate failed while the trap still removes the temporary responses, port-forward,
-Helm release, and namespace.
+Expected evidence is one bounded line with `tenants=2`, `workspaces=2`, `subscriptions=2`,
+`ownRoutes=2`, and `crossScope=1`; no token, response body, tenant/workspace identifier,
+subscription ID, or payload is printed. Any failed assertion leaves the release gate failed while
+the trap still removes the temporary responses, port-forward, Helm release, and namespace.
 
 Always clean up the disposable release and restored provider instance after preserving only the
 bounded pass/fail evidence and the provider backup/clone ID. For the bundled procedure, invoke the
@@ -922,6 +1715,18 @@ cleanup_webhook_parity
 cleanup_webhook_kube_restore
 trap - EXIT HUP INT TERM
 unset FALCONE_SOURCE_INVENTORY FALCONE_RESTORE_PARITY_VERIFIED
+
+test "$(kubectl config current-context)" = "$FALCONE_RESTORE_CONTEXT"
+test "$(
+  kubectl --context "$FALCONE_RESTORE_CONTEXT" \
+    get namespace kube-system -o jsonpath='{.metadata.uid}'
+)" = "$FALCONE_RESTORE_EXPECTED_CLUSTER_UID"
+kind delete cluster --name "$FALCONE_RESTORE_KIND_CLUSTER_NAME"
+if kind get clusters 2>/dev/null |
+  grep -Fxq "$FALCONE_RESTORE_KIND_CLUSTER_NAME"; then
+  printf '%s\n' 'disposable kind cluster still exists after cleanup' >&2
+  exit 1
+fi
 ```
 
 For a managed provider, delete the isolated restored instance through the provider's approved

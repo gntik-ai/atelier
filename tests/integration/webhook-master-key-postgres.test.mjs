@@ -335,6 +335,8 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
   const targetId = deriveWebhookKeyId('test-ns', 'canonical-key', 'key');
   const legacyMaterial = 'synthetic-postgres-legacy-fixture';
   const targetMaterial = formatCanonicalWebhookKey(Buffer.alloc(32, 0x51));
+  const wrongLegacyMaterial = 'synthetic-postgres-legacy-fixture-with-changed-bytes';
+  const wrongTargetMaterial = formatCanonicalWebhookKey(Buffer.alloc(32, 0x52));
   const legacy = createLifecycleWebhookKeyContext({
     material: legacyMaterial, keyId: legacyId, mode: 'legacy', purpose: 'adopt',
   });
@@ -419,6 +421,41 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
     recoveryWindowSeconds: 3600, quiesced: true,
   });
   assert.equal(replay.state, 'completed');
+  await assert.rejects(repository.rotate({
+    sourceMaterial: legacyMaterial, sourceKeyId: legacyId, sourceMode: 'canonical-v1',
+    targetMaterial: wrongTargetMaterial, targetKeyId: targetId, targetManaged: true,
+    requestId: 'postgres-rotate-001', rotationId: 'postgres-rotation-001',
+    recoveryWindowSeconds: 3600, quiesced: true,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  await assert.rejects(repository.rotate({
+    sourceMaterial: wrongLegacyMaterial, sourceKeyId: legacyId, sourceMode: 'canonical-v1',
+    targetMaterial, targetKeyId: targetId, targetManaged: true,
+    requestId: 'postgres-rotate-001', rotationId: 'postgres-rotation-001',
+    recoveryWindowSeconds: 3600, quiesced: true,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  await withLifecycleFence(pool, (client) => client.query(`
+    UPDATE webhook_master_key_state
+       SET lifecycle_state = 'recovery_required'
+     WHERE singleton_id = 1;
+    UPDATE webhook_master_key_rotations
+       SET lifecycle_state = 'recovery_required'
+     WHERE request_id = 'postgres-rotate-001'
+  `));
+  await assert.rejects(repository.rotate({
+    sourceMaterial: wrongLegacyMaterial, sourceKeyId: legacyId, sourceMode: 'canonical-v1',
+    targetMaterial, targetKeyId: targetId, targetManaged: true,
+    requestId: 'postgres-rotate-001', rotationId: 'postgres-rotation-001',
+    recoveryWindowSeconds: 3600, quiesced: true,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
+  assert.equal((await pool.query(
+    'SELECT lifecycle_state FROM webhook_master_key_state WHERE singleton_id = 1',
+  )).rows[0].lifecycle_state, 'recovery_required');
+  assert.equal((await repository.rotate({
+    sourceMaterial: legacyMaterial, sourceKeyId: legacyId, sourceMode: 'canonical-v1',
+    targetMaterial, targetKeyId: targetId, targetManaged: true,
+    requestId: 'postgres-rotate-001', rotationId: 'postgres-rotation-001',
+    recoveryWindowSeconds: 3600, quiesced: true,
+  })).state, 'completed');
   assert.equal((await pool.query(
     `SELECT count(*)::int AS count FROM webhook_master_key_rotations
       WHERE request_id = 'postgres-rotate-001'`,
@@ -444,6 +481,22 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
     recoveryWindowSeconds: 3600, quiesced: true, now: new Date(),
   });
   assert.equal(recovered.affectedCount, fixtures.length);
+  await assert.rejects(repository.authorizeQuiescedReplay({
+    requestId: 'postgres-rotate-001',
+    action: 'rotate',
+    rotationId: 'postgres-rotation-001',
+    sourceKeyId: legacyId,
+    targetKeyId: targetId,
+    targetManaged: true,
+    recoveryWindowSeconds: 3600,
+  }), { code: 'WEBHOOK_KEY_STATE_CONFLICT' });
+  await assert.rejects(repository.recover({
+    currentMaterial: targetMaterial, currentKeyId: targetId, currentMode: 'legacy',
+    targetMaterial: wrongLegacyMaterial, targetKeyId: legacyId, targetMode: 'canonical-v1',
+    targetManaged: false,
+    requestId: 'postgres-recover-001', rotationId: 'postgres-recovery-001',
+    recoveryWindowSeconds: 3600, quiesced: true,
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
   await pool.query(
     `UPDATE webhook_master_key_state
         SET recovery_deadline = '2026-07-23T11:00:00.000Z'
@@ -474,6 +527,11 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
   assert.equal((await pool.query(
     'SELECT recovery_key_id FROM webhook_master_key_state WHERE singleton_id = 1',
   )).rows[0].recovery_key_id, null);
+  await assert.rejects(repository.finalize({
+    material: wrongLegacyMaterial, keyId: legacyId, mode: 'legacy',
+    recoveryKeyId: targetId, requestId: 'postgres-finalize-001',
+    now: new Date('2026-07-23T12:00:00.000Z'),
+  }), { code: 'WEBHOOK_KEY_VERIFICATION_FAILED' });
 
   const lifecycleColumns = (await pool.query(
     `SELECT column_name FROM information_schema.columns
@@ -603,6 +661,9 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
       quiesced: true,
     };
     await repository.rotate(rotateRequest);
+    await assert.rejects(repository.authorizeQuiescedReplay(adoptBinding), {
+      code: 'WEBHOOK_KEY_STATE_CONFLICT',
+    });
     await assert.rejects(repository.rotate({
       ...rotateRequest,
       targetManaged: !direction.currentManaged,
@@ -624,6 +685,12 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
       ...rotateBinding,
       targetManaged: !direction.currentManaged,
     }), { code: 'WEBHOOK_LIFECYCLE_REQUEST_CONFLICT' });
+    const rotateReplay = await repository.rotate({
+      ...rotateRequest,
+      sourceMode: 'canonical-v1',
+    });
+    assert.equal(rotateReplay.requestId, rotateRequest.requestId);
+    assert.equal(rotateReplay.state, 'completed');
 
     const beforeMismatchState = (await pool.query(
       'SELECT * FROM webhook_master_key_state WHERE singleton_id = 1',
@@ -708,6 +775,13 @@ test('migration 004 and the lifecycle execute transactionally on PostgreSQL', {
     )).rows[0].new_state;
     assert.equal(recoveredAudit.sourceManaged, direction.currentManaged);
     assert.equal(recoveredAudit.targetManaged, direction.recoveryManaged);
+    const recoverReplay = await repository.recover({
+      ...recoverRequest,
+      currentMode: 'legacy',
+      targetMode: 'canonical-v1',
+    });
+    assert.equal(recoverReplay.requestId, recoverRequest.requestId);
+    assert.equal(recoverReplay.state, 'completed');
     await assert.rejects(repository.recover({
       ...recoverRequest,
       targetManaged: !direction.recoveryManaged,

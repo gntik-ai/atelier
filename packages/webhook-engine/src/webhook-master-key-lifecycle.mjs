@@ -192,19 +192,23 @@ async function emitLifecycleAudit(client, auditWriter, result, outcome, override
   });
 }
 
-async function markAmbiguousCommit(pool, binding, targetContext, auditWriter) {
+async function markAmbiguousCommit(
+  pool,
+  binding,
+  targetContext,
+  sourceContext,
+  auditWriter,
+) {
   try {
     return await withLockedTransaction(pool, async (client) => {
       const ledger = await readLedger(client, binding.request_id);
       assertLedgerBinding(ledger, binding);
       if (ledger?.lifecycle_state !== 'completed') return false;
-      const state = await readState(client, true);
-      if (!state
-          || state.active_request_id !== binding.request_id
-          || state.current_key_id !== targetContext.keyId
-          || state.current_mode !== targetContext.mode) return false;
-      assertStateIdentity(state, targetContext);
-      await assertRowsUseKey(client, targetContext.keyId);
+      await assertDurableReplayState(client, ledger, {
+        lock: true,
+        targetContext,
+        sourceContext,
+      });
       await client.query(
         `UPDATE webhook_master_key_state
             SET lifecycle_state = 'recovery_required', updated_at = now()
@@ -232,14 +236,20 @@ async function markAmbiguousCommit(pool, binding, targetContext, auditWriter) {
   }
 }
 
-async function resumeAmbiguousCommit(client, ledger, binding, targetContext, auditWriter) {
+async function resumeAmbiguousCommit(
+  client,
+  ledger,
+  binding,
+  targetContext,
+  sourceContext,
+  auditWriter,
+) {
   if (ledger?.lifecycle_state !== 'recovery_required') return null;
-  const state = await readState(client, true);
-  if (!state
-      || state.lifecycle_state !== 'recovery_required'
-      || state.active_request_id !== binding.request_id) fail('WEBHOOK_KEY_STATE_AMBIGUOUS');
-  assertStateIdentity(state, targetContext);
-  await assertRowsUseKey(client, targetContext.keyId);
+  await assertDurableReplayState(client, ledger, {
+    lock: true,
+    targetContext,
+    sourceContext,
+  });
   await client.query(
     `UPDATE webhook_master_key_state
         SET lifecycle_state = 'serving', updated_at = now()
@@ -403,6 +413,70 @@ async function assertRowsUseKey(client, keyId) {
   if (Number(rows[0]?.count ?? 0) !== 0) fail('WEBHOOK_ROW_KEY_MISMATCH');
 }
 
+function assertNoRecoveryIdentity(state) {
+  const fields = [
+    'recovery_key_id',
+    'recovery_mode',
+    'recovery_managed',
+    'recovery_verification_cipher',
+    'recovery_verification_iv',
+    'recovery_deadline',
+  ];
+  if (fields.some((field) => state[field] != null)) {
+    fail('WEBHOOK_KEY_STATE_CONFLICT');
+  }
+}
+
+async function assertDurableReplayState(client, ledger, {
+  lock = false,
+  targetContext = null,
+  sourceContext = null,
+} = {}) {
+  const state = await readState(client, lock);
+  const permittedState = ledger.lifecycle_state === 'recovery_required'
+    ? 'recovery_required'
+    : 'serving';
+  if (!state || state.lifecycle_state !== permittedState) {
+    fail('WEBHOOK_KEY_STATE_AMBIGUOUS');
+  }
+  if (state.active_request_id !== ledger.request_id
+      || (state.active_rotation_id ?? null) !== (ledger.rotation_id ?? null)
+      || state.current_key_id !== ledger.target_key_id
+      || state.current_mode !== ledger.target_mode) {
+    fail('WEBHOOK_KEY_STATE_CONFLICT');
+  }
+  if (state.current_managed !== ledger.target_managed) {
+    fail('WEBHOOK_KEY_CUSTODY_CONFLICT');
+  }
+
+  if (['rotate', 'recover'].includes(ledger.action)) {
+    if (state.recovery_key_id !== ledger.source_key_id
+        || state.recovery_mode !== ledger.source_mode) {
+      fail('WEBHOOK_KEY_STATE_CONFLICT');
+    }
+    if (state.recovery_managed !== ledger.source_managed) {
+      fail('WEBHOOK_KEY_CUSTODY_CONFLICT');
+    }
+  } else {
+    assertNoRecoveryIdentity(state);
+  }
+
+  if (targetContext) assertStateIdentity(state, targetContext);
+  if (sourceContext) {
+    if (state.recovery_key_id !== sourceContext.keyId
+        || state.recovery_mode !== sourceContext.mode) {
+      fail('WEBHOOK_KEY_STATE_CONFLICT');
+    }
+    verifyRecord(
+      state.recovery_verification_cipher,
+      state.recovery_verification_iv,
+      sourceContext,
+    );
+  }
+  await assertRowsUseKey(client, ledger.target_key_id);
+  return state;
+}
+
 async function lockSigningRows(client) {
   const { rows } = await client.query(
     `SELECT id, subscription_id, tenant_id, workspace_id, secret_cipher,
@@ -488,6 +562,7 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
           expected.target_managed = targetManaged;
         }
         assertLedgerBinding(row, expected);
+        await assertDurableReplayState(client, row);
         return ledgerResult(row);
       });
     },
@@ -532,8 +607,15 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
       };
       try {
         return await withLockedTransaction(pool, async (client) => {
-          const replay = assertLedgerBinding(await readLedger(client, request_id), binding);
-          if (replay) return replay;
+          const existing = await readLedger(client, request_id);
+          const replay = assertLedgerBinding(existing, binding);
+          if (replay) {
+            await assertDurableReplayState(client, existing, {
+              lock: true,
+              targetContext: context,
+            });
+            return replay;
+          }
           if (await readState(client, true)) fail('WEBHOOK_KEY_STATE_CONFLICT');
           const rows = await lockSigningRows(client);
           if (rows.some((row) => row.encryption_key_id != null)) fail('WEBHOOK_ROW_KEY_MISMATCH');
@@ -571,23 +653,54 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
       const request_id = requireId(requestId);
       const rotation_id = requireId(rotationId);
       const recovery_window_seconds = requireWindow(recoveryWindowSeconds);
-      const source = createLifecycleWebhookKeyContext({
-        material: sourceMaterial, keyId: sourceKeyId, mode: sourceMode, purpose: 'recover',
-      });
-      const target = createCanonicalWebhookKeyContext(targetMaterial, targetKeyId);
-      if (source.keyId === target.keyId) fail('WEBHOOK_KEY_IDENTITY_CONFLICT');
-      const binding = {
+      const source_key_id = assertWebhookKeyId(sourceKeyId);
+      const target_key_id = assertWebhookKeyId(targetKeyId);
+      if (source_key_id === target_key_id) fail('WEBHOOK_KEY_IDENTITY_CONFLICT');
+      let source = null;
+      let target = null;
+      let binding = {
         request_id, action: 'rotate', rotation_id,
-        source_key_id: source.keyId, target_key_id: target.keyId,
-        source_mode: source.mode, target_mode: target.mode,
+        source_key_id, target_key_id,
+        source_mode: sourceMode, target_mode: 'canonical-v1',
         target_managed: Boolean(targetManaged), recovery_window_seconds,
       };
       try {
         return await withLockedTransaction(pool, async (client) => {
           const existing = await readLedger(client, request_id);
+          // A committed replay observes the post-rotation state, whose current
+          // mode is the original target mode. Reconstruct both key contexts
+          // from the immutable ledger binding before validating material; using
+          // the swapped durable current mode would parse a legacy source as
+          // canonical and fail before the idempotency check.
+          source = createLifecycleWebhookKeyContext({
+            material: sourceMaterial,
+            keyId: source_key_id,
+            mode: existing?.source_mode ?? sourceMode,
+            purpose: 'recover',
+          });
+          target = createCanonicalWebhookKeyContext(targetMaterial, target_key_id);
+          binding = {
+            ...binding,
+            source_mode: source.mode,
+            target_mode: target.mode,
+          };
           const replay = assertLedgerBinding(existing, binding);
-          if (replay) return replay;
-          const resumed = await resumeAmbiguousCommit(client, existing, binding, target, auditWriter);
+          if (replay) {
+            await assertDurableReplayState(client, existing, {
+              lock: true,
+              targetContext: target,
+              sourceContext: source,
+            });
+            return replay;
+          }
+          const resumed = await resumeAmbiguousCommit(
+            client,
+            existing,
+            binding,
+            target,
+            source,
+            auditWriter,
+          );
           if (resumed) return resumed;
           const byRotation = await client.query(
             'SELECT request_id FROM webhook_master_key_rotations WHERE rotation_id = $1',
@@ -643,7 +756,7 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
         });
       } catch (caught) {
         if (caught?.[COMMIT_OUTCOME_UNKNOWN]) {
-          await markAmbiguousCommit(pool, binding, target, auditWriter);
+          await markAmbiguousCommit(pool, binding, target, source, auditWriter);
           throw new WebhookLifecycleError('WEBHOOK_KEY_STATE_AMBIGUOUS');
         }
         return recordFailure(pool, binding, caught, auditWriter);
@@ -660,25 +773,58 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
       const rotation_id = rotationId ? requireId(rotationId) : null;
       const recovery_window_seconds = requireWindow(recoveryWindowSeconds);
       const clock = requireClock(now);
-      const current = createLifecycleWebhookKeyContext({
-        material: currentMaterial, keyId: currentKeyId, mode: currentMode, purpose: 'recover',
-      });
-      const target = createLifecycleWebhookKeyContext({
-        material: targetMaterial, keyId: targetKeyId, mode: targetMode, purpose: 'recover',
-      });
-      if (current.keyId === target.keyId) fail('WEBHOOK_KEY_IDENTITY_CONFLICT');
-      const binding = {
+      const source_key_id = assertWebhookKeyId(currentKeyId);
+      const target_key_id = assertWebhookKeyId(targetKeyId);
+      if (source_key_id === target_key_id) fail('WEBHOOK_KEY_IDENTITY_CONFLICT');
+      let current = null;
+      let target = null;
+      let binding = {
         request_id, action: 'recover', rotation_id,
-        source_key_id: current.keyId, target_key_id: target.keyId,
-        source_mode: current.mode, target_mode: target.mode,
+        source_key_id, target_key_id,
+        source_mode: currentMode, target_mode: targetMode,
         target_managed: Boolean(targetManaged), recovery_window_seconds,
       };
       try {
         return await withLockedTransaction(pool, async (client) => {
           const existing = await readLedger(client, request_id);
+          // Recovery swaps the durable current/recovery modes. Exact and
+          // recovery-required replays must therefore parse the supplied
+          // original source/target material with the ledger-bound modes, not
+          // with the already-swapped resolution state observed by the CLI.
+          current = createLifecycleWebhookKeyContext({
+            material: currentMaterial,
+            keyId: source_key_id,
+            mode: existing?.source_mode ?? currentMode,
+            purpose: 'recover',
+          });
+          target = createLifecycleWebhookKeyContext({
+            material: targetMaterial,
+            keyId: target_key_id,
+            mode: existing?.target_mode ?? targetMode,
+            purpose: 'recover',
+          });
+          binding = {
+            ...binding,
+            source_mode: current.mode,
+            target_mode: target.mode,
+          };
           const replay = assertLedgerBinding(existing, binding);
-          if (replay) return replay;
-          const resumed = await resumeAmbiguousCommit(client, existing, binding, target, auditWriter);
+          if (replay) {
+            await assertDurableReplayState(client, existing, {
+              lock: true,
+              targetContext: target,
+              sourceContext: current,
+            });
+            return replay;
+          }
+          const resumed = await resumeAmbiguousCommit(
+            client,
+            existing,
+            binding,
+            target,
+            current,
+            auditWriter,
+          );
           if (resumed) return resumed;
           const state = await readState(client, true);
           if (!state || !['serving', 'recovery_required'].includes(state.lifecycle_state)) {
@@ -745,7 +891,7 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
         });
       } catch (caught) {
         if (caught?.[COMMIT_OUTCOME_UNKNOWN]) {
-          await markAmbiguousCommit(pool, binding, target, auditWriter);
+          await markAmbiguousCommit(pool, binding, target, current, auditWriter);
           throw new WebhookLifecycleError('WEBHOOK_KEY_STATE_AMBIGUOUS');
         }
         return recordFailure(pool, binding, caught, auditWriter);
@@ -766,8 +912,15 @@ export function buildWebhookMasterKeyRepository(pool, { auditWriter = null } = {
       };
       try {
         return await withLockedTransaction(pool, async (client) => {
-          const replay = assertLedgerBinding(await readLedger(client, request_id), binding);
-          if (replay) return replay;
+          const existing = await readLedger(client, request_id);
+          const replay = assertLedgerBinding(existing, binding);
+          if (replay) {
+            await assertDurableReplayState(client, existing, {
+              lock: true,
+              targetContext: current,
+            });
+            return replay;
+          }
           const state = await readState(client, true);
           if (!state || state.lifecycle_state !== 'serving') fail('WEBHOOK_KEY_STATE_AMBIGUOUS');
           assertStateIdentity(state, current);

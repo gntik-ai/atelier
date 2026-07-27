@@ -76,22 +76,30 @@
 
 ## 6. Documentation, explicit non-applicability, and independent checks
 
-- [ ] T21: Write detailed reference and runbook documentation in both repositories. Document the complete values contract, managed/external custody, secret-safe provisioning (never `--set`, rendered files, shell history, or evidence), maintenance-window/drain steps, preflight/backup and matching-key custody, explicit adoption then later canonical rotation, retry/recovery/finalization, external-manager in-place mutation risk, Helm-history disclosure and rollback hazard, forward fixed-chart recovery, restore/key coupling, observability/status checks for P4/P10, and Kubernetes Secret/etcd/backup/node/`exec` operator responsibilities. Acceptance: P17 can execute fresh install, upgrade, rotation, recovery, and finalization without source archaeology or exposing a value. Test target: docs lint/snippets plus a literal runbook rehearsal on a disposable cluster with a second reviewer.
+- [x] T21: Write detailed reference and runbook documentation in both repositories. Document the complete values contract, managed/external custody, secret-safe provisioning (never `--set`, rendered files, shell history, or evidence), maintenance-window/drain steps, preflight/backup and matching-key custody, explicit adoption then later canonical rotation, retry/recovery/finalization, external-manager in-place mutation risk, Helm-history disclosure and rollback hazard, forward fixed-chart recovery, restore/key coupling, observability/status checks for P4/P10, and Kubernetes Secret/etcd/backup/node/`exec` operator responsibilities. Acceptance: P17 can execute fresh install, upgrade, rotation, recovery, and finalization without source archaeology or exposing a value. Test target: docs lint/snippets plus a literal runbook rehearsal on a disposable cluster with a second reviewer.
 
 - [x] T22: Mark UI/accessibility and public wire work explicitly not applicable. Record that this bounded fix adds no web-console surface; therefore no visual/a11y interaction changes apply, and no OpenAPI, SDK, gateway, public-auth, Kafka, public audit-schema, tenant-role, KMS/ESO/Vault, or general secret-controller work is authorized. Acceptance: contract/repository diffs contain none of those surfaces except documentation stating non-applicability. Test target: path-scoped diff review and public route/OpenAPI/SDK/gateway/Kafka schema snapshots unchanged.
 
-- [ ] T23: Run independent maker/checker reviews. A security checker SHALL inspect crypto parsing, zero fallback, no-leak surfaces, Secret/RBAC custody, external ownership, idempotency, commit ambiguity, history/rollback, and destructive finalization; a contract/isolation checker SHALL verify public wire/quotas/authz/tenant predicates/signatures are unchanged; a deployment reviewer SHALL verify alias/global Helm behavior, hook ordering, restricted Kubernetes/OpenShift operation, retention, and cross-repository pinning. Acceptance: each checker receives only task, diff, and reproducible evidence (not maker self-assessment), and all confirmed findings are fixed or explicitly block completion. Test target: independent review reports tied to exact Falcone/image/chart SHAs.
+- [x] T23: Run independent maker/checker reviews. A security checker SHALL inspect crypto parsing, zero fallback, no-leak surfaces, Secret/RBAC custody, external ownership, idempotency, commit ambiguity, history/rollback, and destructive finalization; a contract/isolation checker SHALL verify public wire/quotas/authz/tenant predicates/signatures are unchanged; a deployment reviewer SHALL verify alias/global Helm behavior, hook ordering, restricted Kubernetes/OpenShift operation, retention, and cross-repository pinning. Acceptance: each checker receives only task, diff, and reproducible evidence (not maker self-assessment), and all confirmed findings are fixed or explicitly block completion. Test target: independent review reports tied to exact Falcone/image/chart SHAs.
 
 - [x] T24: Update the C-25/DEVOPS-08 audit finding and capability/remediation matrix only after independent live confirmation. Link secret-safe evidence showing one required reference, no literal in current artifacts, byte-preserving adoption/rotation, fail-closed recovery, P4 posture visibility, and preserved tenant/public behavior; do not copy key material or broad Secret/workload dumps into the ledger. Acceptance: the matrix closes only C-25 with exact SHA/image/chart/environment identity and retains stated custody boundaries/history risk. Test target: audit-ledger validation and evidence secret-pattern scan.
 
 - [ ] T25: Run final repository and OpenSpec gates after implementation. In Falcone run targeted lifecycle/transaction/startup/tenant/public suites, full unit/contracts/black-box/e2e gates, `corepack pnpm validate:repo`, Markdown/snippet lint, and `openspec validate fix-audit-c25-webhook-signing-key-lifecycle --strict`; in `falcone-charts` run schema tests, chart unit tests, `helm lint`, all render matrices, and disposable-cluster tests. Acceptance: every gate is green, exact modified paths and residual operator risks are documented, and archival occurs only after both repository changes and independently reviewed release/pin evidence are complete. Test target: final CI artifacts for both repositories plus strict OpenSpec validation.
 
-Completion boundary (2026-07-26): T19, T20, T21, T23, and T25 remain deliberately unchecked.
-The authorized shared-staging operation covered external legacy adoption and an exact idempotent
-readiness replay only; canonical rotation, recovery, and finalization were not run. Full disposable
-kind/OpenShift lifecycle rehearsal and the literal second-reviewer runbook rehearsal remain release
-gates. Source, contract/isolation, authorization, system/readiness, journey, and documentation
-reviews otherwise passed, but a DevOps checker caused a Secret-object formatter diagnostic to return
-the current external legacy Secret object in isolated checker output. The credential is therefore
-treated as exposed and requires separately authorized canonical rotation, so the all-checker and
-full-final-gate tasks cannot be marked complete in this run.
+Completion boundary (2026-07-26): T01, T19, T20, and T25 remain deliberately unchecked. T01 cannot
+be reconstructed retroactively because the original implementation did not preserve a complete
+pre-change baseline run. The authorized disposable-kind rehearsal at chart candidate
+`8237a209bf7c2ff187c2d25cd496cbc9787502e7` and control-plane image
+`ghcr.io/gntik-ai/in-falcone-control-plane@sha256:a6f90cd0c3e6e5ee5e783bba1d9fbce3c03be10590c85753cde3339fbcd4ad1d`
+covered a historical restore, two-tenant legacy adoption, separate canonical rotation, recovery,
+finalization, exact replay, restricted workload convergence, and byte-preserving external custody.
+T19 remains partial because not every required fresh-generation, no-op byte-reuse, pre-commit
+rollback, and lost-ack/post-commit ambiguity path was executed on the live cluster. T20 remains
+blocked on a live OpenShift lifecycle rehearsal; OpenShift render and restricted-context checks are
+green but are not a substitute for that environment. T25 remains incomplete because the repository
+snippet gate has the pre-existing missing
+`docs/guides/realtime/frontend-quickstart.md` input and the full specified live release matrix is not
+green. Independent security, contract/isolation, documentation, and deployment checkers otherwise
+approved the candidate after every confirmed finding was corrected. The earlier shared-staging
+checker disclosure still requires the separately scoped staging credential to be treated as exposed
+and rotated under that environment's authority.
