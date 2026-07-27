@@ -38,8 +38,18 @@ function createInMemoryDb() {
       }
 
       if (normalizedSql.startsWith('INSERT INTO async_operations')) {
-        const [operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type, status, error_summary, correlation_id, idempotency_key, saga_id, created_at, updated_at] = params;
-        const row = { operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type, status, error_summary, correlation_id, idempotency_key, saga_id, created_at, updated_at };
+        const [
+          operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type,
+          status, error_summary, cancellation_reason, cancelled_by, timeout_policy_snapshot,
+          policy_applied_at, correlation_id, idempotency_key, saga_id, attempt_count,
+          max_retries, result, completed_at, created_at, updated_at
+        ] = params;
+        const row = {
+          operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type,
+          status, error_summary, cancellation_reason, cancelled_by, timeout_policy_snapshot,
+          policy_applied_at, correlation_id, idempotency_key, saga_id, attempt_count,
+          max_retries, result, completed_at, created_at, updated_at
+        };
         operations.push(row);
         return { rows: [structuredClone(row)] };
       }
@@ -60,14 +70,27 @@ function createInMemoryDb() {
           return { rows: [] };
         }
         row.status = params[2];
-        row.error_summary = params[3];
-        row.updated_at = params[4];
+        row.error_summary = params[3] == null ? null : JSON.parse(params[3]);
+        row.cancellation_reason = params[4];
+        row.cancelled_by = params[5];
+        row.result = params[6] == null ? null : JSON.parse(params[6]);
+        row.completed_at = params[7];
+        row.updated_at = params[8];
         return { rows: [structuredClone(row)] };
       }
 
       if (normalizedSql.startsWith('INSERT INTO async_operation_transitions')) {
         const [transition_id, operation_id, tenant_id, actor_id, previous_status, new_status, transitioned_at, metadata] = params;
-        transitions.push({ transition_id, operation_id, tenant_id, actor_id, previous_status, new_status, transitioned_at, metadata });
+        transitions.push({
+          transition_id,
+          operation_id,
+          tenant_id,
+          actor_id,
+          previous_status,
+          new_status,
+          transitioned_at,
+          metadata: metadata == null ? null : JSON.parse(metadata)
+        });
         return { rows: [] };
       }
 
@@ -113,6 +136,8 @@ test('repository creates operations and enforces tenant isolation on findById', 
   const missing = await findById(db, { operation_id: created.operation_id, tenant_id: 'tenant-b' });
 
   assert.equal(found.operation_id, created.operation_id);
+  assert.equal(found.result, null);
+  assert.equal(found.completed_at, null);
   assert.equal(missing, null);
   await assert.rejects(() => createOperation(db, { ...operation, tenant_id: '' }), (error) => error.code === 'VALIDATION_ERROR');
 });
@@ -137,7 +162,11 @@ test('repository transitions atomically and stores transition metadata', async (
   });
 
   assert.equal(runningResult.updatedOperation.status, 'running');
+  assert.equal(runningResult.updatedOperation.result, null);
+  assert.equal(runningResult.updatedOperation.completed_at, null);
   assert.equal(failedResult.updatedOperation.status, 'failed');
+  assert.equal(failedResult.updatedOperation.result, null);
+  assert.equal(failedResult.updatedOperation.completed_at, failedResult.updatedOperation.updated_at);
   assert.equal(db.transitions.length, 2);
   assert.equal(db.transitions[0].previous_status, 'pending');
   assert.equal(db.transitions[0].new_status, 'running');
@@ -149,6 +178,79 @@ test('repository transitions atomically and stores transition metadata', async (
     message: 'Provisioning step failed cleanly.',
     failedStep: 'bind-resource'
   });
+});
+
+test('repository serializes durable error JSON before node-postgres can invoke inherited hooks', async () => {
+  const db = createInMemoryDb();
+  const operation = await createOperation(db, buildOperation({
+    tenant_id: 'tenant-a',
+    actor_id: 'actor-1',
+    actor_type: 'workspace_admin',
+    operation_type: 'WF-CON-001'
+  }));
+  await transitionOperation(db, {
+    operation_id: operation.operation_id,
+    tenant_id: operation.tenant_id,
+    actor_id: operation.actor_id,
+    new_status: 'running'
+  });
+
+  let hookCalls = 0;
+  Object.prototype.toPostgres = () => {
+    hookCalls += 1;
+    return { password: 'must-not-persist' };
+  };
+  try {
+    const failed = await transitionOperation(db, {
+      operation_id: operation.operation_id,
+      tenant_id: operation.tenant_id,
+      actor_id: operation.actor_id,
+      new_status: 'failed',
+      error_summary: {
+        code: 'STEP_FAILED',
+        message: 'Provisioning step failed cleanly.',
+        failedStep: 'bind-resource'
+      }
+    });
+
+    assert.equal(hookCalls, 0);
+    assert.deepEqual(failed.updatedOperation.error_summary, {
+      code: 'STEP_FAILED',
+      message: 'Provisioning step failed cleanly.',
+      failedStep: 'bind-resource'
+    });
+    assert.doesNotMatch(JSON.stringify(db.transitions.at(-1)), /must-not-persist|password/);
+  } finally {
+    delete Object.prototype.toPostgres;
+  }
+});
+
+test('repository persists a safe completed result and terminal timestamp atomically', async () => {
+  const db = createInMemoryDb();
+  const operation = await createOperation(db, buildOperation({
+    tenant_id: 'tenant-a',
+    actor_id: 'actor-1',
+    actor_type: 'workspace_admin',
+    operation_type: 'WF-CON-001'
+  }));
+  await transitionOperation(db, {
+    operation_id: operation.operation_id,
+    tenant_id: operation.tenant_id,
+    actor_id: operation.actor_id,
+    new_status: 'running'
+  });
+
+  const completed = await transitionOperation(db, {
+    operation_id: operation.operation_id,
+    tenant_id: operation.tenant_id,
+    actor_id: operation.actor_id,
+    new_status: 'completed',
+    result: { summary: 'Provisioning completed' }
+  });
+
+  assert.deepEqual(completed.updatedOperation.result, { summary: 'Provisioning completed' });
+  assert.equal(completed.updatedOperation.completed_at, completed.updatedOperation.updated_at);
+  assert.equal(db.transitions.filter((item) => item.new_status === 'completed').length, 1);
 });
 
 test('repository rejects invalid transitions without corrupting persisted state', async () => {

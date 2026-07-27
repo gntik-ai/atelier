@@ -210,6 +210,7 @@ test('bbx-736-01: bootstrap creates the async-operation query tables', async () 
     '075-idempotency-retry-tables',
     '076-timeout-cancel-recovery',
     '078-retry-semantics-intervention',
+    '079-async-operation-results',
   ]) {
     assert.ok(
       applied.some((m) => m.includes(migration)),
@@ -223,9 +224,9 @@ test('bbx-736-01: bootstrap creates the async-operation query tables', async () 
   }
 });
 
-test('bbx-736-02: async-operation migrations are applied in dependency-safe numeric order', () => {
+test('bbx-736-02: async-operation migrations are applied in dependency-safe numeric order', async () => {
   const idx = (frag) => GOVERNANCE_MIGRATIONS.findIndex((m) => m.includes(frag));
-  for (const migration of ['073-', '074-', '075-', '076-', '078-']) {
+  for (const migration of ['073-', '074-', '075-', '076-', '078-', '079-']) {
     assert.ok(idx(migration) > -1, `${migration} is in the boot migration set`);
   }
 
@@ -236,7 +237,12 @@ test('bbx-736-02: async-operation migrations are applied in dependency-safe nume
   assert.ok(idx('074-') < idx('075-'), '074 before 075 in numeric order');
   assert.ok(idx('075-') < idx('076-'), '075 before 076 in numeric order');
   assert.ok(idx('076-') < idx('078-'), '076 before 078 in numeric order');
-  assert.ok(idx('078-') < idx('080-'), 'async-operation chain before later provisioning migrations');
+  assert.ok(idx('078-') < idx('079-'), '078 intervention schema before 079 result columns');
+  assert.ok(idx('079-') < idx('080-'), 'async-operation chain before later provisioning migrations');
+
+  const { all } = await runBootstrap();
+  assert.match(all, /ADD COLUMN IF NOT EXISTS result JSONB/i);
+  assert.match(all, /ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ/i);
 });
 
 test('bbx-736-03: async-operation-query list/logs run against the boot-created schema without 42P01', async () => {
@@ -282,4 +288,25 @@ test('bbx-736-03: async-operation-query list/logs run against the boot-created s
   assert.deepEqual(logsResponse.body.entries, []);
   assert.equal(logsResponse.body.total, 0);
   assert.deepEqual(logsResponse.body.pagination, { limit: 20, offset: 0 });
+
+  const resultResponse = await asyncOperationQueryAction(
+    {
+      ...baseParams,
+      queryType: 'result',
+      operationId: '00000000-0000-0000-0000-000000000736',
+    },
+    { db, log() {} },
+  );
+
+  assert.equal(resultResponse.statusCode, 200);
+  assert.deepEqual(resultResponse.body, {
+    queryType: 'result',
+    operationId: '00000000-0000-0000-0000-000000000736',
+    status: 'completed',
+    resultType: 'success',
+    summary: null,
+    failureReason: null,
+    retryable: null,
+    completedAt: '2026-06-30T00:00:00.000Z',
+  });
 });

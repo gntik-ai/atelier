@@ -7,7 +7,7 @@ import {
   publishFailureClassifiedEvent,
   publishManualInterventionRequiredEvent
 } from '../events/async-operation-events.mjs';
-import { validateErrorSummary } from '../models/async-operation.mjs';
+import { normalizeErrorSummary } from '../models/async-operation.mjs';
 import { classifyByErrorCode, loadMappingCache, FailureCategory } from '../models/failure-classification.mjs';
 import { createFlag } from '../models/manual-intervention-flag.mjs';
 
@@ -16,8 +16,7 @@ let cachedMappings;
 
 function sanitizeErrorSummary(errorSummary) {
   if (!errorSummary) return null;
-  validateErrorSummary(errorSummary);
-  return { code: errorSummary.code, message: errorSummary.message.trim(), failedStep: errorSummary.failedStep ?? null };
+  return normalizeErrorSummary(errorSummary);
 }
 
 function metricAnnotation(name, labels = {}) { return { metric: name, labels }; }
@@ -111,7 +110,8 @@ export async function main(params = {}, overrides = {}) {
       tenant_id: tenantId,
       new_status: params.new_status,
       actor_id: callerContext.actor.id,
-      error_summary: errorSummary
+      error_summary: errorSummary,
+      result: params.result
     });
 
     let classification = null;

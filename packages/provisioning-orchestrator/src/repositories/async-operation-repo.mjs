@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { applyTransition } from '../models/async-operation.mjs';
 
+const SAFE_JSON_STRINGIFY = JSON.stringify;
+
 function requireTenantId(tenantId) {
   if (!tenantId) {
     throw Object.assign(new Error('tenant_id is required'), { code: 'VALIDATION_ERROR', field: 'tenant_id' });
@@ -15,6 +17,10 @@ function requireActorId(actorId) {
 
 function mapOperationRow(row) {
   return row ? { ...row } : null;
+}
+
+function serializeJsonb(value) {
+  return value === null || value === undefined ? null : SAFE_JSON_STRINGIFY(value);
 }
 
 function buildPolicyJoin(nowIsoParamIndex, statuses) {
@@ -47,12 +53,12 @@ export async function createOperation(db, operation) {
       operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type,
       status, error_summary, cancellation_reason, cancelled_by, timeout_policy_snapshot,
       policy_applied_at, correlation_id, idempotency_key, saga_id, attempt_count,
-      max_retries, created_at, updated_at
+      max_retries, result, completed_at, created_at, updated_at
     ) VALUES (
       $1, $2, $3, $4, $5, $6,
       $7, $8, $9, $10, $11,
       $12, $13, $14, $15, $16,
-      $17, $18, $19
+      $17, $18, $19, $20, $21
     ) RETURNING *`,
     [
       operation.operation_id,
@@ -72,6 +78,8 @@ export async function createOperation(db, operation) {
       operation.saga_id,
       operation.attempt_count ?? 0,
       operation.max_retries ?? null,
+      null,
+      null,
       operation.created_at,
       operation.updated_at
     ]
@@ -157,7 +165,7 @@ export async function insertAsyncOperationTransition(db, transition) {
   await db.query(
     `INSERT INTO async_operation_transitions (
       transition_id, operation_id, tenant_id, actor_id, previous_status, new_status, transitioned_at, metadata
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)`,
     [
       transition.transition_id,
       transition.operation_id,
@@ -166,7 +174,7 @@ export async function insertAsyncOperationTransition(db, transition) {
       transition.previous_status,
       transition.new_status,
       transition.transitioned_at,
-      transition.metadata
+      serializeJsonb(transition.metadata)
     ]
   );
 
@@ -182,6 +190,8 @@ export async function atomicResetToRetry(db, { operation_id, tenant_id, correlat
          attempt_count = attempt_count + 1,
          correlation_id = $3,
          error_summary = NULL,
+         result = NULL,
+         completed_at = NULL,
          updated_at = NOW()
      WHERE operation_id = $1 AND tenant_id = $2 AND status = 'failed'
      RETURNING *`,
@@ -191,7 +201,7 @@ export async function atomicResetToRetry(db, { operation_id, tenant_id, correlat
   return mapOperationRow(result.rows[0] ?? null);
 }
 
-export async function transitionOperation(db, { operation_id, tenant_id, new_status, actor_id, error_summary, cancellation_reason, cancelled_by } = {}) {
+export async function transitionOperation(db, { operation_id, tenant_id, new_status, actor_id, error_summary, cancellation_reason, cancelled_by, result } = {}) {
   requireTenantId(tenant_id);
   requireActorId(actor_id);
 
@@ -208,23 +218,33 @@ export async function transitionOperation(db, { operation_id, tenant_id, new_sta
       throw Object.assign(new Error('Operation not found'), { code: 'NOT_FOUND' });
     }
 
-    const updatedOperation = applyTransition(existing, { new_status, error_summary, cancellation_reason, cancelled_by });
+    const updatedOperation = applyTransition(existing, {
+      new_status,
+      error_summary,
+      cancellation_reason,
+      cancelled_by,
+      result
+    });
     const updateResult = await db.query(
       `UPDATE async_operations
        SET status = $3,
-           error_summary = $4,
+           error_summary = $4::jsonb,
            cancellation_reason = $5,
            cancelled_by = $6,
-           updated_at = $7
+           result = $7::jsonb,
+           completed_at = $8,
+           updated_at = $9
        WHERE operation_id = $1 AND tenant_id = $2
        RETURNING *`,
       [
         operation_id,
         tenant_id,
         updatedOperation.status,
-        updatedOperation.error_summary,
+        serializeJsonb(updatedOperation.error_summary),
         updatedOperation.cancellation_reason ?? null,
         updatedOperation.cancelled_by ?? null,
+        serializeJsonb(updatedOperation.result),
+        updatedOperation.completed_at,
         updatedOperation.updated_at
       ]
     );
@@ -345,19 +365,23 @@ export async function atomicTransitionSystem(db, { operation_id, tenant_id, new_
     const result = await db.query(
       `UPDATE async_operations
        SET status = $3,
-           error_summary = $4,
+           error_summary = $4::jsonb,
            cancellation_reason = $5,
            cancelled_by = $6,
-           updated_at = $7
+           result = $7::jsonb,
+           completed_at = $8,
+           updated_at = $9
        WHERE operation_id = $1 AND tenant_id = $2
        RETURNING *`,
       [
         operation_id,
         tenant_id,
         updatedOperation.status,
-        updatedOperation.error_summary,
+        serializeJsonb(updatedOperation.error_summary),
         updatedOperation.cancellation_reason ?? existing.cancellation_reason ?? null,
         updatedOperation.cancelled_by ?? existing.cancelled_by ?? null,
+        serializeJsonb(updatedOperation.result),
+        updatedOperation.completed_at,
         updatedOperation.updated_at
       ]
     );

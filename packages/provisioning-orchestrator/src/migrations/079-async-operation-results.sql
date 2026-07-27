@@ -1,0 +1,3 @@
+ALTER TABLE async_operations
+  ADD COLUMN IF NOT EXISTS result JSONB,
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;

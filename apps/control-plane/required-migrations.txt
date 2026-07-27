@@ -1,6 +1,6 @@
 # Additional DB migrations required by the wireable control-plane routes
 # (route-map.runtime.json), beyond those ALREADY APPLIED to in_falcone:
-#   073, 074, 075, 076, 078       (async operations / logs / retry semantics)
+#   073, 074, 075, 076, 078, 079  (async operations / logs / retry semantics / results)
 #   097, 098, 100, 103, 104, 105  (plans / quota dimensions / change-history /
 #   quota overrides / boolean capabilities / workspace sub-quotas)
 #   workspace-docs-service 087     (workspace documentation notes/access log)
@@ -30,6 +30,10 @@ packages/provisioning-orchestrator/src/migrations/076-timeout-cancel-recovery.sq
 packages/provisioning-orchestrator/src/migrations/078-retry-semantics-intervention.sql
 # retry semantics, failure classification, and manual intervention tables/columns.
 # Depends on 073 and coheres with the async retry/intervention actions.
+
+packages/provisioning-orchestrator/src/migrations/079-async-operation-results.sql
+# async_operations result/completed_at lifecycle columns read by async-operation-query
+# queryType=result. Depends on 073 and must run before 080 in the canonical chain.
 
 packages/provisioning-orchestrator/src/migrations/080-pg-capture-config.sql
 # pg_capture_configs (+ pg_capture_quotas, pg_capture_audit_log) — read by realtime/pg-capture-list

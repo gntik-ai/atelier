@@ -8,6 +8,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -82,14 +83,15 @@ test('fix-736-01: boot applies the async operation migration chain before later 
   const idx = (frag) => GOVERNANCE_MIGRATIONS.findIndex((path) => path.includes(frag));
 
   assert.deepEqual(applied, GOVERNANCE_MIGRATIONS);
-  for (const migration of ['073-', '074-', '075-', '076-', '078-']) {
+  for (const migration of ['073-', '074-', '075-', '076-', '078-', '079-']) {
     assert.ok(idx(migration) > -1, `${migration} must be part of the boot migration set`);
   }
   assert.ok(idx('073-') < idx('074-'), '073 async_operations before 074 logs FK');
   assert.ok(idx('074-') < idx('075-'), '074 before 075 in numeric order');
   assert.ok(idx('075-') < idx('076-'), '075 before 076 in numeric order');
   assert.ok(idx('076-') < idx('078-'), '076 before 078 in numeric order');
-  assert.ok(idx('078-') < idx('080-'), 'async operation chain before later provisioning migrations');
+  assert.ok(idx('078-') < idx('079-'), '078 intervention schema before 079 result columns');
+  assert.ok(idx('079-') < idx('080-'), 'async operation chain before later provisioning migrations');
 });
 
 test('fix-736-02: boot-created schema includes the tables queried by async-operation-query', async () => {
@@ -98,6 +100,8 @@ test('fix-736-02: boot-created schema includes the tables queried by async-opera
     assert.ok(tables.has(table), `boot must create ${table}`);
     assert.match(all, new RegExp(`CREATE TABLE IF NOT EXISTS\\s+${table}\\b`), `real migration SQL creates ${table}`);
   }
+  assert.match(all, /ADD COLUMN IF NOT EXISTS result JSONB/i);
+  assert.match(all, /ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ/i);
 });
 
 test('fix-736-03: async-operation-query list returns 200 against the boot-created schema', async () => {
@@ -126,4 +130,20 @@ test('fix-736-03: async-operation-query list returns 200 against the boot-create
     total: 0,
     pagination: { limit: 20, offset: 0 },
   });
+});
+
+test('C-11 canonical manifest and local bootstrap place 079 after 078 and before 080', async () => {
+  const requiredMigrations = await readFile(
+    resolve(REPO_ROOT, 'apps/control-plane/required-migrations.txt'),
+    'utf8'
+  );
+  const envBootstrap = await readFile(resolve(REPO_ROOT, 'tests/env/up.sh'), 'utf8');
+
+  const required079 = requiredMigrations.indexOf('079-async-operation-results.sql');
+  assert.ok(required079 > requiredMigrations.indexOf('078-retry-semantics-intervention.sql'));
+  assert.ok(required079 < requiredMigrations.indexOf('080-pg-capture-config.sql'));
+
+  const env079 = envBootstrap.indexOf('079-async-operation-results');
+  assert.ok(env079 > envBootstrap.indexOf('078-retry-semantics-intervention'));
+  assert.match(envBootstrap, /078-retry-semantics-intervention 079-async-operation-results/);
 });

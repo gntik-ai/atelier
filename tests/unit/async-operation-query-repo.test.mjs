@@ -173,3 +173,96 @@ test('U09/U10/U11 getOperationResult derives result projections for completed, f
     completedAt: null
   });
 });
+
+test('C-11 result projection type-guards legacy JSON and ignores stale nonterminal timestamps', async () => {
+  const staleTimestamp = '2026-03-30T12:20:00.000Z';
+  const cases = [
+    {
+      row: {
+        operation_id: 'op_completed',
+        status: 'completed',
+        result: { summary: { nested: 'unsafe schema value' }, message: ['also invalid'] },
+        error_summary: { message: 'stale failure', retryable: true },
+        updated_at: staleTimestamp,
+        completed_at: null
+      },
+      expected: {
+        resultType: 'success',
+        summary: null,
+        failureReason: null,
+        retryable: null,
+        completedAt: staleTimestamp
+      }
+    },
+    {
+      row: {
+        operation_id: 'op_failed',
+        status: 'failed',
+        result: null,
+        error_summary: { message: { nested: 'unsafe schema value' }, retryable: false },
+        updated_at: staleTimestamp,
+        completed_at: null
+      },
+      expected: {
+        resultType: 'failure',
+        summary: null,
+        failureReason: null,
+        retryable: false,
+        completedAt: staleTimestamp
+      }
+    },
+    ...['pending', 'running', 'cancelling'].map((status) => ({
+      row: {
+        operation_id: `op_${status}`,
+        status,
+        result: null,
+        error_summary: { message: 'stale failure', retryable: true },
+        updated_at: '2026-03-30T12:19:00.000Z',
+        completed_at: staleTimestamp
+      },
+      expected: {
+        resultType: 'pending',
+        summary: null,
+        failureReason: null,
+        retryable: null,
+        completedAt: null
+      }
+    })),
+    ...['timed_out', 'cancelled'].map((status) => ({
+      row: {
+        operation_id: `op_${status}`,
+        status,
+        result: null,
+        error_summary: null,
+        updated_at: staleTimestamp,
+        completed_at: null
+      },
+      expected: {
+        resultType: 'pending',
+        summary: null,
+        failureReason: null,
+        retryable: null,
+        completedAt: staleTimestamp
+      }
+    }))
+  ];
+
+  for (const { row, expected } of cases) {
+    const db = createMockDb([{ rows: [row] }]);
+    const projection = await getOperationResult(db, {
+      operation_id: row.operation_id,
+      tenant_id: 'tenant-a'
+    });
+    assert.deepEqual(
+      {
+        resultType: projection.resultType,
+        summary: projection.summary,
+        failureReason: projection.failureReason,
+        retryable: projection.retryable,
+        completedAt: projection.completedAt
+      },
+      expected,
+      row.status
+    );
+  }
+});

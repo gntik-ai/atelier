@@ -136,4 +136,14 @@ test('C07/C08/C09/C10 result payload validates success, failure and pending vari
     operationId: '00000000-0000-4000-8000-000000000006',
     status: 'running'
   });
+  expectInvalid({
+    queryType: 'result',
+    operationId: '00000000-0000-4000-8000-000000000007',
+    status: 'completed',
+    resultType: 'success',
+    summary: { nested: 'must not escape the internal string-or-null contract' },
+    failureReason: null,
+    retryable: null,
+    completedAt: '2026-03-30T10:00:00.000Z'
+  });
 });

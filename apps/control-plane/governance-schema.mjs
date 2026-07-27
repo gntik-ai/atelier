@@ -10,9 +10,9 @@
 // This module applies the route-serving provisioning-orchestrator migration set at
 // boot so the actions resolve.
 //
-// Ordering is dependency-safe (and numeric): 073/074/075/076/078 (async operations
-// base tables, logs, retry/idempotency, timeout/cancel/recovery, intervention schema;
-// 074+ depend on 073)
+// Ordering is dependency-safe (and numeric): 073/074/075/076/078/079 (async operations
+// base tables, logs, retry/idempotency, timeout/cancel/recovery, intervention schema,
+// and result lifecycle columns; 074+ depend on 073)
 // → 080 (pg_capture_configs + pg_capture_quotas + pg_capture_audit_log — read by
 // realtime/pg-capture-list; standalone, intra-file FKs only) → 093 (scope_enforcement_denials, standalone)
 // → 097 (defines set_updated_at_timestamp() + plans, the prerequisites for the rest)
@@ -34,6 +34,7 @@ export const GOVERNANCE_MIGRATIONS = [
   'packages/provisioning-orchestrator/src/migrations/075-idempotency-retry-tables.sql',
   'packages/provisioning-orchestrator/src/migrations/076-timeout-cancel-recovery.sql',
   'packages/provisioning-orchestrator/src/migrations/078-retry-semantics-intervention.sql',
+  'packages/provisioning-orchestrator/src/migrations/079-async-operation-results.sql',
   'packages/provisioning-orchestrator/src/migrations/080-pg-capture-config.sql',
   'packages/provisioning-orchestrator/src/migrations/093-scope-enforcement.sql',
   'packages/provisioning-orchestrator/src/migrations/097-plan-entity-tenant-assignment.sql',

@@ -25,6 +25,7 @@ import * as tenantStore from './tenant-store.mjs';
 import { createSaRevocationCheck } from './sa-revocation.mjs';
 import { ensureSagaSchema, recoverSagas } from './saga.mjs';
 import { runWithRetry, migrationRetryConfig } from './schema-retry.mjs';
+import { createSchemaReadiness } from './schema-readiness.mjs';
 import { applyGovernanceSchema } from './governance-schema.mjs';
 import { applyWebhookSchema } from './webhook-schema.mjs';
 import { tenantIdentitiesEnabled } from './storage-handlers.mjs';
@@ -33,6 +34,7 @@ import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from 
 import { recordRouteAudit, recordRouteDenial } from './audit-writer.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
+import { buildActionParams } from './action-params.mjs';
 
 const { Pool } = pg;
 
@@ -50,6 +52,7 @@ const ROUTE_MAP_FILE = process.env.ROUTE_MAP_FILE || null; // optional JSON merg
 const pool = DB_URL
   ? new Pool(withPostgresSsl({ connectionString: DB_URL, max: 12 }))
   : new Pool(withPostgresSsl({ max: 12 }));
+const schemaReadiness = createSchemaReadiness();
 // Multi-realm JWT verifier (parity with apps/control-plane-executor/src/runtime/jwt-verify.mjs, #622): trusts
 // tokens from the platform realm AND from any per-tenant realm under the same Keycloak base (derived
 // from JWKS_URL/ISSUER), fetching each realm's JWKS on demand. For a tenant-realm token the tenant id
@@ -297,7 +300,13 @@ const server = http.createServer(async (req, res) => {
     metric.route = normalizeRoute(path);
 
     if (method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
-    if (path === '/healthz' || path === '/readyz') {
+    if (path === '/readyz') {
+      const notReady = schemaReadiness.responseForReadyProbe();
+      if (notReady) return sendJson(res, notReady.statusCode, notReady.body);
+      try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }); }
+      catch (e) { console.error('[control-plane] readyz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
+    }
+    if (path === '/healthz') {
       try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }); }
       catch (e) { console.error('[control-plane] healthz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
     }
@@ -305,6 +314,10 @@ const server = http.createServer(async (req, res) => {
 
     const matched = matchRoute(method, path);
     if (!matched) return sendJson(res, 404, { code: 'NO_ROUTE', message: `No action mapped for ${method} ${path}` });
+    const schemaUnavailable = schemaReadiness.responseForMappedRoute();
+    if (schemaUnavailable) {
+      return sendJson(res, schemaUnavailable.statusCode, schemaUnavailable.body);
+    }
     const route = matched.route;
 
     const headers = lowercaseHeaders(req.headers);
@@ -382,14 +395,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (identity) Object.assign(owHeaders, identity.trustedHeaders);
 
-    const params = {
-      __ow_headers: owHeaders, __ow_path: path, __ow_method: method,
-      method, path, query, body,
-      ...(route.defaults ?? {}),
-      ...(route.mergeQueryIntoParams ? query : {}),
-      ...(route.mergeBodyIntoParams && body && typeof body === 'object' ? body : {}),
-      ...matched.params
-    };
+    const params = buildActionParams({
+      route,
+      method,
+      path,
+      query,
+      body,
+      matchedParams: matched.params,
+      owHeaders
+    });
     const callerContext = identity ? callerContextFrom(identity, correlationId) : null;
 
     const handler = await loadHandler(route);
@@ -445,6 +459,7 @@ runWithRetry(async (attempt) => {
   // tenant-scoped storage. Idempotent; RLS (003) deferred — see webhook-schema.mjs.
   await applyWebhookSchema(pool);
   const n = await recoverSagas(pool);
+  schemaReadiness.markReady();
   console.log(`[control-plane] schema ready; recovered ${n} orphaned saga(s) (attempt ${attempt})`);
   return n;
 }, migrationRetryConfig()).catch((e) => {

@@ -49,7 +49,7 @@ export async function main(params = {}, overrides = {}) {
   await dependencies.db.query('BEGIN');
   try {
     await dependencies.createRetryAttempt(dependencies.db, retryAttempt);
-    await dependencies.db.query(`UPDATE async_operations SET status = 'pending', attempt_count = attempt_count + 1, manual_intervention_required = FALSE, correlation_id = $3, updated_at = NOW() WHERE operation_id = $1 AND tenant_id = $2`, [operation.operation_id, operation.tenant_id, retryAttempt.correlation_id]);
+    await dependencies.db.query(`UPDATE async_operations SET status = 'pending', attempt_count = attempt_count + 1, manual_intervention_required = FALSE, correlation_id = $3, result = NULL, completed_at = NULL, updated_at = NOW() WHERE operation_id = $1 AND tenant_id = $2`, [operation.operation_id, operation.tenant_id, retryAttempt.correlation_id]);
     await dependencies.resolveFlag(dependencies.db, flag.flag_id, callerContext.actor.id, 'override');
     await dependencies.db.query('COMMIT');
   } catch (error) { await dependencies.db.query('ROLLBACK'); throw error; }

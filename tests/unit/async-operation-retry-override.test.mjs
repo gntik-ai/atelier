@@ -28,3 +28,28 @@ test('resolved flag returns error', async () => {
   const result = await main({ operation_id: 'op', tenant_id: 't', justification: 'long enough justification', callerContext: { actor: { id: 'sa', type: 'superadmin' } } }, { ...baseOverrides, findFlagByOperationId: async () => ({ flag_id: 'flag', status: 'resolved' }) });
   assert.equal(result.statusCode, 409);
 });
+
+test('supervised retry override clears terminal result and completion fields', async () => {
+  const statements = [];
+  const db = {
+    async query(sql) {
+      statements.push(sql.replace(/\s+/g, ' ').trim());
+      return { rows: [] };
+    }
+  };
+
+  const result = await main(
+    {
+      operation_id: 'op',
+      tenant_id: 't',
+      justification: 'long enough justification',
+      callerContext: { actor: { id: 'sa', type: 'superadmin' } }
+    },
+    { ...baseOverrides, db }
+  );
+
+  assert.equal(result.statusCode, 200);
+  const update = statements.find((sql) => sql.startsWith('UPDATE async_operations SET'));
+  assert.match(update, /result = NULL/);
+  assert.match(update, /completed_at = NULL/);
+});
