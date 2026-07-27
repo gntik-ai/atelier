@@ -14,6 +14,7 @@ const IMMUTABLE = 'public, max-age=31536000, immutable';
 const FAVICON_MAX_BYTES = 10 * 1024;
 const REFERRER_POLICY = 'strict-origin-when-cross-origin';
 const PERMISSIONS_POLICY = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()';
+const BAD_REQUEST_BODY = 'Bad Request';
 
 const staticServers = [
   {
@@ -37,6 +38,7 @@ async function createDistRoot(t) {
     '/assets/theme.9a8b7c6d.css': `.console-shell { color: #111827; background: #f8fafc; }\n${'.grid-row { display: grid; gap: 8px; }\n'.repeat(2048)}`,
     '/assets/config.aabbccdd.json': JSON.stringify({ feature: 'static-delivery', values: Array(1024).fill('cache-compress') }),
     '/assets/logo.0f1e2d3c.svg': `<svg xmlns="http://www.w3.org/2000/svg">${'<path d="M0 0h10v10H0z"/>'.repeat(1024)}</svg>`,
+    '/assets/encoded path.13579bdf.js': `const encodedPath = ${JSON.stringify('valid-percent-path;'.repeat(2048))};\n`,
     '/assets/icon.01020304.png': Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00])
   };
 
@@ -70,34 +72,36 @@ function startStaticServer(t, script, root, extraEnv = {}) {
 
   return new Promise((resolveReady, rejectReady) => {
     let settled = false;
-    let stdout = '';
-    let stderr = '';
-    const timer = setTimeout(() => finish(new Error(`Timed out waiting for ${script} to listen. stderr: ${stderr}`)), 5000);
+    const output = { stdout: '', stderr: '' };
+    const timer = setTimeout(
+      () => finish(new Error(`Timed out waiting for ${script} to listen. stderr: ${output.stderr}`)),
+      5000
+    );
 
     function finish(error, port) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       if (error) rejectReady(error);
-      else resolveReady({ child, port });
+      else resolveReady({ child, port, output });
     }
 
     child.stdout.on('data', (chunk) => {
-      stdout += String(chunk);
-      const match = stdout.match(/web-console static server on :(\d+)/);
+      output.stdout += String(chunk);
+      const match = output.stdout.match(/web-console static server on :(\d+)/);
       if (match) finish(null, Number(match[1]));
     });
     child.stderr.on('data', (chunk) => {
-      stderr += String(chunk);
+      output.stderr += String(chunk);
     });
     child.on('exit', (code, signal) => {
-      finish(new Error(`${script} exited before listening: code=${code} signal=${signal} stderr=${stderr}`));
+      finish(new Error(`${script} exited before listening: code=${code} signal=${signal} stderr=${output.stderr}`));
     });
     child.on('error', finish);
   });
 }
 
-function request(port, path, { method = 'GET', headers = {}, body } = {}) {
+function request(port, path, { method = 'GET', headers = {}, body, timeoutMs = 3000 } = {}) {
   return new Promise((resolveResponse, rejectResponse) => {
     const req = http.request(
       {
@@ -117,10 +121,13 @@ function request(port, path, { method = 'GET', headers = {}, body } = {}) {
             body: Buffer.concat(chunks)
           });
         });
+        res.on('aborted', () => rejectResponse(new Error(`Response aborted for ${method} ${path}`)));
+        res.on('error', rejectResponse);
       }
     );
     req.on('error', rejectResponse);
-    if (body) req.write(body);
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`Timed out requesting ${method} ${path}`)));
+    if (body !== undefined) req.write(body);
     req.end();
   });
 }
@@ -308,34 +315,166 @@ for (const server of staticServers) {
   });
 }
 
-test('deploy kind static server keeps the same-origin /v1 proxy ahead of the SPA fallback', async (t) => {
+test('shared static server contains malformed paths and preserves same-process static and proxy behavior', { timeout: 15000 }, async (t) => {
+  const upstreamRequests = [];
   const upstream = http.createServer((req, res) => {
-    res.writeHead(209, {
-      'content-type': 'application/json',
-      'x-upstream-path': req.url
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => {
+      const requestBody = Buffer.concat(chunks).toString('utf8');
+      upstreamRequests.push({
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        body: requestBody
+      });
+      const responseBody = JSON.stringify({
+        proxied: true,
+        method: req.method,
+        target: req.url,
+        requestBody
+      });
+      res.writeHead(207, {
+        'content-type': 'application/json',
+        'content-language': 'en',
+        'x-upstream-result': 'preserved'
+      });
+      res.end(responseBody);
     });
-    res.end(JSON.stringify({ method: req.method, path: req.url, testHeader: req.headers['x-test'] }));
   });
   await new Promise((resolveListen) => upstream.listen(0, '127.0.0.1', resolveListen));
   t.after(() => new Promise((resolveClose) => upstream.close(resolveClose)));
 
   const upstreamAddress = upstream.address();
-  const { root } = await createDistRoot(t);
-  const { port } = await startStaticServer(t, 'apps/web-console/static-server.mjs', root, {
+  const { root, files } = await createDistRoot(t);
+  const { child, port, output } = await startStaticServer(t, 'apps/web-console/static-server.mjs', root, {
     GATEWAY_UPSTREAM: `127.0.0.1:${upstreamAddress.port}`
   });
+  const originalPid = child.pid;
 
-  const response = await request(port, '/v1/projects?limit=1', {
-    headers: { 'x-test': 'proxy-preserved' }
+  for (const malformedPath of ['/%ZZ', '/%', '/%C3%28']) {
+    const response = await request(port, malformedPath);
+    assert.equal(response.statusCode, 400, `${malformedPath} is a client error`);
+    assert.equal(response.headers['content-type'], 'text/plain; charset=utf-8');
+    assert.equal(response.headers['content-length'], String(Buffer.byteLength(BAD_REQUEST_BODY)));
+    assert.equal(response.body.toString('utf8'), BAD_REQUEST_BODY);
+    assert.ok(!response.body.toString('utf8').includes(malformedPath), `${malformedPath} is not reflected`);
+    assert.ok(!response.body.toString('utf8').includes(root), `${malformedPath} does not expose the static root`);
+    assert.doesNotMatch(
+      response.body.toString('utf8'),
+      /Falcone|URIError|decodeURIComponent|stack|credential|tenant|workspace/i,
+      `${malformedPath} does not expose static, runtime, credential, or tenant details`
+    );
+  }
+
+  assert.equal(child.pid, originalPid, 'the child PID does not change after sequential malformed requests');
+  assert.equal(child.exitCode, null, 'the child does not exit after sequential malformed requests');
+  assert.doesNotThrow(() => process.kill(originalPid, 0), 'the original child PID remains alive');
+
+  const healthz = await request(port, '/healthz');
+  assert.equal(healthz.statusCode, 200);
+  assert.equal(healthz.body.toString('utf8'), 'ok');
+
+  const rootResponse = await request(port, '/');
+  assert.equal(rootResponse.statusCode, 200);
+  assertSecurityHeaders(rootResponse.headers, 'same-PID root shell');
+  assert.equal(rootResponse.headers['cache-control'], 'no-store');
+  assert.equal(rootResponse.body.toString('utf8'), files['/index.html']);
+
+  const asset = await request(port, '/assets/app.4f3c2a1b.js');
+  assert.equal(asset.statusCode, 200);
+  assertSecurityHeaders(asset.headers, 'same-PID static asset');
+  assert.equal(asset.headers['cache-control'], IMMUTABLE);
+  assert.equal(asset.body.toString('utf8'), files['/assets/app.4f3c2a1b.js']);
+
+  const spaFallback = await request(port, '/console/workspaces/after-malformed');
+  assert.equal(spaFallback.statusCode, 200);
+  assertSecurityHeaders(spaFallback.headers, 'same-PID SPA fallback');
+  assert.equal(spaFallback.headers['cache-control'], 'no-store');
+  assert.equal(spaFallback.body.toString('utf8'), files['/index.html']);
+
+  const encodedAsset = await request(port, '/assets/encoded%20path.13579bdf.js', {
+    headers: { 'accept-encoding': 'gzip' }
+  });
+  assertCompressed(encodedAsset, 'gzip', files['/assets/encoded path.13579bdf.js']);
+
+  const malformedAssetQuery = await request(port, '/assets/app.4f3c2a1b.js?filter=%ZZ&trailing=%');
+  assert.equal(malformedAssetQuery.statusCode, 200);
+  assertSecurityHeaders(malformedAssetQuery.headers, 'asset with malformed query syntax');
+  assert.equal(malformedAssetQuery.headers['cache-control'], IMMUTABLE);
+  assert.equal(malformedAssetQuery.body.toString('utf8'), files['/assets/app.4f3c2a1b.js']);
+
+  const malformedSpaQuery = await request(port, '/console/query-only?filter=%ZZ&trailing=%');
+  assert.equal(malformedSpaQuery.statusCode, 200);
+  assertSecurityHeaders(malformedSpaQuery.headers, 'SPA route with malformed query syntax');
+  assert.equal(malformedSpaQuery.headers['cache-control'], 'no-store');
+  assert.equal(malformedSpaQuery.body.toString('utf8'), files['/index.html']);
+
+  const exactV1 = await request(port, '/v1');
+  assert.equal(exactV1.statusCode, 207, 'exact /v1 remains in the proxy branch');
+
+  const proxyBody = JSON.stringify({ operation: 'malformed-path-boundary' });
+  const rawProxyPath = '/v1/%ZZ?query=%&mode=raw';
+  const proxyResponse = await request(port, rawProxyPath, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'content-length': Buffer.byteLength(proxyBody),
+      'x-correlation-id': 'static-server-boundary',
+      'x-test': 'proxy-preserved'
+    },
+    body: proxyBody
   });
 
-  assert.equal(response.statusCode, 209);
-  assert.equal(response.headers['x-upstream-path'], '/v1/projects?limit=1');
-  assert.deepEqual(JSON.parse(response.body.toString('utf8')), {
-    method: 'GET',
-    path: '/v1/projects?limit=1',
-    testHeader: 'proxy-preserved'
+  assert.equal(proxyResponse.statusCode, 207);
+  assert.equal(proxyResponse.headers['content-type'], 'application/json');
+  assert.equal(proxyResponse.headers['content-language'], 'en');
+  assert.equal(proxyResponse.headers['x-upstream-result'], 'preserved');
+  assert.deepEqual(JSON.parse(proxyResponse.body.toString('utf8')), {
+    proxied: true,
+    method: 'POST',
+    target: rawProxyPath,
+    requestBody: proxyBody
   });
+
+  assert.equal(upstreamRequests.length, 2);
+  assert.equal(upstreamRequests[0].method, 'GET');
+  assert.equal(upstreamRequests[0].url, '/v1');
+  assert.equal(upstreamRequests[1].method, 'POST');
+  assert.equal(upstreamRequests[1].url, rawProxyPath);
+  assert.equal(upstreamRequests[1].headers.host, `127.0.0.1:${upstreamAddress.port}`);
+  assert.equal(upstreamRequests[1].headers['content-type'], 'application/json');
+  assert.equal(upstreamRequests[1].headers['content-length'], String(Buffer.byteLength(proxyBody)));
+  assert.equal(upstreamRequests[1].headers['x-correlation-id'], 'static-server-boundary');
+  assert.equal(upstreamRequests[1].headers['x-test'], 'proxy-preserved');
+  assert.equal(upstreamRequests[1].body, proxyBody);
+
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 25));
+  assert.equal(child.pid, originalPid, 'the proxy and recovery requests use the original child PID');
+  assert.equal(child.exitCode, null, 'the child remains available after all recovery requests');
+  assert.equal(output.stderr, '', 'malformed requests emit no uncaught exception or rejection');
+});
+
+test('shared static server preserves the focused gateway-unreachable response', async (t) => {
+  const portProbe = http.createServer();
+  await new Promise((resolveListen) => portProbe.listen(0, '127.0.0.1', resolveListen));
+  const unavailableAddress = portProbe.address();
+  await new Promise((resolveClose) => portProbe.close(resolveClose));
+
+  const { root } = await createDistRoot(t);
+  const { child, port } = await startStaticServer(t, 'apps/web-console/static-server.mjs', root, {
+    GATEWAY_UPSTREAM: `127.0.0.1:${unavailableAddress.port}`
+  });
+
+  const response = await request(port, '/v1/unreachable');
+  assert.equal(response.statusCode, 502);
+  assert.equal(response.headers['content-type'], 'application/json');
+  assert.equal(JSON.parse(response.body.toString('utf8')).code, 'GATEWAY_UNREACHABLE');
+  assert.equal(child.exitCode, null, 'gateway failure does not terminate the shared server');
+
+  const healthz = await request(port, '/healthz');
+  assert.equal(healthz.statusCode, 200);
+  assert.equal(healthz.body.toString('utf8'), 'ok');
 });
 
 test('legacy nginx static-serving configs declare gzip, cache-control, and security-header parity', async () => {
