@@ -21,6 +21,14 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     // actionTimeout for UI interactions; flows pages may load slowly during first run.
     actionTimeout: 15_000,
+    ...(process.env.E2E_CHROME_BIN || process.env.GOOGLE_CHROME_BIN
+      ? {
+          launchOptions: {
+            executablePath: (process.env.E2E_CHROME_BIN || process.env.GOOGLE_CHROME_BIN)!,
+            args: ['--no-sandbox'],
+          },
+        }
+      : {}),
   },
   projects: [
     {

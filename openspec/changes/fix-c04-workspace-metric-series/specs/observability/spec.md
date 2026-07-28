@@ -336,7 +336,9 @@ The system SHALL publish `api_requests` and `api_errors` as the workspace operat
 `metricKey` enum, retain the five window enum values and closed `MetricSeriesResponse`, and
 document the metric meanings, exact range/step mapping, tenant-plus-workspace selection,
 workspace-label warm-up boundary, empty degradation behavior, and focused local validation
-commands in the existing observability metric time-range reference.
+commands in the existing observability metric time-range reference. The reference SHALL also
+identify the bounded disposable kind regression and SHALL NOT represent its direct
+console-to-control-plane edge as validation of public ingress/APISIX routing.
 
 #### Scenario: API consumer inspects the workspace operation
 
@@ -349,5 +351,5 @@ commands in the existing observability metric time-range reference.
 - **WHEN** a maintainer consults
   `docs/reference/architecture/observability-metrics-time-range.md`
 - **THEN** the reference explains both keys, all exact range/step mappings, workspace isolation,
-  warm-up compatibility, truthful empty degradation, unchanged console presets, and local
-  verification without claiming live validation
+  warm-up compatibility, truthful empty degradation, unchanged console presets, focused local
+  verification, the disposable kind command, and the APISIX routing limitation

@@ -82,8 +82,9 @@ another tenant (P13) is the adversarial isolation control.
 - No console page, interaction, copy, accessibility, or visual redesign; rendered-UI persona P16
   is not an implementation surface for this remediation.
 - No data migration or backfill of legacy samples that lack `workspace_id`.
-- No cluster deployment, Docker/Playwright/live verification, credentials, evidence capture,
-  loop-state change, Helm/chart change, or Kubernetes access.
+- No shared, staging, or production deployment; no Helm/chart product change, persistent
+  credential, raw evidence capture, or loop-state change. A later-authorized disposable kind run
+  is validation-only and changes no product deployment source of truth.
 - No remediation of any audit finding other than C-04.
 
 ## Exit Criteria
@@ -113,7 +114,9 @@ another tenant (P13) is the adversarial isolation control.
 - Focused backend, registry, contract, console-client, isolation, degradation, and documentation
   checks pass.
 - `openspec validate fix-c04-workspace-metric-series --strict` passes.
-- Live and cluster verification are explicitly recorded as not run by request.
+- The focused hermetic suites pass, and the later-authorized disposable kind regression proves the
+  real console/control-plane/Prometheus and cross-tenant paths while retaining APISIX public
+  routing as an explicit unverified chart risk.
 
 ## Risks and Rollback
 
@@ -127,6 +130,10 @@ caller-provided PromQL. Trusted workspace resolution, exact label matchers, Prom
 closed key/window map, sibling-workspace tests, and cross-tenant controls bound that risk. The main
 operational risk is unbounded point count across long windows; fixed steps cap the requested
 resolution.
+
+The disposable chart profile bypasses APISIX because chart 0.3.1 does not mount its standalone
+route table. The successful regression therefore does not establish public ingress/APISIX routing
+health; that independent packaging defect is not part of C-04.
 
 Rollback is a revert of the code, OpenAPI/docs, and focused tests for this change. It requires no
 data or datastore migration. Existing samples with `workspace_id` can remain in Prometheus and are

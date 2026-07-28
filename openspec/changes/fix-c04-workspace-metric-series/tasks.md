@@ -10,7 +10,8 @@
 - [x] 1.2 Keep `storage_bytes` and every business/storage/component metric family out of the
   implementation; do not absorb C-07, other C-01 schemas, or the C-02 global error envelope.
 - [x] 1.3 Do not change roles, permissions, workspace membership, gateway policy, quota behavior,
-  dashboards, charts, datastore schemas, deployment configuration, or any other audit finding.
+  dashboards, product charts, datastore schemas, deployment source of truth, or any other audit
+  finding. A disposable C-04 E2E profile may configure only its isolated validation run.
 
 ## 2. Correct the workspace series handler and provider contract
 
@@ -159,8 +160,9 @@
   `workspace_id`.
 - [x] 8.3 Document schema-valid empty degradation, no fabricated values, unchanged console
   presets, GET/no-domain-audit/no-quota semantics, and focused local validation commands.
-- [x] 8.4 Do not claim live verification or add evidence, loop-state, dashboard, chart, datastore,
-  deployment, or broad observability documentation.
+- [x] 8.4 Keep the reference behavioral and reproducible: record the bounded disposable kind
+  command and APISIX limitation, but do not add raw evidence, loop-state, credentials, kubeconfigs,
+  Playwright results, dashboards, product-chart changes, or broad observability documentation.
 
 ## 9. Validate the bounded implementation
 
@@ -208,9 +210,16 @@
 - [x] 9.7 Run `git diff --check` and review the final diff against
   `origin/codex-integration`. Confirm it contains only the C-04 handler/producer/wire/client tests,
   focused docs, and this OpenSpec change, with no other finding or implementation surface.
-- [x] 9.8 Record live and cluster verification as **NOT RUN BY REQUEST**. Do not deploy, run
-  Playwright, obtain credentials, capture evidence, modify loop-state, start Docker, access
-  Kubernetes, change charts, migrate a datastore, or run external-provider probes.
+- [x] 9.8 After later explicit authorization, run exactly:
+
+  ```text
+  bash tests/e2e/run-issue.sh fix-c04-workspace-metric-series
+  ```
+
+  on a dedicated local kind context. Require readiness in the primary and auxiliary namespaces,
+  pass all four real-stack scenarios, delete both namespaces, and keep the kind cluster intact.
+  Do not touch shared/staging clusters or commit credentials, kubeconfigs, raw evidence, or
+  Playwright results.
 
 ## 10. Rollout and rollback review
 
@@ -239,6 +248,11 @@ Implemented paths:
 - `tests/unit/metrics-registry.test.mjs`
 - `tests/unit/metrics-runtime-workspace-propagation.test.mjs`
 - `tests/contracts/workspace-metric-series.contract.test.mjs`
+- `tests/e2e/playwright.config.ts`
+- `tests/e2e/run-issue.sh`
+- `tests/e2e/stack.sh`
+- `tests/e2e/specs/issues/fix-c04-workspace-metric-series.spec.ts`
+- `tests/e2e/values-c04-workspace-metric-series.yaml`
 - `docs/reference/architecture/observability-metrics-time-range.md`
 
 Focused handler, authorization, registry, runtime propagation, contract, and console tests passed.
@@ -249,5 +263,11 @@ package-local dependencies such as `cel-js` and `jose`; 460 tests passed. That a
 an executor identity-shape regression introduced by the first C-04 draft. The regression was
 removed, and the affected identity/MCP tests plus the complete C-04 regression set passed
 afterward. The broader console typecheck also remains blocked by pre-existing errors outside the
-C-04 files. Live, browser, Docker, deployment, credential, external-provider, and cluster
-verification: **NOT RUN BY REQUEST**.
+C-04 files.
+
+After later explicit authorization, the exact issue runner deployed chart 0.3.1 and the
+remediation images to dedicated local kind context `kind-falcone-c04`. Readiness passed in both
+ephemeral namespaces; all four real API/Prometheus/isolation/browser scenarios passed; teardown
+deleted both namespaces; and the kind node remained Ready. The C-04 overlay bypasses the chart's
+broken APISIX standalone route mount, so public ingress/APISIX routing was not validated. No
+shared cluster, raw evidence, credentials, kubeconfig, or Playwright result is part of the change.

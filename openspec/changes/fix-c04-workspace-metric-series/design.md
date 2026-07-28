@@ -38,7 +38,8 @@ reference. It does not require a new route or console redesign.
 - Changing Prometheus deployment, retention, recording rules, scraping, dashboards, alerts, Helm,
   or cluster configuration.
 - Adding raw metric/label/PromQL input, custom dates, or a general metrics query API.
-- Changing the console UI or running live, Docker, Playwright, or cluster verification.
+- Changing the console UI or deploying to a shared, staging, or production cluster. A
+  later-authorized disposable kind regression is validation-only.
 
 ## Decision 1: Use a closed metric-key map over the existing HTTP counter
 
@@ -244,8 +245,17 @@ promote a workspace label. Executor propagation tests retain the same positive a
 controls at its existing ownership boundary and prove public probes remain workspace-unscoped for
 gateway headers, credentials, and legacy header-trust mode.
 
-The test harness uses injected/local fakes and no external network, Prometheus, fixed port, Docker,
-credential, or cluster.
+The focused test harness uses injected/local fakes and no external network, Prometheus, fixed port,
+Docker, credential, or cluster.
+
+A separate later-authorized real-stack regression uses a dedicated local kind kubeconfig and
+ephemeral namespaces. It exercises invalid-input short-circuiting, sibling-workspace selector and
+sample isolation, foreign-tenant denial without provider access, every accepted window, and the
+real console's authoritative empty-series behavior. Its issue profile waits for both the
+application and auxiliary ESO/OpenBao namespaces and tears both down. Chart 0.3.1's APISIX
+standalone route table is not mounted, so the profile points the console edge directly at the
+control-plane: this proves `console → control-plane → Prometheus`, not public ingress/APISIX
+routing.
 
 ## Documentation
 
@@ -258,8 +268,9 @@ Update `docs/reference/architecture/observability-metrics-time-range.md` with:
 - the unchanged console presets and read-only behavior; and
 - focused local validation commands.
 
-Do not add audit evidence, loop-state artifacts, deployment instructions, or broad observability
-documentation.
+Do not add audit evidence, loop-state artifacts, shared/staging deployment instructions, product
+chart changes, or broad observability documentation. The disposable kind command remains a
+bounded regression procedure.
 
 ## Rollout and Compatibility
 
@@ -295,5 +306,5 @@ There is no down migration and no historical data rewrite.
 
 ## Open Questions
 
-None. Storage/business series, role reconciliation, global error envelopes, live verification,
-and deployment changes remain explicitly assigned to other findings or later authorized work.
+None. Storage/business series, role reconciliation, global error envelopes, APISIX chart
+packaging, and deployment changes remain explicitly assigned to other findings or later work.

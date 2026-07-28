@@ -9,7 +9,9 @@ policy.
 Status: the bounded workspace contract described here supports request and server-error rates.
 Storage, business, component, custom date-range, and raw PromQL series are not supported by this
 operation. Local validation was defined on 2026-07-28 from the canonical OpenAPI and the OpenSpec
-change `fix-c04-workspace-metric-series`; live and cluster verification were not run by request.
+change `fix-c04-workspace-metric-series`. A later-authorized disposable kind regression also
+validated the real console, control-plane, Prometheus, identity, and workspace-isolation path; its
+public APISIX routing limitation is recorded below.
 
 ## Scope and permissions
 
@@ -146,3 +148,28 @@ openspec validate fix-c04-workspace-metric-series --strict
 
 These checks are hermetic and do not require Prometheus, Docker, credentials, a browser,
 Kubernetes, or an external provider.
+
+## Disposable kind regression
+
+The real-stack regression lives in
+`tests/e2e/specs/issues/fix-c04-workspace-metric-series.spec.ts`, with its non-secret deployment
+profile in `tests/e2e/values-c04-workspace-metric-series.yaml`. After preparing a dedicated local
+kind kubeconfig, chart 0.3.1, the three remediation images named by the profile, and ephemeral
+console credentials, run:
+
+```bash
+bash tests/e2e/run-issue.sh fix-c04-workspace-metric-series
+```
+
+The issue runner selects the C-04 values and ephemeral namespaces. It verifies invalid inputs stop
+before Prometheus, sibling workspaces produce isolated labeled samples and distinct series, a
+foreign-tenant caller remains denied without provider access, and the real console accepts an
+authoritative empty series. It waits for workloads in both the application and auxiliary
+ESO/OpenBao namespaces and deletes both namespaces on exit; Playwright reports, kubeconfigs,
+credentials, and raw run evidence are not tracked.
+
+Chart 0.3.1 starts APISIX in standalone mode without mounting its generated standalone route
+table. The C-04 profile therefore points the console's same-origin edge directly at the tested
+control-plane service. This regression proves `console → control-plane → Prometheus`; it does not
+prove `public ingress → APISIX → control-plane`, and the independent chart packaging defect must
+be validated separately.

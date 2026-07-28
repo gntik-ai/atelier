@@ -1,0 +1,225 @@
+# Ephemeral kind deployment for the C-04 workspace metric-series regression.
+#
+# This overlay intentionally keeps the all-core chart topology while reducing
+# stateless replicas and selecting images built from the remediation commit.
+# `tests/e2e/run-issue.sh` creates and deletes `falcone-e2e-c04`; the kind cluster
+# itself remains available for later issue runs.
+#
+# Before invoking the issue runner, point E2E_KUBECONFIG at a dedicated local
+# kind kubeconfig, E2E_HELM_CHART at the packaged all-core chart 0.3.1, load the
+# three c04-10cc121b images named below into that cluster, and provide the
+# ephemeral E2E_CONSOLE_PASSWORD. The runner selects this overlay and its main
+# and auxiliary namespaces automatically; none of those prerequisites are
+# credentials or cluster artifacts tracked in the repository.
+
+global:
+  namespace: falcone-e2e-c04
+  environment: e2e
+  createNamespace: false
+  imagePullSecrets: []
+
+platform:
+  network:
+    exposureKind: Ingress
+  routeAnnotations:
+    kubernetes.io/ingress.class: null
+
+environmentProfile:
+  id: dev
+  diagnostics:
+    logLevel: debug
+    debugEndpoints: true
+    passthroughHeaders: true
+  demoData:
+    enabled: false
+  limitsProfile: relaxed
+
+# Chart 0.3.1 groups these RealmRepresentation fields under `login`, which
+# Keycloak 26 rejects on realm creation. Flatten them in the disposable E2E
+# overlay so the supported bootstrap flow can create the test superadmin.
+bootstrap:
+  oneShot:
+    keycloak:
+      realm:
+        login: null
+        loginWithEmailAllowed: true
+        registrationAllowed: true
+        rememberMe: true
+        resetPasswordAllowed: true
+        verifyEmail: true
+
+# The local kind cluster has no cert-manager. OpenBao and ESO stay enabled as
+# core services, using the chart's self-signed TLS path. Keep them in a separate
+# ephemeral dependency namespace: ESO's namespace-wide egress policy must not
+# select the application pods. `stack.sh down` deletes this auxiliary namespace.
+eso:
+  external-secrets:
+    namespaceOverride: falcone-e2e-c04-secrets
+  eso:
+    namespace: falcone-e2e-c04-secrets
+    caProvider:
+      namespace: falcone-e2e-c04-secrets
+
+openbao:
+  eso:
+    namespace: falcone-e2e-c04-secrets
+  openbao:
+    namespace: falcone-e2e-c04-secrets
+    tls:
+      mode: self-signed
+
+apisix:
+  securityContext:
+    runAsUser: 636
+
+controlPlane:
+  replicas: 1
+  image:
+    repository: localhost:30500/in-falcone-control-plane
+    tag: c04-10cc121b
+    digest: ""
+    pullPolicy: IfNotPresent
+  securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+
+controlPlaneExecutor:
+  replicas: 1
+  image:
+    repository: localhost:30500/in-falcone-control-plane-executor
+    tag: c04-10cc121b
+    digest: ""
+    pullPolicy: IfNotPresent
+  securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
+
+webConsole:
+  replicas: 1
+  # Chart 0.3.1 starts APISIX with APISIX_STAND_ALONE=true but does not mount
+  # its generated standalone route table, so the otherwise healthy gateway
+  # returns 404 for every /v1/* request. Keep this C-04 verification scoped to
+  # the UI -> API -> control-plane -> Prometheus path by pointing the console's
+  # same-origin edge at the tested control-plane image. The APISIX packaging
+  # defect is independent of C-04 and remains a reported residual risk.
+  env:
+    - name: NODE_ENV
+      value: production
+    - name: PUBLIC_BASE_PATH
+      value: /
+    - name: GATEWAY_UPSTREAM
+      value: falcone-control-plane:8080
+  image:
+    repository: localhost:30500/in-falcone-web-console
+    tag: c04-10cc121b
+    digest: ""
+    pullPolicy: IfNotPresent
+  securityContext:
+    runAsUser: 1000
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+workflowWorker:
+  replicas: 1
+  securityContext:
+    runAsUser: 1000
+
+ferretdb:
+  podSecurityContext:
+    runAsUser: 999
+
+observability:
+  securityContext:
+    runAsUser: 65534
+
+postgresql:
+  image:
+    repository: docker.io/bitnamilegacy/postgresql
+    tag: 17.2.0
+    pullPolicy: IfNotPresent
+
+kafka:
+  replicas: 1
+  image:
+    repository: docker.io/bitnamilegacy/kafka
+    tag: 3.9.0
+    pullPolicy: IfNotPresent
+
+keycloak:
+  replicas: 1
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: 26.1.0
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 768Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+temporal:
+  persistence:
+    host: falcone-postgresql
+    port: 5432
+    user: falcone
+    database: temporal
+    visibilityDatabase: temporal_visibility
+    numHistoryShards: 4
+  bootstrap:
+    namespace: falcone-flows
+    retentionDays: 1
+  worker:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+  history:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+publicSurface:
+  tls:
+    mode: external
+  ingress:
+    className: e2e-placeholder
+  hostnames:
+    api: localhost
+    console: localhost
+    identity: localhost
+    realtime: localhost
+
+gatewayPolicy:
+  # The remediation commit advertises the current public contract value from
+  # deploy/gateway-config/base/public-api-routing.yaml and the console sends it
+  # on every same-origin API request. Chart 0.3.1 predates that contract bump,
+  # so align the disposable route-validation policy with the tested source.
+  version: 2026-03-26
+  passthrough:
+    mode: enabled
+  oidc:
+    issuerUrl: http://falcone-keycloak:8080/realms/in-falcone-platform
+    discoveryUrl: http://falcone-keycloak:8080/realms/in-falcone-platform/.well-known/openid-configuration
