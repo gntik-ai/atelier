@@ -7519,6 +7519,10 @@
             "in": "query",
             "required": true,
             "schema": {
+              "enum": [
+                "api_requests",
+                "api_errors"
+              ],
               "type": "string",
               "minLength": 3,
               "maxLength": 120
@@ -65310,6 +65314,10 @@
             "pattern": "^wrk_[0-9a-z]+$"
           },
           "metricKey": {
+            "enum": [
+              "api_requests",
+              "api_errors"
+            ],
             "type": "string",
             "minLength": 3,
             "maxLength": 120

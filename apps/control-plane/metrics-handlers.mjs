@@ -7,12 +7,13 @@
 // We synthesize the shapes those pages expect from REAL data where it exists:
 //   - limits  -> tenant-effective-entitlements / workspace-consumption (real)
 //   - usage   -> the currentUsage carried by those same actions
-//   - series  -> empty (no per-tenant time-series; the metrics data plane isn't deployed)
+//   - series  -> real workspace request/error rates; legacy tenant series remains tenant-scoped
 //   - audit   -> empty (no audit-record store/reader in this deploy)
 // Honest: limits are real; usage/series/audit reflect what's actually available.
 import { randomUUID } from 'node:crypto';
 import * as store from './tenant-store.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
+import { applyCanonicalWorkspaceMetric } from './request-metric-scope.mjs';
 import { queryAuditEvents, auditRowToRecord } from './audit-store.mjs';
 
 const ok = (statusCode, body) => ({ statusCode, body });
@@ -118,7 +119,7 @@ async function usage(ctx) {
 // expose) over the last hour. Falls back to empty points (never errors) if Prometheus is
 // unreachable, so the page degrades gracefully.
 const PROMETHEUS_URL = process.env.PROMETHEUS_URL ?? 'http://falcone-observability:9090';
-async function series(ctx) {
+async function tenantSeries(ctx) {
   const tenantId = String(ctx.params?.tenantId ?? ctx.identity?.tenantId ?? '').replace(/[^A-Za-z0-9_-]/g, '');
   const metricKey = ctx.query?.metric ?? 'http_requests_per_second';
   const promQL = `sum(rate(falcone_http_requests_total{tenant_id="${tenantId}"}[5m]))`;
@@ -137,6 +138,118 @@ async function series(ctx) {
     return ok(200, { metricKey, points, source: 'prometheus' });
   } catch {
     return ok(200, { metricKey, points: [], source: 'prometheus_unreachable' });
+  }
+}
+
+const WORKSPACE_SERIES_METRICS = Object.freeze({
+  api_requests: ({ tenantId, workspaceId }) =>
+    `sum(rate(falcone_http_requests_total{tenant_id="${tenantId}",workspace_id="${workspaceId}"}[5m]))`,
+  api_errors: ({ tenantId, workspaceId }) =>
+    `sum(rate(falcone_http_requests_total{tenant_id="${tenantId}",workspace_id="${workspaceId}",status=~"5.."}[5m]))`
+});
+const WORKSPACE_SERIES_WINDOWS = Object.freeze({
+  '5m': { rangeSeconds: 300, stepSeconds: 5 },
+  '1h': { rangeSeconds: 3600, stepSeconds: 15 },
+  '24h': { rangeSeconds: 86400, stepSeconds: 300 },
+  '7d': { rangeSeconds: 604800, stepSeconds: 1800 },
+  '30d': { rangeSeconds: 2592000, stepSeconds: 7200 }
+});
+
+function queryValues(ctx, name) {
+  if (ctx.searchParams instanceof URLSearchParams) return ctx.searchParams.getAll(name);
+  const value = ctx.query?.[name];
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function exactWorkspaceSeriesInput(ctx, name, allowlist) {
+  const values = queryValues(ctx, name);
+  if (values.length !== 1 || typeof values[0] !== 'string' || !allowlist.has(values[0])) {
+    return null;
+  }
+  return values[0];
+}
+
+function escapePrometheusLabel(value) {
+  return String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r\n|\r|\n/g, '\\n');
+}
+
+function emptyWorkspaceSeries({ tenantId, workspaceId, metricKey, window }) {
+  return {
+    tenantId,
+    workspaceId,
+    metricKey,
+    window,
+    unit: 'requests_per_second',
+    points: []
+  };
+}
+
+function finiteProviderNumber(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || !/^-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(value)) {
+    return null;
+  }
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function usablePrometheusPoints(payload) {
+  if (payload?.status !== 'success' || !Array.isArray(payload?.data?.result)) return [];
+  const values = payload.data.result[0]?.values;
+  if (!Array.isArray(values)) return [];
+
+  const points = [];
+  for (const sample of values) {
+    if (!Array.isArray(sample) || sample.length < 2) continue;
+    const timestampSeconds = finiteProviderNumber(sample[0]);
+    const value = finiteProviderNumber(sample[1]);
+    if (timestampSeconds === null || value === null) continue;
+    const date = new Date(timestampSeconds * 1000);
+    if (!Number.isFinite(date.getTime())) continue;
+    points.push({ timestamp: date.toISOString(), value });
+  }
+  return points;
+}
+
+async function workspaceSeries(ctx) {
+  const metricKey = exactWorkspaceSeriesInput(ctx, 'metricKey', new Set(Object.keys(WORKSPACE_SERIES_METRICS)));
+  const window = exactWorkspaceSeriesInput(ctx, 'window', new Set(Object.keys(WORKSPACE_SERIES_WINDOWS)));
+  if (!metricKey || !window) {
+    return err(
+      400,
+      'INVALID_METRIC_SERIES_QUERY',
+      'metricKey and window must each be supplied exactly once using a supported value'
+    );
+  }
+
+  const tenantId = ctx.resolvedScope.tenantId;
+  const workspaceId = ctx.resolvedScope.workspaceId;
+  const escapedScope = {
+    tenantId: escapePrometheusLabel(tenantId),
+    workspaceId: escapePrometheusLabel(workspaceId)
+  };
+  const promQL = WORKSPACE_SERIES_METRICS[metricKey](escapedScope);
+  const { rangeSeconds, stepSeconds } = WORKSPACE_SERIES_WINDOWS[window];
+  const end = Math.floor((ctx.nowMs?.() ?? Date.now()) / 1000);
+  const response = emptyWorkspaceSeries({ tenantId, workspaceId, metricKey, window });
+
+  try {
+    const u = new URL('/api/v1/query_range', PROMETHEUS_URL);
+    u.searchParams.set('query', promQL);
+    u.searchParams.set('start', String(end - rangeSeconds));
+    u.searchParams.set('end', String(end));
+    u.searchParams.set('step', String(stepSeconds));
+    const fetchImpl = ctx.fetchImpl ?? fetch;
+    const res = await fetchImpl(u, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) return ok(200, response);
+    const points = usablePrometheusPoints(await res.json());
+    return ok(200, { ...response, points });
+  } catch {
+    return ok(200, response);
   }
 }
 function auditFilter(query = {}, name) {
@@ -250,7 +363,7 @@ async function resolveScopeTenant(ctx) {
   if (ctx.params.workspaceId) {
     const ws = await store.getWorkspace(ctx.pool, ctx.params.workspaceId);
     if (!ws) return { error: err(404, 'WORKSPACE_NOT_FOUND', `workspace ${ctx.params.workspaceId} not found`) };
-    return { tenantId: ws.tenant_id };
+    return { tenantId: ws.tenant_id, workspaceId: ws.id };
   }
   return { tenantId: ctx.params.tenantId };
 }
@@ -261,6 +374,13 @@ function guarded(handler) {
     if (!canManageTenant(ctx.identity, scope.tenantId)) {
       return err(403, 'FORBIDDEN', 'cannot read another tenant’s metrics');
     }
+    ctx.resolvedScope = scope;
+    // Scope is canonical and authorized at this point. Attach it before parameter/provider work
+    // so the all-request and 5xx workspace series retain authorized 4xx/5xx outcomes too.
+    if (ctx.metric) {
+      if (scope.workspaceId) applyCanonicalWorkspaceMetric(ctx.metric, scope);
+      else ctx.metric.tenantId = scope.tenantId;
+    }
     return handler(ctx);
   };
 }
@@ -270,7 +390,7 @@ export const METRICS_HANDLERS = {
   metricsTenantQuotas: guarded(quotas), metricsWorkspaceQuotas: guarded(quotas),
   metricsTenantOverview: guarded(overview), metricsWorkspaceOverview: guarded(overview),
   metricsTenantUsage: guarded(usage), metricsWorkspaceUsage: guarded(usage),
-  metricsTenantSeries: guarded(series), metricsWorkspaceSeries: guarded(series),
+  metricsTenantSeries: guarded(tenantSeries), metricsWorkspaceSeries: guarded(workspaceSeries),
   metricsTenantAudit: guarded(auditRecords), metricsWorkspaceAudit: guarded(auditRecords),
   metricsTenantAuditExport: guarded(auditExport), metricsWorkspaceAuditExport: guarded(auditExport)
 };

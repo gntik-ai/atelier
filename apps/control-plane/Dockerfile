@@ -23,6 +23,7 @@ COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
      apps/control-plane/schema-retry.mjs apps/control-plane/tenant-scope.mjs \
      apps/control-plane/governance-schema.mjs apps/control-plane/workspace-quota.mjs \
      apps/control-plane/metrics-handlers.mjs apps/control-plane/metrics-registry.mjs \
+     apps/control-plane/request-metric-scope.mjs \
      apps/control-plane/storage-handlers.mjs apps/control-plane/seaweedfs-identity.mjs \
      apps/control-plane/storage-quota.mjs \
      apps/control-plane/mongo-handlers.mjs apps/control-plane/pg-handlers.mjs \

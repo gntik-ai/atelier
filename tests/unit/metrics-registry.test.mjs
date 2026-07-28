@@ -3,7 +3,13 @@
 // route normalization (bounded cardinality).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from '../../apps/control-plane-executor/src/runtime/metrics-registry.mjs';
+import {
+  recordHttp,
+  renderMetrics,
+  normalizeRoute,
+  METRICS_CONTENT_TYPE
+} from '../../apps/control-plane-executor/src/runtime/metrics-registry.mjs';
+import * as controlPlaneMetrics from '../../apps/control-plane/metrics-registry.mjs';
 
 test('normalizeRoute collapses id-like segments so the label is bounded', () => {
   assert.equal(normalizeRoute('/v1/tenants/3f9c2b1a-0000-4a5b-8c7d-aaaaaaaaaaaa/workspaces'), '/v1/tenants/{id}/workspaces');
@@ -37,3 +43,60 @@ test('histogram buckets are cumulative (le ordering holds)', () => {
 test('exposes the Prometheus text content-type', () => {
   assert.match(METRICS_CONTENT_TYPE, /text\/plain/);
 });
+
+for (const [runtime, registry] of [
+  ['control-plane', controlPlaneMetrics],
+  ['executor', { recordHttp, renderMetrics }]
+]) {
+  test(`${runtime} counter conditionally includes only escaped trusted workspace labels`, () => {
+    const suffix = runtime === 'control-plane' ? 'cp' : 'exec';
+    const route = `/v1/c04/${suffix}`;
+    registry.recordHttp({
+      method: 'GET',
+      route,
+      status: 200,
+      tenantId: `ten-${suffix}`,
+      workspaceId: `wrk-${suffix}"\\\n`,
+      durationSeconds: 0.01
+    });
+    registry.recordHttp({
+      method: 'GET',
+      route,
+      status: 200,
+      tenantId: `ten-${suffix}`,
+      workspaceId: `wrk-${suffix}-sibling`,
+      durationSeconds: 0.01
+    });
+    registry.recordHttp({
+      method: 'GET',
+      route: `${route}/tenant-only`,
+      status: 200,
+      tenantId: `ten-${suffix}`,
+      durationSeconds: 0.01
+    });
+    registry.recordHttp({
+      method: 'GET',
+      route: `${route}/anonymous`,
+      status: 401,
+      durationSeconds: 0.01
+    });
+
+    const text = registry.renderMetrics();
+    const lines = text.split('\n');
+    assert.equal(
+      lines.find((line) => line.includes(`workspace_id="wrk-${suffix}\\\"`)),
+      `falcone_http_requests_total{method="GET",route="${route}",status="200",tenant_id="ten-${suffix}",workspace_id="wrk-${suffix}\\\"\\\\\\n"} 1`
+    );
+    assert.equal(
+      lines.find((line) => line.includes(`workspace_id="wrk-${suffix}-sibling"`)),
+      `falcone_http_requests_total{method="GET",route="${route}",status="200",tenant_id="ten-${suffix}",workspace_id="wrk-${suffix}-sibling"} 1`
+    );
+    const tenantOnly = text.split('\n').find((line) => line.includes(`route="${route}/tenant-only"`));
+    const anonymous = text.split('\n').find((line) => line.includes(`route="${route}/anonymous"`));
+    assert.ok(tenantOnly);
+    assert.ok(anonymous);
+    assert.doesNotMatch(tenantOnly, /workspace_id=/);
+    assert.doesNotMatch(anonymous, /workspace_id=/);
+    assert.match(anonymous, /tenant_id="anonymous"/);
+  });
+}

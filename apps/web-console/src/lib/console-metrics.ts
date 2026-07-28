@@ -113,7 +113,12 @@ interface UsageSnapshotResponse {
 }
 
 interface MetricSeriesResponse {
-  points?: Array<{ timestamp?: string; value?: number }>
+  tenantId: string
+  workspaceId: string
+  metricKey: 'api_requests' | 'api_errors'
+  window: '5m' | '1h' | '24h' | '7d' | '30d'
+  unit?: string
+  points: Array<{ timestamp: string; value: number }>
 }
 
 interface AuditRecordCollectionResponse {
@@ -187,7 +192,7 @@ export function normalizeMetricsOverview(
     }
   })
 
-  const seriesPoints = series?.points?.length
+  const seriesPoints = series != null
     ? series.points.map((point) => ({ timestamp: point.timestamp ?? '', value: point.value ?? 0 }))
     : (usage?.dimensions ?? []).flatMap((dimension) =>
         (dimension.points ?? []).map((point) => ({ timestamp: point.timestamp ?? '', value: point.value ?? 0 }))

@@ -3,15 +3,20 @@
 // In-process counters + a latency histogram for HTTP requests, rendered in the Prometheus text
 // exposition format at GET /metrics (scraped by the in-cluster Prometheus). Labels are bounded:
 // `route` is the path with id-like segments collapsed to {id} (so cardinality is per-route, not
-// per-resource), plus method/status and the tenant when known. No external deps — the kind
-// runtime images bundle no metrics library.
+// per-resource), plus method/status, the tenant when known, and a workspace only after trusted
+// identity or canonical resolution. No external deps — the kind runtime images bundle no metrics
+// library.
 
-const requestsTotal = new Map();   // "method|route|status|tenant" -> count
+const requestsTotal = new Map();   // JSON [method, route, status, tenant, workspace?] -> count
 const durationByRoute = new Map(); // "method|route" -> { buckets:number[], sum, count }
 const LE = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 const startedAtMs = Date.now();
 
 const esc = (v) => String(v ?? '').replace(/[\\"\n]/g, '_');
+const escPrometheusLabel = (v) => String(v ?? '')
+  .replace(/\\/g, '\\\\')
+  .replace(/"/g, '\\"')
+  .replace(/\r\n|\r|\n/g, '\\n');
 
 // Collapse id-like path segments so the `route` label is bounded (a UUID, a long token/key, or a
 // purely numeric segment becomes {id}). Keeps the structural shape (/v1/tenants/{id}/workspaces).
@@ -27,9 +32,10 @@ export function normalizeRoute(path) {
 }
 
 // Record one handled request. durationSeconds is the wall-clock handler time.
-export function recordHttp({ method = 'GET', route = 'unmatched', status = 0, tenantId = '', durationSeconds = 0 }) {
+export function recordHttp({ method = 'GET', route = 'unmatched', status = 0, tenantId = '', workspaceId = '', durationSeconds = 0 }) {
   const tenant = tenantId || 'anonymous';
-  const rk = `${method}|${route}|${status}|${tenant}`;
+  const workspace = workspaceId == null ? '' : String(workspaceId);
+  const rk = JSON.stringify([method, route, status, tenant, workspace]);
   requestsTotal.set(rk, (requestsTotal.get(rk) ?? 0) + 1);
 
   const dk = `${method}|${route}`;
@@ -46,8 +52,9 @@ export function renderMetrics() {
   out.push('# HELP falcone_http_requests_total Total HTTP requests handled.');
   out.push('# TYPE falcone_http_requests_total counter');
   for (const [k, v] of requestsTotal) {
-    const [method, route, status, tenant] = k.split('|');
-    out.push(`falcone_http_requests_total{method="${esc(method)}",route="${esc(route)}",status="${esc(status)}",tenant_id="${esc(tenant)}"} ${v}`);
+    const [method, route, status, tenant, workspace] = JSON.parse(k);
+    const workspaceLabel = workspace ? `,workspace_id="${escPrometheusLabel(workspace)}"` : '';
+    out.push(`falcone_http_requests_total{method="${esc(method)}",route="${esc(route)}",status="${esc(status)}",tenant_id="${escPrometheusLabel(tenant)}"${workspaceLabel}} ${v}`);
   }
   out.push('# HELP falcone_http_request_duration_seconds HTTP request latency in seconds.');
   out.push('# TYPE falcone_http_request_duration_seconds histogram');
