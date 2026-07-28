@@ -16,9 +16,18 @@
 // COMPENSATORS registry maps a type -> executor; adding a new compensable side
 // effect means adding one entry here and emitting the descriptor at the call site.
 import { randomUUID } from 'node:crypto';
+import { isProxy } from 'node:util/types';
 import { kcAdmin } from './kc-admin.mjs';
 import * as store from './tenant-store.mjs';
 import { dropWorkspaceDatabase } from './dataplane.mjs';
+import { transitionOperation } from '../../packages/provisioning-orchestrator/src/repositories/async-operation-repo.mjs';
+import {
+  normalizeErrorSummary,
+  normalizeOperationResult
+} from '../../packages/provisioning-orchestrator/src/models/async-operation.mjs';
+
+const MAX_SAGA_ERROR_MESSAGE_BYTES = 4 * 1024;
+const SAFE_SAGA_ERROR_MESSAGE = 'Saga execution failed.';
 
 export async function ensureSagaSchema(pool) {
   await pool.query(`
@@ -82,8 +91,8 @@ export class Saga {
     this.op = { ...op, operationType: op.operationType ?? this.kind, correlationId: op.correlationId || this.runId };
     try {
       await this.pool.query(
-        `INSERT INTO async_operations (operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type, status, correlation_id, saga_id)
-         VALUES ($1,$2,$3,$4,$5,$6,'running',$7,$8)`,
+        `INSERT INTO async_operations (operation_id, tenant_id, actor_id, actor_type, workspace_id, operation_type, status, result, completed_at, correlation_id, saga_id)
+         VALUES ($1,$2,$3,$4,$5,$6,'running',NULL,NULL,$7,$8)`,
         [this.runId, op.tenantId, op.actorId, op.actorType ?? 'superadmin', op.workspaceId ?? null, this.op.operationType, this.op.correlationId, this.runId]);
       await this._transition('pending', 'running');
       await this._log('info', `${this.op.operationType} started`);
@@ -102,29 +111,101 @@ export class Saga {
       `INSERT INTO async_operation_log_entries (operation_id, tenant_id, level, message) VALUES ($1,$2,$3,$4)`,
       [this.runId, this.op.tenantId, level, message]);
   }
-  async _opStatus(status, errorSummary) {
+  async _opStatus(status, errorSummary, result = null) {
     if (!this.op) return;
+    let client = this.pool;
+    let release = null;
+    let transitioned = false;
     try {
-      await this.pool.query(`UPDATE async_operations SET status=$2, error_summary=$3, updated_at=NOW() WHERE operation_id=$1`,
-        [this.runId, status, errorSummary ? JSON.stringify(errorSummary) : null]);
-      await this._transition('running', status);
-      await this._log(status === 'failed' ? 'error' : 'info', `${this.op.operationType} ${status}`);
+      const isPool = typeof this.pool.connect === 'function'
+        && typeof this.pool.totalCount === 'number'
+        && typeof this.pool.idleCount === 'number';
+      if (isPool) {
+        client = await this.pool.connect();
+        release = () => client.release();
+      }
+      await transitionOperation(client, {
+        operation_id: this.runId,
+        tenant_id: this.op.tenantId,
+        new_status: status,
+        actor_id: this.op.actorId,
+        error_summary: errorSummary,
+        result
+      });
+      transitioned = true;
     } catch { /* best-effort */ }
+    finally {
+      try { release?.(); } catch { /* best-effort */ }
+    }
+    if (transitioned) {
+      try {
+        await this._log(status === 'failed' ? 'error' : 'info', `${this.op.operationType} ${status}`);
+      } catch { /* best-effort */ }
+    }
   }
 
   async complete(result) {
+    const safeResult = safeSagaCompletionResult(result);
     await this.pool.query(
-      `UPDATE saga_runs SET status='completed', result=$2, updated_at=NOW() WHERE id=$1`,
-      [this.runId, result == null ? null : JSON.stringify(result)]);
-    await this._opStatus('completed', null);
+      `UPDATE saga_runs SET status='completed', result=$2::jsonb, updated_at=NOW() WHERE id=$1`,
+      [this.runId, safeResult == null ? null : JSON.stringify(safeResult)]);
+    await this._opStatus('completed', null, safeResult);
   }
 
   async fail(error) {
+    const errorSummary = safeSagaErrorSummary(error);
     await this.pool.query(`UPDATE saga_runs SET status='failed', error=$2, updated_at=NOW() WHERE id=$1`,
-      [this.runId, String(error?.message ?? error)]);
-    await this._opStatus('failed', { code: error?.code ?? 'SAGA_FAILED', message: String(error?.message ?? error) });
+      [this.runId, errorSummary.message]);
+    await this._opStatus('failed', errorSummary);
     await runCompensations(this.pool, this.runId);
     await this.pool.query(`UPDATE saga_runs SET status='compensated', updated_at=NOW() WHERE id=$1`, [this.runId]);
+  }
+}
+
+function safeSagaCompletionResult(result) {
+  try {
+    return normalizeOperationResult(result);
+  } catch {
+    console.warn('[control-plane] unsafe saga completion result omitted');
+    return null;
+  }
+}
+
+function safeSagaErrorSummary(error) {
+  const canInspect = error !== null
+    && (typeof error === 'object' || typeof error === 'function')
+    && !isProxy(error);
+  const codeDescriptor = canInspect
+    ? Object.getOwnPropertyDescriptor(error, 'code')
+    : null;
+  const messageDescriptor = canInspect
+    ? Object.getOwnPropertyDescriptor(error, 'message')
+    : null;
+  const rawCode = typeof codeDescriptor?.value === 'string'
+    ? codeDescriptor.value
+    : 'SAGA_FAILED';
+  let code = /^[A-Z0-9_.-]{1,100}$/i.test(rawCode) ? rawCode : 'SAGA_FAILED';
+  try {
+    normalizeOperationResult(code);
+  } catch {
+    code = 'SAGA_FAILED';
+  }
+
+  const summary = {
+    code,
+    message: typeof messageDescriptor?.value === 'string'
+      ? messageDescriptor.value.trim()
+      : (typeof error === 'string' ? error.trim() : SAFE_SAGA_ERROR_MESSAGE)
+  };
+  try {
+    const normalizedSummary = normalizeErrorSummary(summary);
+    normalizeOperationResult(summary.message);
+    if (Buffer.byteLength(summary.message, 'utf8') > MAX_SAGA_ERROR_MESSAGE_BYTES) {
+      throw new Error('saga error message exceeds safe bound');
+    }
+    return normalizedSummary;
+  } catch {
+    return { code: summary.code, message: SAFE_SAGA_ERROR_MESSAGE };
   }
 }
 

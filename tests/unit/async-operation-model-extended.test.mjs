@@ -5,6 +5,8 @@ import { applyTransition, createOperation } from '../../packages/provisioning-or
 test('applyTransition sets timeout reason for timed_out', () => {
   const updated = applyTransition({ status: 'running' }, { new_status: 'timed_out' });
   assert.equal(updated.cancellation_reason, 'timeout exceeded');
+  assert.equal(updated.result, null);
+  assert.equal(updated.completed_at, updated.updated_at);
 });
 
 test('applyTransition stores cancelled_by and cancellation_reason for cancelling', () => {
@@ -14,6 +16,18 @@ test('applyTransition stores cancelled_by and cancellation_reason for cancelling
   );
   assert.equal(updated.cancelled_by, 'actor-1');
   assert.equal(updated.cancellation_reason, 'manual cancel');
+  assert.equal(updated.result, null);
+  assert.equal(updated.completed_at, null);
+});
+
+test('applyTransition timestamps cancelled terminal state and clears prior result data', () => {
+  const updated = applyTransition(
+    { status: 'pending', result: { summary: 'stale' }, completed_at: '2026-01-01T00:00:00.000Z' },
+    { new_status: 'cancelled' }
+  );
+
+  assert.equal(updated.result, null);
+  assert.equal(updated.completed_at, updated.updated_at);
 });
 
 test('createOperation stores timeout_policy_snapshot', () => {

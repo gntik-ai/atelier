@@ -386,12 +386,13 @@ unmanaged-attribute → array-claim mapping is finicky.
   (`SELECT … FROM quota_dimension_catalog`) against the Pool. `plan-get` (superadmin
   or tenant-owner, real SQL) is wireable too but was left out to keep the slice to
   one create+list pair per family.
-- **async-operation `result` queryType + idempotency-key path: deferred.** The
-  `getOperationResult` query selects `result`/`completed_at` columns no migration
-  in this repo adds to `async_operations`, and the idempotency-key create path runs
-  `BEGIN/COMMIT` across a shared pool (no single-connection guarantee). The slice
-  therefore exercises create (no idempotency key), `detail`, and `list`, which use
-  only columns the applied migrations (073/075/076/078) provide.
+- **async-operation result schema: covered; idempotency-key path: deferred.**
+  Migration 079 adds `result` and `completed_at` after the existing 073–078 chain,
+  and the dedicated C-11 PostgreSQL suite verifies the real result repository and
+  action. The HTTP smoke remains scoped to create (without an idempotency key),
+  `detail`, and `list`. The idempotency-key create path still runs
+  `BEGIN`/`COMMIT` across a shared pool without a single-connection guarantee, so
+  that separate path remains deferred from this slice.
 - **Custom scope-enforcement Lua plugin: deferred** (out of scope for this slice).
   APISIX here does AuthN + identity-header injection, not the fine-grained
   per-resource scope checks the production gateway plugin performs.

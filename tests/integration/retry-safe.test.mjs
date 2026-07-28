@@ -32,13 +32,19 @@ function createRetryStore() {
           operation_type: params[5],
           status: params[6],
           error_summary: params[7],
-          correlation_id: params[8],
-          idempotency_key: params[9],
-          saga_id: params[10],
-          attempt_count: params[11],
-          max_retries: params[12],
-          created_at: params[13],
-          updated_at: params[14]
+          cancellation_reason: params[8],
+          cancelled_by: params[9],
+          timeout_policy_snapshot: params[10],
+          policy_applied_at: params[11],
+          correlation_id: params[12],
+          idempotency_key: params[13],
+          saga_id: params[14],
+          attempt_count: params[15],
+          max_retries: params[16],
+          result: params[17],
+          completed_at: params[18],
+          created_at: params[19],
+          updated_at: params[20]
         };
         state.operations.set(row.operation_id, row);
         return { rows: [{ ...row }] };
@@ -65,6 +71,8 @@ function createRetryStore() {
           attempt_count: (row.attempt_count ?? 0) + 1,
           correlation_id: params[2],
           error_summary: null,
+          result: null,
+          completed_at: null,
           updated_at: '2026-03-30T00:02:00.000Z'
         };
         state.operations.set(updated.operation_id, updated);
@@ -104,7 +112,7 @@ function createRetryStore() {
           previous_status: params[4],
           new_status: params[5],
           transitioned_at: params[6],
-          metadata: params[7]
+          metadata: params[7] == null ? null : JSON.parse(params[7])
         });
         return { rows: [] };
       }
@@ -139,7 +147,9 @@ test('failed operation can be retried safely and records attempt history', async
   store.state.operations.set(operation.operation_id, {
     ...store.state.operations.get(operation.operation_id),
     status: 'failed',
-    error_summary: { code: 'FAIL', message: 'boom', failedStep: 'apply' }
+    error_summary: { code: 'FAIL', message: 'boom', failedStep: 'apply' },
+    result: { summary: 'stale result' },
+    completed_at: '2026-03-30T00:01:00.000Z'
   });
 
   const response = await retryAction({
@@ -157,6 +167,8 @@ test('failed operation can be retried safely and records attempt history', async
   assert.equal(response.statusCode, 200);
   assert.equal(updatedOperation.status, 'pending');
   assert.equal(updatedOperation.attempt_count, 1);
+  assert.equal(updatedOperation.result, null);
+  assert.equal(updatedOperation.completed_at, null);
   assert.equal(attempts.length, 1);
   assert.equal(attempts[0].attempt_number, 1);
   assert.ok(store.state.events.some((message) => message.topic === 'console.async-operation.retry-requested'));

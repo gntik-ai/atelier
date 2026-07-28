@@ -1,5 +1,6 @@
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const DOMAIN_TERMINAL_STATUSES = new Set(['completed', 'failed', 'timed_out', 'cancelled']);
 
 function assertTenantIsolation(tenantId, isSuperadmin = false) {
   if (tenantId === null && !isSuperadmin) {
@@ -154,15 +155,29 @@ export async function getOperationResult(db, params = {}) {
     typeof row.result === 'string'
       ? row.result
       : row.result && typeof row.result === 'object'
-        ? row.result.summary ?? row.result.message ?? null
+        ? typeof row.result.summary === 'string'
+          ? row.result.summary
+          : typeof row.result.message === 'string'
+            ? row.result.message
+            : null
         : null;
   const failureReason =
-    row.error_summary && typeof row.error_summary === 'object' ? row.error_summary.message ?? null : null;
+    resultType === 'failure'
+      && row.error_summary
+      && typeof row.error_summary === 'object'
+      && typeof row.error_summary.message === 'string'
+      ? row.error_summary.message
+      : null;
   const retryable =
-    row.error_summary && typeof row.error_summary === 'object' && typeof row.error_summary.retryable === 'boolean'
+    resultType === 'failure'
+      && row.error_summary
+      && typeof row.error_summary === 'object'
+      && typeof row.error_summary.retryable === 'boolean'
       ? row.error_summary.retryable
       : null;
-  const completedAt = row.completed_at ?? (resultType === 'pending' ? null : row.updated_at ?? null);
+  const completedAt = DOMAIN_TERMINAL_STATUSES.has(row.status)
+    ? row.completed_at ?? row.updated_at ?? null
+    : null;
 
   return {
     operation_id: row.operation_id,

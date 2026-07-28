@@ -30,6 +30,7 @@
     "lint": "npm run validate:repo && npm run lint:md && npm run validate:openapi",
     "lint:snippets": "node scripts/lint-snippet-templates.mjs",
     "test:unit": "node --test tests/unit/*.test.mjs",
+    "test:integration:async-operation-real-pg": "node scripts/run-async-operation-real-pg-tests.mjs",
     "test:adapters": "node --test tests/adapters/*.test.mjs",
     "test:contracts": "node --test tests/contracts/*.test.mjs",
     "test:e2e:console": "node --test tests/e2e/console/*.test.mjs",

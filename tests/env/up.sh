@@ -112,10 +112,11 @@ echo "==> applying provisioning-orchestrator async-operation migrations to Postg
 #   075 idempotency_key_records + retry_attempts (+ attempt_count/max_retries cols)
 #   076 timeout/cancel/recovery cols + operation_policies (+ status-check widening)
 #   078 failure-classification + intervention cols/tables
+#   079 result + terminal completion timestamp columns
 PO_MIGRATIONS="$ROOT/packages/provisioning-orchestrator/src/migrations"
 for m in 073-async-operation-tables 074-async-operation-log-entries \
          075-idempotency-retry-tables 076-timeout-cancel-recovery \
-         078-retry-semantics-intervention; do
+         078-retry-semantics-intervention 079-async-operation-results; do
   f="$PO_MIGRATIONS/$m.sql"
   [ -f "$f" ] || { echo "   MISSING $m.sql" >&2; continue; }
   docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U falcone -d falcone_test < "$f" >/dev/null 2>&1 \
