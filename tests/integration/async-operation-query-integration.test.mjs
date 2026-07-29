@@ -112,6 +112,179 @@ function instant(value) {
   return value == null ? null : new Date(value).toISOString();
 }
 
+maybeTest('C-13 real PostgreSQL applies status-array membership without widening scope or writing state', async () => {
+  await withIsolatedSchema(async (client) => {
+    await applyMigrations(client, MIGRATIONS);
+    await client.query(
+      `INSERT INTO async_operations (
+         operation_id, tenant_id, actor_id, actor_type, workspace_id,
+         operation_type, status, correlation_id, created_at, updated_at
+       ) VALUES
+         ('00000000-0000-4000-8000-000000000131', 'tenant-c13-a', 'actor-c13', 'tenant_owner',
+          'workspace-c13-a', 'workspace.create', 'running', 'corr-c13-131',
+          '2026-07-29T10:06:00.000Z', '2026-07-29T10:06:00.000Z'),
+         ('00000000-0000-4000-8000-000000000132', 'tenant-c13-a', 'actor-c13', 'tenant_owner',
+          'workspace-c13-a', 'workspace.create', 'pending', 'corr-c13-132',
+          '2026-07-29T10:05:00.000Z', '2026-07-29T10:05:00.000Z'),
+         ('00000000-0000-4000-8000-000000000133', 'tenant-c13-a', 'actor-c13', 'tenant_owner',
+          'workspace-c13-a', 'workspace.create', 'completed', 'corr-c13-133',
+          '2026-07-29T10:04:00.000Z', '2026-07-29T10:04:00.000Z'),
+         ('00000000-0000-4000-8000-000000000134', 'tenant-c13-a', 'actor-c13', 'tenant_owner',
+          'workspace-c13-b', 'workspace.create', 'running', 'corr-c13-134',
+          '2026-07-29T10:03:00.000Z', '2026-07-29T10:03:00.000Z'),
+         ('00000000-0000-4000-8000-000000000135', 'tenant-c13-b', 'actor-c13', 'tenant_owner',
+          'workspace-c13-a', 'workspace.create', 'running', 'corr-c13-135',
+          '2026-07-29T10:02:00.000Z', '2026-07-29T10:02:00.000Z'),
+         ('00000000-0000-4000-8000-000000000136', 'tenant-c13-a', 'actor-c13', 'tenant_owner',
+          'workspace-c13-a', 'tenant.backup', 'pending', 'corr-c13-136',
+          '2026-07-29T10:01:00.000Z', '2026-07-29T10:01:00.000Z')`
+    );
+
+    const { rows: before } = await client.query(
+      `SELECT operation_id, tenant_id, workspace_id, operation_type, status, created_at, updated_at
+         FROM async_operations
+        ORDER BY operation_id`
+    );
+    const scope = {
+      tenant_id: 'tenant-c13-a',
+      workspaceId: 'workspace-c13-a',
+      operationType: 'workspace.create'
+    };
+
+    const scalar = await listOperations(client, { ...scope, status: 'completed' });
+    const singleton = await listOperations(client, { ...scope, status: ['completed'] });
+    assert.deepEqual(singleton, scalar);
+    assert.deepEqual(
+      scalar.items.map((item) => item.operation_id),
+      ['00000000-0000-4000-8000-000000000133']
+    );
+
+    const union = await listOperations(client, {
+      ...scope,
+      status: ['running', 'pending']
+    });
+    const reorderedWithDuplicate = await listOperations(client, {
+      ...scope,
+      status: ['pending', 'running', 'pending']
+    });
+    assert.equal(union.total, 2);
+    assert.deepEqual(
+      union.items.map((item) => item.operation_id),
+      [
+        '00000000-0000-4000-8000-000000000131',
+        '00000000-0000-4000-8000-000000000132'
+      ]
+    );
+    assert.deepEqual(reorderedWithDuplicate, union);
+
+    const empty = await listOperations(client, { ...scope, status: [] });
+    assert.deepEqual(empty, {
+      items: [],
+      total: 0,
+      pagination: { limit: 20, offset: 0 }
+    });
+
+    const firstPage = await listOperations(client, {
+      ...scope,
+      status: ['running', 'pending'],
+      limit: 1,
+      offset: 0
+    });
+    const secondPage = await listOperations(client, {
+      ...scope,
+      status: ['running', 'pending'],
+      limit: 1,
+      offset: 1
+    });
+    assert.equal(firstPage.total, 2);
+    assert.equal(secondPage.total, 2);
+    assert.deepEqual(
+      [...firstPage.items, ...secondPage.items].map((item) => item.operation_id),
+      union.items.map((item) => item.operation_id)
+    );
+
+    const auditMessages = [];
+    const structuredLogs = [];
+    const actionResponse = await queryAction(
+      queryParams('tenant-c13-a', 'list', undefined, {
+        filters: {
+          tenantId: 'tenant-c13-a',
+          workspaceId: 'workspace-c13-a',
+          operationType: 'workspace.create',
+          status: ['running', 'pending']
+        },
+        pagination: { limit: 20, offset: 0 }
+      }),
+      {
+        db: client,
+        producer: {
+          async send(message) {
+            auditMessages.push(message);
+          }
+        },
+        log(message) {
+          structuredLogs.push(JSON.parse(message));
+        }
+      }
+    );
+    assert.equal(actionResponse.statusCode, 200);
+    assert.equal(actionResponse.headers['X-Correlation-Id'], 'request-tenant-c13-a');
+    assert.equal(actionResponse.body.total, 2);
+    assert.deepEqual(
+      actionResponse.body.items.map((item) => item.operationId),
+      union.items.map((item) => item.operation_id)
+    );
+    assert.equal(auditMessages.length, 1);
+    assert.equal(auditMessages[0].topic, 'console.async-operation.accessed');
+    assert.equal(structuredLogs.length, 1);
+    assert.equal(structuredLogs[0].event, 'async_operation_query_completed');
+    assert.equal(structuredLogs[0].queryType, 'list');
+    assert.deepEqual(
+      structuredLogs[0].metrics.map((item) => item.labels),
+      [{ queryType: 'list' }, { queryType: 'list' }]
+    );
+    assert.doesNotMatch(JSON.stringify({ auditMessages, structuredLogs }), /running|pending/);
+
+    await assert.rejects(
+      () => queryAction(
+        queryParams('tenant-c13-b', 'list', undefined, {
+          filters: {
+            tenantId: 'tenant-c13-a',
+            workspaceId: 'workspace-c13-a',
+            operationType: 'workspace.create',
+            status: ['running', 'pending']
+          }
+        }),
+        { db: client, log() {} }
+      ),
+      (error) => error.code === 'TENANT_ISOLATION_VIOLATION' && error.statusCode === 403
+    );
+    const tenantBResponse = await queryAction(
+      queryParams('tenant-c13-b', 'list', undefined, {
+        filters: {
+          tenantId: 'tenant-c13-b',
+          workspaceId: 'workspace-c13-a',
+          operationType: 'workspace.create',
+          status: ['running', 'pending']
+        }
+      }),
+      { db: client, log() {} }
+    );
+    assert.equal(tenantBResponse.body.total, 1);
+    assert.deepEqual(
+      tenantBResponse.body.items.map((item) => item.operationId),
+      ['00000000-0000-4000-8000-000000000135']
+    );
+
+    const { rows: after } = await client.query(
+      `SELECT operation_id, tenant_id, workspace_id, operation_type, status, created_at, updated_at
+         FROM async_operations
+        ORDER BY operation_id`
+    );
+    assert.deepEqual(after, before);
+  });
+});
+
 maybeTest('C-11 migration chain exposes exact idempotent result catalog and repairs the real pre-079 query', async () => {
   await withIsolatedSchema(async (client) => {
     assert.deepEqual(MIGRATIONS, [

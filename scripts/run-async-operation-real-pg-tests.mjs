@@ -4,14 +4,14 @@ const connectionString = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_U
 
 if (!connectionString) {
   console.error(
-    'C-11 real PostgreSQL tests require TEST_DATABASE_URL or DATABASE_URL; refusing to skip.'
+    'Async-operation real PostgreSQL tests require TEST_DATABASE_URL or DATABASE_URL; refusing to skip.'
   );
   process.exitCode = 1;
 } else {
   try {
     await import('pg');
   } catch (error) {
-    console.error(`C-11 real PostgreSQL tests require the pg package: ${error.message}`);
+    console.error(`Async-operation real PostgreSQL tests require the pg package: ${error.message}`);
     process.exitCode = 1;
   }
 
@@ -30,13 +30,13 @@ if (!connectionString) {
       );
 
       child.on('error', (error) => {
-        console.error(`Unable to start the C-11 real PostgreSQL tests: ${error.message}`);
+        console.error(`Unable to start the async-operation real PostgreSQL tests: ${error.message}`);
         resolve(1);
       });
 
       child.on('exit', (code, signal) => {
         if (signal) {
-          console.error(`C-11 real PostgreSQL tests terminated by ${signal}.`);
+          console.error(`Async-operation real PostgreSQL tests terminated by ${signal}.`);
           resolve(1);
           return;
         }

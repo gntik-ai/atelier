@@ -266,3 +266,39 @@ test('C-11 result projection type-guards legacy JSON and ignores stale nontermin
     );
   }
 });
+
+test('C-13 supports scalar, non-empty array, and empty array status filters', async () => {
+  for (const status of ['running', ['completed'], ['running', 'pending'], []]) {
+    const db = createMockDb([{ rows: [{ total: 0 }] }, { rows: [] }]);
+    await listOperations(db, {
+      tenant_id: 'tenant_a',
+      status,
+      operationType: 'workspace.create',
+      workspaceId: 'workspace_a'
+    });
+    const [count, select] = db.calls;
+    const statusBindsParameter = !Array.isArray(status) || status.length > 0;
+    assert.equal(count.params.length, statusBindsParameter ? 4 : 3);
+    assert.equal(select.params.length, count.params.length + 2);
+    assert.deepEqual(select.params.slice(0, count.params.length), count.params);
+    assert.match(count.sql, /tenant_id = \$1/);
+    if (Array.isArray(status) && status.length > 0) {
+      assert.match(count.sql, /status = ANY\(\$2::text\[\]\)/);
+      assert.deepEqual(count.params[1], status);
+    } else if (Array.isArray(status)) {
+      assert.match(count.sql, /FALSE/);
+    } else {
+      assert.match(count.sql, /status = \$2/);
+    }
+    assert.match(count.sql, new RegExp(`operation_type = \\$${statusBindsParameter ? 3 : 2}`));
+    assert.match(count.sql, new RegExp(`workspace_id = \\$${statusBindsParameter ? 4 : 3}`));
+    const normalizedCount = count.sql.replace(/\s+/g, ' ').trim();
+    const normalizedSelect = select.sql.replace(/\s+/g, ' ').trim();
+    const countWhere = normalizedCount.slice(normalizedCount.indexOf('WHERE '));
+    const selectWhere = normalizedSelect.slice(
+      normalizedSelect.indexOf('WHERE '),
+      normalizedSelect.indexOf(' ORDER BY')
+    );
+    assert.equal(selectWhere, countWhere);
+  }
+});

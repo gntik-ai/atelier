@@ -35,31 +35,36 @@ function buildTenantPredicate(columnName, tenantId, isSuperadmin, values) {
   return `${columnName} = $${values.length}`;
 }
 
-export async function listOperations(db, params = {}) {
+function buildListWhere(params = {}) {
   const values = [];
   const filters = [];
   const tenantFilter = buildTenantPredicate('tenant_id', params.tenant_id ?? null, params.isSuperadmin === true, values);
+  if (tenantFilter) filters.push(tenantFilter);
 
-  if (tenantFilter) {
-    filters.push(tenantFilter);
-  }
-
-  if (params.status) {
+  if (Array.isArray(params.status)) {
+    if (params.status.length === 0) {
+      filters.push('FALSE');
+    } else {
+      values.push(params.status);
+      filters.push(`status = ANY($${values.length}::text[])`);
+    }
+  } else if (params.status) {
     values.push(params.status);
     filters.push(`status = $${values.length}`);
   }
-
   if (params.operationType) {
     values.push(params.operationType);
     filters.push(`operation_type = $${values.length}`);
   }
-
   if (params.workspaceId) {
     values.push(params.workspaceId);
     filters.push(`workspace_id = $${values.length}`);
   }
+  return { whereClause: filters.length ? `WHERE ${filters.join(' AND ')}` : '', values };
+}
 
-  const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
+export async function listOperations(db, params = {}) {
+  const { whereClause, values } = buildListWhere(params);
   const limit = normalizeLimit(params.limit);
   const offset = normalizeOffset(params.offset);
 

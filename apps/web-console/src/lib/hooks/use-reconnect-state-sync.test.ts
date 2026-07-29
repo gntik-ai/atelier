@@ -96,6 +96,48 @@ describe('useReconnectStateSync', () => {
     expect(mockFetchAsyncOperationQuery).toHaveBeenCalledTimes(1)
   })
 
+  it('requests the running-pending union once and reconciles both states', async () => {
+    const onStateChanged = vi.fn()
+    mockFetchAsyncOperationQuery.mockResolvedValue({
+      queryType: 'list',
+      items: [op('op-running', 'running'), op('op-pending', 'pending')],
+      total: 2,
+      pagination: { limit: 100, offset: 0 }
+    })
+    renderHook(() =>
+      useReconnectStateSync({
+        tenantId: 'tenant-a',
+        workspaceId: 'wrk-a',
+        onStateChanged
+      })
+    )
+
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+      await vi.advanceTimersByTimeAsync(500)
+      await flush()
+    })
+
+    expect(mockFetchAsyncOperationQuery).toHaveBeenCalledTimes(1)
+    expect(mockFetchAsyncOperationQuery).toHaveBeenCalledWith(
+      {
+        queryType: 'list',
+        filters: {
+          status: ['running', 'pending'],
+          tenantId: 'tenant-a',
+          workspaceId: 'wrk-a'
+        },
+        pagination: { limit: 100, offset: 0 }
+      },
+      expect.any(AbortSignal)
+    )
+    expect(onStateChanged).toHaveBeenCalledTimes(1)
+    expect(onStateChanged.mock.calls[0]?.[0].added.map((item: OperationSummary) => item.operationId)).toEqual([
+      'op-running',
+      'op-pending'
+    ])
+  })
+
   it('debounce', async () => {
     renderHook(() => useReconnectStateSync({ tenantId: 'tenant-a', workspaceId: 'wrk-a', debounceMs: 500 }))
 
