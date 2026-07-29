@@ -17,6 +17,39 @@ describe('console-metrics', () => {
     expect(result.hasQuotaWarning).toBe(true)
   })
 
+  it('consume MetricSeriesResponse poblada y degradada sin depender de source', () => {
+    const usageWithUnrelatedPoints = {
+      measuredAt: '2026-07-28T00:00:00.000Z',
+      dimensions: [{
+        dimensionId: 'storage_bytes',
+        points: [{ timestamp: '2026-07-27T00:00:00.000Z', value: 99 }]
+      }]
+    }
+    const populated = normalizeMetricsOverview(null, null, {
+      tenantId: 'ten_1',
+      workspaceId: 'wrk_1',
+      metricKey: 'api_requests',
+      window: '24h',
+      unit: 'requests_per_second',
+      points: [{ timestamp: '2026-07-28T00:00:00.000Z', value: 3 }]
+    })
+    const degraded = normalizeMetricsOverview(null, usageWithUnrelatedPoints, {
+      tenantId: 'ten_1',
+      workspaceId: 'wrk_1',
+      metricKey: 'api_requests',
+      window: '24h',
+      unit: 'requests_per_second',
+      points: []
+    })
+    const seriesNotRequested = normalizeMetricsOverview(null, usageWithUnrelatedPoints)
+
+    expect(populated.seriesPoints).toEqual([{ timestamp: '2026-07-28T00:00:00.000Z', value: 3 }])
+    expect(degraded.seriesPoints).toEqual([])
+    expect(seriesNotRequested.seriesPoints).toEqual([
+      { timestamp: '2026-07-27T00:00:00.000Z', value: 99 }
+    ])
+  })
+
   it('normaliza audit record', () => {
     const record = normalizeAuditRecord({ eventId: 'evt_1', actor: { actorId: 'usr_1', actorType: 'tenant_user' }, action: { actionId: 'create', category: 'resource_creation' } })
     expect(record.eventId).toBe('evt_1')

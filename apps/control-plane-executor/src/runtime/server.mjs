@@ -131,6 +131,7 @@ function identityFromHeaders(headers, pathWorkspaceId) {
   return {
     tenantId: headers['x-tenant-id'],
     workspaceId: headers['x-workspace-id'] || pathWorkspaceId,
+    ...(headers['x-workspace-id'] ? { trustedWorkspaceId: headers['x-workspace-id'] } : {}),
     actorId: headers['x-auth-subject'],
     roleName: headers['x-pg-role'] || 'falcone_app',
     ...(scopes ? { scopes } : {}),
@@ -183,6 +184,7 @@ async function resolveIdentity(headers, pathWorkspaceId, apiKeyStore, jwtVerifie
       return {
         tenantId: resolved.tenantId,
         workspaceId: resolved.workspaceId,
+        trustedWorkspaceId: resolved.workspaceId,
         // credentialWorkspaceId is the workspace this key is explicitly bound to.
         // It is used by the workspace binding check (path↔credential) and is always
         // set for API keys (a key is always issued for a specific workspace).
@@ -198,7 +200,13 @@ async function resolveIdentity(headers, pathWorkspaceId, apiKeyStore, jwtVerifie
   const jwt = bearerJwtFromHeaders(headers);
   if (jwt && jwtVerifier) {
     const verified = await jwtVerifier.verify(jwt, pathWorkspaceId).catch(() => undefined);
-    return verified ?? { tenantId: undefined }; // invalid JWT → 401, fail closed
+    if (!verified) return { tenantId: undefined }; // invalid JWT → 401, fail closed
+    return {
+      ...verified,
+      ...(verified.credentialWorkspaceId
+        ? { trustedWorkspaceId: verified.credentialWorkspaceId }
+        : {})
+    };
   }
   // No authoritative credential. Fall through to header-based identity ONLY when the
   // gateway trust signal is valid. When gatewaySharedSecret is set (production), the
@@ -1154,7 +1162,7 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
     }
     // Record every request on completion (final status, regardless of code path).
     const startNs = process.hrtime.bigint();
-    const metric = { method, route: 'unmatched', tenantId: '' };
+    const metric = { method, route: 'unmatched', tenantId: '', workspaceId: '' };
     res.on('finish', () => recordHttp({ ...metric, status: res.statusCode, durationSeconds: Number(process.hrtime.bigint() - startNs) / 1e9 }));
     try {
       const url = new URL(req.url, 'http://control-plane.local');
@@ -1252,6 +1260,17 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
           return sendJson(res, 403, { code: 'INSUFFICIENT_SCOPE', message: 'Credential scope does not permit this operation', requiredScope });
         }
       }
+      // Attribute workspace telemetry only after every existing credential-binding, ownership,
+      // role, explicit membership, and API-key scope gate above has passed. Public probes remain
+      // unscoped because they deliberately bypass those checks. An authenticated route can retain
+      // a positively checked owner, or an explicitly credential-bound workspace when no resolver
+      // is configured, before its handler runs so authorized downstream 400/500 outcomes remain
+      // attributable.
+      metric.workspaceId = opts?.noAuth
+        ? ''
+        : checkedWorkspaceTenant
+          ? (owningTenantId ? workspaceToCheck : '')
+          : (identity.trustedWorkspaceId ?? '');
       // SSE routes own the response (streaming); pass req/res and skip the JSON path.
       if (opts?.sse) {
         await handler(groups, { url, identity, registry, req, res });

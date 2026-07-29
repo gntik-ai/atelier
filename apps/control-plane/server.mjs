@@ -35,6 +35,7 @@ import { recordRouteAudit, recordRouteDenial } from './audit-writer.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
 import { buildActionParams } from './action-params.mjs';
+import { createControlPlaneMetricAttribution } from './request-metric-scope.mjs';
 
 const { Pool } = pg;
 
@@ -292,8 +293,22 @@ const server = http.createServer(async (req, res) => {
     return res.end(renderMetrics());
   }
   const startNs = process.hrtime.bigint();
-  const metric = { method, route: 'unmatched', tenantId: '' };
-  res.on('finish', () => recordHttp({ ...metric, status: res.statusCode, durationSeconds: Number(process.hrtime.bigint() - startNs) / 1e9 }));
+  const metricAttribution = createControlPlaneMetricAttribution({
+    method,
+    pool,
+    getWorkspace: tenantStore.getWorkspace
+  });
+  const metric = metricAttribution.metric;
+  res.on('finish', () => {
+    const durationSeconds = Number(process.hrtime.bigint() - startNs) / 1e9;
+    void metricAttribution.complete(res.statusCode).finally(() => {
+      recordHttp({
+        ...metric,
+        status: res.statusCode,
+        durationSeconds
+      });
+    });
+  });
   try {
     const parsed = new URL(req.url, `http://localhost:${PORT}`);
     const path = parsed.pathname;
@@ -330,7 +345,7 @@ const server = http.createServer(async (req, res) => {
       if (!identity) return sendJson(res, 401, { code: 'UNAUTHENTICATED', message: 'Missing or invalid Bearer token' });
       if (!authzOk(route, identity)) return sendJson(res, 403, { code: 'FORBIDDEN', message: `requires ${route.auth}` });
     }
-    metric.tenantId = identity?.tenantId ?? '';
+    metricAttribution.bindAuthenticatedRoute(identity, matched.params);
 
     const query = Object.fromEntries(parsed.searchParams.entries());
     const rawBody = await readBody(req);
@@ -361,11 +376,27 @@ const server = http.createServer(async (req, res) => {
     if (route.localHandler) {
       const fn = LOCAL_HANDLERS[route.localHandler];
       if (typeof fn !== 'function') return sendJson(res, 500, { code: 'NO_HANDLER', message: `local handler ${route.localHandler} missing` });
-      const ctx = { params: matched.params, query, body, rawBody, contentType, rawBodyIsBinary, identity, pool, callerContext: identity ? callerContextFrom(identity, correlationId) : null, req, res, cors: CORS };
+      const ctx = {
+        params: matched.params,
+        query,
+        searchParams: parsed.searchParams,
+        body,
+        rawBody,
+        contentType,
+        rawBodyIsBinary,
+        identity,
+        pool,
+        callerContext: identity ? callerContextFrom(identity, correlationId) : null,
+        metric,
+        req,
+        res,
+        cors: CORS
+      };
       // Streaming routes (e.g. SSE consume) own the response: the handler writes
       // to `res` directly and ends it; we don't sendJson() after.
       if (route.stream) { await fn(ctx, res); return; }
       const result = await fn(ctx);
+      await metricAttribution.complete(result?.statusCode ?? 200, ctx.resolvedScope);
       // Audit WRITER (#557): record a mutating action into the audit store WITH the
       // request correlation id, scoped to the action's owning tenant. Best-effort and
       // non-blocking — auditing must never fail or slow the action it describes.
@@ -416,6 +447,7 @@ const server = http.createServer(async (req, res) => {
     } finally {
       if (client) client.release();
     }
+    await metricAttribution.complete(result?.statusCode ?? 200);
     const respHeaders = {};
     for (const [k, v] of Object.entries(result?.headers ?? {})) {
       if (v == null) continue;

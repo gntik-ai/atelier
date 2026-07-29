@@ -1246,6 +1246,10 @@
         "additionalProperties": false,
         "properties": {
           "metricKey": {
+            "enum": [
+              "api_requests",
+              "api_errors"
+            ],
             "maxLength": 120,
             "minLength": 3,
             "type": "string"
@@ -4366,6 +4370,10 @@
             "name": "metricKey",
             "required": true,
             "schema": {
+              "enum": [
+                "api_requests",
+                "api_errors"
+              ],
               "maxLength": 120,
               "minLength": 3,
               "type": "string"
