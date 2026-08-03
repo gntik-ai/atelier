@@ -12,6 +12,28 @@ For list polling, the console schedules the next successful refresh only when th
 list contains active operations (`pending` or `running`). Detail, logs, and result queries do not
 poll by default.
 
+## Reconnect status filtering
+
+After the browser reconnects or the tab becomes visible again,
+`useReconnectStateSync` issues one list request with
+`filters.status: ['running', 'pending']`. A scalar status keeps exact-equality semantics, while a
+non-empty array selects the union of its status values. A singleton array is therefore equivalent
+to the same scalar; reordering or repeating values does not change the result or duplicate rows.
+An empty array deliberately matches no operations and is different from omitting `filters.status`,
+which leaves the list unfiltered by status.
+
+The repository applies the status predicate together with the existing tenant, workspace, and
+operation-type predicates. The count and paginated item queries reuse the same predicates and
+parameter values, and item ordering remains `created_at DESC`. Status values remain bound database
+parameters; clients cannot supply SQL fragments. The request remains read-only and keeps the
+existing response, pagination, authentication, authorization, and cross-tenant isolation behavior.
+A successful list request still produces one access-audit publication and one structured log with
+the existing query metrics, regardless of the number of requested statuses. It does not publish
+once per status and does not add status values as metric labels.
+
+This behavior does not change the canonical async-operation state vocabulary or role permissions.
+Those are separate contract and authorization concerns.
+
 Result reads require provisioning-orchestrator migration
 `079-async-operation-results.sql`, applied after the existing 073–078 async-operation chain.
 Completed lifecycle transitions may persist a safe JSON summary and record `completed_at`; failed,
@@ -38,4 +60,13 @@ The focused PostgreSQL regression can be run with an isolated test database:
 
 ```bash
 TEST_DATABASE_URL=postgres://… pnpm test:integration:async-operation-real-pg
+```
+
+The hermetic reconnect regression and repository checks do not require PostgreSQL:
+
+```bash
+node --test \
+  tests/blackbox/async-operation-status-array.test.mjs \
+  tests/unit/async-operation-query-repo.test.mjs \
+  tests/contract/async-operation-query-reconnect.contract.test.mjs
 ```

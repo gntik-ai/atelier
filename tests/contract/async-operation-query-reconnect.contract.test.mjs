@@ -1,54 +1,52 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { main as handler } from '../../packages/provisioning-orchestrator/src/actions/async-operation-query.mjs'
 
-const actionPath = '../../packages/provisioning-orchestrator/src/actions/async-operation-query.mjs'
-let actionModule
-try {
-  actionModule = await import(actionPath)
-} catch {}
-
-const shouldRun = Boolean(actionModule?.default || actionModule?.main)
-const maybeTest = shouldRun ? test : test.skip
-const handler = actionModule?.default ?? actionModule?.main
-
-function buildParams(overrides = {}) {
+const headers = {
+  'x-auth-subject': 'reader-a',
+  'x-actor-type': 'tenant_owner',
+  'x-tenant-id': 'tenant-a',
+  'x-workspace-id': 'workspace-a',
+  'x-correlation-id': 'corr-c13'
+}
+const params = (overrides = {}) => ({
+  __ow_headers: headers,
+  queryType: 'list',
+  filters: { status: ['running', 'pending'], tenantId: 'tenant-a', workspaceId: 'workspace-a', operationType: 'workspace.create' },
+  pagination: { limit: 10, offset: 0 },
+  ...overrides
+})
+const rows = [
+  { operation_id: 'op-1', status: 'running', operation_type: 'workspace.create', tenant_id: 'tenant-a', workspace_id: 'workspace-a', actor_id: 'actor-1', actor_type: 'tenant_owner', created_at: '2026-01-01', updated_at: '2026-01-01', correlation_id: 'c1' },
+  { operation_id: 'op-2', status: 'pending', operation_type: 'workspace.create', tenant_id: 'tenant-a', workspace_id: 'workspace-a', actor_id: 'actor-2', actor_type: 'tenant_owner', created_at: '2026-01-02', updated_at: '2026-01-02', correlation_id: 'c2' }
+]
+function deps(items = rows, calls = []) {
   return {
-    queryType: 'list',
-    filters: { status: ['running', 'pending'], tenantId: 'tenant-a' },
-    pagination: { limit: 10, offset: 0 },
-    __testMode: true,
-    ...overrides
+    listOperations: async (_db, query) => { calls.push(query); return { items, total: items.length, pagination: { limit: query.limit, offset: query.offset, hasMore: false } } },
+    publishAuditEvent: async () => { calls.push('audit') },
+    log: () => calls.push('log')
   }
 }
 
-// Identity is now derived exclusively from gateway-injected headers.
-// All scenarios below omit trusted headers → 401 UNAUTHORIZED (no throw, returned object).
-maybeTest('200-with-running-pending-filter', async () => {
-  if (typeof handler !== 'function') return
-  const result = await handler(buildParams())
-  assert.equal(result?.statusCode, 401)
+test('C-13 contract returns ordered multi-status list with tenant/workspace/type AND filters', async () => {
+  const calls = []
+  const result = await handler(params(), deps(rows, calls))
+  assert.equal(result.statusCode, 200)
+  assert.deepEqual(result.body.items.map((item) => item.operationId), ['op-1', 'op-2'])
+  assert.equal(result.body.total, 2)
+  assert.deepEqual(calls[0], { tenant_id: 'tenant-a', status: ['running', 'pending'], operationType: 'workspace.create', workspaceId: 'workspace-a', limit: 10, offset: 0, isSuperadmin: false })
+  assert.deepEqual(calls.slice(1), ['audit', 'log'])
 })
 
-maybeTest('401-expired-token', async () => {
-  if (typeof handler !== 'function') return
-  const result = await handler(buildParams({ __auth: null }))
-  assert.equal(result?.statusCode, 401)
+test('C-13 contract handles scalar and empty status filters without unauthorized short-circuit', async () => {
+  const scalarCalls = []; const scalar = await handler(params({ filters: { status: 'running', tenantId: 'tenant-a' } }), deps(rows.slice(0, 1), scalarCalls))
+  assert.equal(scalar.statusCode, 200); assert.equal(scalar.body.items.length, 1)
+  const empty = await handler(params({ filters: { status: [], tenantId: 'tenant-a' } }), deps([], []))
+  assert.equal(empty.statusCode, 200); assert.deepEqual(empty.body.items, []); assert.equal(empty.body.total, 0)
 })
 
-maybeTest('403-tenant-mismatch', async () => {
-  if (typeof handler !== 'function') return
-  const result = await handler(buildParams({ filters: { status: ['running', 'pending'], tenantId: 'tenant-b' }, __tenant: 'tenant-a' }))
-  assert.equal(result?.statusCode, 401)
-})
-
-maybeTest('pagination-supported', async () => {
-  if (typeof handler !== 'function') return
-  const result = await handler(buildParams({ pagination: { limit: 2, offset: 0 } }))
-  assert.equal(result?.statusCode, 401)
-})
-
-maybeTest('empty-result-for-no-ops', async () => {
-  if (typeof handler !== 'function') return
-  const result = await handler(buildParams({ filters: { status: ['running', 'pending'], tenantId: 'tenant-empty' } }))
-  assert.equal(result?.statusCode, 401)
+test('C-13 contract rejects cross-tenant filter and preserves read-only access', async () => {
+  await assert.rejects(() => handler(params({ filters: { status: ['running'], tenantId: 'tenant-b' } }), deps()), (error) => error.statusCode === 403)
+  const readOnly = await handler(params(), deps())
+  assert.equal(readOnly.statusCode, 200)
 })
