@@ -1,0 +1,6 @@
+- [x] Add a failing static configuration test asserting route 1011 uses loopback port 9091 and remains GET-only.
+- [x] Update APISIX product configuration/upstream wiring; retain exporter loopback bind and Prometheus target `falcone-apisix:9080`.
+- [x] Add Docker compatibility test proving :9080 returns metrics and :9091 is not externally published.
+- [x] Add bounded-upstream-error and rollback coverage.
+- [x] Update operator/installer documentation to describe the contracted :9080 endpoint and loopback-only exporter.
+- [x] Run OpenSpec validation, static tests, Docker tests, and independent checker/reviewer; do not deploy to a cluster.

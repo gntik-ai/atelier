@@ -49,17 +49,17 @@ routes:
       scheme: http
       nodes:
         "falcone-control-plane.falcone.svc.cluster.local:8080": 1
-  # Prometheus metrics endpoint (fix-apisix-metrics-target #606). The prometheus plugin is
-  # enabled globally below (global_rules); the public-api plugin exposes its export endpoint
-  # at /apisix/prometheus/metrics on the gateway port. Before this route that path fell through
-  # to the web-console catch-all (/* @ 10) and returned HTML, so the Prometheus target was DOWN.
-  # Highest priority so it wins over every proxy route; no upstream (public-api serves it).
+  # Prometheus metrics endpoint (fix-apisix-metrics-target #606). Proxy the exact exporter
+  # endpoint through APISIX; the exporter remains loopback-only and is not published directly.
   - id: "1011-metrics"
     uri: "/apisix/prometheus/metrics"
     priority: 400
     methods: ["GET"]
-    plugins:
-      public-api: {}
+    upstream:
+      type: roundrobin
+      scheme: http
+      nodes:
+        "127.0.0.1:9091": 1
   - id: "2001"
     uri: "/v1/platform/*"
     priority: 239
