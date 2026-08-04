@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { requestConsoleSessionJson } from '@/lib/console-session'
 
@@ -126,6 +126,11 @@ interface MetricSeriesResponse {
 
 interface AuditRecordCollectionResponse {
   items?: Array<Record<string, any>>
+  page?: {
+    size?: number
+    hasMore?: boolean
+    nextCursor?: string
+  }
 }
 
 function toErrorMessage(error: unknown) {
@@ -150,8 +155,31 @@ function mapRangeToWindow(range: ConsoleMetricRange): ConsoleMetricRangePreset |
 }
 
 function appendDateFilters(searchParams: URLSearchParams, from?: string, to?: string) {
-  if (from) searchParams.set('filter[occurredAfter]', from)
-  if (to) searchParams.set('filter[occurredBefore]', to)
+  const completeDate = (value: string, endOfDay: boolean) => /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`
+    : value
+  if (from) searchParams.set('filter[occurredAfter]', completeDate(from, false))
+  if (to) searchParams.set('filter[occurredBefore]', completeDate(to, true))
+}
+
+function auditRecordSearchParams(filters: ConsoleAuditFilter, cursor?: string) {
+  const searchParams = new URLSearchParams({ 'page[size]': '50', sort: '-eventTimestamp' })
+  if (filters.actorId) searchParams.set('filter[actorId]', filters.actorId)
+  if (filters.category) searchParams.set('filter[actionCategory]', filters.category)
+  if (filters.result) {
+    searchParams.set('filter[outcome]', filters.result === 'success' ? 'succeeded' : 'failed')
+  }
+  appendDateFilters(searchParams, filters.from, filters.to)
+  if (cursor) searchParams.set('page[after]', cursor)
+  return searchParams
+}
+
+function auditPageState(response: AuditRecordCollectionResponse) {
+  const nextCursor = typeof response.page?.nextCursor === 'string' && response.page.nextCursor.length > 0
+    ? response.page.nextCursor
+    : null
+  const hasMore = response.page?.hasMore === true && nextCursor !== null
+  return { hasMore, nextCursor: hasMore ? nextCursor : null }
 }
 
 export function normalizeMetricsOverview(
@@ -310,17 +338,39 @@ export function useConsoleAuditRecords(tenantId: string | null, workspaceId: str
   const [records, setRecords] = useState<ConsoleAuditRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const [continuationStatus, setContinuationStatus] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
+  const generationRef = useRef(0)
+  const recordsRef = useRef<ConsoleAuditRecord[]>([])
+  const continuationInFlightRef = useRef<{ generation: number; cursor: string } | null>(null)
 
-  const reload = useCallback(() => setReloadToken((current) => current + 1), [])
+  const reload = useCallback(() => {
+    generationRef.current += 1
+    continuationInFlightRef.current = null
+    setReloadToken((current) => current + 1)
+  }, [])
   const filterKey = useMemo(() => JSON.stringify(filters), [filters])
+  const queryFilters = useMemo(() => JSON.parse(filterKey) as ConsoleAuditFilter, [filterKey])
 
   useEffect(() => {
     let cancelled = false
+    const generation = generationRef.current + 1
+    generationRef.current = generation
+    continuationInFlightRef.current = null
+    recordsRef.current = []
+    setRecords([])
+    setHasMore(false)
+    setNextCursor(null)
+    setLoadingMore(false)
+    setLoadMoreError(null)
+    setContinuationStatus(null)
 
     async function load() {
       if (!tenantId) {
-        setRecords([])
         setError(null)
         setLoading(false)
         return
@@ -330,24 +380,23 @@ export function useConsoleAuditRecords(tenantId: string | null, workspaceId: str
       setError(null)
 
       try {
-        const searchParams = new URLSearchParams({ 'page[size]': '50', sort: '-eventTimestamp' })
-        if (filters.actorId) searchParams.set('filter[actorId]', filters.actorId)
-        if (filters.category) searchParams.set('filter[actionCategory]', filters.category)
-        if (filters.result) {
-          searchParams.set('filter[outcome]', filters.result === 'success' ? 'succeeded' : 'failed')
-        }
-        appendDateFilters(searchParams, filters.from, filters.to)
-
+        const searchParams = auditRecordSearchParams(queryFilters)
         const base = workspaceId ? `/v1/metrics/workspaces/${workspaceId}` : `/v1/metrics/tenants/${tenantId}`
         const response = await requestConsoleSessionJson<AuditRecordCollectionResponse>(`${base}/audit-records?${searchParams.toString()}`)
-        if (cancelled) return
-        setRecords((response.items ?? []).map(normalizeAuditRecord))
-      } catch (error) {
-        if (cancelled) return
-        setError(toErrorMessage(error))
+        if (cancelled || generationRef.current !== generation) return
+        const normalizedRecords = (response.items ?? []).map(normalizeAuditRecord)
+        const page = auditPageState(response)
+        recordsRef.current = normalizedRecords
+        setRecords(normalizedRecords)
+        setHasMore(page.hasMore)
+        setNextCursor(page.nextCursor)
+      } catch (loadError) {
+        if (cancelled || generationRef.current !== generation) return
+        setError(toErrorMessage(loadError))
+        recordsRef.current = []
         setRecords([])
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled && generationRef.current === generation) setLoading(false)
       }
     }
 
@@ -355,9 +404,60 @@ export function useConsoleAuditRecords(tenantId: string | null, workspaceId: str
     return () => {
       cancelled = true
     }
-  }, [tenantId, workspaceId, filterKey, reloadToken])
+  }, [tenantId, workspaceId, filterKey, queryFilters, reloadToken])
 
-  return { records, loading, error, reload }
+  const loadMore = useCallback(async () => {
+    const cursor = nextCursor
+    const generation = generationRef.current
+    if (!tenantId || !hasMore || !cursor || continuationInFlightRef.current) return
+
+    continuationInFlightRef.current = { generation, cursor }
+    setLoadingMore(true)
+    setLoadMoreError(null)
+    setContinuationStatus(null)
+    try {
+      const searchParams = auditRecordSearchParams(queryFilters, cursor)
+      const base = workspaceId ? `/v1/metrics/workspaces/${workspaceId}` : `/v1/metrics/tenants/${tenantId}`
+      const response = await requestConsoleSessionJson<AuditRecordCollectionResponse>(`${base}/audit-records?${searchParams.toString()}`)
+      const activeRequest = continuationInFlightRef.current
+      if (generationRef.current !== generation || activeRequest?.generation !== generation || activeRequest.cursor !== cursor) return
+
+      const seen = new Set(recordsRef.current.map(({ eventId }) => eventId))
+      const appended = (response.items ?? [])
+        .map(normalizeAuditRecord)
+        .filter(({ eventId }) => !seen.has(eventId) && seen.add(eventId))
+      const combined = [...recordsRef.current, ...appended]
+      const page = auditPageState(response)
+      recordsRef.current = combined
+      setRecords(combined)
+      setHasMore(page.hasMore)
+      setNextCursor(page.nextCursor)
+      setContinuationStatus(`${appended.length} ${appended.length === 1 ? 'evento añadido' : 'eventos añadidos'}; ${combined.length} en total.`)
+    } catch (continuationError) {
+      const activeRequest = continuationInFlightRef.current
+      if (generationRef.current !== generation || activeRequest?.generation !== generation || activeRequest.cursor !== cursor) return
+      setLoadMoreError(toErrorMessage(continuationError))
+    } finally {
+      const activeRequest = continuationInFlightRef.current
+      if (activeRequest?.generation === generation && activeRequest.cursor === cursor) {
+        continuationInFlightRef.current = null
+        if (generationRef.current === generation) setLoadingMore(false)
+      }
+    }
+  }, [hasMore, nextCursor, queryFilters, tenantId, workspaceId])
+
+  return {
+    records,
+    loading,
+    error,
+    hasMore,
+    nextCursor,
+    loadingMore,
+    loadMoreError,
+    continuationStatus,
+    loadMore,
+    reload
+  }
 }
 
 export async function exportAuditRecords(tenantId: string, workspaceId: string | null, filters: ConsoleAuditFilter): Promise<ConsoleAuditExportResult> {

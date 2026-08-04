@@ -49,6 +49,40 @@ test('observability audit query routes exist in the unified OpenAPI document', a
   assert.ok(document.components.schemas.AuditRecord);
 });
 
+test('C-09 tenant and workspace OpenAPI audit queries match the canonical internal surface', async () => {
+  const document = await SwaggerParser.validate(OPENAPI_PATH);
+  const contract = readObservabilityAuditQuerySurface();
+  const operations = [
+    document.paths['/v1/metrics/tenants/{tenantId}/audit-records'].get,
+    document.paths['/v1/metrics/workspaces/{workspaceId}/audit-records'].get
+  ];
+  const expectedFilterParams = contract.filter_dimensions.map(({ param }) => param);
+
+  for (const operation of operations) {
+    const queryParameters = operation.parameters.filter(({ in: location }) => location === 'query');
+    const byName = new Map(queryParameters.map((parameter) => [parameter.name, parameter]));
+    assert.deepEqual(queryParameters.filter(({ name }) => name.startsWith('filter[')).map(({ name }) => name), expectedFilterParams);
+    assert.deepEqual(byName.get('page[size]').schema, { type: 'integer', minimum: 1, maximum: 200, default: 25 });
+    assert.deepEqual(byName.get('sort').schema.enum, contract.pagination.allowed_sort_values);
+    assert.equal(byName.get('sort').schema.default, contract.pagination.default_sort);
+    assert.equal(byName.get('page[after]').schema.minLength, 1);
+    assert.match(byName.get('page[after]').description, /not authorization/i);
+    for (const filter of contract.filter_dimensions) {
+      const parameter = byName.get(filter.param);
+      assert.ok(parameter, `missing ${filter.param}`);
+      if (filter.type === 'date-time') assert.equal(parameter.schema.format, 'date-time');
+      if (filter.allowed_values) assert.deepEqual(parameter.schema.enum, filter.allowed_values);
+      if (filter.min_length) assert.equal(parameter.schema.minLength, filter.min_length);
+    }
+    assert.ok(operation.responses['400']);
+  }
+
+  const page = document.components.schemas.AuditRecordCollectionResponse.properties.page;
+  assert.deepEqual(page.required, ['size', 'hasMore']);
+  assert.deepEqual(page.properties.size, { type: 'integer', minimum: 0, maximum: 200 });
+  assert.equal(page.properties.nextCursor.minLength, 1);
+});
+
 test('route catalog, authorization model, and console explorer stay aligned for audit queries', () => {
   const tenantRoute = getPublicRoute('listTenantAuditRecords');
   const workspaceRoute = getPublicRoute('listWorkspaceAuditRecords');

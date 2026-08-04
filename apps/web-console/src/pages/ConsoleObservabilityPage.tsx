@@ -331,17 +331,19 @@ export function ConsoleObservabilityPage() {
           ) : null}
           {audit.loading ? <ConsolePageState kind="loading" title="Cargando auditoría" description="Consultando eventos auditables." /> : null}
           {audit.error ? <ConsolePageState kind="error" title="No se pudo cargar la auditoría" description={audit.error} actionLabel="Reintentar" onAction={audit.reload} /> : null}
+          {audit.loadMoreError ? (
+            <section role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm">
+              <p className="font-medium text-foreground">No se pudieron cargar más eventos de auditoría.</p>
+              <p className="mt-1 text-muted-foreground">{audit.loadMoreError} Los eventos ya cargados se conservan; vuelve a intentar con el botón de continuación.</p>
+            </section>
+          ) : null}
           {!audit.loading && !audit.error && audit.records.length === 0 ? <ConsolePageState kind="empty" title="Sin eventos de auditoría" description="No se encontraron registros con los filtros actuales." /> : null}
           {audit.records.length > 0 ? (
             <>
-              {/* #766 audit triage depth: `useConsoleAuditRecords` hard-codes `page[size]=50` and
-                  returns no cursor/hasMore, so there is nothing to paginate against — surface the
-                  count and the cap honestly instead of inventing pagination the backend doesn't
-                  support. */}
               <p role="status" aria-live="polite" className="text-sm tabular-nums text-muted-foreground">
                 {audit.records.length} {audit.records.length === 1 ? 'evento mostrado' : 'eventos mostrados'}
-                {audit.records.length >= 50 ? ' · se muestran hasta 50 por consulta; ajusta los filtros para acotar los resultados' : ''}
               </p>
+              {audit.continuationStatus ? <p role="status" aria-live="polite" className="sr-only">{audit.continuationStatus}</p> : null}
               <div className="overflow-hidden rounded-3xl border border-border bg-card/70 shadow-sm">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[36rem] text-left text-sm">
@@ -392,6 +394,21 @@ export function ConsoleObservabilityPage() {
                   </table>
                 </div>
               </div>
+              {audit.hasMore && audit.nextCursor ? (
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={audit.loadingMore}
+                    aria-busy={audit.loadingMore}
+                    aria-label={audit.loadingMore ? 'Cargando más eventos de auditoría' : 'Cargar más eventos de auditoría'}
+                    onClick={() => void audit.loadMore()}
+                  >
+                    {audit.loadingMore ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                    {audit.loadingMore ? 'Cargando más…' : 'Cargar más'}
+                  </Button>
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>

@@ -755,14 +755,19 @@
                 "type": "boolean"
               },
               "nextCursor": {
+                "description": "Present only when hasMore is true.",
+                "minLength": 1,
                 "type": "string"
               },
               "size": {
+                "maximum": 200,
+                "minimum": 0,
                 "type": "integer"
               }
             },
             "required": [
-              "size"
+              "size",
+              "hasMore"
             ],
             "type": "object"
           },
@@ -2562,16 +2567,19 @@
             "name": "page[size]",
             "required": false,
             "schema": {
+              "default": 25,
               "maximum": 200,
               "minimum": 1,
               "type": "integer"
             }
           },
           {
+            "description": "Opaque unpadded base64url version-1 continuation bound to the authorized scope, canonical filters, and sort; it is not authorization.",
             "in": "query",
             "name": "page[after]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -2580,6 +2588,7 @@
             "name": "sort",
             "required": false,
             "schema": {
+              "default": "-eventTimestamp",
               "enum": [
                 "-eventTimestamp",
                 "eventTimestamp"
@@ -2618,7 +2627,8 @@
                 "openwhisk",
                 "storage",
                 "quota_metering",
-                "tenant_control_plane"
+                "tenant_control_plane",
+                "mcp"
               ],
               "type": "string"
             }
@@ -2648,6 +2658,7 @@
             "name": "filter[actionId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -2687,6 +2698,7 @@
             "name": "filter[actorId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -2695,6 +2707,7 @@
             "name": "filter[resourceType]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -2703,6 +2716,7 @@
             "name": "filter[resourceId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -2727,6 +2741,7 @@
             "name": "filter[correlationId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -3484,16 +3499,19 @@
             "name": "page[size]",
             "required": false,
             "schema": {
+              "default": 25,
               "maximum": 200,
               "minimum": 1,
               "type": "integer"
             }
           },
           {
+            "description": "Opaque unpadded base64url version-1 continuation bound to the authorized scope, canonical filters, and sort; it is not authorization.",
             "in": "query",
             "name": "page[after]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -3502,6 +3520,7 @@
             "name": "sort",
             "required": false,
             "schema": {
+              "default": "-eventTimestamp",
               "enum": [
                 "-eventTimestamp",
                 "eventTimestamp"
@@ -3540,7 +3559,8 @@
                 "openwhisk",
                 "storage",
                 "quota_metering",
-                "tenant_control_plane"
+                "tenant_control_plane",
+                "mcp"
               ],
               "type": "string"
             }
@@ -3570,6 +3590,7 @@
             "name": "filter[actionId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -3609,6 +3630,7 @@
             "name": "filter[actorId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -3617,6 +3639,7 @@
             "name": "filter[resourceType]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -3625,6 +3648,7 @@
             "name": "filter[resourceId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -3649,6 +3673,7 @@
             "name": "filter[correlationId]",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }

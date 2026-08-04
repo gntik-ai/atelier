@@ -182,6 +182,60 @@ describe('ConsoleObservabilityPage', () => {
     expect(document.getElementById(controlsId)).toBeInTheDocument()
   })
 
+  it('ofrece continuación accesible, anuncia el append y conserva registros ante un error', async () => {
+    const user = userEvent.setup()
+    const loadMore = vi.fn()
+    mockUseConsoleContext.mockReturnValue({ activeTenantId: 'ten_1', activeWorkspaceId: null, activeTenant: { label: 'Tenant' }, activeWorkspace: null })
+    mockUseConsoleMetrics.mockReturnValue({ overview: null, loading: false, error: null, reload: vi.fn() })
+    mockUseConsoleAuditRecords.mockReturnValue({
+      records: [{ eventId: 'evt_1', eventTimestamp: 'now', correlationId: 'corr', actor: { actorId: 'usr_1', actorType: 'tenant_user' }, action: { actionId: 'create', category: 'resource_creation' }, resource: null, result: { outcome: 'succeeded' }, origin: null }],
+      loading: false,
+      error: null,
+      hasMore: true,
+      nextCursor: 'cursor-01',
+      loadingMore: false,
+      loadMoreError: 'continuation unavailable',
+      continuationStatus: '1 evento añadido; 1 en total.',
+      loadMore,
+      reload: vi.fn()
+    })
+
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Auditoría' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('continuation unavailable')
+    expect(screen.getByRole('button', { name: 'evt_1' })).toBeInTheDocument()
+    expect(screen.getByText('1 evento añadido; 1 en total.')).toHaveAttribute('role', 'status')
+
+    const continuation = screen.getByRole('button', { name: 'Cargar más eventos de auditoría' })
+    expect(continuation).toBeEnabled()
+    await user.click(continuation)
+    expect(loadMore).toHaveBeenCalledTimes(1)
+  })
+
+  it('deshabilita la continuación ocupada y la oculta en una página terminal', async () => {
+    const user = userEvent.setup()
+    mockUseConsoleContext.mockReturnValue({ activeTenantId: 'ten_1', activeWorkspaceId: null, activeTenant: { label: 'Tenant' }, activeWorkspace: null })
+    mockUseConsoleMetrics.mockReturnValue({ overview: null, loading: false, error: null, reload: vi.fn() })
+    const record = { eventId: 'evt_1', eventTimestamp: 'now', correlationId: 'corr', actor: { actorId: 'usr_1', actorType: 'tenant_user' }, action: { actionId: 'create', category: 'resource_creation' }, resource: null, result: { outcome: 'succeeded' }, origin: null }
+    mockUseConsoleAuditRecords.mockReturnValue({
+      records: [record], loading: false, error: null, hasMore: true, nextCursor: 'cursor-01',
+      loadingMore: true, loadMoreError: null, continuationStatus: null, loadMore: vi.fn(), reload: vi.fn()
+    })
+
+    const view = renderPage()
+    await user.click(screen.getByRole('button', { name: 'Auditoría' }))
+    const busy = screen.getByRole('button', { name: 'Cargando más eventos de auditoría' })
+    expect(busy).toBeDisabled()
+    expect(busy).toHaveAttribute('aria-busy', 'true')
+
+    mockUseConsoleAuditRecords.mockReturnValue({
+      records: [record], loading: false, error: null, hasMore: false, nextCursor: null,
+      loadingMore: false, loadMoreError: null, continuationStatus: null, loadMore: vi.fn(), reload: vi.fn()
+    })
+    view.rerender(<ConsoleObservabilityPage />)
+    expect(screen.queryByRole('button', { name: /eventos de auditoría/i })).not.toBeInTheDocument()
+  })
+
   it('anuncia y deshabilita la exportación mientras espera respuesta', async () => {
     const user = userEvent.setup()
     let resolveExport: (value: unknown) => void = () => {}

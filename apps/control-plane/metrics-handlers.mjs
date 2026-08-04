@@ -14,7 +14,13 @@ import { randomUUID } from 'node:crypto';
 import * as store from './tenant-store.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
 import { applyCanonicalWorkspaceMetric } from './request-metric-scope.mjs';
-import { queryAuditEvents, auditRowToRecord } from './audit-store.mjs';
+import {
+  AUDIT_FILTER_DESCRIPTORS,
+  auditRowToRecord,
+  encodeAuditCursor,
+  normalizeAuditEventQuery,
+  queryAuditEvents
+} from './audit-store.mjs';
 
 const ok = (statusCode, body) => ({ statusCode, body });
 const err = (statusCode, code, message) => ({ statusCode, body: { code, message } });
@@ -455,34 +461,29 @@ async function workspaceSeries(ctx) {
     return ok(200, response);
   }
 }
-function auditFilter(query = {}, name) {
-  const value = query[`filter[${name}]`];
-  if (value === undefined || value === null || value === '') return undefined;
-  return String(value);
-}
-
-function auditFiltersFromQuery(query = {}) {
-  return {
-    outcome: auditFilter(query, 'outcome'),
-    actionCategory: auditFilter(query, 'actionCategory'),
-    actorId: auditFilter(query, 'actorId'),
-    occurredAfter: auditFilter(query, 'occurredAfter'),
-    occurredBefore: auditFilter(query, 'occurredBefore')
-  };
-}
-
-const AVAILABLE_AUDIT_FILTERS = Object.freeze([
-  { id: 'outcome', param: 'filter[outcome]', label: 'Outcome', type: 'text' },
-  { id: 'action_category', param: 'filter[actionCategory]', label: 'Action category', type: 'text' },
-  { id: 'actor_id', param: 'filter[actorId]', label: 'Actor ID', type: 'text' },
-  { id: 'occurred_after', param: 'filter[occurredAfter]', label: 'Occurred after', type: 'date-time' },
-  { id: 'occurred_before', param: 'filter[occurredBefore]', label: 'Occurred before', type: 'date-time' }
+const AVAILABLE_AUDIT_FILTERS = Object.freeze(AUDIT_FILTER_DESCRIPTORS.map((descriptor) => Object.freeze({
+  id: descriptor.id,
+  param: descriptor.param,
+  label: descriptor.label,
+  type: descriptor.type,
+  ...(descriptor.allowedValues ? { allowedValues: descriptor.allowedValues } : {})
+})));
+const AUDIT_QUERY_PARAMETERS = Object.freeze([
+  'page[size]',
+  'page[after]',
+  'sort',
+  ...AUDIT_FILTER_DESCRIPTORS.map(({ param }) => param)
 ]);
 
-function appliedAuditFilters(query = {}) {
-  return Object.fromEntries(
-    Object.entries(auditFiltersFromQuery(query)).filter(([, value]) => value !== undefined)
-  );
+function rawAuditQuery(ctx) {
+  if (!ctx.searchParams || typeof ctx.searchParams.getAll !== 'function') return ctx.query ?? {};
+  const query = {};
+  for (const param of AUDIT_QUERY_PARAMETERS) {
+    const values = ctx.searchParams.getAll(param);
+    if (values.length === 1) query[param] = values[0];
+    else if (values.length > 1) query[param] = values;
+  }
+  return query;
 }
 
 function canonicalAuditRecord(record) {
@@ -499,10 +500,10 @@ function canonicalAuditRecord(record) {
   };
 }
 
-function auditCollection(items, queryScope, filters) {
+function auditCollection(items, queryScope, filters, page) {
   return {
     items,
-    page: { size: items.length, hasMore: false },
+    page,
     queryScope,
     appliedFilters: filters,
     availableFilters: AVAILABLE_AUDIT_FILTERS,
@@ -519,25 +520,43 @@ function auditCollection(items, queryScope, filters) {
 // Reads plan_audit_events (the WRITER side, audit-store.mjs), scoped to the path's
 // owning tenant (and workspace, for the workspace route). guarded() has already
 // resolved + authorized the scope tenant, so this only ever returns own-tenant
-// records. Degrades to an empty page (never 500) if the store is unreadable.
+// records. Invalid controls fail before the store; a valid unmatched filter is a
+// normal empty success rather than a fallback to the unfiltered set.
 async function auditRecords(ctx) {
-  const scope = await resolveScopeTenant(ctx);
-  if (scope.error) return scope.error;
+  const scope = ctx.resolvedScope;
   const queryScope = ctx.params.workspaceId ? 'workspace' : 'tenant';
-  const filters = appliedAuditFilters(ctx.query);
-  const limit = Math.min(Math.max(Number(ctx.query?.['page[size]'] ?? ctx.query?.limit ?? 50) || 50, 1), 200);
+  let query;
   try {
-    const rows = await queryAuditEvents(ctx.pool, {
+    query = normalizeAuditEventQuery(rawAuditQuery(ctx), {
       tenantId: scope.tenantId,
-      workspaceId: ctx.params.workspaceId ?? null,
-      limit,
-      ...auditFiltersFromQuery(ctx.query)
+      workspaceId: scope.workspaceId ?? null,
+      queryScope
     });
-    const items = rows.map((row) => canonicalAuditRecord(auditRowToRecord(row)));
-    return ok(200, auditCollection(items, queryScope, filters));
-  } catch {
-    return ok(200, auditCollection([], queryScope, filters));
+  } catch (error) {
+    return err(400, error?.code ?? 'AUDIT_QUERY_INVALID', error?.message ?? 'invalid audit-record query');
   }
+
+  const rows = await queryAuditEvents(ctx.pool, {
+    tenantId: scope.tenantId,
+    workspaceId: scope.workspaceId ?? null,
+    pageSize: query.pageSize,
+    sort: query.sort,
+    cursorPosition: query.cursorPosition,
+    filters: query.filters
+  });
+  const hasMore = rows.length > query.pageSize;
+  const pageRows = rows.slice(0, query.pageSize);
+  const items = pageRows
+    .map((row) => canonicalAuditRecord(auditRowToRecord(row)));
+  const page = { size: items.length, hasMore };
+  if (hasMore && items.length > 0) {
+    const last = pageRows.at(-1);
+    page.nextCursor = encodeAuditCursor({
+      position: { createdAt: last.cursor_created_at, id: String(last.id) },
+      fingerprint: query.fingerprint
+    });
+  }
+  return ok(200, auditCollection(items, queryScope, query.filters, page));
 }
 // ---- audit export (Observability) — REAL masked export (#683) ---------------
 // Upgrades the former 202 no-op ack to a real export: query the tamper-evident audit store
