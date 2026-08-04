@@ -463,6 +463,9 @@ export function useConsoleAuditRecords(tenantId: string | null, workspaceId: str
 export async function exportAuditRecords(tenantId: string, workspaceId: string | null, filters: ConsoleAuditFilter): Promise<ConsoleAuditExportResult> {
   const base = workspaceId ? `/v1/metrics/workspaces/${workspaceId}` : `/v1/metrics/tenants/${tenantId}`
   const body: any = {
+    format: 'jsonl',
+    pageSize: 500,
+    maskingProfileId: 'default_masked',
     filters: {
       actorId: filters.actorId,
       actionCategory: filters.category,

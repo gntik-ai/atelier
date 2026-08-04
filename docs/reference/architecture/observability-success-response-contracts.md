@@ -26,6 +26,39 @@ unavailable.
 The audit routes use the canonical list projection. Detail-only fields are not added to list items. Export items are
 also canonical records plus the explicit masking metadata required by `AuditExportManifest`.
 
+### Audit export request and response
+
+`POST /v1/metrics/tenants/{tenantId}/audit-exports` and
+`POST /v1/metrics/workspaces/{workspaceId}/audit-exports` accept a JSON body whose `format` is
+required and must be `jsonl` or `csv`. `pageSize` is optional and defaults to `500`; if present it
+must be an integer in the inclusive range `1..10000`. The console sends `format: "jsonl"`,
+`pageSize: 500`, and `maskingProfileId: "default_masked"` explicitly. Invalid format, page size,
+sort, filter, time window, or masking profile fails with a coded 4xx response before any audit query
+is performed.
+
+If the datastore or an available primary builder fails operationally, the handler returns a coded
+5xx response rather than an empty success or fallback manifest. The inline fallback is used only
+when the primary builder is unavailable.
+
+The body can reuse the public audit-query filter vocabulary (`occurredAfter`, `occurredBefore`,
+`subsystem`, `actionCategory`, `actionId`, `outcome`, `actorType`, `actorId`, `resourceType`,
+`resourceId`, `originSurface`, and `correlationId`). Scope is bound from the route and caller
+identity; a body scope value cannot expand it. Authorization requirements do not change here; these
+rules apply to callers already authorized for the route's tenant or workspace.
+
+The successful response is an inline `AuditExportManifest`, not a persisted artifact. It includes
+`exportId`, `queryScope`, `format`, `maskingProfileId`, `correlationId`, `generatedAt`,
+`appliedFilters`, `itemCount`, `maskedItemCount`, and `items`. The default masking profile is
+`default_masked`; protected credential and provider-locator fields are replaced with `[MASKED]`.
+If the primary masking path is unavailable, the inline fallback uses the more conservative full
+detail redaction and must not expose more data than the primary path.
+
+The export can contain up to 10,000 records in one response. Callers should request the smallest
+practical page size and use filters/time windows to control payload size. Because no durable export
+artifact is persisted, implementation rollback means reverting this change/PR. As a caller-side
+mitigation while a rollback is prepared, stop issuing the request or restore the previous request
+size; there is no server-side artifact to delete.
+
 ## Freshness, degraded evidence, and empty results
 
 Metric dimensions carry `freshnessStatus`: `fresh`, `degraded`, or `unavailable`. The overall quota posture follows
@@ -56,8 +89,10 @@ field and records that masking was applied; it must never expose more data than 
 ## Compatibility boundaries
 
 The workspace metric-series response is covered by the separate C-04 contract and is intentionally outside this
-document. Advanced audit filters and correlation/detail contracts tracked by C-09 and C-10 are likewise outside this
-change; this reference documents only the canonical list surface and its currently supported filter metadata.
+document. Correlation execution remains a separate concern; this reference documents the export's
+currently supported filter metadata and shared list semantics. The audit-record list endpoint
+remains bounded by its existing maximum of `200` records per page; the export's `10000` limit does
+not change that list contract.
 
 ## Local validation (no deployment required)
 

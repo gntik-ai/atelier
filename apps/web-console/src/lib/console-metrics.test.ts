@@ -352,7 +352,7 @@ describe('console-metrics', () => {
     }
     mockRequestConsoleSessionJson.mockResolvedValue(manifest)
     const result = await exportAuditRecords('ten_1', null, { category: 'resource_creation' })
-    expect(mockRequestConsoleSessionJson).toHaveBeenCalledWith('/v1/metrics/tenants/ten_1/audit-exports', expect.objectContaining({ method: 'POST' }))
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledWith('/v1/metrics/tenants/ten_1/audit-exports', expect.objectContaining({ method: 'POST', body: expect.objectContaining({ format: 'jsonl', pageSize: 500, maskingProfileId: 'default_masked' }) }))
     expect(result).toEqual(manifest)
   })
 

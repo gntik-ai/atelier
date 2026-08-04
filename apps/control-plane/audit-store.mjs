@@ -460,6 +460,7 @@ export async function queryAuditEvents(db, {
   sort = '-eventTimestamp',
   cursorPosition = null,
   filters = null,
+  maxLimit = 200,
   outcome = null,
   actionCategory = null,
   actorId = null,
@@ -468,8 +469,12 @@ export async function queryAuditEvents(db, {
 } = {}) {
   validateAuditQueryScope({ tenantId, workspaceId, queryScope });
   const paginated = Number.isInteger(pageSize);
-  const safePageSize = paginated ? Math.min(Math.max(pageSize, 1), 200) : null;
-  const safeLimit = paginated ? safePageSize + 1 : Math.min(Math.max(Number(limit) || 50, 1), 200);
+  const exportMode = maxLimit > 200;
+  const cap = Number.isInteger(maxLimit) ? Math.min(Math.max(maxLimit, 1), 10000) : 200;
+  const safePageSize = paginated ? Math.min(Math.max(pageSize, 1), exportMode ? cap : 200) : null;
+  const safeLimit = paginated
+    ? (exportMode ? safePageSize : safePageSize + 1)
+    : Math.min(Math.max(Number(limit) || 50, 1), exportMode ? cap : 200);
   const effectiveFilters = filters ?? Object.fromEntries([
     ['outcome', filterValue(outcome)],
     ['action_category', filterValue(actionCategory)],

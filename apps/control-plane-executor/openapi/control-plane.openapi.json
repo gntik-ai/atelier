@@ -90287,7 +90287,8 @@
               "openwhisk",
               "storage",
               "quota_metering",
-              "tenant_control_plane"
+              "tenant_control_plane",
+              "mcp"
             ]
           },
           "actionCategory": {
@@ -90401,6 +90402,7 @@
           },
           "pageSize": {
             "type": "integer",
+            "default": 500,
             "minimum": 1,
             "maximum": 10000
           },

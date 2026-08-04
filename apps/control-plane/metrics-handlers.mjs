@@ -584,46 +584,90 @@ async function loadAuditExportPreview() {
 async function auditExport(ctx) {
   // Resolve the scope (tenant from the path, or the workspace's owning tenant). guarded() has
   // already verified the caller may read this scope, so this only derives the ids for the query.
-  const scope = await resolveScopeTenant(ctx);
+  const scope = ctx.resolvedScope ?? await resolveScopeTenant(ctx);
   if (scope.error) return scope.error;
   const tenantId = scope.tenantId;
-  const workspaceId = ctx.params.workspaceId ?? null;
-  const limit = Math.min(Math.max(Number(ctx.body?.pageSize ?? ctx.body?.filters?.pageSize ?? 200) || 200, 1), 200);
+  const workspaceId = scope.workspaceId ?? null;
+  const builder = Object.hasOwn(ctx, 'auditExportBuilder') ? ctx.auditExportBuilder : await loadAuditExportPreview();
+  const format = ctx.body?.format;
+  if (format !== 'jsonl' && format !== 'csv') return err(400, 'AUDIT_EXPORT_INVALID_FORMAT', 'format must be jsonl or csv');
+  const rawLimit = ctx.body?.pageSize;
+  const limit = rawLimit === undefined ? 500 : rawLimit;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 10000) return err(400, 'AUDIT_EXPORT_LIMIT_EXCEEDED', 'pageSize must be an integer from 1 through 10000');
+  const maskingProfileId = ctx.body?.maskingProfileId ?? 'default_masked';
+  if (maskingProfileId !== 'default_masked') return err(400, 'AUDIT_EXPORT_UNKNOWN_MASKING_PROFILE', 'maskingProfileId must be default_masked');
+  const context = { actor: { id: String(ctx.identity?.sub ?? 'unknown') }, correlationId: String(ctx.callerContext?.correlationId ?? randomUUID()), tenantId, workspaceId };
+  const queryInput = Object.fromEntries([
+    ['sort', ctx.body?.sort],
+    ...AUDIT_FILTER_DESCRIPTORS.map((descriptor) => [
+      descriptor.param,
+      ctx.body?.filters?.[descriptor.key] ?? ctx.body?.filters?.[descriptor.id]
+    ])
+  ].filter(([, value]) => value !== undefined && value !== null));
+  let query;
+  try {
+    query = normalizeAuditEventQuery(queryInput, {
+      tenantId,
+      workspaceId,
+      queryScope: workspaceId ? 'workspace' : 'tenant'
+    });
+  } catch (e) {
+    const code = e?.code === 'AUDIT_QUERY_INVALID_SORT'
+      ? 'AUDIT_EXPORT_INVALID_SORT'
+      : e?.code === 'AUDIT_QUERY_INVALID_TIME_WINDOW'
+        ? 'AUDIT_EXPORT_INVALID_TIME_WINDOW'
+        : 'AUDIT_EXPORT_INVALID_FILTER';
+    return err(400, code, e?.message ?? 'audit export query is invalid');
+  }
+  if (query.filters.occurred_after && query.filters.occurred_before) {
+    const windowMs = Date.parse(query.filters.occurred_before) - Date.parse(query.filters.occurred_after);
+    if (windowMs > 31 * 24 * 60 * 60 * 1000) {
+      return err(400, 'AUDIT_EXPORT_INVALID_TIME_WINDOW', 'audit export time window cannot exceed 31 days');
+    }
+  }
+  const rawInput = {
+    format,
+    pageSize: limit,
+    maskingProfileId,
+    sort: query.sort,
+    filters: query.filters
+  };
+  let normalized = rawInput;
+  if (builder?.normalizeAuditExportRequest) {
+    try { normalized = builder.normalizeAuditExportRequest(workspaceId ? 'workspace' : 'tenant', context, { ...rawInput, ...(workspaceId ? { workspaceId } : { tenantId }) }); }
+    catch (e) { if (e?.code?.startsWith?.('AUDIT_EXPORT_')) return err(400, e.code, e.message); throw e; }
+  }
   let rows = [];
-  try { rows = await queryAuditEvents(ctx.pool, { tenantId, workspaceId, limit }); }
-  catch { rows = []; }
+  const safeFilters = normalized.filters;
+  try { rows = await queryAuditEvents(ctx.pool, { tenantId, workspaceId, limit: normalized.pageSize, maxLimit: 10000, filters: safeFilters, sort: normalized.sort }); }
+  catch (e) { return err(500, 'AUDIT_EXPORT_QUERY_FAILED', 'audit export query failed'); }
   const records = rows.map(auditRowToRecord);
-  const builder = Object.hasOwn(ctx, 'auditExportBuilder')
-    ? ctx.auditExportBuilder
-    : await loadAuditExportPreview();
   if (builder) {
     try {
-      const context = {
-        actor: { id: String(ctx.identity?.sub ?? 'unknown') },
-        correlationId: String(ctx.callerContext?.correlationId ?? randomUUID()),
-        tenantId,
-        workspaceId
-      };
       const input = {
         records,
-        format: ctx.body?.format,
-        maskingProfileId: ctx.body?.maskingProfileId,
-        pageSize: limit,
+        format: normalized.format?.id ?? format,
+        maskingProfileId: normalized.maskingProfile?.id ?? maskingProfileId,
+        pageSize: normalized.pageSize,
         generatedAt: nowIso(ctx),
-        filters: {}
+        filters: safeFilters,
+        sort: normalized.sort
       };
       const manifest = workspaceId
         ? builder.exportWorkspaceAuditRecordsPreview(context, { ...input, workspaceId })
         : builder.exportTenantAuditRecordsPreview(context, { ...input, tenantId });
       return ok(200, manifest);
-    } catch (e) { console.error(`[metrics] audit export builder failed, returning inline manifest: ${String(e?.message ?? e)}`); }
+    } catch (e) {
+      if (e?.code?.startsWith?.('AUDIT_EXPORT_')) return err(400, e.code, e.message);
+      console.error(`[metrics] audit export builder failed: ${String(e?.message ?? e)}`);
+      return err(500, 'AUDIT_EXPORT_BUILD_FAILED', 'audit export build failed');
+    }
   }
   // Inline fallback manifest (records already tenant/workspace-scoped via queryAuditEvents).
   // Only reachable if apps/control-plane-executor (which holds the masking profile) is absent from the
   // image. Without the profile we cannot reproduce its per-field masking, so we conservatively
   // redact the entire `detail` field — the only field the primary path masks — guaranteeing this
   // fallback never exposes MORE sensitive data than the profile-masked path.
-  const format = ctx.body?.format === 'csv' ? 'csv' : 'jsonl';
   const maskedItems = records.map((record) => ({
     ...canonicalAuditRecord(record),
     detail: {},
@@ -634,11 +678,11 @@ async function auditExport(ctx) {
   return ok(200, {
     exportId: `exp_${randomUUID()}`,
     queryScope: workspaceId ? 'workspace' : 'tenant',
-    format,
-    maskingProfileId: 'default_masked',
+    format: normalized.format?.id ?? format,
+    maskingProfileId: normalized.maskingProfile?.id ?? maskingProfileId,
     correlationId: String(ctx.callerContext?.correlationId ?? randomUUID()),
     generatedAt: nowIso(ctx),
-    appliedFilters: {},
+    appliedFilters: safeFilters,
     itemCount: maskedItems.length,
     maskedItemCount: maskedItems.length,
     items: maskedItems

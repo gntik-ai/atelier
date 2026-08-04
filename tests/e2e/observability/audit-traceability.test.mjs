@@ -185,6 +185,7 @@ test('full-chain traceability scenarios stay coherent across consultation, expor
     },
     {
       workspaceId: 'wrk_01a',
+      format: 'jsonl',
       correlationId: 'corr_chain_01',
       records: [baseRecord]
     }
@@ -308,6 +309,7 @@ test('masking consistency scenarios preserve protected-field masking across cons
     },
     {
       workspaceId: 'wrk_01a',
+      format: 'jsonl',
       correlationId: 'corr_mask_01',
       records: [maskedRecord]
     }
@@ -380,6 +382,7 @@ test('tenant and workspace isolation scenarios reject cross-scope access and kee
     },
     {
       tenantId: 'ten_01a',
+      format: 'jsonl',
       correlationId: 'corr_tenant_a',
       records: [tenantARecord]
     }
