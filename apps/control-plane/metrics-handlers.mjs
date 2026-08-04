@@ -18,33 +18,92 @@ import { queryAuditEvents, auditRowToRecord } from './audit-store.mjs';
 
 const ok = (statusCode, body) => ({ statusCode, body });
 const err = (statusCode, code, message) => ({ statusCode, body: { code, message } });
-const nowIso = () => new Date().toISOString();
+const nowIso = (ctx) => new Date(typeof ctx?.nowMs === 'function' ? ctx.nowMs() : Date.now()).toISOString();
 const ENTITLEMENTS = '/repo/packages/provisioning-orchestrator/src/actions/tenant-effective-entitlements-get.mjs';
 const WS_CONSUMPTION = '/repo/packages/provisioning-orchestrator/src/actions/workspace-consumption-get.mjs';
+const QUOTA_POSTURE_PRECEDENCE = Object.freeze([
+  'hard_limit_reached',
+  'soft_limit_exceeded',
+  'warning_threshold_reached',
+  'evidence_unavailable',
+  'evidence_degraded',
+  'within_limit',
+  'unbounded'
+]);
+const QUOTA_VISUAL_STATE = Object.freeze({
+  hard_limit_reached: 'critical',
+  soft_limit_exceeded: 'elevated',
+  warning_threshold_reached: 'warning',
+  evidence_unavailable: 'degraded',
+  evidence_degraded: 'degraded',
+  within_limit: 'healthy',
+  unbounded: 'unknown'
+});
+
+function metricsScope(ctx) {
+  return {
+    queryScope: ctx.resolvedScope.workspaceId ? 'workspace' : 'tenant',
+    tenantId: ctx.resolvedScope.tenantId,
+    workspaceId: ctx.resolvedScope.workspaceId ?? null
+  };
+}
+
+function freshnessFromLimit(limit = {}) {
+  if (limit.usageStatus === 'fresh') return 'fresh';
+  if (limit.usageStatus === 'degraded') return 'degraded';
+  return 'unavailable';
+}
+
+function remainingTo(limit, measuredValue) {
+  return limit == null ? null : Math.max(0, limit - measuredValue);
+}
+
+function quotaDimensionStatus(dimension) {
+  if (dimension.policyMode === 'unbounded') return 'unbounded';
+  if (dimension.freshnessStatus === 'unavailable') return 'evidence_unavailable';
+  if (dimension.hardLimit != null && dimension.measuredValue >= dimension.hardLimit) return 'hard_limit_reached';
+  if (dimension.softLimit != null && dimension.measuredValue >= dimension.softLimit) return 'soft_limit_exceeded';
+  if (dimension.warningThreshold != null && dimension.measuredValue >= dimension.warningThreshold) return 'warning_threshold_reached';
+  if (dimension.freshnessStatus === 'degraded') return 'evidence_degraded';
+  return 'within_limit';
+}
 
 // Normalized limit row -> posture/overview dimension (shared by quotas + observability).
-function dimensionsFromLimits(limits) {
-  const dimensions = [];
-  const breaches = [];
-  for (const l of limits) {
-    const hardLimit = typeof l.effectiveValue === 'number' ? l.effectiveValue : null;
-    const measured = typeof l.currentUsage === 'number' ? l.currentUsage : 0;
-    const known = Boolean(l.usageStatus) && l.usageStatus !== 'unknown';
-    if (known && hardLimit != null && measured >= hardLimit) breaches.push(l.dimensionKey);
-    dimensions.push({
-      dimensionId: l.dimensionKey,
-      displayName: l.displayLabel ?? l.dimensionKey,
-      policyMode: l.quotaType === 'soft' || hardLimit == null ? 'unbounded' : 'enforced',
+function dimensionsFromLimits(limits, scope, timestamp) {
+  return limits.map((limit) => {
+    const configuredLimit = typeof limit.effectiveValue === 'number' ? limit.effectiveValue : null;
+    const softLimit = limit.quotaType === 'soft' ? configuredLimit : null;
+    const hardLimit = limit.quotaType === 'soft' ? null : configuredLimit;
+    const measuredValue = typeof limit.currentUsage === 'number' ? limit.currentUsage : 0;
+    const dimension = {
+      dimensionId: String(limit.dimensionKey ?? 'unknown_dimension'),
+      displayName: String(limit.displayLabel ?? limit.dimensionKey ?? 'Unknown dimension'),
+      scope: scope.queryScope,
+      measuredValue,
+      unit: String(limit.unit ?? 'count'),
+      freshnessStatus: freshnessFromLimit(limit),
+      policyMode: configuredLimit == null ? 'unbounded' : 'enforced',
+      warningThreshold: null,
+      softLimit,
       hardLimit,
-      softLimit: null,
-      measuredValue: measured,
-      remainingToHardLimit: hardLimit != null ? Math.max(0, hardLimit - measured) : null,
-      freshnessStatus: known ? 'fresh' : 'unavailable'
-    });
-  }
-  return { dimensions, breaches };
+      remainingToWarning: null,
+      remainingToSoftLimit: remainingTo(softLimit, measuredValue),
+      remainingToHardLimit: remainingTo(hardLimit, measuredValue),
+      usageSnapshotTimestamp: timestamp
+    };
+    return { ...dimension, status: quotaDimensionStatus(dimension) };
+  });
 }
-const overallPosture = (breaches) => (breaches.length ? 'critical' : 'healthy');
+
+function overallPosture(dimensions) {
+  if (dimensions.length === 0) return 'evidence_unavailable';
+  return QUOTA_POSTURE_PRECEDENCE.find((status) => dimensions.some((dimension) => dimension.status === status))
+    ?? 'evidence_unavailable';
+}
+
+function dimensionIdsWithStatus(dimensions, status) {
+  return dimensions.filter((dimension) => dimension.status === status).map((dimension) => dimension.dimensionId);
+}
 
 async function tenantLimits(ctx, tenantId) {
   const client = await ctx.pool.connect();
@@ -57,8 +116,8 @@ async function tenantLimits(ctx, tenantId) {
     // foreign tenant is denied 403 at the route layer). The inner entitlements action enforces a
     // STRICTER actor-type allow-list, so an authorized same-tenant non-owner (e.g. tenant_admin)
     // tripped FORBIDDEN, and a missing quota relation tripped 42P01 — either bubbled to a 500.
-    // Degrade gracefully to an empty (healthy) posture, exactly like workspaceLimits, so the
-    // Quotas page renders instead of erroring; real limits surface when resolvable.
+    // Degrade gracefully to an empty, evidence-unavailable posture, exactly like
+    // workspaceLimits, so the page renders without claiming the tenant is healthy.
     return [];
   } finally {
     client.release();
@@ -88,29 +147,173 @@ async function workspaceLimits(ctx, workspaceId) {
   }
 }
 
-// limits accessor by scope (tenant if no workspaceId in path, else workspace)
-const limitsFor = (ctx) =>
-  ctx.params.workspaceId ? workspaceLimits(ctx, ctx.params.workspaceId) : tenantLimits(ctx, ctx.params.tenantId);
+// Limits accessor by authorized scope. The injection seam is for public-interface
+// black-box tests; guarded() always resolves and authorizes the scope before this runs.
+async function limitsFor(ctx) {
+  try {
+    if (typeof ctx.loadLimits === 'function') {
+      const scope = metricsScope(ctx);
+      return await ctx.loadLimits(scope.workspaceId
+        ? { tenantId: scope.tenantId, workspaceId: scope.workspaceId }
+        : { tenantId: scope.tenantId });
+    }
+    return ctx.resolvedScope.workspaceId
+      ? await workspaceLimits(ctx, ctx.resolvedScope.workspaceId)
+      : await tenantLimits(ctx, ctx.resolvedScope.tenantId);
+  } catch {
+    return [];
+  }
+}
 
 // ---- quotas posture (Quotas page) ------------------------------------------
 async function quotas(ctx) {
-  const { dimensions, breaches } = dimensionsFromLimits(await limitsFor(ctx));
-  return ok(200, { evaluatedAt: nowIso(), dimensions, hardLimitBreaches: breaches });
+  const scope = metricsScope(ctx);
+  const evaluatedAt = nowIso(ctx);
+  const dimensions = dimensionsFromLimits(await limitsFor(ctx), scope, evaluatedAt);
+  const overallStatus = overallPosture(dimensions);
+  const hardLimitBreaches = dimensionIdsWithStatus(dimensions, 'hard_limit_reached');
+  const softLimitBreaches = dimensionIdsWithStatus(dimensions, 'soft_limit_exceeded');
+  const warningDimensions = dimensionIdsWithStatus(dimensions, 'warning_threshold_reached');
+  const degradedDimensions = dimensions
+    .filter((dimension) => dimension.freshnessStatus !== 'fresh')
+    .map((dimension) => dimension.dimensionId);
+  const scopeId = scope.workspaceId ?? scope.tenantId;
+
+  return ok(200, {
+    postureId: `posture_${scope.queryScope}_${scopeId}_${Date.parse(evaluatedAt)}`,
+    ...scope,
+    evaluatedAt,
+    usageSnapshotTimestamp: evaluatedAt,
+    observationWindow: { startedAt: evaluatedAt, endedAt: evaluatedAt },
+    dimensions,
+    overallStatus,
+    degradedDimensions,
+    hardLimitBreaches,
+    softLimitBreaches,
+    warningDimensions,
+    evaluationAudit: {
+      evaluationId: `evaluation_${scope.queryScope}_${scopeId}_${Date.parse(evaluatedAt)}`,
+      queryScope: scope.queryScope,
+      overallStatus,
+      hardLimitBreaches,
+      softLimitBreaches,
+      warningDimensions,
+      evaluatedAt
+    }
+  });
 }
+
+function quotaUsageDimensionView(dimension) {
+  const denominator = dimension.hardLimit ?? dimension.softLimit;
+  return {
+    dimensionId: dimension.dimensionId,
+    displayName: dimension.displayName,
+    scope: dimension.scope,
+    currentUsage: dimension.measuredValue,
+    unit: dimension.unit,
+    warningThreshold: dimension.warningThreshold,
+    softLimit: dimension.softLimit,
+    hardLimit: dimension.hardLimit,
+    usagePercentage: denominator != null && denominator > 0
+      ? Number(((dimension.measuredValue / denominator) * 100).toFixed(1))
+      : null,
+    posture: dimension.status,
+    visualState: QUOTA_VISUAL_STATE[dimension.status] ?? 'unknown',
+    freshnessStatus: dimension.freshnessStatus,
+    lastUpdatedAt: dimension.usageSnapshotTimestamp,
+    blockingState: dimension.status === 'hard_limit_reached' ? 'breached' : 'advisory',
+    blockingReasonCode: null
+  };
+}
+
+function overviewAccessAudit(ctx, scope, generatedAt) {
+  const workspace = scope.queryScope === 'workspace';
+  return {
+    eventType: 'quota.overview.read',
+    queryScope: scope.queryScope,
+    tenantId: scope.tenantId,
+    workspaceId: scope.workspaceId,
+    permissionId: workspace ? 'workspace.overview.read' : 'tenant.overview.read',
+    routeOperationId: workspace ? 'getWorkspaceQuotaUsageOverview' : 'getTenantQuotaUsageOverview',
+    requestedBy: String(ctx.identity?.sub ?? 'unknown'),
+    generatedAt
+  };
+}
+
 // ---- overview (Quotas + Observability) — carries posture AND dimensions ----
 async function overview(ctx) {
-  const { dimensions, breaches } = dimensionsFromLimits(await limitsFor(ctx));
-  return ok(200, { generatedAt: nowIso(), overallPosture: overallPosture(breaches), hardLimitDimensions: breaches, dimensions });
+  const scope = metricsScope(ctx);
+  const generatedAt = nowIso(ctx);
+  const quotaDimensions = dimensionsFromLimits(await limitsFor(ctx), scope, generatedAt);
+  const dimensions = quotaDimensions.map(quotaUsageDimensionView);
+  const scopeId = scope.workspaceId ?? scope.tenantId;
+  const response = {
+    overviewId: `overview_${scope.queryScope}_${scopeId}_${Date.parse(generatedAt)}`,
+    ...scope,
+    generatedAt,
+    policiesConfigured: quotaDimensions.some((dimension) => dimension.policyMode === 'enforced'),
+    dimensions,
+    overallPosture: overallPosture(quotaDimensions),
+    warningDimensions: dimensionIdsWithStatus(quotaDimensions, 'warning_threshold_reached'),
+    softLimitDimensions: dimensionIdsWithStatus(quotaDimensions, 'soft_limit_exceeded'),
+    hardLimitDimensions: dimensionIdsWithStatus(quotaDimensions, 'hard_limit_reached'),
+    accessAudit: overviewAccessAudit(ctx, scope, generatedAt)
+  };
+
+  if (scope.queryScope === 'tenant') {
+    const reasonSummary = 'Provisioning state is not available from the metrics limit source.';
+    response.provisioningState = {
+      state: 'degraded',
+      visualState: 'degraded',
+      components: [{
+        componentName: 'tenant_provisioning',
+        status: 'degraded',
+        reason: reasonSummary,
+        lastCheckedAt: generatedAt
+      }],
+      degradedComponents: ['tenant_provisioning'],
+      lastCheckedAt: generatedAt,
+      reasonSummary
+    };
+  }
+  return ok(200, response);
 }
+
 // ---- usage snapshot (Observability) — currentUsage per dimension -----------
 async function usage(ctx) {
   const limits = await limitsFor(ctx);
+  const scope = metricsScope(ctx);
+  const snapshotTimestamp = nowIso(ctx);
+  const dimensions = limits.map((limit) => ({
+    dimensionId: String(limit.dimensionKey ?? 'unknown_dimension'),
+    displayName: String(limit.displayLabel ?? limit.dimensionKey ?? 'Unknown dimension'),
+    value: typeof limit.currentUsage === 'number' ? limit.currentUsage : 0,
+    unit: String(limit.unit ?? 'count'),
+    scope: scope.queryScope,
+    freshnessStatus: freshnessFromLimit(limit),
+    sourceMode: 'control_plane_inventory',
+    sourceRef: String(limit.dimensionKey ?? 'unknown_dimension'),
+    observedAt: snapshotTimestamp
+  }));
+  const degradedDimensions = dimensions
+    .filter((dimension) => dimension.freshnessStatus !== 'fresh')
+    .map((dimension) => dimension.dimensionId);
+  const scopeId = scope.workspaceId ?? scope.tenantId;
+
   return ok(200, {
-    measuredAt: nowIso(),
-    dimensions: limits.map((l) => {
-      const value = typeof l.currentUsage === 'number' ? l.currentUsage : 0;
-      return { dimensionId: l.dimensionKey, metricKey: l.dimensionKey, value, measuredValue: value, points: [] };
-    })
+    snapshotId: `snapshot_${scope.queryScope}_${scopeId}_${Date.parse(snapshotTimestamp)}`,
+    ...scope,
+    snapshotTimestamp,
+    observationWindow: { startedAt: snapshotTimestamp, endedAt: snapshotTimestamp },
+    dimensions,
+    degradedDimensions,
+    calculationCycle: {
+      cycleId: `cycle_${scope.queryScope}_${scopeId}_${Date.parse(snapshotTimestamp)}`,
+      cadenceSeconds: 1,
+      processedScopes: [scope.queryScope],
+      degradedDimensions,
+      snapshotTimestamp
+    }
   });
 }
 // ---- series (Observability) — real per-tenant time series from Prometheus ---
@@ -268,6 +471,50 @@ function auditFiltersFromQuery(query = {}) {
   };
 }
 
+const AVAILABLE_AUDIT_FILTERS = Object.freeze([
+  { id: 'outcome', param: 'filter[outcome]', label: 'Outcome', type: 'text' },
+  { id: 'action_category', param: 'filter[actionCategory]', label: 'Action category', type: 'text' },
+  { id: 'actor_id', param: 'filter[actorId]', label: 'Actor ID', type: 'text' },
+  { id: 'occurred_after', param: 'filter[occurredAfter]', label: 'Occurred after', type: 'date-time' },
+  { id: 'occurred_before', param: 'filter[occurredBefore]', label: 'Occurred before', type: 'date-time' }
+]);
+
+function appliedAuditFilters(query = {}) {
+  return Object.fromEntries(
+    Object.entries(auditFiltersFromQuery(query)).filter(([, value]) => value !== undefined)
+  );
+}
+
+function canonicalAuditRecord(record) {
+  return {
+    eventId: record.eventId,
+    eventTimestamp: record.eventTimestamp,
+    actor: record.actor,
+    scope: record.scope,
+    resource: record.resource,
+    action: record.action,
+    result: record.result,
+    correlationId: record.correlationId,
+    origin: record.origin
+  };
+}
+
+function auditCollection(items, queryScope, filters) {
+  return {
+    items,
+    page: { size: items.length, hasMore: false },
+    queryScope,
+    appliedFilters: filters,
+    availableFilters: AVAILABLE_AUDIT_FILTERS,
+    consoleHints: {
+      scopeId: queryScope,
+      defaultColumns: ['eventTimestamp', 'action', 'actor', 'result'],
+      savedPresets: [],
+      states: {}
+    }
+  };
+}
+
 // ---- audit records (Observability) — read the action-audit store (#557) ----
 // Reads plan_audit_events (the WRITER side, audit-store.mjs), scoped to the path's
 // owning tenant (and workspace, for the workspace route). guarded() has already
@@ -276,6 +523,8 @@ function auditFiltersFromQuery(query = {}) {
 async function auditRecords(ctx) {
   const scope = await resolveScopeTenant(ctx);
   if (scope.error) return scope.error;
+  const queryScope = ctx.params.workspaceId ? 'workspace' : 'tenant';
+  const filters = appliedAuditFilters(ctx.query);
   const limit = Math.min(Math.max(Number(ctx.query?.['page[size]'] ?? ctx.query?.limit ?? 50) || 50, 1), 200);
   try {
     const rows = await queryAuditEvents(ctx.pool, {
@@ -284,10 +533,10 @@ async function auditRecords(ctx) {
       limit,
       ...auditFiltersFromQuery(ctx.query)
     });
-    const items = rows.map(auditRowToRecord);
-    return ok(200, { items, page: { size: items.length, hasMore: false, nextCursor: null } });
+    const items = rows.map((row) => canonicalAuditRecord(auditRowToRecord(row)));
+    return ok(200, auditCollection(items, queryScope, filters));
   } catch {
-    return ok(200, { items: [], page: { size: 0, hasMore: false, nextCursor: null } });
+    return ok(200, auditCollection([], queryScope, filters));
   }
 }
 // ---- audit export (Observability) — REAL masked export (#683) ---------------
@@ -325,14 +574,29 @@ async function auditExport(ctx) {
   try { rows = await queryAuditEvents(ctx.pool, { tenantId, workspaceId, limit }); }
   catch { rows = []; }
   const records = rows.map(auditRowToRecord);
-  const builder = await loadAuditExportPreview();
+  const builder = Object.hasOwn(ctx, 'auditExportBuilder')
+    ? ctx.auditExportBuilder
+    : await loadAuditExportPreview();
   if (builder) {
     try {
-      const context = { actor: { id: ctx.identity?.sub ?? null }, correlationId: ctx.callerContext?.correlationId ?? randomUUID() };
+      const context = {
+        actor: { id: String(ctx.identity?.sub ?? 'unknown') },
+        correlationId: String(ctx.callerContext?.correlationId ?? randomUUID()),
+        tenantId,
+        workspaceId
+      };
+      const input = {
+        records,
+        format: ctx.body?.format,
+        maskingProfileId: ctx.body?.maskingProfileId,
+        pageSize: limit,
+        generatedAt: nowIso(ctx),
+        filters: {}
+      };
       const manifest = workspaceId
-        ? builder.exportWorkspaceAuditRecordsPreview({ ...context, workspaceId }, { workspaceId, records })
-        : builder.exportTenantAuditRecordsPreview({ ...context, tenantId }, { tenantId, records });
-      return ok(200, { ...manifest, status: 'completed' });
+        ? builder.exportWorkspaceAuditRecordsPreview(context, { ...input, workspaceId })
+        : builder.exportTenantAuditRecordsPreview(context, { ...input, tenantId });
+      return ok(200, manifest);
     } catch (e) { console.error(`[metrics] audit export builder failed, returning inline manifest: ${String(e?.message ?? e)}`); }
   }
   // Inline fallback manifest (records already tenant/workspace-scoped via queryAuditEvents).
@@ -340,15 +604,24 @@ async function auditExport(ctx) {
   // image. Without the profile we cannot reproduce its per-field masking, so we conservatively
   // redact the entire `detail` field — the only field the primary path masks — guaranteeing this
   // fallback never exposes MORE sensitive data than the profile-masked path.
-  const maskedItems = records.map((r) => (r && r.detail !== undefined ? { ...r, detail: '[MASKED]', maskingApplied: true } : r));
+  const format = ctx.body?.format === 'csv' ? 'csv' : 'jsonl';
+  const maskedItems = records.map((record) => ({
+    ...canonicalAuditRecord(record),
+    detail: {},
+    maskingApplied: true,
+    maskedFieldRefs: ['detail'],
+    sensitivityCategories: ['fallback_full_detail_redaction']
+  }));
   return ok(200, {
-    exportId: `exp_${randomUUID()}`, status: 'completed',
+    exportId: `exp_${randomUUID()}`,
     queryScope: workspaceId ? 'workspace' : 'tenant',
-    tenantId, workspaceId,
-    generatedAt: nowIso(),
+    format,
+    maskingProfileId: 'default_masked',
+    correlationId: String(ctx.callerContext?.correlationId ?? randomUUID()),
+    generatedAt: nowIso(ctx),
+    appliedFilters: {},
     itemCount: maskedItems.length,
-    maskedItemCount: maskedItems.filter((i) => i?.maskingApplied).length,
-    appliedFilters: ctx.body?.filters ?? {},
+    maskedItemCount: maskedItems.length,
     items: maskedItems
   });
 }

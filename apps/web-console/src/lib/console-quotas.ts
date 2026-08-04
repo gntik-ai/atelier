@@ -43,6 +43,7 @@ interface QuotaPostureResponse {
     unit?: string
   }>
   hardLimitBreaches?: string[]
+  overallStatus?: string
 }
 
 interface QuotaOverviewResponse {
@@ -56,7 +57,7 @@ export function normalizeQuotaPosture(posture: QuotaPostureResponse | null | und
   return {
     evaluatedAt: posture?.evaluatedAt ?? null,
     generatedAt: overview?.generatedAt ?? null,
-    overallPosture: overview?.overallPosture ?? null,
+    overallPosture: overview?.overallPosture ?? posture?.overallStatus ?? null,
     hardLimitDimensions,
     dimensions: (posture?.dimensions ?? []).map((dimension) => {
       const hardLimit = typeof dimension.hardLimit === 'number' ? dimension.hardLimit : null

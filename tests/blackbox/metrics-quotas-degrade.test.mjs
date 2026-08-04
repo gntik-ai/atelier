@@ -74,11 +74,11 @@ test('bbx-f4-02: metrics quotas/overview/usage return 200 and degrade gracefully
   const q = await METRICS_HANDLERS.metricsTenantQuotas(ctx);
   assert.equal(q.statusCode, 200, 'quotas must return 200 (was 500 when the inner path errored)');
   assert.ok(Array.isArray(q.body.dimensions), 'quotas body carries a dimensions array');
-  assert.deepEqual(q.body.hardLimitBreaches, [], 'an unavailable limits source degrades to no breaches (healthy)');
+  assert.deepEqual(q.body.hardLimitBreaches, [], 'an unavailable limits source has no breaches');
 
   const o = await METRICS_HANDLERS.metricsTenantOverview(ctx);
   assert.equal(o.statusCode, 200, 'overview must return 200');
-  assert.equal(o.body.overallPosture, 'healthy', 'degraded posture is healthy (no breaches), not an error');
+  assert.equal(o.body.overallPosture, 'evidence_unavailable', 'degraded posture is reported honestly');
 
   const u = await METRICS_HANDLERS.metricsTenantUsage(ctx);
   assert.equal(u.statusCode, 200, 'usage must return 200');
