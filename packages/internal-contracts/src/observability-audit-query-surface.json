@@ -57,7 +57,33 @@
     "cursor_param": "page[after]",
     "sort_param": "sort",
     "default_limit": 25,
-    "max_limit": 200
+    "max_limit": 200,
+    "default_sort": "-eventTimestamp",
+    "allowed_sort_values": [
+      "-eventTimestamp",
+      "eventTimestamp"
+    ],
+    "order_fields": [
+      "created_at",
+      "id"
+    ],
+    "lookahead": 1,
+    "cursor": {
+      "encoding": "base64url-json",
+      "version": 1,
+      "position_fields": [
+        "createdAt",
+        "id"
+      ],
+      "fingerprint_algorithm": "sha256",
+      "fingerprint_fields": [
+        "authorized_scope",
+        "canonical_filters",
+        "sort"
+      ],
+      "page_size_in_fingerprint": false,
+      "authorization_boundary": false
+    }
   },
   "filter_dimensions": [
     {
@@ -93,13 +119,26 @@
       "id": "action_category",
       "param": "filter[actionCategory]",
       "label": "Action category",
-      "type": "enum"
+      "type": "enum",
+      "allowed_values": [
+        "resource_creation",
+        "resource_deletion",
+        "configuration_change",
+        "access_control_modification",
+        "quota_adjustment",
+        "privilege_escalation",
+        "secret_rotation",
+        "policy_override",
+        "backup_restore",
+        "provider_reconciliation"
+      ]
     },
     {
       "id": "action_id",
       "param": "filter[actionId]",
       "label": "Action id",
-      "type": "string"
+      "type": "string",
+      "min_length": 1
     },
     {
       "id": "outcome",
@@ -132,19 +171,22 @@
       "id": "actor_id",
       "param": "filter[actorId]",
       "label": "Actor id",
-      "type": "string"
+      "type": "string",
+      "min_length": 1
     },
     {
       "id": "resource_type",
       "param": "filter[resourceType]",
       "label": "Resource type",
-      "type": "string"
+      "type": "string",
+      "min_length": 1
     },
     {
       "id": "resource_id",
       "param": "filter[resourceId]",
       "label": "Resource id",
-      "type": "string"
+      "type": "string",
+      "min_length": 1
     },
     {
       "id": "origin_surface",
@@ -164,7 +206,8 @@
       "id": "correlation_id",
       "param": "filter[correlationId]",
       "label": "Correlation id",
-      "type": "string"
+      "type": "string",
+      "min_length": 1
     }
   ],
   "response_contract": {

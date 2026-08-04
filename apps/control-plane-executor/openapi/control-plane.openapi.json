@@ -54661,15 +54661,18 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 200
+              "maximum": 200,
+              "default": 25
             }
           },
           {
             "name": "page[after]",
             "in": "query",
             "required": false,
+            "description": "Opaque unpadded base64url version-1 continuation bound to the authorized scope, canonical filters, and sort; it is not authorization.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             }
           },
           {
@@ -54681,7 +54684,8 @@
               "enum": [
                 "-eventTimestamp",
                 "eventTimestamp"
-              ]
+              ],
+              "default": "-eventTimestamp"
             }
           },
           {
@@ -54716,7 +54720,8 @@
                 "openwhisk",
                 "storage",
                 "quota_metering",
-                "tenant_control_plane"
+                "tenant_control_plane",
+                "mcp"
               ]
             }
           },
@@ -54745,6 +54750,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -54784,6 +54790,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -54792,6 +54799,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -54800,6 +54808,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -54824,6 +54833,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -54943,15 +54953,18 @@
             "schema": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 200
+              "maximum": 200,
+              "default": 25
             }
           },
           {
             "name": "page[after]",
             "in": "query",
             "required": false,
+            "description": "Opaque unpadded base64url version-1 continuation bound to the authorized scope, canonical filters, and sort; it is not authorization.",
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             }
           },
           {
@@ -54963,7 +54976,8 @@
               "enum": [
                 "-eventTimestamp",
                 "eventTimestamp"
-              ]
+              ],
+              "default": "-eventTimestamp"
             }
           },
           {
@@ -54998,7 +55012,8 @@
                 "openwhisk",
                 "storage",
                 "quota_metering",
-                "tenant_control_plane"
+                "tenant_control_plane",
+                "mcp"
               ]
             }
           },
@@ -55027,6 +55042,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -55066,6 +55082,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -55074,6 +55091,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -55082,6 +55100,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           },
@@ -55106,6 +55125,7 @@
             "in": "query",
             "required": false,
             "schema": {
+              "minLength": 1,
               "type": "string"
             }
           }
@@ -90203,14 +90223,19 @@
           "page": {
             "type": "object",
             "required": [
-              "size"
+              "size",
+              "hasMore"
             ],
             "properties": {
               "size": {
-                "type": "integer"
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 200
               },
               "nextCursor": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1,
+                "description": "Present only when hasMore is true."
               },
               "hasMore": {
                 "type": "boolean"

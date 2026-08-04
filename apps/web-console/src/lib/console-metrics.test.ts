@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { exportAuditRecords, normalizeAuditRecord, normalizeMetricsOverview, useConsoleAuditRecords, useConsoleMetrics, type ConsoleMetricRange } from './console-metrics'
@@ -167,11 +167,178 @@ describe('console-metrics', () => {
     expect(mockRequestConsoleSessionJson).not.toHaveBeenCalled()
   })
 
-  it('carga auditoría con filtros', async () => {
-    mockRequestConsoleSessionJson.mockResolvedValue({ items: [{ eventId: 'evt_1', actor: { actorId: 'usr_1', actorType: 'tenant_user' }, action: { actionId: 'create', category: 'resource_creation' } }] })
-    const { result } = renderHook(() => useConsoleAuditRecords('ten_1', null, { actorId: 'usr_1', result: 'success' }))
+  it('carga auditoría con los cinco filtros existentes y conserva metadatos de página', async () => {
+    mockRequestConsoleSessionJson.mockResolvedValue({
+      items: [{ eventId: 'evt_1', actor: { actorId: 'usr_1', actorType: 'tenant_user' }, action: { actionId: 'create', category: 'resource_creation' } }],
+      page: { size: 1, hasMore: true, nextCursor: 'cursor-01' }
+    })
+    const { result } = renderHook(() => useConsoleAuditRecords('ten_1', null, {
+      actorId: 'usr_1',
+      category: 'resource_creation',
+      result: 'success',
+      from: '2026-08-01',
+      to: '2026-08-04'
+    }))
     await waitFor(() => expect(result.current.records).toHaveLength(1))
-    expect(mockRequestConsoleSessionJson.mock.calls[0][0]).toContain('filter%5BactorId%5D=usr_1')
+    const url = String(mockRequestConsoleSessionJson.mock.calls[0][0])
+    expect(url).toContain('filter%5BactorId%5D=usr_1')
+    expect(url).toContain('filter%5BactionCategory%5D=resource_creation')
+    expect(url).toContain('filter%5Boutcome%5D=succeeded')
+    expect(url).toContain('filter%5BoccurredAfter%5D=2026-08-01T00%3A00%3A00.000Z')
+    expect(url).toContain('filter%5BoccurredBefore%5D=2026-08-04T23%3A59%3A59.999Z')
+    expect(result.current.hasMore).toBe(true)
+    expect(result.current.nextCursor).toBe('cursor-01')
+  })
+
+  it('añade una continuación una sola vez, suprime clics duplicados y deduplica eventId', async () => {
+    let resolveContinuation: (value: unknown) => void = () => {}
+    const continuation = new Promise((resolve) => { resolveContinuation = resolve })
+    mockRequestConsoleSessionJson
+      .mockResolvedValueOnce({
+        items: [{ eventId: 'evt_1', actor: {}, action: {} }],
+        page: { size: 1, hasMore: true, nextCursor: 'cursor-01' }
+      })
+      .mockReturnValueOnce(continuation)
+
+    const { result } = renderHook(() => useConsoleAuditRecords('ten_1', 'wrk_1', {}))
+    await waitFor(() => expect(result.current.nextCursor).toBe('cursor-01'))
+
+    let pending: Promise<void> | undefined
+    act(() => {
+      pending = result.current.loadMore()
+      void result.current.loadMore()
+    })
+    await waitFor(() => expect(result.current.loadingMore).toBe(true))
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(2)
+    expect(String(mockRequestConsoleSessionJson.mock.calls[1][0])).toContain('page%5Bafter%5D=cursor-01')
+
+    await act(async () => {
+      resolveContinuation({
+        items: [
+          { eventId: 'evt_1', actor: {}, action: {} },
+          { eventId: 'evt_2', actor: {}, action: {} }
+        ],
+        page: { size: 2, hasMore: false }
+      })
+      await pending
+    })
+    expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt_1', 'evt_2'])
+    expect(result.current.hasMore).toBe(false)
+    expect(result.current.nextCursor).toBeNull()
+    expect(result.current.continuationStatus).toMatch(/1 evento añadido/)
+  })
+
+  it('conserva registros y cursor tras un fallo de continuación y permite reintentar', async () => {
+    mockRequestConsoleSessionJson
+      .mockResolvedValueOnce({
+        items: [{ eventId: 'evt_1', actor: {}, action: {} }],
+        page: { size: 1, hasMore: true, nextCursor: 'cursor-retry' }
+      })
+      .mockRejectedValueOnce(new Error('continuation unavailable'))
+      .mockResolvedValueOnce({
+        items: [{ eventId: 'evt_2', actor: {}, action: {} }],
+        page: { size: 1, hasMore: false }
+      })
+    const { result } = renderHook(() => useConsoleAuditRecords('ten_1', null, {}))
+    await waitFor(() => expect(result.current.nextCursor).toBe('cursor-retry'))
+
+    await act(async () => { await result.current.loadMore() })
+    expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt_1'])
+    expect(result.current.nextCursor).toBe('cursor-retry')
+    expect(result.current.loadMoreError).toContain('continuation unavailable')
+
+    await act(async () => { await result.current.loadMore() })
+    expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt_1', 'evt_2'])
+    expect(result.current.loadMoreError).toBeNull()
+  })
+
+  it('descarta una primera página tardía cuando cambia el filtro', async () => {
+    let resolveOld: (value: unknown) => void = () => {}
+    const oldRequest = new Promise((resolve) => { resolveOld = resolve })
+    mockRequestConsoleSessionJson.mockImplementation((url: string) => {
+      if (url.includes('actor-old')) return oldRequest
+      return Promise.resolve({ items: [{ eventId: 'evt-new', actor: {}, action: {} }], page: { size: 1, hasMore: false } })
+    })
+
+    const { result, rerender } = renderHook(
+      ({ actorId }) => useConsoleAuditRecords('ten_1', null, { actorId }),
+      { initialProps: { actorId: 'actor-old' } }
+    )
+    rerender({ actorId: 'actor-new' })
+    await waitFor(() => expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt-new']))
+
+    await act(async () => {
+      resolveOld({ items: [{ eventId: 'evt-old', actor: {}, action: {} }], page: { size: 1, hasMore: false } })
+      await oldRequest
+    })
+    expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt-new'])
+  })
+
+  it('descarta una continuación tardía cuando cambia el scope', async () => {
+    let resolveContinuation: (value: unknown) => void = () => {}
+    const continuation = new Promise((resolve) => { resolveContinuation = resolve })
+    mockRequestConsoleSessionJson.mockImplementation((url: string) => {
+      if (url.includes('page%5Bafter%5D=cursor-old')) return continuation
+      if (url.includes('/workspaces/wrk-new/')) {
+        return Promise.resolve({
+          items: [{ eventId: 'evt-new-scope', actor: {}, action: {} }],
+          page: { size: 1, hasMore: false }
+        })
+      }
+      return Promise.resolve({
+        items: [{ eventId: 'evt-old-scope', actor: {}, action: {} }],
+        page: { size: 1, hasMore: true, nextCursor: 'cursor-old' }
+      })
+    })
+
+    const { result, rerender } = renderHook(
+      ({ workspaceId }) => useConsoleAuditRecords('ten_1', workspaceId, {}),
+      { initialProps: { workspaceId: 'wrk-old' } }
+    )
+    await waitFor(() => expect(result.current.nextCursor).toBe('cursor-old'))
+
+    let pending: Promise<void> | undefined
+    act(() => { pending = result.current.loadMore() })
+    await waitFor(() => expect(result.current.loadingMore).toBe(true))
+
+    rerender({ workspaceId: 'wrk-new' })
+    await waitFor(() => {
+      expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt-new-scope'])
+    })
+
+    await act(async () => {
+      resolveContinuation({
+        items: [{ eventId: 'evt-stale-continuation', actor: {}, action: {} }],
+        page: { size: 1, hasMore: false }
+      })
+      await pending
+    })
+    expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt-new-scope'])
+    expect(result.current.loadingMore).toBe(false)
+  })
+
+  it('reinicia registros y cursor al recargar explícitamente', async () => {
+    mockRequestConsoleSessionJson
+      .mockResolvedValueOnce({
+        items: [{ eventId: 'evt-before-reload', actor: {}, action: {} }],
+        page: { size: 1, hasMore: true, nextCursor: 'cursor-before-reload' }
+      })
+      .mockResolvedValueOnce({
+        items: [{ eventId: 'evt-after-reload', actor: {}, action: {} }],
+        page: { size: 1, hasMore: false }
+      })
+
+    const { result } = renderHook(() => useConsoleAuditRecords('ten_1', null, {}))
+    await waitFor(() => expect(result.current.nextCursor).toBe('cursor-before-reload'))
+
+    act(() => { result.current.reload() })
+    await waitFor(() => {
+      expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt-after-reload'])
+    })
+    expect(result.current.hasMore).toBe(false)
+    expect(result.current.nextCursor).toBeNull()
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(2)
+    expect(String(mockRequestConsoleSessionJson.mock.calls[1][0])).not.toContain('page%5Bafter%5D')
   })
 
   it('exporta auditoría y devuelve el manifiesto producido', async () => {
