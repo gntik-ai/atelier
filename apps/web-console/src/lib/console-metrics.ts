@@ -93,8 +93,10 @@ interface OverviewResponse {
   dimensions?: Array<{
     dimensionId?: string
     displayName?: string
+    currentUsage?: number
     measuredValue?: number
     hardLimit?: number | null
+    posture?: string
     policyMode?: 'enforced' | 'unbounded'
     freshnessStatus?: 'fresh' | 'degraded' | 'unavailable'
     unit?: string
@@ -102,6 +104,7 @@ interface OverviewResponse {
 }
 
 interface UsageSnapshotResponse {
+  snapshotTimestamp?: string
   measuredAt?: string
   dimensions?: Array<{
     metricKey?: string
@@ -164,8 +167,10 @@ export function normalizeMetricsOverview(
     const key = dimension.dimensionId ?? ''
     const usageDimension = usageLookup.get(key)
     const measuredValue =
-      typeof dimension.measuredValue === 'number'
-        ? dimension.measuredValue
+      typeof dimension.currentUsage === 'number'
+        ? dimension.currentUsage
+        : typeof dimension.measuredValue === 'number'
+          ? dimension.measuredValue
         : typeof usageDimension?.measuredValue === 'number'
           ? usageDimension.measuredValue
           : typeof usageDimension?.value === 'number'
@@ -199,7 +204,7 @@ export function normalizeMetricsOverview(
       )
 
   return {
-    generatedAt: overview?.generatedAt ?? usage?.measuredAt ?? '',
+    generatedAt: overview?.generatedAt ?? usage?.snapshotTimestamp ?? usage?.measuredAt ?? '',
     overallPosture: overview?.overallPosture ?? null,
     dimensions,
     hasQuotaWarning: dimensions.some((dimension) => (dimension.pctUsed ?? 0) >= 80),

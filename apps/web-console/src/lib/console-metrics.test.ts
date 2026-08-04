@@ -11,10 +11,30 @@ describe('console-metrics', () => {
     mockRequestConsoleSessionJson.mockReset()
   })
 
-  it('normaliza overview y deriva pctUsed y warnings', () => {
-    const result = normalizeMetricsOverview({ generatedAt: 'now', overallPosture: 'warning_threshold_reached', dimensions: [{ dimensionId: 'api', displayName: 'API', measuredValue: 8, hardLimit: 10 }] }, { measuredAt: 'now', dimensions: [] })
+  it('consume currentUsage y snapshotTimestamp canónicos y deriva pctUsed y warnings', () => {
+    const result = normalizeMetricsOverview(
+      {
+        generatedAt: '2026-08-04T08:00:00.000Z',
+        overallPosture: 'warning_threshold_reached',
+        dimensions: [{
+          dimensionId: 'api',
+          displayName: 'API',
+          currentUsage: 8,
+          measuredValue: 1,
+          hardLimit: 10,
+          posture: 'warning_threshold_reached'
+        }]
+      },
+      { snapshotTimestamp: '2026-08-04T07:59:00.000Z', dimensions: [] }
+    )
+    expect(result.generatedAt).toBe('2026-08-04T08:00:00.000Z')
+    expect(result.dimensions[0]?.measuredValue).toBe(8)
     expect(result.dimensions[0]?.pctUsed).toBe(80)
     expect(result.hasQuotaWarning).toBe(true)
+    expect(normalizeMetricsOverview(null, {
+      snapshotTimestamp: '2026-08-04T07:59:00.000Z',
+      dimensions: []
+    }).generatedAt).toBe('2026-08-04T07:59:00.000Z')
   })
 
   it('consume MetricSeriesResponse poblada y degradada sin depender de source', () => {

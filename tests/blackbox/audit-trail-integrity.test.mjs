@@ -134,7 +134,11 @@ test('bbx-audit-store-record: auditRowToRecord reads outcome from the row and ex
   assert.equal(rec.rowHash, 'h');
   assert.equal(rec.prevHash, 'p');
   // a legacy row with no outcome reads as 'unknown'
-  assert.equal(auditRowToRecord({ id: 'e0', action_type: 'x', new_state: {} }).result.outcome, 'unknown');
+  assert.equal(
+    auditRowToRecord({ id: 'e0', action_type: 'x', new_state: {} }).result.outcome,
+    'partial',
+    'legacy NULL outcomes use the nearest schema-valid non-success state'
+  );
 });
 
 // ---- writer: failures/denials recorded, secret-access auditable ------------

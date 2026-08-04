@@ -71,6 +71,18 @@ const ACTION_CATEGORY_BY_TYPE = Object.freeze({
   'assignment.created': 'configuration_change',
   'assignment.superseded': 'configuration_change'
 });
+const CONTRACTUAL_ACTION_CATEGORIES = new Set([
+  'resource_creation',
+  'resource_deletion',
+  'configuration_change',
+  'access_control_modification',
+  'quota_adjustment',
+  'privilege_escalation',
+  'secret_rotation',
+  'policy_override',
+  'backup_restore',
+  'provider_reconciliation'
+]);
 
 const ACTION_CATEGORY_SQL = `COALESCE(
   NULLIF(new_state->>'actionCategory', ''),
@@ -88,7 +100,7 @@ function filterValue(value) {
 
 export function auditActionCategoryForType(actionType, explicitCategory = null) {
   const explicit = filterValue(explicitCategory);
-  if (explicit) return explicit;
+  if (explicit && CONTRACTUAL_ACTION_CATEGORIES.has(explicit)) return explicit;
   const key = filterValue(actionType);
   return ACTION_CATEGORY_BY_TYPE[key] ?? 'configuration_change';
 }
@@ -204,23 +216,46 @@ export async function queryAuditEvents(db, {
 // correlationId). Mirrors apps/control-plane-executor/src/observability-audit-query.mjs's
 // normalizeAuditRecord so the kind read is shape-compatible with the product.
 export function auditRowToRecord(row = {}) {
-  const newState = row.new_state ?? {};
+  const newState = row.new_state && typeof row.new_state === 'object' && !Array.isArray(row.new_state)
+    ? row.new_state
+    : {};
+  const eventId = String(row.id ?? `legacy-${row.created_at ?? 'event'}`);
+  const parsedTimestamp = new Date(row.created_at ?? 0);
+  const eventTimestamp = Number.isFinite(parsedTimestamp.valueOf())
+    ? parsedTimestamp.toISOString()
+    : new Date(0).toISOString();
+  const workspaceId = row.workspace_id ?? newState.workspaceId ?? null;
+  const storedOutcome = row.outcome === 'error' ? 'failed' : row.outcome;
   const actionCategory = auditActionCategoryForType(
     row.action_type,
     row.action_category ?? newState.actionCategory ?? newState.action_category
   );
   return {
-    eventId: row.id,
-    eventTimestamp: row.created_at,
-    actor: { actorId: row.actor_id ?? null },
-    scope: { tenantId: row.tenant_id ?? null, workspaceId: row.workspace_id ?? newState.workspaceId ?? null },
-    resource: {},
-    action: { actionId: row.action_type ?? null, category: actionCategory },
+    eventId,
+    eventTimestamp,
+    actor: {
+      actorId: String(row.actor_id ?? 'unknown'),
+      actorType: row.actor_id ? (workspaceId ? 'workspace_user' : 'tenant_user') : 'system'
+    },
+    scope: {
+      scopeMode: workspaceId ? 'tenant_workspace' : 'tenant',
+      tenantId: String(row.tenant_id ?? 'unknown'),
+      ...(workspaceId ? { workspaceId: String(workspaceId) } : {})
+    },
+    resource: {
+      subsystemId: 'control-plane',
+      resourceType: String(row.action_type ?? 'action').split('.')[0] || 'action'
+    },
+    action: { actionId: String(row.action_type ?? 'unknown_action'), category: actionCategory },
     actionType: row.action_type ?? null,
-    // True outcome from the stored column (#644); legacy rows (NULL) read as 'unknown'.
-    result: { outcome: row.outcome ?? 'unknown' },
-    correlationId: row.correlation_id ?? null,
-    origin: { originSurface: 'control_api' },
+    // True outcome from the stored column (#644); legacy NULL rows are conservatively partial.
+    result: {
+      outcome: ['succeeded', 'denied', 'failed', 'partial', 'accepted'].includes(storedOutcome)
+        ? storedOutcome
+        : 'partial'
+    },
+    correlationId: String(row.correlation_id ?? `legacy-${eventId}`),
+    origin: { originSurface: 'control_api', emittingService: 'control-plane' },
     // Tamper-evidence: expose the per-tenant hash-chain links so a client can verify.
     rowHash: row.row_hash ?? null,
     prevHash: row.prev_hash ?? null,
