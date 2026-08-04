@@ -78,5 +78,5 @@ unchecked until those steps finish.
   and final-review verdicts without accessing or deploying to the cluster.
 - [x] Force-add and validate this ignored OpenSpec directory, while staging no runtime evidence,
   loop-state, credentials, kubeconfigs, or Playwright results.
-- [ ] Commit and push `fix/audit-c01-metrics-success-schema` and open a draft PR against
+- [x] Commit and push `fix/audit-c01-metrics-success-schema` and open a draft PR against
   `codex-integration`; do not merge.
