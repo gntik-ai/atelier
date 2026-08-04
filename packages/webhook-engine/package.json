@@ -10,6 +10,6 @@
   "dependencies": {
     "kafkajs": "^2.2.4",
     "pg": "^8.13.1",
-    "undici": "^6.27.0"
+    "undici": "^6.28.0"
   }
 }
