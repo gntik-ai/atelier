@@ -39,7 +39,23 @@ function recordingPool() {
 /** Fake pool for the handler: connect() yields a releasable client. The handler's entitlements
  *  import (an image-only /repo path) fails to resolve locally, exercising the graceful path. */
 function handlerPool() {
-  return { connect: async () => ({ release() {} }) };
+  const query = async (sql, params = []) => {
+    if (/\bFROM\s+tenants\b/i.test(String(sql))) {
+      return {
+        rows: params[0] === 'tnt_a' ? [{
+          id: 'tnt_a',
+          slug: 'tenant-a',
+          display_name: 'Tenant A',
+          status: 'active',
+          iam_realm: 'tenant-a',
+          created_at: '2026-06-17T00:00:00.000Z',
+          created_by: 'blackbox'
+        }] : []
+      };
+    }
+    return { rows: [] };
+  };
+  return { query, connect: async () => ({ query, release() {} }) };
 }
 
 // -------------------------------------------------------------------------

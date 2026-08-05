@@ -25,10 +25,17 @@ import assert from 'node:assert/strict';
 
 import { METRICS_HANDLERS } from '../../apps/control-plane/metrics-handlers.mjs';
 
+const TENANTS = {
+  'tenant-a': { id: 'tenant-a', slug: 'tenant-a', display_name: 'Tenant A', status: 'active' },
+  'tenant-b': { id: 'tenant-b', slug: 'tenant-b', display_name: 'Tenant B', status: 'active' }
+};
 const WS_A = { id: 'ws-a', tenant_id: 'tenant-a', slug: 'app-staging', display_name: 'App Staging', status: 'active', environment: 'staging' };
 
 function fakePool() {
   const query = async (sql, params = []) => {
+    if (sql.includes('FROM tenants')) {
+      return { rows: TENANTS[params[0]] ? [TENANTS[params[0]]] : [] };
+    }
     if (sql.includes('FROM workspaces')) {
       return { rows: params[0] === 'ws-a' ? [WS_A] : [] };
     }

@@ -16,6 +16,7 @@
 // regardless of APISIX plugin configuration.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import pg from 'pg';
 import { createMultiRealmVerifier, deriveRealmTopology } from './jwt-verify.mjs';
 import { routes as seedRoutes } from './routes.mjs';
@@ -50,48 +51,24 @@ const JWKS_URL = process.env.KEYCLOAK_JWKS_URL
 const ISSUER = process.env.KEYCLOAK_ISSUER || null;   // optional exact-match check
 const AUDIENCE = process.env.KEYCLOAK_AUDIENCE || null;
 const ROUTE_MAP_FILE = process.env.ROUTE_MAP_FILE || null; // optional JSON merged over seedRoutes
-
-const pool = DB_URL
-  ? new Pool(withPostgresSsl({ connectionString: DB_URL, max: 12 }))
-  : new Pool(withPostgresSsl({ max: 12 }));
-const schemaReadiness = createSchemaReadiness();
-// Multi-realm JWT verifier (parity with apps/control-plane-executor/src/runtime/jwt-verify.mjs, #622): trusts
-// tokens from the platform realm AND from any per-tenant realm under the same Keycloak base (derived
-// from JWKS_URL/ISSUER), fetching each realm's JWKS on demand. For a tenant-realm token the tenant id
-// comes from the cryptographically-verified issuer (the realm name), not a forgeable claim.
-const ALLOW_TENANT_REALMS = process.env.KEYCLOAK_ALLOW_TENANT_REALMS !== '0';
-// Service-account revocation/rotation propagation (fix-sa-credential-revocation-invalidate-tokens,
-// #684). After offline JWT validation, reject any service-account access token whose credential has
-// been revoked (service_accounts.status='revoked') or rotated (its `iat` predates
-// credentials_invalidated_at). The lookup is SCOPED by the realm (== tenant id) derived from the
-// verified issuer — the SA client id is not globally unique — using the SAME Keycloak topology the
-// verifier derives (deriveRealmTopology). Per-(realm,client-id) lookups are cached for
-// SA_REVOCATION_CACHE_MS, also the upper bound on the propagation window (default 10000 → ≤10s; 0 = no
-// cache = immediate). Non-SA (user/owner) tokens never reach the DB — pre-filtered on the `sa-` prefix.
-const { realmsBase: SA_REALMS_BASE, platformRealm: SA_PLATFORM_REALM } = deriveRealmTopology(ISSUER, JWKS_URL);
+const C16_SCOPE_EXISTENCE_HANDLERS = new Set([
+  'metricsTenantQuotas',
+  'metricsTenantOverview',
+  'metricsTenantUsage',
+  'metricsTenantSeries',
+  'metricsTenantAudit',
+  'metricsTenantAuditExport',
+  'metricsWorkspaceQuotas',
+  'metricsWorkspaceOverview',
+  'metricsWorkspaceUsage',
+  'metricsWorkspaceSeries',
+  'metricsWorkspaceAudit',
+  'metricsWorkspaceAuditExport',
+  'storageWorkspaceUsage'
+]);
 // Env parse that treats unset/blank as "use the default" (Number('') === 0 would silently disable the
 // cache); only an explicit finite number overrides.
 const numEnv = (v, dflt) => (v == null || v === '' || !Number.isFinite(Number(v)) ? dflt : Number(v));
-const SA_REVOCATION_CACHE_MS = numEnv(process.env.SA_REVOCATION_CACHE_MS, 10_000);
-// Small clock-skew allowance (seconds) for the rotate watermark — distinct from the JWT exp/nbf clock
-// tolerance. Keep it ≤1 so the natural mint→rotate→probe flow (gap ≥2s) always rejects a pre-rotation
-// token; see docs (a same-second-as-rotation token is an inherent <1s blind spot of second-grained iat).
-const SA_REVOCATION_SKEW_SEC = numEnv(process.env.SA_REVOCATION_SKEW_SEC, 1);
-const saRevocationCheck = createSaRevocationCheck({
-  pool,
-  store: tenantStore,
-  realmsBase: SA_REALMS_BASE,
-  platformRealm: SA_PLATFORM_REALM,
-  cacheMs: SA_REVOCATION_CACHE_MS,
-  skewSec: SA_REVOCATION_SKEW_SEC,
-});
-const jwtVerifier = createMultiRealmVerifier({
-  jwksUrl: JWKS_URL,
-  issuer: ISSUER,
-  audience: AUDIENCE,
-  allowTenantRealms: ALLOW_TENANT_REALMS,
-  revocationCheck: saRevocationCheck,
-});
 
 // ---- route table -----------------------------------------------------------
 // Each route: { method, path, module, export, invoke, deps?, auth?,
@@ -107,25 +84,35 @@ function compilePath(tmpl) {
   return new RegExp('^' + rx + '/?$');
 }
 
-let ROUTES = [];
-function loadRoutes(extra = []) {
-  // Dedupe by `METHOD path`. Seed routes (curated: domain B local handlers +
-  // proven A routes) take precedence over the generated runtime map on collision.
-  const byKey = new Map();
-  for (const r of [...extra, ...seedRoutes]) byKey.set(`${r.method} ${r.path}`, r);
-  ROUTES = [...byKey.values()].map((r) => ({ ...r, _rx: compilePath(r.path) }));
-  // Most-specific first: more path segments win; wildcard routes sink.
-  ROUTES.sort((a, b) => (b.path.split('/').length - a.path.split('/').length)
-    || ((a.path.includes('*') ? 1 : 0) - (b.path.includes('*') ? 1 : 0)));
-}
+function createRouteTable(extra = []) {
+  let routes = [];
 
-function matchRoute(method, path) {
-  for (const r of ROUTES) {
-    if (r.method !== method && r.method !== 'ANY') continue;
-    const m = r._rx.exec(path);
-    if (m) return { route: r, params: m.groups ?? {} };
+  function loadRoutes(nextExtra = []) {
+    // Dedupe by `METHOD path`. Seed routes (curated: domain B local handlers +
+    // proven A routes) take precedence over the generated runtime map on collision.
+    const byKey = new Map();
+    for (const r of [...nextExtra, ...seedRoutes]) byKey.set(`${r.method} ${r.path}`, r);
+    routes = [...byKey.values()].map((r) => ({ ...r, _rx: compilePath(r.path) }));
+    // Most-specific first: more path segments win; wildcard routes sink.
+    routes.sort((a, b) => (b.path.split('/').length - a.path.split('/').length)
+      || ((a.path.includes('*') ? 1 : 0) - (b.path.includes('*') ? 1 : 0)));
   }
-  return null;
+
+  function matchRoute(method, path) {
+    for (const r of routes) {
+      if (r.method !== method && r.method !== 'ANY') continue;
+      const m = r._rx.exec(path);
+      if (m) return { route: r, params: m.groups ?? {} };
+    }
+    return null;
+  }
+
+  loadRoutes(extra);
+  return {
+    loadRoutes,
+    matchRoute,
+    size: () => routes.length
+  };
 }
 
 // ---- helpers (shared shape with tests/env/action-runner) -------------------
@@ -173,7 +160,7 @@ function workspaceIdsFromClaims(claims) {
   if (claims.workspace_id) return [String(claims.workspace_id)];
   return [];
 }
-async function authenticate(headers) {
+async function authenticate(headers, jwtVerifier) {
   const auth = headers['authorization'];
   if (!auth || !/^bearer\s+/i.test(auth)) return null;
   const token = auth.replace(/^bearer\s+/i, '');
@@ -223,7 +210,7 @@ function authzOk(route, identity) {
 
 // ---- dependency injection + invoke (mirrors the proven shim) ----------------
 const setClientDone = new Set();
-async function ensureSetClient(route) {
+async function ensureSetClient(route, pool) {
   const mod = route.setClientModule;
   if (!mod || setClientDone.has(mod)) return;
   const imported = await import(mod);
@@ -265,7 +252,7 @@ async function loadHandler(route) {
 // `db` is a DEDICATED pooled client (not the Pool) for routes that need it, so
 // the actions' multi-statement transactions (BEGIN/INSERT/COMMIT) run on one
 // connection. Released by the caller after the handler resolves.
-async function invokeRoute(route, handler, params, callerContext, identity, db) {
+async function invokeRoute(route, handler, params, callerContext, identity, db, pool) {
   switch (route.invoke ?? 'callercontext-overrides') {
     case 'params-pg': return handler({ ...params, pg: db });
     case 'params-only': return handler(params);
@@ -279,15 +266,38 @@ async function invokeRoute(route, handler, params, callerContext, identity, db) 
     case 'params-auth-overrides':
       return handler({ ...params, auth: identity ? authFrom(identity) : null }, buildOverrides(route, db));
     case 'owhttp':
-      await ensureSetClient(route);
+      await ensureSetClient(route, pool);
       return handler({ ...params, __ow_method: String(params.__ow_method ?? '').toLowerCase() });
     default:
       throw Object.assign(new Error(`route ${route.path} unknown invoke ${route.invoke}`), { statusCode: 500 });
   }
 }
 
-// ---- request handler -------------------------------------------------------
-const server = http.createServer(async (req, res) => {
+function readySchemaReadiness() {
+  const readiness = createSchemaReadiness();
+  readiness.markReady();
+  return readiness;
+}
+
+// Public production-listener seam. Importing this module is deliberately inert: callers inject
+// the pool and verified-token implementation, and mapped seed routes are ready by default. The
+// direct entrypoint below supplies the real dependencies and its initially-closed readiness gate.
+// Keeping one listener here means hermetic HTTP tests exercise the same authentication, body parse,
+// dispatch, local handlers, C-02 normalization, audit hooks, and request telemetry as production.
+export function createControlPlaneHttpServer({
+  pool,
+  jwtVerifier,
+  logger = console,
+  schemaReadiness = readySchemaReadiness(),
+  routeTable = createRouteTable(),
+  port = PORT
+} = {}) {
+  if (!pool || typeof pool.query !== 'function') throw new TypeError('pool with query() is required');
+  if (!jwtVerifier || typeof jwtVerifier.verify !== 'function') throw new TypeError('jwtVerifier with verify() is required');
+  const { matchRoute } = routeTable;
+
+  // ---- request handler -----------------------------------------------------
+  const server = http.createServer(async (req, res) => {
   const method = (req.method ?? 'GET').toUpperCase();
   // Prometheus scrape endpoint (no auth) — this process's HTTP metrics (#499).
   if (method === 'GET' && (req.url === '/metrics' || req.url === '/metrics/')) {
@@ -312,7 +322,7 @@ const server = http.createServer(async (req, res) => {
     });
   });
   try {
-    const parsed = new URL(req.url, `http://localhost:${PORT}`);
+    const parsed = new URL(req.url, `http://localhost:${port}`);
     const path = parsed.pathname;
     const headers = lowercaseHeaders(req.headers);
     res._errorContext = { requestId: headers['x-request-id'], correlationId: headers['x-correlation-id'], resource: path };
@@ -323,28 +333,39 @@ const server = http.createServer(async (req, res) => {
       const notReady = schemaReadiness.responseForReadyProbe();
       if (notReady) return sendJson(res, notReady.statusCode, notReady.body);
       try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }); }
-      catch (e) { console.error('[control-plane] readyz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
+      catch (e) { logger?.error?.('[control-plane] readyz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
     }
     if (path === '/healthz') {
       try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }); }
-      catch (e) { console.error('[control-plane] healthz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
+      catch (e) { logger?.error?.('[control-plane] healthz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
     }
-    if (path === '/') return sendJson(res, 200, { service: 'in-falcone-control-plane', routes: ROUTES.length });
+    if (path === '/') return sendJson(res, 200, { service: 'in-falcone-control-plane', routes: routeTable.size() });
 
     const matched = matchRoute(method, path);
     if (!matched) return sendJson(res, 404, { code: 'NO_ROUTE', message: `No action mapped for ${method} ${path}` });
+    const route = matched.route;
+    // C-16's closed route family must not expose even short arbitrary targets in new terminal
+    // existence outcomes or request telemetry. Once routing identifies those parameter positions,
+    // C-02 keeps generic `{id}` error placeholders and metrics use the bounded registered template.
+    // Applying this before readiness/authentication also keeps terminal 503/401 responses safe.
+    if (C16_SCOPE_EXISTENCE_HANDLERS.has(route.localHandler)) {
+      res._errorContext.resource = route.path.replace(/\{[^}/]+\}/g, '{id}');
+      metric.route = route.path;
+    }
     const schemaUnavailable = schemaReadiness.responseForMappedRoute();
     if (schemaUnavailable) {
       return sendJson(res, schemaUnavailable.statusCode, schemaUnavailable.body);
     }
-    const route = matched.route;
 
     const correlationId = headers['x-correlation-id'] ?? null;
 
     let identity = null;
     if (route.auth !== 'public') {
-      try { identity = await authenticate(headers); }
-      catch (e) { console.error('[control-plane] token verification failed:', e); return sendJson(res, 401, { code: 'INVALID_TOKEN', message: 'Token verification failed' }); }
+      try { identity = await authenticate(headers, jwtVerifier); }
+      catch (e) {
+        logger?.error?.('[control-plane] token verification failed:', e);
+        return sendJson(res, 401, { code: 'INVALID_TOKEN', message: 'Token verification failed' });
+      }
       if (!identity) return sendJson(res, 401, { code: 'UNAUTHENTICATED', message: 'Missing or invalid Bearer token' });
       if (!authzOk(route, identity)) return sendJson(res, 403, { code: 'FORBIDDEN', message: `requires ${route.auth}` });
     }
@@ -391,6 +412,7 @@ const server = http.createServer(async (req, res) => {
         pool,
         callerContext: identity ? callerContextFrom(identity, correlationId) : null,
         metric,
+        markWorkspaceScopeResolutionAttempted: metricAttribution.markWorkspaceResolutionAttempted,
         req,
         res,
         cors: CORS,
@@ -447,7 +469,7 @@ const server = http.createServer(async (req, res) => {
     let client = null, result;
     try {
       if (routeNeedsDb(route)) client = await pool.connect();
-      result = await invokeRoute(route, handler, params, callerContext, identity, client ?? pool);
+      result = await invokeRoute(route, handler, params, callerContext, identity, client ?? pool, pool);
     } finally {
       if (client) client.release();
     }
@@ -463,7 +485,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     // Log the full error (incl. stack) server-side only; never echo an exception's
     // message/stack to the client (stack-trace exposure). Return the stable code.
-    console.error('[control-plane] request failed:', err);
+    logger?.error?.('[control-plane] request failed:', err);
     const statusCode = err?.statusCode ?? (err?.code === 'FORBIDDEN' ? 403 : 500);
     // Never surface a backend-specific code (e.g. a raw Postgres SQLSTATE like "23505") on a 5xx —
     // those are unmapped internal errors and the SQLSTATE leaks the storage engine (#634). Only echo
@@ -471,62 +493,115 @@ const server = http.createServer(async (req, res) => {
     const code = statusCode >= 500 ? 'CONTROL_PLANE_ERROR' : (err?.code ?? 'CONTROL_PLANE_ERROR');
     sendJson(res, statusCode, { code, message: statusCode >= 500 ? 'Internal server error' : code });
   }
-});
+  });
 
-loadRoutes();
-// Domain B needs the `tenants` registry + saga tables (no in-repo migration
-// creates them). After the schema is ready, sweep any saga left 'running' by a
-// prior crash and run its durable compensations (rollback survives a restart).
-// Postgres may not be ready when we start (fresh install / rolling restart). Retry the
-// schema/recovery with exponential backoff (D5); without it an ECONNREFUSED left the
-// `tenants` table uncreated and every tenant op 500'd until a manual pod restart. If the DB
-// is still unreachable after the timeout, exit non-zero so Kubernetes restarts the pod and
-// retries — never serve indefinitely against a missing schema.
-runWithRetry(async (attempt) => {
-  await ensureSchema(pool);
-  await ensureSagaSchema(pool);
-  // Apply the provisioning-orchestrator migration set required by served real actions
-  // (async operations, plans / quota dimensions / change-history / quota overrides /
-  // boolean capabilities / scope-enforcement) so the wireable routes resolve instead
-  // of 500'ing on 42P01 (#555, #736).
-  await applyGovernanceSchema(pool);
-  // Webhook management plane (#643): create webhook_subscriptions/_signing_secrets/
-  // _deliveries/_delivery_attempts (migrations 001+002) so /v1/webhooks/* has durable
-  // tenant-scoped storage. Idempotent; RLS (003) deferred — see webhook-schema.mjs.
-  await applyWebhookSchema(pool);
-  const n = await recoverSagas(pool);
-  schemaReadiness.markReady();
-  console.log(`[control-plane] schema ready; recovered ${n} orphaned saga(s) (attempt ${attempt})`);
-  return n;
-}, migrationRetryConfig()).catch((e) => {
-  console.error('[control-plane] schema/recovery permanently failed; exiting for restart:', e?.message ?? e);
-  process.exit(1);
-});
-// One-shot forward migration for #673: invalidate ALL legacy per-WORKSPACE SeaweedFS
-// identities (`falcone-ws-*`). Pre-fix, one identity per workspace accumulated a grant +
-// a fresh key for every bucket, so any of its keys reached every (current or RE-CREATED)
-// bucket in the workspace — and orphaned legacy identities (workspace/buckets deleted)
-// still authenticated against a re-created, deterministically-named bucket. Switching the
-// issuer to per-bucket identities is forward-only and does NOT remove those live legacy
-// keys; this cleanup does. It is BEST-EFFORT and NON-FATAL: it never blocks or crashes
-// boot (independent of the DB schema retry above), is idempotent (a no-op once the legacy
-// identities are gone, so running at every boot is harmless), and skips cleanly when not
-// in-cluster (local/test runs have no SA token to post the Job). Gated on the same flag
-// as per-bucket issuance — if identities are disabled there is nothing to migrate.
-if (tenantIdentitiesEnabled()) {
-  cleanupLegacyWorkspaceIdentities()
-    .then((r) => {
-      if (r.posted) console.log(`[control-plane] #673 legacy per-workspace identity cleanup Job posted: ${r.jobName}`);
-      else if (r.skipped) console.log(`[control-plane] #673 legacy identity cleanup skipped (${r.skipped})`);
-      else if (r.error) console.warn(`[control-plane] #673 legacy identity cleanup could not post a Job (non-fatal): ${r.error}`);
-    })
-    .catch((e) => console.warn('[control-plane] #673 legacy identity cleanup unexpected error (non-fatal):', e?.message ?? e));
+  return server;
 }
-if (ROUTE_MAP_FILE) {
-  readFile(ROUTE_MAP_FILE, 'utf8').then((txt) => {
-    try { const extra = JSON.parse(txt); loadRoutes(Array.isArray(extra) ? extra : []); console.log(`[control-plane] loaded ${ROUTES.length} routes (seed + ${ROUTE_MAP_FILE})`); }
-    catch (e) { console.error('[control-plane] route map parse failed:', e.message); }
-  }).catch(() => {});
+
+function startProductionControlPlane() {
+  const pool = DB_URL
+    ? new Pool(withPostgresSsl({ connectionString: DB_URL, max: 12 }))
+    : new Pool(withPostgresSsl({ max: 12 }));
+  const schemaReadiness = createSchemaReadiness();
+  const routeTable = createRouteTable();
+
+  // Multi-realm JWT verifier (parity with apps/control-plane-executor/src/runtime/jwt-verify.mjs,
+  // #622): trusts tokens from the platform realm AND from any per-tenant realm under the same
+  // Keycloak base, deriving the tenant id from the cryptographically verified issuer.
+  const allowTenantRealms = process.env.KEYCLOAK_ALLOW_TENANT_REALMS !== '0';
+  // Service-account revocation/rotation propagation (#684). The lookup is scoped by the verified
+  // realm because the service-account client id is not globally unique.
+  const { realmsBase, platformRealm } = deriveRealmTopology(ISSUER, JWKS_URL);
+  const saRevocationCheck = createSaRevocationCheck({
+    pool,
+    store: tenantStore,
+    realmsBase,
+    platformRealm,
+    cacheMs: numEnv(process.env.SA_REVOCATION_CACHE_MS, 10_000),
+    skewSec: numEnv(process.env.SA_REVOCATION_SKEW_SEC, 1)
+  });
+  const jwtVerifier = createMultiRealmVerifier({
+    jwksUrl: JWKS_URL,
+    issuer: ISSUER,
+    audience: AUDIENCE,
+    allowTenantRealms,
+    revocationCheck: saRevocationCheck
+  });
+  const server = createControlPlaneHttpServer({
+    pool,
+    jwtVerifier,
+    logger: console,
+    schemaReadiness,
+    routeTable,
+    port: PORT
+  });
+
+  // Domain B needs the `tenants` registry + saga tables (no in-repo migration
+  // creates them). After the schema is ready, sweep any saga left 'running' by a
+  // prior crash and run its durable compensations (rollback survives a restart).
+  // Postgres may not be ready when we start (fresh install / rolling restart). Retry the
+  // schema/recovery with exponential backoff (D5); without it an ECONNREFUSED left the
+  // `tenants` table uncreated and every tenant op 500'd until a manual pod restart. If the DB
+  // is still unreachable after the timeout, exit non-zero so Kubernetes restarts the pod and
+  // retries — never serve indefinitely against a missing schema.
+  runWithRetry(async (attempt) => {
+    await ensureSchema(pool);
+    await ensureSagaSchema(pool);
+    // Apply the provisioning-orchestrator migration set required by served real actions
+    // (async operations, plans / quota dimensions / change-history / quota overrides /
+    // boolean capabilities / scope-enforcement) so the wireable routes resolve instead
+    // of 500'ing on 42P01 (#555, #736).
+    await applyGovernanceSchema(pool);
+    // Webhook management plane (#643): create webhook_subscriptions/_signing_secrets/
+    // _deliveries/_delivery_attempts (migrations 001+002) so /v1/webhooks/* has durable
+    // tenant-scoped storage. Idempotent; RLS (003) deferred — see webhook-schema.mjs.
+    await applyWebhookSchema(pool);
+    const n = await recoverSagas(pool);
+    schemaReadiness.markReady();
+    console.log(`[control-plane] schema ready; recovered ${n} orphaned saga(s) (attempt ${attempt})`);
+    return n;
+  }, migrationRetryConfig()).catch((e) => {
+    console.error('[control-plane] schema/recovery permanently failed; exiting for restart:', e?.message ?? e);
+    process.exit(1);
+  });
+  // One-shot forward migration for #673: invalidate ALL legacy per-WORKSPACE SeaweedFS
+  // identities (`falcone-ws-*`). Pre-fix, one identity per workspace accumulated a grant +
+  // a fresh key for every bucket, so any of its keys reached every (current or RE-CREATED)
+  // bucket in the workspace — and orphaned legacy identities (workspace/buckets deleted)
+  // still authenticated against a re-created, deterministically-named bucket. Switching the
+  // issuer to per-bucket identities is forward-only and does NOT remove those live legacy
+  // keys; this cleanup does. It is BEST-EFFORT and NON-FATAL: it never blocks or crashes
+  // boot (independent of the DB schema retry above), is idempotent (a no-op once the legacy
+  // identities are gone, so running at every boot is harmless), and skips cleanly when not
+  // in-cluster (local/test runs have no SA token to post the Job). Gated on the same flag
+  // as per-bucket issuance — if identities are disabled there is nothing to migrate.
+  if (tenantIdentitiesEnabled()) {
+    cleanupLegacyWorkspaceIdentities()
+      .then((r) => {
+        if (r.posted) console.log(`[control-plane] #673 legacy per-workspace identity cleanup Job posted: ${r.jobName}`);
+        else if (r.skipped) console.log(`[control-plane] #673 legacy identity cleanup skipped (${r.skipped})`);
+        else if (r.error) console.warn(`[control-plane] #673 legacy identity cleanup could not post a Job (non-fatal): ${r.error}`);
+      })
+      .catch((e) => console.warn('[control-plane] #673 legacy identity cleanup unexpected error (non-fatal):', e?.message ?? e));
+  }
+  if (ROUTE_MAP_FILE) {
+    readFile(ROUTE_MAP_FILE, 'utf8').then((txt) => {
+      try {
+        const extra = JSON.parse(txt);
+        routeTable.loadRoutes(Array.isArray(extra) ? extra : []);
+        console.log(`[control-plane] loaded ${routeTable.size()} routes (seed + ${ROUTE_MAP_FILE})`);
+      } catch (e) {
+        console.error('[control-plane] route map parse failed:', e.message);
+      }
+    }).catch(() => {});
+  }
+  server.listen(PORT, () => console.log(`[control-plane] listening on :${PORT}; routes=${routeTable.size()}; jwks=${JWKS_URL}`));
+  for (const sig of ['SIGINT', 'SIGTERM']) {
+    process.on(sig, () => server.close(() => pool.end().finally(() => process.exit(0))));
+  }
 }
-server.listen(PORT, () => console.log(`[control-plane] listening on :${PORT}; routes=${ROUTES.length}; jwks=${JWKS_URL}`));
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => server.close(() => pool.end().finally(() => process.exit(0))));
+
+const directEntrypoint = process.argv[1]
+  ? import.meta.url === pathToFileURL(process.argv[1]).href
+  : false;
+if (directEntrypoint) startProductionControlPlane();

@@ -44,6 +44,19 @@ function fakePool({ rows = [auditRow()], workspaceTenantId = TENANT_ID } = {}) {
     async query(sql, params = []) {
       const call = { sql: String(sql), params: [...params] };
       calls.push(call);
+      if (/\bFROM\s+tenants\b/i.test(call.sql)) {
+        return {
+          rows: call.params[0] === TENANT_ID ? [{
+            id: TENANT_ID,
+            slug: 'c10-owner',
+            display_name: 'C-10 owner',
+            status: 'active',
+            iam_realm: 'c10-owner',
+            created_at: '2026-08-04T00:00:00.000Z',
+            created_by: 'blackbox'
+          }] : []
+        };
+      }
       if (/\bFROM\s+workspaces\b/i.test(call.sql)) {
         return {
           rows: [{

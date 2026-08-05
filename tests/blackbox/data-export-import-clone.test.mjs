@@ -446,14 +446,30 @@ test('bbx-683-audit-export: tenant audit-export returns a REAL 200 export (not t
     { id: 'e1', action_type: 'tenant.create', actor_id: 'u1', tenant_id: TENANT_A, created_at: '2026-01-01T00:00:00Z', outcome: 'success', correlation_id: 'c1', new_state: { foo: 'bar' } }
   ];
   const pool = {
-    query: async (sql) => {
+    query: async (sql, params = []) => {
       const s = sql.toLowerCase();
+      if (s.includes('from tenants')) {
+        return {
+          rows: params[0] === TENANT_A ? [{
+            id: TENANT_A,
+            slug: 'tenant-a',
+            display_name: 'Tenant A',
+            status: 'active',
+            iam_realm: 'tenant-a',
+            created_at: '2026-01-01T00:00:00.000Z',
+            created_by: 'blackbox'
+          }] : []
+        };
+      }
       if (s.includes('from workspaces')) return { rows: [WORKSPACE_ROWS[WS_A]] };
       if (s.includes('plan_audit_events')) return { rows: AUDIT_ROWS };
       return { rows: [] };
     }
   };
-  const res = await METRICS_HANDLERS.metricsTenantAuditExport(ctx({ tenantId: TENANT_A }, { pool, identity: ownerA }));
+  const res = await METRICS_HANDLERS.metricsTenantAuditExport(ctx(
+    { tenantId: TENANT_A },
+    { pool, identity: ownerA, body: { format: 'jsonl' } }
+  ));
   assert.equal(res.statusCode, 200, `expected a real 200 export, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
   assert.notEqual(res.statusCode, 202, 'must no longer be the no-op 202 ack');
   assert.ok(res.body.itemCount >= 1, 'the real audit record is exported');

@@ -362,4 +362,81 @@ describe('console-metrics', () => {
     const result = await exportAuditRecords('ten_1', null, {})
     expect(result).toEqual(acknowledgement)
   })
+
+  // C-16: each member of the workspace metrics aggregate is terminal. A scope 404 from overview,
+  // usage, or series after a complete success clears the whole normalized view rather than mixing
+  // old and new values or normalizing the failure into a healthy empty success.
+  it.each(['overview', 'usage', 'series'] as const)(
+    'limpia overview, usage y series cuando %s devuelve un 404 de alcance',
+    async (failedLeaf) => {
+      const notFound = Object.assign(new Error('workspace not found'), { status: 404 })
+      let failScope = false
+      mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+        if (failScope && url.includes(`/${failedLeaf}`)) throw notFound
+        if (url.includes('/overview')) {
+          return { generatedAt: 'now', dimensions: [{ dimensionId: 'api', displayName: 'API', hardLimit: 10 }] }
+        }
+        if (url.includes('/usage')) {
+          return { snapshotTimestamp: 'now', dimensions: [{ dimensionId: 'api', measuredValue: 5 }] }
+        }
+        return {
+          tenantId: 'ten_1',
+          workspaceId: 'wrk_1',
+          metricKey: 'api_requests',
+          window: '24h',
+          points: [{ timestamp: 'now', value: 9 }]
+        }
+      })
+      const { result } = renderHook(() => useConsoleMetrics(
+        'ten_1',
+        'wrk_1',
+        { preset: '24h' } as ConsoleMetricRange
+      ))
+      await waitFor(() => expect(result.current.overview?.dimensions[0]?.measuredValue).toBe(5))
+      expect(result.current.overview?.seriesPoints).toEqual([{ timestamp: 'now', value: 9 }])
+
+      failScope = true
+      await act(async () => {
+        result.current.reload()
+      })
+      await waitFor(() => expect(result.current.error).not.toBeNull())
+      expect(result.current.overview).toBeNull()
+    }
+  )
+
+  // C-16: an audit-records 404 clears records and pagination; an audit export 404 surfaces the
+  // rejection rather than fabricating a success manifest for a scope that no longer exists.
+  it('limpia registros y paginación de auditoría y no fabrica un export ante un 404 de alcance', async () => {
+    const notFound = Object.assign(new Error('tenant not found'), { status: 404 })
+    mockRequestConsoleSessionJson.mockResolvedValueOnce({
+      items: [{ eventId: 'evt-before-404', actor: {}, action: {} }],
+      page: { size: 1, hasMore: true, nextCursor: 'cursor-before-404' }
+    })
+    const { result } = renderHook(() => useConsoleAuditRecords('ten_1', null, {}))
+    await waitFor(() => expect(result.current.records.map(({ eventId }) => eventId)).toEqual(['evt-before-404']))
+    expect(result.current.nextCursor).toBe('cursor-before-404')
+
+    mockRequestConsoleSessionJson.mockReset()
+    mockRequestConsoleSessionJson.mockRejectedValue(notFound)
+    act(() => {
+      result.current.reload()
+    })
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+    expect(result.current.records).toEqual([])
+    expect(result.current.hasMore).toBe(false)
+    expect(result.current.nextCursor).toBeNull()
+
+    mockRequestConsoleSessionJson.mockReset()
+    mockRequestConsoleSessionJson.mockResolvedValueOnce({
+      exportId: 'exp-before-404',
+      status: 'completed',
+      itemCount: 1,
+      items: [{ eventId: 'evt-before-404' }]
+    })
+    const previousExport = await exportAuditRecords('ten_1', null, {})
+    expect(previousExport).toMatchObject({ exportId: 'exp-before-404', status: 'completed' })
+
+    mockRequestConsoleSessionJson.mockRejectedValueOnce(notFound)
+    await expect(exportAuditRecords('ten_1', null, {})).rejects.toBe(notFound)
+  })
 })

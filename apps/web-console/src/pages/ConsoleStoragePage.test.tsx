@@ -228,6 +228,34 @@ describe('ConsoleStoragePage', () => {
     expect(screen.getAllByText(/^24$/)).toHaveLength(2)
   })
 
+  // C-16: switching to a workspace whose usage read now returns 404 must clear the prior
+  // workspace's usage snapshot (bytes/objects/quota bar) and render the localized error state —
+  // never leave a misleading zero or the previous figures on screen.
+  it('[C-16] limpia el uso previo del área de trabajo ante un 404 de alcance', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/storage/buckets?page[size]=100') return mockBuckets()
+      if (url === '/v1/storage/workspaces/wrk_alpha/usage') return mockUsage()
+      if (url === '/v1/storage/workspaces/wrk_beta/usage') {
+        throw Object.assign(new Error('workspace not found'), { status: 404 })
+      }
+      if (url === '/v1/storage/buckets/res_bucket_1/objects?page%5Bsize%5D=50') return mockObjects()
+      if (url === '/v1/storage/buckets/res_bucket_1/objects/media%2Fhero.png/metadata') return mockObjectMetadata()
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    const view = renderPage(createContext({ activeWorkspaceId: 'wrk_alpha' }))
+    expect(await screen.findByText(/50% · 8.0 KB \/ 16 KB/i)).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+
+    mockUseConsoleContext.mockReturnValue(createContext({ activeWorkspaceId: 'wrk_beta' }))
+    view.rerender(<ConsoleStoragePage />)
+
+    expect(await screen.findByText(/no se encontró el recurso solicitado/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument()
+    expect(screen.queryByText(/50% · 8.0 KB \/ 16 KB/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
   it('muestra estados empty y error del inventario de buckets', async () => {
     queueHappyPath({ buckets: { items: [], page: { size: 100 } } })
     renderPage()

@@ -1,5 +1,18 @@
 # Storage capacity quotas (bucket count and total bytes)
 
+- **Document type:** Reference.
+- **Intended personas:** P1 platform superadministrators, P3 platform operators/SREs, P4
+  security/compliance auditors, P9 workspace operators, P10 scoped viewers/auditors, and P13 isolation
+  reviewers.
+- **Prerequisite knowledge:** Falcone workspace ownership, S3-compatible storage, and quota dimensions.
+- **Outcome:** Interpret workspace storage capacity without confusing an absent/foreign workspace with
+  a real empty workspace.
+
+Status: existing v1 storage quota behavior plus the C-16 workspace-existence correction. C-16 is not a
+new Preview surface and applies only to builds containing `fix-c16-scoped-resource-existence`. It adds
+no migration, configuration, or deployment step. This update is based on static
+implementation/contract evidence; it was not verified on a cluster.
+
 Per-workspace storage capacity is bounded by two quota dimensions enforced in the control-plane
 storage handlers: a **bucket-count** limit and an optional **total-bytes** limit. When a request
 would exceed a configured limit it is rejected with `409 STORAGE_QUOTA_EXCEEDED`, and the workspace
@@ -43,6 +56,15 @@ total-bytes capacity.
 
 ## Usage reporting
 
+Usage reporting first proves the workspace exists. The handler resolves the workspace through the
+authoritative registry for **every** caller — including `superadmin` and `internal` — and returns
+`404 WORKSPACE_NOT_FOUND` before listing buckets, scanning objects, or resolving limits/defaults. For a
+constrained caller, a workspace owned by another tenant returns the **same** opaque `404` as an unknown
+one, disclosing no ownership or existence distinction. A successful `200` therefore proves the
+workspace exists; a real workspace with no buckets or objects still returns a truthful zero-valued
+snapshot, while a failed registry read is a `5xx`, never a `404`. See
+[Scoped resource existence](scoped-resource-existence.md).
+
 `GET /v1/storage/workspaces/{workspaceId}/usage` reports each dimension as a
 `StorageUsageDimensionStatus` with `used`, `limit`, `remaining`, and `utilizationPercent`:
 
@@ -61,6 +83,13 @@ both the bucket-provision and (when byte enforcement is active) the object-uploa
 status and code are additive to those operations and backward compatible — no existing field,
 status code, or success shape changes.
 
+Workspace usage not-found and registry-failure results use the same closed C-02 `ErrorResponse`.
+Handler-level `WORKSPACE_NOT_FOUND` becomes public `GW_WORKSPACE_NOT_FOUND`; a registry exception is
+public `500 GW_CONTROL_PLANE_ERROR`, not an empty snapshot. API/SDK clients must branch on HTTP status
+and the public `GW_*` code, retain request/correlation IDs for diagnosis, and never normalize
+`404`/`500` into zero usage. The console clears its prior usage snapshot and shows the existing
+error/retry state when the request fails.
+
 ## Implementation
 
 - `apps/control-plane/storage-quota.mjs` — pure, injectable quota-decision helpers
@@ -71,3 +100,26 @@ status code, or success shape changes.
 - `apps/control-plane/storage-handlers.mjs` — `storageProvisionBucket` (bucket admission),
   `storagePutObject` (byte admission), and `storageWorkspaceUsage` (limit/remaining/utilization
   reporting) consume those helpers.
+
+## Local validation, rollback, and cleanup
+
+From the repository root, run:
+
+```bash
+node --test tests/blackbox/scoped-resource-existence-c16.test.mjs
+node --test tests/blackbox/storage-quota-handlers.test.mjs
+node --test tests/contracts/scoped-resource-existence.contract.test.mjs
+pnpm --dir apps/web-console exec vitest run src/pages/ConsoleStoragePage.test.tsx
+npm run validate:openapi
+npm run validate:public-api
+```
+
+Expected result: every command exits zero; missing/foreign terminal cases perform no bucket/S3/quota
+work, a real empty workspace keeps its zero-valued `200`, the console clears stale usage on `404`, and
+the public operation retains its pre-existing canonical `404`. These commands use no credential or
+cluster and create nothing requiring cleanup; reruns are idempotent.
+
+Rollback is a code/contract revert with no data restoration or downgrade job, but it restores the
+confirmed privileged-missing-workspace zero-usage defect. Prefer a forward fix. The authoritative
+sources are `apps/control-plane/storage-handlers.mjs`, `apps/control-plane/storage-quota.mjs`, the
+unified OpenAPI, and the linked scoped-existence reference.

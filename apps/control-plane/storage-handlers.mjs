@@ -531,15 +531,21 @@ async function storageObjectMetadata(ctx) {
 }
 async function storageWorkspaceUsage(ctx) {
   const workspaceId = ctx.params.workspaceId;
-  // Ownership check: verify the workspace belongs to the caller's tenant.
-  // Superadmin/internal bypass the check. Non-owners get 404 (no existence leak).
-  if (!isSuperOrInternal(ctx.identity)) {
-    const ws = await store.getWorkspace(ctx.pool, workspaceId);
-    if (!ws || ws.tenant_id !== ctx.identity.tenantId) {
-      return err(404, 'WORKSPACE_NOT_FOUND', `workspace ${workspaceId} not found`);
-    }
+  // C-16: resolve the workspace through the authoritative registry for EVERY actor (including
+  // superadmin/internal) BEFORE any bucket/S3/quota/default work, so an absent workspace is an
+  // authoritative 404 rather than a fabricated all-zero "complete" 200. A registry fault
+  // propagates (rejects) to the canonical C-02 server-failure path; only an absent row is
+  // WORKSPACE_NOT_FOUND. For constrained callers, a foreign-existing and an unknown workspace both
+  // remain the SAME opaque 404 (no existence leak), mirroring storageProvisionBucket. Downstream
+  // work uses the canonical resolved workspace id.
+  ctx.markWorkspaceScopeResolutionAttempted?.();
+  const ws = await store.getWorkspace(ctx.pool, workspaceId);
+  if (!ws) return err(404, 'WORKSPACE_NOT_FOUND', `workspace ${workspaceId} not found`);
+  if (!isSuperOrInternal(ctx.identity) && ws.tenant_id !== ctx.identity.tenantId) {
+    return err(404, 'WORKSPACE_NOT_FOUND', `workspace ${workspaceId} not found`);
   }
-  const mapped = await store.listBucketsForWorkspace(ctx.pool, workspaceId);
+  ctx.resolvedScope = { tenantId: ws.tenant_id, workspaceId: ws.id };
+  const mapped = await store.listBucketsForWorkspace(ctx.pool, ws.id);
   let totalBytes = 0, objectCount = 0; const bucketEntries = [];
   for (const row of mapped) {
     try {

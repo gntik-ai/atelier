@@ -38,7 +38,8 @@ export async function attachCanonicalWorkspaceMetric({
   pool,
   resolvedScope,
   getWorkspace,
-  identity
+  identity,
+  resolutionAttempted = false
 }) {
   if (!metric || !workspaceId) return false;
 
@@ -52,6 +53,11 @@ export async function attachCanonicalWorkspaceMetric({
   if (alreadyResolved) {
     return applyCanonicalWorkspaceMetric(metric, alreadyResolved, workspaceId);
   }
+
+  // The handler owns the authoritative existence/authorization lookup for C-16 routes. Once it
+  // reports that boundary was attempted, a terminal 404 or registry exception must never trigger
+  // a telemetry-only re-probe. In particular, the raw path id is still untrusted here.
+  if (resolutionAttempted) return false;
 
   // A bare path plus same-tenant identity is not proof that the request passed its role or
   // membership boundary. Handlers that authorize and resolve a scope attach it above; otherwise a
@@ -82,6 +88,8 @@ export function createControlPlaneMetricAttribution({
   const metric = { method, route: 'unmatched', tenantId: '', workspaceId: '' };
   let workspaceId = null;
   let authenticatedIdentity = null;
+  let workspaceResolutionAttempted = false;
+  let completion = null;
 
   return {
     metric,
@@ -95,16 +103,26 @@ export function createControlPlaneMetricAttribution({
       workspaceId = params.workspaceId ?? null;
     },
 
-    async complete(statusCode, resolvedScope) {
-      return attachCanonicalWorkspaceMetric({
-        metric,
-        workspaceId,
-        statusCode,
-        pool,
-        resolvedScope,
-        getWorkspace,
-        identity: authenticatedIdentity
-      });
+    markWorkspaceResolutionAttempted() {
+      workspaceResolutionAttempted = true;
+    },
+
+    complete(statusCode, resolvedScope) {
+      // server.mjs completes local handlers explicitly and again from res.finish. Share one
+      // promise so metric enrichment and its datastore fallback happen at most once per request.
+      if (!completion) {
+        completion = attachCanonicalWorkspaceMetric({
+          metric,
+          workspaceId,
+          statusCode,
+          pool,
+          resolvedScope,
+          getWorkspace,
+          identity: authenticatedIdentity,
+          resolutionAttempted: workspaceResolutionAttempted
+        });
+      }
+      return completion;
     }
   };
 }
