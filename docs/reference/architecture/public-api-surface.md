@@ -626,6 +626,7 @@ Workspace lifecycle, application inventory, workload identities, and managed-res
 | POST | `/v1/workspaces/{workspaceId}/memberships` | workspace | workspace_membership | Submit a workspace membership write request |
 | GET | `/v1/workspaces/{workspaceId}/memberships/{workspaceMembershipId}` | workspace | workspace_membership | Fetch one workspace membership record |
 | GET | `/v1/workspaces/{workspaceId}/permission-recalculations/{permissionRecalculationId}` | workspace | workspace | Fetch one workspace-scoped effective-permission recalculation record. |
+| GET | `/v1/workspaces/{workspaceId}/privilege-domains/audit` | workspace | privilege_domain_denial | Query privilege-domain denial history for one workspace |
 | GET | `/v1/workspaces/{workspaceId}/service-accounts` | workspace | service_account | List service accounts for one workspace |
 | POST | `/v1/workspaces/{workspaceId}/service-accounts` | workspace | service_account | Submit a canonical service account write request |
 | DELETE | `/v1/workspaces/{workspaceId}/service-accounts/{serviceAccountId}` | workspace | service_account | Delete a service account and its Keycloak client |

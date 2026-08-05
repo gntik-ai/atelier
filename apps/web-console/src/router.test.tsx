@@ -7,11 +7,13 @@ import { appRoutes } from './router'
 const {
   consoleAuthPageRenderMock,
   consoleIamAccessPageRenderMock,
+  consolePrivilegeDomainAuditPageRenderMock,
   readConsoleShellSessionMock,
   hasUsableConsoleSessionMock
 } = vi.hoisted(() => ({
   consoleAuthPageRenderMock: vi.fn(),
   consoleIamAccessPageRenderMock: vi.fn(),
+  consolePrivilegeDomainAuditPageRenderMock: vi.fn(),
   readConsoleShellSessionMock: vi.fn(),
   hasUsableConsoleSessionMock: vi.fn()
 }))
@@ -29,6 +31,12 @@ vi.mock('@/pages/ConsoleIamAccessPage', () => ({
   ConsoleIamAccessPage: () => {
     consoleIamAccessPageRenderMock()
     return <h1>IAM Access</h1>
+  }
+}))
+vi.mock('@/pages/ConsolePrivilegeDomainAuditPage', () => ({
+  default: () => {
+    consolePrivilegeDomainAuditPageRenderMock()
+    return <h1>Auditoría de dominios de privilegio</h1>
   }
 }))
 vi.mock('@/pages/ConsoleObservabilityPage', () => ({ ConsoleObservabilityPage: () => <h1>Observability Real</h1> }))
@@ -55,6 +63,7 @@ beforeEach(() => {
   hasUsableConsoleSessionMock.mockReturnValue(true)
   consoleAuthPageRenderMock.mockClear()
   consoleIamAccessPageRenderMock.mockClear()
+  consolePrivilegeDomainAuditPageRenderMock.mockClear()
 })
 
 afterEach(() => {
@@ -203,6 +212,39 @@ it('[#740] permite que superadmin abra /console/iam-access', async () => {
 
   expect(await screen.findByRole('heading', { name: /iam access/i })).toBeInTheDocument()
   expect(consoleIamAccessPageRenderMock).toHaveBeenCalled()
+})
+
+it.each(['platform_admin', 'tenant_owner'])(
+  '[C-14] permite que %s abra la auditoría de dominios de privilegio',
+  async (role) => {
+    readConsoleShellSessionMock.mockReturnValue(
+      createRouterSession([role], role === 'tenant_owner' ? { tenantIds: ['ten_alpha'] } : {})
+    )
+
+    const router = createMemoryRouter(appRoutes, { initialEntries: ['/console/privilege-domain-audit'] })
+    render(<RouterProvider router={router} />)
+
+    expect(await screen.findByRole('heading', { name: /auditoría de dominios de privilegio/i })).toBeInTheDocument()
+    expect(consolePrivilegeDomainAuditPageRenderMock).toHaveBeenCalledTimes(1)
+  }
+)
+
+it.each([
+  'superadmin',
+  'platform_auditor',
+  'tenant_admin',
+  'workspace_owner',
+  'workspace_admin',
+  'workspace_auditor'
+])('[C-14] bloquea a %s sin montar la página de auditoría', async (role) => {
+  readConsoleShellSessionMock.mockReturnValue(createRouterSession([role], { tenantIds: ['ten_alpha'] }))
+
+  const router = createMemoryRouter(appRoutes, { initialEntries: ['/console/privilege-domain-audit'] })
+  render(<RouterProvider router={router} />)
+
+  expect(await screen.findByRole('heading', { name: /sin acceso a la auditoría de dominios de privilegio/i })).toBeInTheDocument()
+  expect(screen.getByText(/solo está disponible para los roles platform_admin o tenant_owner/i)).toBeInTheDocument()
+  expect(consolePrivilegeDomainAuditPageRenderMock).not.toHaveBeenCalled()
 })
 
 it('[#745] muestra una recuperación explícita para rutas autenticadas desconocidas en vez de redirigir', async () => {

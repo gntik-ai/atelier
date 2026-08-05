@@ -52,12 +52,16 @@ import { ConsoleWorkspaceSecretsPage } from '@/pages/ConsoleWorkspaceSecretsPage
 // element would suspend synchronously and throw React #426 (blanking the whole shell).
 import { ConsoleSecretsPage } from '@/pages/ConsoleSecretsPage'
 import { ConsoleSecretRotationPage } from '@/pages/ConsoleSecretRotationPage'
+// Eager (default export), same rationale as the secrets pages above: the audit page is reached from
+// the sidebar NavLink, so a lazy element would suspend synchronously and throw React #426.
+import ConsolePrivilegeDomainAuditPage from '@/pages/ConsolePrivilegeDomainAuditPage'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { SignupPage } from '@/pages/SignupPage'
 import { consoleAuthConfig } from '@/lib/console-config'
 import { getConsolePermissions } from '@/lib/console-permissions'
 import { readConsoleShellSession } from '@/lib/console-session'
 import { canManageWorkspaceSecrets } from '@/lib/workspace-secrets-access'
+import { sessionCanAccessPrivilegeDomainAudit } from '@/lib/privilege-domain-audit-access'
 import { useConsoleContext } from '@/lib/console-context'
 import { WelcomePage } from '@/pages/WelcomePage'
 
@@ -130,6 +134,21 @@ function RequireWorkspaceSecretsRoute({ children }: { children: JSX.Element }) {
     <ConsoleAccessDeniedState
       title="Sin acceso a los secretos del área de trabajo"
       description="Necesitas pertenecer al área de trabajo activa o tener permisos de administración de organización o plataforma para gestionar estos secretos. Cambia el contexto o solicita acceso antes de continuar."
+    />
+  )
+}
+
+// C-14: exact-role gate for the privilege-domain denial audit page. The SAME predicate guards the
+// nav item (ConsoleShellLayout). Only platform_admin or tenant_owner may reach it — deliberately not
+// superadmin/platform_auditor/workspace roles. When denied, an access-denied state renders and the
+// page component is NOT mounted, so a disallowed principal issues no background denial-history
+// request even via direct navigation. The action remains the final authorization authority.
+function RequirePrivilegeDomainAuditRoute({ children }: { children: JSX.Element }) {
+  const session = readConsoleShellSession()
+  return sessionCanAccessPrivilegeDomainAudit(session) ? children : (
+    <ConsoleAccessDeniedState
+      title="Sin acceso a la auditoría de dominios de privilegio"
+      description="El historial de denegaciones de dominios de privilegio solo está disponible para los roles platform_admin o tenant_owner. Tu sesión actual no incluye ninguno de esos roles, así que la consola conserva esta ruta y muestra el bloqueo en lugar de cargar el historial."
     />
   )
 }
@@ -409,6 +428,15 @@ export const appRoutes = [
               <RequireWorkspaceSecretsRoute>
                 <ConsoleWorkspaceSecretsPage />
               </RequireWorkspaceSecretsRoute>
+            )
+          },
+          {
+            // C-14: privilege-domain denial audit — mounted ONCE, behind the exact-role guard.
+            path: 'privilege-domain-audit',
+            element: (
+              <RequirePrivilegeDomainAuditRoute>
+                <ConsolePrivilegeDomainAuditPage />
+              </RequirePrivilegeDomainAuditRoute>
             )
           },
           {

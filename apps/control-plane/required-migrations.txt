@@ -44,8 +44,13 @@ packages/provisioning-orchestrator/src/migrations/093-scope-enforcement.sql
 # (queryDenials from scope-enforcement-repo).
 
 packages/provisioning-orchestrator/src/migrations/094-admin-data-privilege-separation.sql
-# privilege_domain_assignments, privilege_domain_denials, privilege_domain_assignment_history,
-# workspace_structural_admin_count — read by privilege-domain-query and privilege-domain-audit-query.
+# privilege_domain_assignments, privilege_domain_assignment_history, workspace_structural_admin_count
+# — read by the privilege-domain ASSIGNMENT routes (privilege-domain-query / privilege-domain-assign).
+# NOTE: 094 also alters api_keys (which no registered migration creates) and
+# endpoint_scope_requirements (already created by registered migration 093), then seeds endpoint
+# classifications; it is NOT registered in governance boot. The privilege_domain_denials table it defines
+# is bootstrapped SEPARATELY by the dedicated 122 below (C-14); 094 stays required only by the adjacent
+# assignment routes and is outside C-14.
 
 packages/provisioning-orchestrator/src/migrations/114-backup-scope-deployment-profiles.sql
 # deployment_profile_registry + backup_scope_entries — read by backup-scope-get and
@@ -61,6 +66,12 @@ packages/provisioning-orchestrator/src/migrations/117-tenant-config-reprovision.
 
 packages/provisioning-orchestrator/src/migrations/118-config-preflight.sql
 # config_preflight_audit_log — written by tenant-config-preflight (insertPreflightAuditLog).
+
+packages/provisioning-orchestrator/src/migrations/122-privilege-domain-denial-history.sql
+# privilege_domain_denials (+ its 3 indexes) ONLY — read by privilege-domain-audit-query, served at
+# the canonical GET /v1/workspaces/{workspaceId}/privilege-domains/audit (C-14). Dedicated, idempotent,
+# data-preserving denial-table bootstrap (registered in governance boot); does NOT run 094 or create/
+# alter assignment/history/count/api_keys/endpoint_scope_requirements objects.
 
 # --- workspace-docs-service (packages/workspace-docs-service/migrations) ---
 

@@ -405,8 +405,16 @@ this control-plane serves. To make the shell usable end-to-end:
   excluded until an adapter is written.
 - **secret-rotation** needs OpenBao wiring; **data-plane consoles**
   (postgres/mongo/storage/events) need live data sources.
-- Migration `094` partially failed (references `api_keys` from an unincluded
-  migration) → the 3 privilege-domain/scope-enforcement routes may 500.
+- Migration `094` (broad admin/data privilege separation) is NOT applied by governance
+  boot — it alters `api_keys` (not created by the registered migration set) and
+  `endpoint_scope_requirements` (created by registered migration `093`), then seeds
+  endpoint classifications. C-14 bootstraps ONLY the denial-history table via the dedicated
+  `122-privilege-domain-denial-history.sql`, so the canonical denial-audit route
+  `GET /v1/workspaces/{workspaceId}/privilege-domains/audit` boots and returns its history
+  (an authorized query for an unknown/denial-free workspace is an empty `200`, not `404`).
+  The adjacent privilege-domain ASSIGNMENT routes still read 094-only objects
+  (`privilege_domain_assignments`/`_history`/`workspace_structural_admin_count`) and stay
+  out of scope, so they may still 500 until 094 is provisioned.
 - The UI data contract is verified by a REAL headless Chromium run (see
   "Chromium / Playwright" below) plus direct gateway replays of the SPA's
   requests.
