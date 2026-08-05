@@ -109,4 +109,4 @@ independent review and PR delivery stay unchecked until those steps finish.
   on both runtimes.
 - [x] Force-add and validate this ignored OpenSpec directory, staging no runtime evidence, loop-state,
   credentials, kubeconfigs, or Playwright results.
-- [ ] Commit and push `fix/audit-c02-error-response-envelope` and open a draft PR; do not merge.
+- [x] Commit and push `fix/audit-c02-error-response-envelope` and open a draft PR; do not merge.
