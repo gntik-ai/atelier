@@ -112,6 +112,51 @@ function instant(value) {
   return value == null ? null : new Date(value).toISOString();
 }
 
+test('async-operation query rejects malformed detail identifiers before repository access', async () => {
+  let repositoryCalls = 0;
+  const invalidIds = ['', '   ', 'not-a-uuid', 42, { id: '00000000-0000-4000-8000-000000000001' }];
+
+  for (const operationId of invalidIds) {
+    await assert.rejects(
+      () => queryAction(queryParams('tenant-c17', 'detail', operationId), {
+        getOperationById: async () => {
+          repositoryCalls += 1;
+          throw new Error('repository should not be reached');
+        }
+      }),
+      (error) => error.code === 'VALIDATION_ERROR' && error.statusCode === 400
+    );
+  }
+
+  assert.equal(repositoryCalls, 0);
+});
+
+maybeTest('C-17 real PostgreSQL validates detail, logs and result IDs before lookup and preserves 404/200 controls', async () => {
+  await withIsolatedSchema(async (client) => {
+    await applyMigrations(client, MIGRATIONS);
+    const operation = await persistOperation(client, 'tenant-c17-pg', 'workspace.create');
+
+    for (const queryType of ['detail', 'logs', 'result']) {
+      await assert.rejects(
+        () => queryAction(queryParams('tenant-c17-pg', queryType, 'not-a-uuid'), { db: client }),
+        (error) => error.code === 'VALIDATION_ERROR' && error.statusCode === 400
+      );
+    }
+
+    await assert.rejects(
+      () => queryAction(queryParams('tenant-c17-pg', 'detail', '00000000-0000-4000-8000-000000009999'), { db: client }),
+      (error) => error.code === 'NOT_FOUND' && error.statusCode === 404
+    );
+
+    const existing = await queryAction(
+      queryParams('tenant-c17-pg', 'detail', operation.operation_id),
+      { db: client }
+    );
+    assert.equal(existing.statusCode, 200);
+    assert.equal(existing.body.operationId, operation.operation_id);
+  });
+});
+
 maybeTest('C-13 real PostgreSQL applies status-array membership without widening scope or writing state', async () => {
   await withIsolatedSchema(async (client) => {
     await applyMigrations(client, MIGRATIONS);
