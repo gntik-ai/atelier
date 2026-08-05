@@ -57,8 +57,9 @@ adversarial cross-tenant control.
   error taxonomy, gateway rule, rate-limit class, or deployment configuration.
 - No publication of the runtime-only tenant metric-series route and no semantics change to workspace
   metric-series validation or provider queries.
-- No C-01 response-shape work, C-02 envelope work, C-04 series work, C-09 audit-query work, C-10 export-
-  contract work, or remediation of another audit finding.
+- No C-01 response-shape work, C-02 envelope/schema/taxonomy change, C-04 series work, C-09 audit-query
+  work, C-10 export-contract work, or remediation of another audit finding. Supplying registered-route
+  context to the existing C-02 sanitizer is limited to preventing C-16 target disclosure.
 - No quota or metering mutation, new domain audit event, application metric family, production console
   redesign, cluster deployment, datastore migration, or data backfill.
 
@@ -71,6 +72,11 @@ server verifies the bearer token and derives the trusted identity before invokin
 No existence or datastore operation is moved into the pre-authentication path. This preserves the
 existing `401` behavior and ensures a missing or invalid token cannot probe the tenant/workspace
 registry.
+
+The existing runtime order for tenant audit export remains: bearer authentication, generic JSON-body
+parsing, handler-level tenant authorization and existence, then C-10 leaf validation and export work.
+Thus malformed unauthenticated input stays a `401`; a syntactically valid foreign or missing scope is
+decided before format/page/filter validation; and C-16 does not reopen C-10 request semantics.
 
 Alternative considered: make the scope guard authenticate independently. Rejected because it would
 duplicate the runtime boundary, risk divergent authentication semantics, and is unnecessary for a
@@ -93,7 +99,9 @@ immediately. If authorization succeeds, it calls `tenant-store.getTenant` exactl
 The check is placed in the shared `guarded` wrapper, not in six leaf handlers, so all six tenant
 handler families inherit one ordering and a newly added handler cannot accidentally omit the gate.
 Only a null/absent registry result maps to `404`; a datastore exception is not swallowed into not-found
-or an empty success and follows the existing runtime failure path.
+or an empty success and follows the existing C-02-normalized server-failure path. It short-circuits the
+same limits, provider, audit, and export dependencies as an absent row, while remaining observably a
+server failure rather than `TENANT_NOT_FOUND`.
 
 Alternative considered: add `getTenant` inside `resolveScopeTenant` before `canManageTenant`. Rejected
 because the current guard calls scope resolution before authorization; doing so would query whether an
@@ -135,7 +143,8 @@ This mirrors the proven existence/ownership structure of `storageProvisionBucket
 storage's deliberate no-existence-leak policy: constrained foreign-existing and unknown targets both
 produce the same `404`. The handler must not perform bucket registry, S3/object, `usageLimits`, or
 default work after either terminal result. As with tenant lookup, a datastore fault follows the existing
-runtime error path rather than being converted to “not found.”
+canonical server-failure path rather than being converted to “not found” or zero usage, and no bucket,
+object-store, quota, or default dependency runs after that failed lookup.
 
 Alternative considered: retain the superadmin bypass and special-case an empty bucket list. Rejected
 because an existing empty workspace and an absent workspace both legitimately have no bucket rows.
@@ -174,7 +183,9 @@ separation avoids weakening either the precise handler outcome or the public env
 ### Decision 7: Update the unified OpenAPI once and regenerate derivatives
 
 The authoritative edit is limited to the `responses["404"]` entry of exactly the eleven operation ids
-listed in the context table. Each response describes not-found and uses
+listed in the context table. “Exactly eleven” describes the C-16 diff, not the global set of metrics
+operations that declare `404`: `getTenantAuditCorrelation` and `getWorkspaceAuditCorrelation` already
+declare it and remain byte-for-semantics unchanged. Each new response describes not-found and uses
 `content.application/json.schema.$ref: "#/components/schemas/ErrorResponse"`. No path, method,
 operation id, parameter, success response, error schema, security requirement, tag, or rate-limit
 extension changes.
@@ -183,7 +194,8 @@ extension changes.
 API reference from the unified OpenAPI. A focused contract test discovers operations by operation id
 and asserts all of the following as sets, rather than relying on line positions:
 
-- all eleven and only those eleven C-16 metrics operations receive the canonical `404`;
+- the exact eleven C-16 operation ids, and no other operation id, gain or change a `404` in this diff;
+- every pre-existing metrics `404`, including both audit-correlation operations, remains unchanged;
 - tenant series remains absent from the unified and generated public surfaces;
 - `getWorkspaceStorageUsage` still has its pre-existing canonical `404`;
 - regeneration produces no unrelated family/catalog/document drift.
@@ -212,22 +224,30 @@ shared request client.
 ### Decision 9: Keep data governance, audit, telemetry, and quota behavior neutral
 
 All affected operations remain reads. The new registry checks return only existence/identity metadata
-needed for scope resolution; they do not persist or export new data. Terminal `401`/`403`/`404` paths
-perform no domain audit write, quota/metering consumption, bucket/object access, or provider query.
-Existing bounded HTTP request telemetry and correlation continue to record the selected route/status,
-without a new metric family or a tenant/workspace-existence label. Existing successful reads retain
-their current telemetry and calculations.
-
-No domain audit event is added: recording the probe would create a new persisted side effect and could
-itself disclose or retain attacker-supplied target ids. No quota is charged because scope validation is
-not billable observation or storage usage.
+needed for scope resolution; they do not persist or export new data. C-16 adds no audit writer: its new
+existence-selected `404` outcomes emit no domain audit event and retain no attacker-supplied target id.
+The existing `recordRouteDenial` path for attributable handler `403` results remains unchanged, as
+required by C-02; it is not a new C-16 side effect. No terminal result consumes quota/metering or reaches
+bucket/object/provider work. Existing bounded HTTP request telemetry and correlation continue to record
+the selected route/status without a new metric family, raw target-scope attribution, or an existence
+label. After one of the exact thirteen affected handlers matches, the server derives the public error
+resource from registered parameter positions (retaining C-02's generic `{id}` placeholder) and the
+counter/histogram route label from the bounded registered template. This prevents even short arbitrary
+targets from entering either surface during `401`, `403`, `404`, or registry-failure `500` outcomes,
+without changing normalization for any route outside C-16. C-02 request/correlation IDs remain in error
+and enforcement-audit surfaces, not Prometheus labels. Counters retain method, bounded route, status,
+trusted tenant, and optional canonical workspace labels; histograms retain only method and bounded
+route. Existing successful reads retain their current telemetry and calculations.
 
 ### Decision 10: Local verification only, with independent maker/checker boundaries
 
 Implementation begins with black-box tests that reproduce the pre-fix fabricated `200` behavior, then
-adds focused handler/ordering, storage short-circuit, OpenAPI, generated-family, existing-success, and
-console regressions. Verification uses local hermetic suites and repository quality gates only. C-16
-does not install, upgrade, or mutate a Kubernetes cluster and adds no chart or gateway configuration.
+adds focused handler/ordering, registry-failure, storage short-circuit, OpenAPI, generated-family,
+existing-success, and console regressions. A hermetic real HTTP/server seam proves authentication for
+all tenant metrics handlers and workspace storage before any registry call, as well as canonical C-02
+normalization for not-found and registry-failure responses. Verification uses local repository quality
+gates only. C-16 does not install, upgrade, or mutate a Kubernetes cluster and adds no chart or gateway
+configuration.
 
 The implementation maker does not approve its own work. Independent verifier, contract,
 authorization/isolation, console UX/accessibility, documentation, and final-review checkers receive the
@@ -247,10 +267,10 @@ implementation.
   degraded, and populated resources.
 - **Downstream work after a terminal result** → Use early returns in the shared guard/storage handler
   and injection spies that fail if limits/default/provider/audit/export/bucket/S3/quota work runs.
-- **Store failure misreported as absence** → Map only a null/absent registry result to `404`; allow
-  exceptions to follow existing failure handling.
-- **OpenAPI drift beyond eleven operations** → Assert the exact operation-id set, regenerate from the
-  unified document, and inspect generated diffs before commit.
+- **Store failure misreported as absence** → Map only a null/absent registry result to `404`; assert
+  exceptions follow existing C-02-normalized server failure with zero downstream work.
+- **OpenAPI drift beyond eleven operations** → Assert the exact set newly modified by C-16, preserve
+  pre-existing metrics `404` responses, regenerate from the unified document, and inspect the diff.
 - **Canonical envelope confusion** → Test local domain classes separately from the C-02-normalized HTTP
   `ErrorResponse`; do not edit the canonical envelope schemas.
 - **Console stale data or misleading zero state** → Test success-to-`404` transitions and export

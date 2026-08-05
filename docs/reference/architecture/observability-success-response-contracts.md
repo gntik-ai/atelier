@@ -1,5 +1,19 @@
 # Observability success-response contracts
 
+- **Document type:** Reference.
+- **Intended personas:** P1 platform superadministrators, P3 platform operators/SREs, P4
+  security/compliance auditors, P9 workspace operators, P10 scoped viewers/auditors, and P13
+  isolation reviewers.
+- **Prerequisite knowledge:** Tenant/workspace scope, bearer authentication, and the canonical public
+  API error envelope.
+- **Outcome:** Validate a successful response without confusing an absent scope with a real empty or
+  degraded resource.
+
+Status: existing v1 success schemas plus the C-16 scoped-existence correction. C-16 is not a new
+Preview surface and applies only to builds containing `fix-c16-scoped-resource-existence`. It adds no
+configuration, migration, or deployment step. This update is based on static implementation/contract
+evidence; it was not verified on a cluster.
+
 This reference describes the public, read-only observability responses used by the tenant and workspace console
 surfaces. It is intended for console/API integrators and operators validating a response without deploying a cluster.
 The normative field definitions remain in `apps/control-plane-executor/openapi/control-plane.openapi.json` and the
@@ -7,10 +21,14 @@ schemas under `packages/internal-contracts/src/`.
 
 ## Scope and response map
 
-All routes are under `/v1/metrics` and are authorized against the tenant or workspace in the path before a metrics
-reader is called. A foreign tenant or resolved foreign workspace is `403`; an unknown workspace is `404`. These
-guards are part of the isolation contract and apply equally when the metrics source is empty or temporarily
-unavailable.
+All routes are under `/v1/metrics`. Authentication runs first, and a metrics reader is called only after the
+surface-specific scope guard completes. Tenant paths authorize before the authoritative lookup: a constrained caller
+receives the same `403 FORBIDDEN` for a foreign-existing tenant and an unrelated-unknown tenant without a registry read;
+an already-authorized absent tenant is `404 TENANT_NOT_FOUND`. Workspace paths resolve first: an unknown workspace is
+`404 WORKSPACE_NOT_FOUND`, while a resolved foreign workspace remains `403 FORBIDDEN`. These guards apply equally when
+the metrics source is empty or temporarily unavailable. A successful `200` therefore proves the addressed scope exists;
+the complete ordering and non-enumeration rationale are described in
+[Scoped resource existence](scoped-resource-existence.md).
 
 | Scope | Route | Successful `200` schema |
 | --- | --- | --- |
@@ -69,6 +87,8 @@ the published precedence, from most actionable to least actionable:
 
 An empty dimension set is `evidence_unavailable`; it is never `within_limit`/`healthy`. A reader failure may therefore
 produce a contract-valid `200` with unavailable evidence, but must not claim that no dimensions means healthy service.
+This degraded `200` applies only to an existing, authorized scope: an absent tenant/workspace is a `404` and a failed
+tenant/workspace registry read is a `5xx`, never a `200` (see [Scoped resource existence](scoped-resource-existence.md)).
 The overview exposes the same posture and includes provisioning-state detail for tenant scope. `UsageSnapshot` carries
 `snapshotTimestamp`, an observation window, and `degradedDimensions`; the web console uses `snapshotTimestamp` when
 present. `QuotaPosture.overallStatus` is the corresponding console-compatible status field.
@@ -77,9 +97,9 @@ present. `QuotaPosture.overallStatus` is the corresponding console-compatible st
 
 Legacy audit rows are normalized before they cross the API boundary:
 
-* stored `outcome: "error"` is exposed as `result.outcome: "failed"`;
-* a legacy `NULL` outcome is conservatively exposed as `partial`, not `unknown`;
-* actor, scope, resource, action, correlation, and emitting-service metadata are always populated with schema-safe
+- stored `outcome: "error"` is exposed as `result.outcome: "failed"`;
+- a legacy `NULL` outcome is conservatively exposed as `partial`, not `unknown`;
+- actor, scope, resource, action, correlation, and emitting-service metadata are always populated with schema-safe
   values; no secret or raw detail is inferred for a list response.
 
 Audit exports support `jsonl` and `csv`. Both the primary export builder and the inline fallback return a complete
@@ -88,11 +108,17 @@ field and records that masking was applied; it must never expose more data than 
 
 ## Compatibility boundaries
 
-The workspace metric-series response is covered by the separate C-04 contract and is intentionally outside this
-document. Correlation execution remains a separate concern; this reference documents the export's
-currently supported filter metadata and shared list semantics. The audit-record list endpoint
-remains bounded by its existing maximum of `200` records per page; the export's `10000` limit does
-not change that list contract.
+The workspace metric-series success response is covered by the separate C-04 contract and is intentionally outside this
+document; C-16 preserves its existence/error ordering. Tenant series exists at runtime but remains unpublished and must
+not appear in OpenAPI, generated contracts, SDK-facing surfaces, or public route documentation. Correlation execution
+remains a separate concern; `getTenantAuditCorrelation` and `getWorkspaceAuditCorrelation` already declared `404` before
+C-16 and remain unchanged. The audit-record list endpoint remains bounded by its existing maximum of `200` records per
+page; the export's `10000` limit does not change that list contract.
+
+C-16 adds canonical `404 ErrorResponse` declarations to exactly five public tenant and six public workspace operations.
+The storage-usage operation retains its pre-existing `404`, so it is not a twelfth metrics change. Authorized
+real-resource success schemas and calculations remain backward compatible. Rolling back requires no data cleanup, but it
+restores the misleading absent-tenant `200` behavior.
 
 ## Local validation (no deployment required)
 
@@ -103,8 +129,13 @@ openspec validate fix-c01-observability-success-schemas --strict
 npm run validate:openapi
 node --check apps/control-plane/metrics-handlers.mjs
 node --check apps/control-plane/audit-store.mjs
+node --test tests/blackbox/scoped-resource-existence-c16.test.mjs
+node --test tests/blackbox/metrics-tenant-authorization.test.mjs
+node --test tests/contracts/scoped-resource-existence.contract.test.mjs
 node --test tests/blackbox/metrics-success-schema-conformance.test.mjs
 ```
 
-These checks exercise schema conformance and scope/error ordering in-process. They do not deploy or mutate a
+Expected result: every command exits zero; schema conformance and real-resource `200` behavior are preserved; the C-16
+tests prove scope/error ordering, cross-tenant opacity, exactly eleven OpenAPI additions, and zero downstream work after
+a terminal result. The commands are read-only, create nothing requiring cleanup, and do not deploy or mutate a
 Kubernetes cluster.

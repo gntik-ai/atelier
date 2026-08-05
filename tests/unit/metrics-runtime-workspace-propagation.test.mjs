@@ -135,6 +135,60 @@ test('control-plane attributes canonical own-workspace routes across final statu
   ]);
 });
 
+test('control-plane completes metric scope once and never re-probes a handler-terminal workspace', async () => {
+  let resolutions = 0;
+  const getWorkspace = async () => {
+    resolutions += 1;
+    return { id: WORKSPACE, tenant_id: TENANT };
+  };
+
+  const missing = createControlPlaneMetricAttribution({ method: 'GET', getWorkspace });
+  missing.bindAuthenticatedRoute(
+    { tenantId: TENANT, actorType: 'superadmin' },
+    { workspaceId: WORKSPACE }
+  );
+  missing.markWorkspaceResolutionAttempted();
+  assert.equal(await missing.complete(404), false);
+  assert.equal(await missing.complete(404), false, 'res.finish shares the first completion');
+  assert.equal(resolutions, 0, 'a terminal authoritative handler lookup is never re-probed');
+  assert.equal(missing.metric.workspaceId, '', 'the unverified path id never becomes a label');
+
+  const registryFailure = createControlPlaneMetricAttribution({ method: 'GET', getWorkspace });
+  registryFailure.bindAuthenticatedRoute(
+    { tenantId: TENANT, actorType: 'superadmin' },
+    { workspaceId: WORKSPACE }
+  );
+  registryFailure.markWorkspaceResolutionAttempted();
+  assert.equal(await registryFailure.complete(500), false);
+  assert.equal(await registryFailure.complete(500), false);
+  assert.equal(resolutions, 0, 'a failed authoritative lookup is never retried by telemetry');
+
+  const resolvedValidationFailure = createControlPlaneMetricAttribution({ method: 'POST', getWorkspace });
+  resolvedValidationFailure.bindAuthenticatedRoute(
+    { tenantId: TENANT },
+    { workspaceId: WORKSPACE }
+  );
+  resolvedValidationFailure.markWorkspaceResolutionAttempted();
+  assert.equal(
+    await resolvedValidationFailure.complete(400, { tenantId: TENANT, workspaceId: WORKSPACE }),
+    true,
+    'an authorized handler-provided scope remains attributable after validation fails'
+  );
+  assert.deepEqual(resolvedValidationFailure.metric, {
+    method: 'POST',
+    route: 'unmatched',
+    tenantId: TENANT,
+    workspaceId: WORKSPACE
+  });
+  assert.equal(resolutions, 0);
+
+  const fallback = createControlPlaneMetricAttribution({ method: 'GET', getWorkspace });
+  fallback.bindAuthenticatedRoute({ tenantId: TENANT }, { workspaceId: WORKSPACE });
+  assert.equal(await fallback.complete(500), true);
+  assert.equal(await fallback.complete(500), true);
+  assert.equal(resolutions, 1, 'legacy authorized failures retain one best-effort C-04 lookup');
+});
+
 test('control-plane omits workspace labels for denials, spoofed headers, and non-workspace routes', async () => {
   let resolutions = 0;
   const getWorkspace = async (_pool, workspaceId) => {

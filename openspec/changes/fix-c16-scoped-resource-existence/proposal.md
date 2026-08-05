@@ -14,7 +14,8 @@ contract unable to describe the corrected not-found outcome.
   existing own-tenant authorization, but before limits, defaults, provider, audit-query, or export
   work; an authorized request for an addressable missing tenant returns `404 TENANT_NOT_FOUND`.
 - Preserve tenant non-enumeration: an unauthorized caller receives the same `403 FORBIDDEN` for a
-  foreign existing tenant and an unrelated unknown tenant, without registry or provider work.
+  foreign existing tenant and an unrelated unknown tenant, without registry or provider work; the
+  existing attributable `403` enforcement-denial audit remains unchanged.
 - Preserve workspace metrics behavior: a known foreign workspace remains `403 FORBIDDEN`, an unknown
   workspace remains `404 WORKSPACE_NOT_FOUND`, and the resolved tenant is not redundantly re-probed.
 - Make workspace storage usage resolve the workspace for every actor, including `superadmin` and
@@ -23,13 +24,20 @@ contract unable to describe the corrected not-found outcome.
   work.
 - Preserve every authorized real-resource success schema and the current honest empty/degraded `200`
   semantics and provider math.
+- Preserve datastore-failure semantics: a failed tenant/workspace registry read follows the existing
+  C-02-normalized server-failure path, never a not-found or fabricated success, and short-circuits all
+  downstream observational work.
+- For exactly the thirteen affected runtime handlers, derive canonical error-resource parameter
+  positions and request-metric route labels from the matched registered route, so even arbitrary short
+  tenant/workspace targets remain absent from `401`, `403`, `404`, registry-failure `500`, counter, and
+  histogram surfaces while C-02 keeps its generic `{id}` contract; do not change other routes.
 - Add the canonical `404` `ErrorResponse` to exactly eleven published tenant/workspace metrics
   operations in the unified OpenAPI and regenerate the derived metrics family, route catalog, and
   public API documentation. Keep the runtime-only tenant series unpublished and leave the existing
   workspace-storage-usage `404` declaration unchanged.
 - Cover backend ordering and short-circuits, cross-tenant opacity, existing-resource success fixtures,
-  OpenAPI drift, and console stale/error handling without a production UI redesign or cluster
-  deployment.
+  hermetic HTTP authentication and registry failures, OpenAPI drift, and console stale/error handling
+  without a production UI redesign or cluster deployment.
 
 ## Capabilities
 
@@ -53,4 +61,7 @@ contract unable to describe the corrected not-found outcome.
   clears stale success data and renders an unavailable/not-found state.
 - Tests and documentation: pre-fix black-box tests, focused OpenAPI contract coverage, preserved-success
   fixtures, and architecture/API documentation. There is no new route, role, store, migration,
-  deployment configuration, audit event, metric family, or quota/metering mutation.
+  deployment configuration, audit event, metric family, or quota/metering mutation; existing bounded
+  request telemetry and attributable `403` enforcement-denial auditing remain intact. For the closed
+  thirteen-handler inventory, registered route parameters—not raw short target values—drive error
+  resources and request-metric route labels.

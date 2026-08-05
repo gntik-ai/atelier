@@ -46,6 +46,8 @@ const WS_B = '44444444-4444-4444-4444-444444444444';
 
 const WS_A_ROW = { id: WS_A, tenant_id: TENANT_A, slug: 'app-staging', display_name: 'App Staging', status: 'active', environment: 'staging' };
 const WS_B_ROW = { id: WS_B, tenant_id: TENANT_B, slug: 'other-production', display_name: 'Other Production', status: 'active', environment: 'production' };
+const TENANT_A_ROW = { id: TENANT_A, slug: 'tenant-a', display_name: 'Tenant A', status: 'active', iam_realm: 'tenant-a', created_at: '2026-06-18T00:00:00.000Z', created_by: 'blackbox' };
+const TENANT_B_ROW = { id: TENANT_B, slug: 'tenant-b', display_name: 'Tenant B', status: 'active', iam_realm: 'tenant-b', created_at: '2026-06-18T00:00:00.000Z', created_by: 'blackbox' };
 const AUDIT_EVENT_SCHEMA = JSON.parse(readFileSync(new URL('../../packages/internal-contracts/src/observability-audit-event-schema.json', import.meta.url), 'utf8'));
 const AUDIT_ACTION_CATEGORIES = new Set(AUDIT_EVENT_SCHEMA.action.categories);
 const C09_FILTER_IDS = [
@@ -173,6 +175,10 @@ function memPool() {
           cursor_created_at: r.created_at
         }))
       };
+    }
+    if (s.includes('FROM tenants')) {
+      const tenant = [TENANT_A_ROW, TENANT_B_ROW].find((row) => row.id === params[0] || row.slug === params[0]);
+      return { rows: tenant ? [tenant] : [] };
     }
     if (s.includes('FROM workspaces')) {
       const workspace = [WS_A_ROW, WS_B_ROW].find((row) => row.id === params[0]);

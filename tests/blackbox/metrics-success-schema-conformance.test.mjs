@@ -70,6 +70,16 @@ const WORKSPACE_ROW = {
   environment: 'staging'
 };
 
+const TENANT_ROW = {
+  id: TENANT,
+  slug: 'tenant-a',
+  display_name: 'Tenant A',
+  status: 'active',
+  iam_realm: 'tenant-a',
+  created_at: '2026-08-04T00:00:00.000Z',
+  created_by: 'blackbox'
+};
+
 const AUDIT_ROW = {
   id: 'evt_audit_1',
   action_type: 'workspace.create',
@@ -160,6 +170,9 @@ const LIMITS = [
 function fakePool() {
   const query = async (sql, params = []) => {
     const text = String(sql);
+    if (text.includes('FROM tenants')) {
+      return { rows: params[0] === TENANT ? [TENANT_ROW] : [] };
+    }
     if (text.includes('FROM workspaces')) {
       return { rows: params[0] === WORKSPACE ? [WORKSPACE_ROW] : [] };
     }

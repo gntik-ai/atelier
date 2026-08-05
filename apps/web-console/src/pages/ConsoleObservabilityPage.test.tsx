@@ -146,6 +146,39 @@ describe('ConsoleObservabilityPage', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:audit-export')
   })
 
+  it('[C-16] sustituye un manifiesto previo por el error existente cuando el alcance devuelve 404', async () => {
+    const user = userEvent.setup()
+    const notFound = Object.assign(new Error('No se encontró el alcance solicitado.'), { status: 404 })
+    mockUseConsoleContext.mockReturnValue({
+      activeTenantId: 'ten_1',
+      activeWorkspaceId: 'wrk_1',
+      activeTenant: { label: 'Tenant' },
+      activeWorkspace: { label: 'Workspace' }
+    })
+    mockUseConsoleMetrics.mockReturnValue({ overview: null, loading: false, error: null, reload: vi.fn() })
+    mockUseConsoleAuditRecords.mockReturnValue({ records: [], loading: false, error: null, reload: vi.fn() })
+    mockExportAuditRecords
+      .mockResolvedValueOnce({
+        exportId: 'exp-before-c16-404',
+        status: 'completed',
+        itemCount: 1,
+        maskedItemCount: 1,
+        items: [{ eventId: 'evt-before-c16-404' }]
+      })
+      .mockRejectedValueOnce(notFound)
+
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Auditoría' }))
+    await user.click(screen.getByRole('button', { name: 'Exportar auditoría' }))
+    expect(await screen.findByText('Manifiesto de auditoría listo')).toBeInTheDocument()
+    expect(screen.getByText('exp-before-c16-404')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Exportar auditoría' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo exportar la auditoría')
+    expect(screen.queryByText('Manifiesto de auditoría listo')).not.toBeInTheDocument()
+    expect(screen.queryByText('exp-before-c16-404')).not.toBeInTheDocument()
+  })
+
   it('[#766] expone el disclosure del id de evento con aria-expanded/aria-controls, el conteo de resultados y el filtro de rango de fechas', async () => {
     const user = userEvent.setup()
     mockUseConsoleContext.mockReturnValue({ activeTenantId: 'ten_1', activeWorkspaceId: null, activeTenant: { label: 'Tenant' }, activeWorkspace: null })

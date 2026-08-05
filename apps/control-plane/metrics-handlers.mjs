@@ -697,6 +697,7 @@ async function auditExport(ctx) {
 // read only their own tenant; superadmin/internal may read any.
 async function resolveScopeTenant(ctx) {
   if (ctx.params.workspaceId) {
+    ctx.markWorkspaceScopeResolutionAttempted?.();
     const ws = await store.getWorkspace(ctx.pool, ctx.params.workspaceId);
     if (!ws) return { error: err(404, 'WORKSPACE_NOT_FOUND', `workspace ${ctx.params.workspaceId} not found`) };
     return { tenantId: ws.tenant_id, workspaceId: ws.id };
@@ -709,6 +710,20 @@ function guarded(handler) {
     if (scope.error) return scope.error;
     if (!canManageTenant(ctx.identity, scope.tenantId)) {
       return err(403, 'FORBIDDEN', 'cannot read another tenant’s metrics');
+    }
+    // C-16: confirm the addressed tenant actually exists in the authoritative registry BEFORE
+    // any limits/provider/audit/export work, so a fabricated healthy 200 is never returned for a
+    // tenant that does not exist. The lookup runs ONLY for tenant paths and ONLY AFTER the
+    // canManageTenant decision above: a constrained caller must not be able to enumerate tenant
+    // existence (a foreign-existing and an unrelated-unknown tenant both stop at the same opaque
+    // 403 with no registry read). Workspace paths already resolved — and thereby confirmed — their
+    // scope via store.getWorkspace in resolveScopeTenant, so they are not re-probed here. A
+    // datastore fault propagates (rejects) to the canonical C-02 server-failure path; only an
+    // absent row is TENANT_NOT_FOUND.
+    if (!ctx.params.workspaceId) {
+      const tenant = await store.getTenant(ctx.pool, scope.tenantId);
+      if (!tenant) return err(404, 'TENANT_NOT_FOUND', `tenant ${scope.tenantId} not found`);
+      scope.tenantId = tenant.id;
     }
     ctx.resolvedScope = scope;
     // Scope is canonical and authorized at this point. Attach it before parameter/provider work

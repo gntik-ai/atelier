@@ -25,7 +25,14 @@ function capturingDb(rows = []) {
   return {
     calls,
     async query(sql, params) {
-      calls.push({ sql: String(sql).replace(/\s+/g, ' ').trim(), params: [...params] });
+      const text = String(sql).replace(/\s+/g, ' ').trim();
+      // C-16: the metrics scope guard now confirms the addressed tenant/workspace exists in the
+      // authoritative registry before running any audit query. Resolve those existence lookups to
+      // the seeded scope here (without recording them in `calls`) so this suite keeps asserting
+      // only the audit-store query interaction it is about.
+      if (/\bFROM tenants\b/i.test(text)) return { rows: [{ id: TENANT }] };
+      if (/\bFROM workspaces\b/i.test(text)) return { rows: [{ id: WORKSPACE, tenant_id: TENANT }] };
+      calls.push({ sql: text, params: [...params] });
       return { rows };
     }
   };
@@ -109,6 +116,10 @@ function microsecondPagingDb() {
     calls,
     async query(sql, params) {
       const statement = String(sql).replace(/\s+/g, ' ').trim();
+      // C-16: resolve the scope-existence lookups the metrics guard now performs before the audit
+      // query, without recording them or routing them through the audit-row paging logic.
+      if (/\bFROM tenants\b/i.test(statement)) return { rows: [{ id: TENANT }] };
+      if (/\bFROM workspaces\b/i.test(statement)) return { rows: [{ id: WORKSPACE, tenant_id: TENANT }] };
       calls.push({ sql: statement, params: [...params] });
       let selected = rows.filter((row) => row.tenant_id === params[0]);
       const occurredAfter = statement.match(/created_at\s*>=\s*\$(\d+)/);

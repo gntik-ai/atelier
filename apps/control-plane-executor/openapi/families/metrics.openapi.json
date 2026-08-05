@@ -2456,6 +2456,16 @@
             },
             "description": "The caller lacks permission to export tenant audit records."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested tenant audit export scope was not found."
+          },
           "409": {
             "content": {
               "application/json": {
@@ -2779,6 +2789,16 @@
             },
             "description": "The caller is authenticated but not authorized for this scope."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested tenant audit scope was not found."
+          },
           "429": {
             "content": {
               "application/json": {
@@ -2887,6 +2907,16 @@
               }
             },
             "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested tenant quota overview scope was not found."
           },
           "429": {
             "content": {
@@ -2998,6 +3028,16 @@
             },
             "description": "The caller is authenticated but not authorized for this scope."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested tenant quota scope was not found."
+          },
           "429": {
             "content": {
               "application/json": {
@@ -3106,6 +3146,16 @@
               }
             },
             "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested tenant usage scope was not found."
           },
           "429": {
             "content": {
@@ -3386,6 +3436,16 @@
               }
             },
             "description": "The caller lacks permission to export workspace audit records."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace audit export scope was not found."
           },
           "409": {
             "content": {
@@ -3710,6 +3770,16 @@
               }
             },
             "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace audit scope was not found."
           },
           "429": {
             "content": {
@@ -4205,6 +4275,16 @@
             },
             "description": "The caller is authenticated but not authorized for this scope."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace quota overview scope was not found."
+          },
           "429": {
             "content": {
               "application/json": {
@@ -4314,6 +4394,16 @@
               }
             },
             "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace quota scope was not found."
           },
           "429": {
             "content": {
@@ -4453,6 +4543,16 @@
             },
             "description": "The caller is authenticated but not authorized for this scope."
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace metric-series scope was not found."
+          },
           "429": {
             "content": {
               "application/json": {
@@ -4564,6 +4664,16 @@
               }
             },
             "description": "The caller is authenticated but not authorized for this scope."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The requested workspace usage scope was not found."
           },
           "429": {
             "content": {

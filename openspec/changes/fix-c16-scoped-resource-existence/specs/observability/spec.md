@@ -12,12 +12,25 @@ After authorization, an addressable tenant absent from the registry SHALL termin
 the `TENANT_NOT_FOUND` error class before any limit/default resolution, metrics provider access, audit
 query, or audit export work.
 
+For tenant audit export, the existing HTTP runtime SHALL authenticate before generic JSON parsing. A
+syntactically valid object SHALL then pass the existing tenant authorization and existence gates before
+the leaf handler applies the C-10 format, page-size, filter, and masking validation. C-16 SHALL NOT move,
+duplicate, or reinterpret either the generic request parser or the C-10 validation contract.
+
 #### Scenario: Authentication remains first
 
 - **WHEN** an unauthenticated or invalidly authenticated caller requests any tenant metrics operation,
   whether the addressed tenant exists or not
 - **THEN** the system returns the existing authentication failure without authorization, tenant
   registry, limits, defaults, provider, audit-query, or export work
+
+#### Scenario: Audit-export authentication and scope precede leaf validation
+
+- **WHEN** an unauthenticated caller submits malformed JSON to tenant audit export, or an authenticated
+  caller submits a syntactically valid object with an invalid C-10 field for a foreign or missing tenant
+- **THEN** the existing HTTP authentication result precedes generic JSON parsing, and a parsed object
+  reaches the existing tenant authorization and existence gates before C-10 leaf validation or audit-
+  export work
 
 #### Scenario: Authorized privileged caller addresses an unknown tenant
 
@@ -27,18 +40,35 @@ query, or audit export work.
 - **THEN** the system returns HTTP `404` with the `TENANT_NOT_FOUND` error class and performs no limit,
   default, provider, audit-query, or audit-export work
 
-#### Scenario: Authorized constrained reader addresses an unknown tenant
+#### Scenario: Authorized tenant administrator addresses an unknown tenant
 
-- **WHEN** a scoped viewer/auditor (P10) is authorized under the existing policy to address the tenant
-  id but the tenant is absent from the authoritative registry
+- **WHEN** an existing `tenant_owner` or `tenant_admin` is authorized under the existing policy to
+  address its tenant id but that tenant is absent from the authoritative registry
 - **THEN** the read-only operation returns HTTP `404` with the `TENANT_NOT_FOUND` error class and gains
   no mutation or additional scope grant
+
+#### Scenario: Scoped viewer remains denied before tenant lookup
+
+- **WHEN** a scoped viewer/auditor (P10), whose existing role is not accepted by `canManageTenant`,
+  requests a foreign-existing or unrelated unknown tenant
+- **THEN** both requests return the same HTTP `403 FORBIDDEN` disclosure without a tenant-registry
+  read, target-derived metric attribution, or downstream observational work
 
 #### Scenario: Existing authorized tenant reaches its handler
 
 - **WHEN** authentication and existing authorization succeed and the addressed tenant exists
 - **THEN** the system attaches the authoritative tenant scope and continues to the requested handler
   under the existing operation-specific validation and provider behavior
+
+#### Scenario: Tenant registry failure is not absence
+
+- **WHEN** an authenticated and authorized tenant metrics request reaches the authoritative tenant
+  lookup and that lookup throws or fails instead of returning an absent row
+- **THEN** the local handler rejects with the registry failure and the HTTP boundary returns `500
+  GW_CONTROL_PLANE_ERROR` in the closed C-02 `ErrorResponse` with `detail: {}`, does not return
+  `TENANT_NOT_FOUND` or any degraded or successful `200`, and performs no limit/default, provider,
+  audit-query, or audit-export work; the existing OpenAPI `default` ErrorResponse continues to cover
+  this server failure without a new `500` declaration
 
 ### Requirement: Tenant not-found handling preserves non-enumeration
 
@@ -135,6 +165,16 @@ existence distinction.
 - **THEN** the system does not list workspace buckets, list or inspect objects, calculate provider
   totals, or read quota/default configuration
 
+#### Scenario: Workspace registry failure is not absence
+
+- **WHEN** an authenticated workspace-metrics or workspace-storage-usage request reaches its
+  authoritative workspace lookup and that lookup throws or fails instead of returning an absent row
+- **THEN** the local handler rejects with the registry failure and the HTTP boundary returns `500
+  GW_CONTROL_PLANE_ERROR` in the closed C-02 `ErrorResponse` with `detail: {}`, does not return
+  `WORKSPACE_NOT_FOUND` or any zero/degraded `200`, and performs no limits/provider/audit/export or
+  bucket/object-store/quota/default work; the existing OpenAPI `default` ErrorResponse continues to
+  cover this server failure without a new `500` declaration
+
 ### Requirement: Existing authorized resources preserve honest success semantics
 
 The system SHALL preserve the current HTTP `200` schemas, resolved scope fields, provider calculations,
@@ -180,7 +220,9 @@ The unified OpenAPI SHALL declare an HTTP `404` response whose JSON schema refer
 `getWorkspaceQuotaPosture`, `getWorkspaceQuotaUsageOverview`, `getWorkspaceUsageSnapshot`,
 `getWorkspaceMetricSeries`, `listWorkspaceAuditRecords`, and `exportWorkspaceAuditRecords`. The
 runtime-only tenant series SHALL remain unpublished, and the existing `getWorkspaceStorageUsage`
-`404` declaration SHALL remain in place without creating a twelfth metrics operation change.
+`404` declaration SHALL remain in place without creating a twelfth metrics operation change. Every
+metrics `404` that predates C-16, including `getTenantAuditCorrelation` and
+`getWorkspaceAuditCorrelation`, SHALL remain unchanged.
 
 #### Scenario: Eleven metrics operations publish ErrorResponse for 404
 
@@ -188,6 +230,12 @@ runtime-only tenant series SHALL remain unpublished, and the existing `getWorksp
 - **THEN** each of the eleven named operation ids has a `404` JSON response referencing
   `#/components/schemas/ErrorResponse`, with no named operation omitted and no additional metrics
   operation changed by C-16
+
+#### Scenario: Pre-existing metrics not-found contracts are preserved
+
+- **WHEN** the post-generation metrics contract is compared with the C-16 baseline
+- **THEN** the exact set of newly modified operation ids is the eleven named operations, while every
+  pre-existing metrics `404`, including both audit-correlation operations, remains present and unchanged
 
 #### Scenario: Runtime-only tenant series stays unpublished
 
@@ -207,7 +255,11 @@ The system SHALL serialize the tenant and workspace not-found classes through th
 C-02 `ErrorResponse` envelope and SHALL NOT introduce a second envelope, schema, error family, or error
 code taxonomy. The handler-level classes `TENANT_NOT_FOUND` and `WORKSPACE_NOT_FOUND` SHALL retain their
 meaning, while the public HTTP serialization SHALL apply the existing canonical normalization,
-correlation, sanitization, and bounded-code rules.
+correlation, sanitization, and bounded-code rules. For exactly the thirteen affected runtime handlers,
+once a request matches its registered route, the public error resource SHALL derive parameter positions
+from that route and use C-02's generic `{id}` placeholder rather than copying any caller-controlled
+tenant/workspace path segment. C-16 SHALL NOT change route-resource or telemetry normalization for any
+other registered route.
 
 #### Scenario: Tenant not found uses the existing envelope
 
@@ -224,21 +276,53 @@ correlation, sanitization, and bounded-code rules.
   validates against the same canonical `ErrorResponse` with the existing sanitization and correlation
   behavior
 
+#### Scenario: Scoped terminal errors and request metrics do not expose raw target identifiers
+
+- **WHEN** any of the affected registered routes is requested with an arbitrary short tenant or
+  workspace target and terminates during authentication, authorization, authoritative absence, or
+  registry failure
+- **THEN** its canonical error `resource.path` uses the existing generic `{id}` placeholder, bounded
+  request counter and histogram route labels use the registered route template, and neither surface
+  contains the raw caller-controlled target
+
+#### Scenario: Short tenant targets preserve non-enumerating forbidden disclosure
+
+- **WHEN** a constrained caller compares a short foreign-existing tenant target with a different short
+  unknown tenant target across any tenant metrics operation
+- **THEN** both return the same closed C-02 `403 GW_FORBIDDEN` disclosure with a generic `{id}` resource,
+  no tenant lookup or downstream work, and no raw target in counter or histogram route labels
+
+#### Scenario: Routes outside C-16 preserve their normalization behavior
+
+- **WHEN** any registered route whose handler is outside the exact thirteen-operation C-16 runtime
+  inventory is processed
+- **THEN** C-16 does not replace that route's existing error-resource or request-metric normalization
+  behavior
+
 ### Requirement: Scope-existence correction is read-only and governance-neutral
 
 The system SHALL add no role, permission, membership, route, method, store, persisted field,
 datastore migration, gateway or deployment configuration, domain audit event, application metric
 family, quota policy, metering write, or rate-limit change for C-16. A terminal authentication,
-authorization, or existence result SHALL consume no domain quota and emit no domain audit event, while
-ordinary request telemetry and correlation SHALL retain their existing behavior and shall not encode
-new tenant/workspace existence detail.
+authorization, or existence result SHALL consume no domain quota or introduce a new audit side effect.
+A C-16 existence-selected `404` SHALL emit no domain audit event and SHALL NOT persist an attacker-
+supplied target identifier. Existing attributable `403` enforcement-denial writes SHALL remain exactly
+as before. C-02 request/correlation identifiers SHALL remain in the error envelope and enforcement-
+denial audit where applicable; they SHALL NOT become Prometheus labels. Ordinary request telemetry SHALL
+NOT encode new tenant/workspace existence detail. For exactly the thirteen affected registered routes,
+counter labels SHALL retain method, bounded route, status, trusted-identity tenant and optional
+canonically resolved workspace attribution; histogram labels SHALL retain only method and bounded route.
+Both label families SHALL derive their route from the registered template rather than the caller-
+controlled path, and no unverified target SHALL become a tenant or workspace label.
 
 #### Scenario: Terminal result has no domain side effect
 
-- **WHEN** an in-scope request terminates with authentication failure, `403`, or scope `404`
-- **THEN** no domain audit record, quota consumption, metering write, provider query, or application
-  data mutation occurs, and existing request telemetry records only its already-approved bounded
-  route/status/correlation dimensions
+- **WHEN** an in-scope request terminates with authentication failure, an attributable `403`, or a new
+  C-16 existence-selected `404`
+- **THEN** authentication failure and `404` add no domain audit event, an attributable `403` preserves
+  its existing `scope_enforcement_denials` write, no outcome consumes quota or mutates application
+  data, C-02 correlation remains in the error/audit surfaces, counters record only method, bounded
+  route, status and trusted/canonical scope labels, and histograms record only method and bounded route
 
 #### Scenario: Successful read remains non-mutating
 
