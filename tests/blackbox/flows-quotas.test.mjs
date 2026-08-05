@@ -81,8 +81,8 @@ test('bbx-flows-ten-quota-01: max_concurrent_executions hard limit → 429 with 
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowA}/executions`, { method: 'POST', headers: A, body: JSON.stringify({ version: 1 }) });
     assert.equal(res.status, 429);
     const body = await res.json();
-    assert.equal(body.code, 'QUOTA_EXCEEDED');
-    assert.equal(body.dimension, 'max_concurrent_executions');
+    assert.equal(body.code, 'GW_QUOTA_EXCEEDED');
+    assert.equal(body.detail?.dimension, 'max_concurrent_executions');
     assert.equal(temporal.startCount, before, 'no Temporal workflow started when over the limit');
   }, { gate });
 });
@@ -104,7 +104,7 @@ test('bbx-flows-ten-quota-03: max_flows hard limit → flow-create 429', async (
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows`, { method: 'POST', headers: A, body: JSON.stringify({ name: 'f', definition: DEF }) });
     assert.equal(res.status, 429);
-    assert.equal((await res.json()).dimension, 'max_flows');
+    assert.equal((await res.json()).detail?.dimension, 'max_flows');
   }, { gate });
 });
 
@@ -114,7 +114,7 @@ test('bbx-flows-ten-quota-04: max_flow_versions hard limit → publish 429', asy
     const flowId = (await (await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows`, { method: 'POST', headers: A, body: JSON.stringify({ name: 'f', definition: DEF }) })).json()).flowId;
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowId}/versions`, { method: 'POST', headers: A });
     assert.equal(res.status, 429);
-    assert.equal((await res.json()).dimension, 'max_flow_versions');
+    assert.equal((await res.json()).detail?.dimension, 'max_flow_versions');
   }, { gate });
 });
 
@@ -125,7 +125,7 @@ test('bbx-flows-ten-quota-05: flow_starts_per_minute hard limit → start 429, n
     const before = temporal.startCount;
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowA}/executions`, { method: 'POST', headers: A, body: JSON.stringify({ version: 1 }) });
     assert.equal(res.status, 429);
-    assert.equal((await res.json()).dimension, 'flow_starts_per_minute');
+    assert.equal((await res.json()).detail?.dimension, 'flow_starts_per_minute');
     assert.equal(temporal.startCount, before);
   }, { gate });
 });

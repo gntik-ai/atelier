@@ -103,8 +103,8 @@ test('old unscoped MCP detail and playground routes remain unrouted', async () =
     });
 
     assert.equal(detail.status, 404);
-    assert.equal((await detail.json()).code, 'NO_ROUTE');
+    assert.equal((await detail.json()).code, 'GW_NO_ROUTE');
     assert.equal(playground.status, 404);
-    assert.equal((await playground.json()).code, 'NO_ROUTE');
+    assert.equal((await playground.json()).code, 'GW_NO_ROUTE');
   });
 });

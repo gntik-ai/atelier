@@ -131,7 +131,7 @@ test('bbx-flows-ten-iso-02: get-flow of a B-owned flow returns 404 with no flow 
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_B/flows/${flowB}`, { headers: A });
     assert.equal(res.status, 404);
     const body = await res.json();
-    assert.equal(body.code, 'FLOW_NOT_FOUND');
+    assert.equal(body.code, 'GW_FLOW_NOT_FOUND');
     assert.ok(!('definition' in body) && !('name' in body));
   });
 });
@@ -157,7 +157,7 @@ test('bbx-flows-ten-iso-04: get-execution-detail with tenantB workflowId returns
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowA}/executions/${encodeURIComponent(wfB)}`, { headers: A });
     assert.equal(res.status, 404);
     const body = await res.json();
-    assert.equal(body.code, 'EXECUTION_NOT_FOUND');
+    assert.equal(body.code, 'GW_EXECUTION_NOT_FOUND');
     assertNoTenantBLeak(body);
     assert.equal(temporal.rpc.describe + temporal.rpc.fetchHistory, before, 'no Temporal RPC for a foreign execution detail');
   });

@@ -258,7 +258,7 @@ test('bbx-flows-mon-05: stream preamble carries the SSE keep-alive contract', as
 test('bbx-flows-mon-06: cross-tenant SSE probe is rejected with no event frames', async () => {
   await withMonitoringServer(async (baseUrl) => {
     // Tenant A credential, tenant B's execution id under tenant B's workspace path.
-    const { status, frames, raw } = await readSseStream(`${baseUrl}${eventsUrl(EXEC_B, WS_B)}`, { headers: authHeaders(TEN_A, WS_A) });
+    const { status, frames, raw, errorBody } = await readSseStream(`${baseUrl}${eventsUrl(EXEC_B, WS_B)}`, { headers: authHeaders(TEN_A, WS_A) });
     // Either a hard 403 (preferred) or a fail-closed error frame with no node-status leakage.
     const nodeStatus = frames.filter((f) => f.type === 'node-status');
     assert.equal(nodeStatus.length, 0, 'no node-status frames leak across tenants');
@@ -267,6 +267,9 @@ test('bbx-flows-mon-06: cross-tenant SSE probe is rejected with no event frames'
       assert.doesNotMatch(raw, /step-1/, 'no foreign history content leaked');
     } else {
       assert.equal(status, 403, 'foreign execution stream rejected with 403');
+      const body = JSON.parse(errorBody);
+      assert.equal(body.code, 'GW_FORBIDDEN');
+      assert.doesNotMatch(JSON.stringify(body), /tenant_B|ws_B|data:write/);
     }
   });
 });
@@ -277,7 +280,7 @@ test('bbx-flows-mon-07: missing credential is 401 before streaming', async () =>
     const res = await fetch(`${baseUrl}${eventsUrl(EXEC_A)}`); // no identity headers, no apikey
     assert.equal(res.status, 401);
     const body = await res.json().catch(() => ({}));
-    assert.equal(body.code, 'UNAUTHENTICATED');
+    assert.equal(body.code, 'GW_UNAUTHENTICATED');
   });
 });
 

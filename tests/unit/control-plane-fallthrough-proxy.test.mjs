@@ -91,11 +91,11 @@ test('a path the executor DOES serve is handled locally, never proxied', async (
   });
 });
 
-test('without an upstream configured, an unmatched path still returns 404 NO_ROUTE (unchanged behavior)', async () => {
+test('without an upstream configured, an unmatched path returns canonical 404 GW_NO_ROUTE', async () => {
   await withServer({}, async (base) => {
     const res = await fetch(`${base}/v1/postgres/workspaces/ws-a/inventory`, { headers: idHeaders });
     assert.equal(res.status, 404);
-    assert.equal((await res.json()).code, 'NO_ROUTE');
+    assert.equal((await res.json()).code, 'GW_NO_ROUTE');
   });
 });
 
@@ -130,6 +130,6 @@ test('proxy returns 502 when the control-plane upstream is unreachable', async (
   await withServer({ controlPlaneUpstream: 'http://127.0.0.1:1' }, async (base) => {
     const res = await fetch(`${base}/v1/postgres/workspaces/ws-a/inventory`, { headers: idHeaders });
     assert.equal(res.status, 502);
-    assert.equal((await res.json()).code, 'UPSTREAM_UNAVAILABLE');
+    assert.equal((await res.json()).code, 'GW_UPSTREAM_UNAVAILABLE');
   });
 });

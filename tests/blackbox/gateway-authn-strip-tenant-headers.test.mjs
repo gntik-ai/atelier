@@ -106,7 +106,7 @@ test('bbx-gw-authn-01: spoofed x-tenant-id + x-workspace-id with no credential r
     });
     assert.equal(res.status, 401, `expected 401 for header-only identity without trust signal, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'UNAUTHENTICATED', `expected UNAUTHENTICATED code, got ${body.code}`);
+    assert.equal(body.code, 'GW_UNAUTHENTICATED', `expected GW_UNAUTHENTICATED code, got ${body.code}`);
   });
 });
 
@@ -124,7 +124,7 @@ test('bbx-gw-authn-02: spoofed tenant headers on postgres data-plane with no cre
     });
     assert.equal(res.status, 401, `expected 401 for header-only identity without trust signal, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'UNAUTHENTICATED', `expected UNAUTHENTICATED code, got ${body.code}`);
+    assert.equal(body.code, 'GW_UNAUTHENTICATED', `expected GW_UNAUTHENTICATED code, got ${body.code}`);
   });
 });
 
@@ -185,7 +185,7 @@ test('bbx-gw-authn-05: only x-tenant-id header with no credential returns 401', 
     });
     assert.equal(res.status, 401, `expected 401 for header-only identity, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'UNAUTHENTICATED');
+    assert.equal(body.code, 'GW_UNAUTHENTICATED');
   });
 });
 
@@ -206,6 +206,6 @@ test('bbx-gw-authn-06: x-gateway-auth with wrong secret returns 401', async () =
     });
     assert.equal(res.status, 401, `expected 401 for wrong gateway secret, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'UNAUTHENTICATED');
+    assert.equal(body.code, 'GW_UNAUTHENTICATED');
   });
 });

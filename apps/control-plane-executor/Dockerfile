@@ -5,6 +5,7 @@
 FROM node:22-alpine
 
 WORKDIR /app
+COPY apps/shared/error-envelope.mjs /app/apps/shared/error-envelope.mjs
 
 # Install runtime deps at /app/node_modules so they are accessible from ALL paths
 # under /app (including packages/internal-contracts, packages/webhook-engine, etc.

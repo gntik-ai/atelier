@@ -27,13 +27,22 @@
     "schemas": {
       "ErrorResponse": {
         "type": "object",
-        "required": ["code", "message", "requestId"],
+        "additionalProperties": false,
+        "required": ["status", "code", "message", "detail", "requestId", "correlationId", "timestamp", "resource"],
         "properties": {
-          "code": { "type": "string" },
+          "status": { "type": "integer", "minimum": 400, "maximum": 599 },
+          "code": { "type": "string", "pattern": "^GW_[A-Z0-9_]+$" },
           "message": { "type": "string" },
-          "requestId": { "type": "string" }
+          "detail": { "$ref": "#/components/schemas/ErrorDetail" },
+          "requestId": { "type": "string", "minLength": 8, "maxLength": 128 },
+          "correlationId": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{8,128}$" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "resource": { "$ref": "#/components/schemas/ErrorResource" },
+          "retryable": { "type": "boolean" }
         }
       },
+      "ErrorDetail": { "type": "object", "additionalProperties": true, "properties": { "reason": { "type": "string" }, "violations": { "type": "array", "items": { "type": "string" } } } },
+      "ErrorResource": { "type": "object", "additionalProperties": false, "required": ["path"], "properties": { "type": { "type": "string" }, "id": { "type": "string" }, "path": { "type": "string" } } },
       "PaginationMeta": {
         "type": "object",
         "required": ["page", "pageSize", "total"],

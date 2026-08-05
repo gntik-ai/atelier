@@ -97,7 +97,7 @@ test('bbx-ddl-guard-04: trust-header DDL targeting another tenant\'s workspace â
       method: 'POST', headers: ddlHeaders(TEN_A, WS_B), body: JSON.stringify({ name: 'evil' }),
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
-    assert.equal((await res.json()).code, 'CROSS_TENANT_VIOLATION');
+    assert.equal((await res.json()).code, 'GW_FORBIDDEN');
   });
 });
 
@@ -107,7 +107,7 @@ test('bbx-ddl-guard-05: trust-header DDL on the platform/unprovisioned DB â†’ 40
       method: 'POST', headers: ddlHeaders(TEN_A, WS_UNPROVISIONED), body: JSON.stringify({ name: 'evil' }),
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
-    assert.equal((await res.json()).code, 'DDL_TARGET_DB_FORBIDDEN');
+    assert.equal((await res.json()).code, 'GW_FORBIDDEN');
   });
 });
 

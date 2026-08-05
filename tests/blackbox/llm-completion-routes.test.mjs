@@ -87,7 +87,7 @@ test('bbx-llm-02: GET on an unconfigured workspace returns 404 LLM_PROVIDER_NOT_
   await withServer(makeExecutor(), async (baseUrl) => {
     const get = await fetch(`${baseUrl}${provPath()}`, { headers: headersFor('ten_a') });
     assert.equal(get.status, 404);
-    assert.equal((await get.json()).code, 'LLM_PROVIDER_NOT_FOUND');
+    assert.equal((await get.json()).code, 'GW_LLM_PROVIDER_NOT_FOUND');
   });
 });
 
@@ -132,7 +132,7 @@ test('bbx-llm-05: a disallowed model is rejected 422 MODEL_NOT_ALLOWED before an
       body: JSON.stringify({ model: 'gpt-forbidden', messages: [{ role: 'user', content: 'x' }] }),
     });
     assert.equal(res.status, 422);
-    assert.equal((await res.json()).code, 'MODEL_NOT_ALLOWED');
+    assert.equal((await res.json()).code, 'GW_MODEL_NOT_ALLOWED');
   });
 });
 
@@ -143,18 +143,18 @@ test('bbx-llm-06: completion with no provider configured is 422 LLM_PROVIDER_MIS
       body: JSON.stringify({ model: 'gpt-allowed', messages: [{ role: 'user', content: 'x' }] }),
     });
     assert.equal(res.status, 422);
-    assert.equal((await res.json()).code, 'LLM_PROVIDER_MISSING');
+    assert.equal((await res.json()).code, 'GW_LLM_PROVIDER_MISSING');
   });
 });
 
-test('bbx-llm-07: an unresolvable secret fails closed (LLM_PROVIDER_SECRET_UNRESOLVED)', async () => {
+test('bbx-llm-07: an unresolvable secret fails closed with the generic 500 class', async () => {
   await withServer(makeExecutor({ secretResolver: () => null }), async (baseUrl) => {
     await putProvider(baseUrl, 'ten_a');
     const res = await fetch(`${baseUrl}${compPath()}`, {
       method: 'POST', headers: headersFor('ten_a'),
       body: JSON.stringify({ model: 'gpt-allowed', messages: [{ role: 'user', content: 'x' }] }),
     });
-    assert.equal((await res.json()).code, 'LLM_PROVIDER_SECRET_UNRESOLVED');
+    assert.equal((await res.json()).code, 'GW_CONTROL_PLANE_ERROR');
   });
 });
 

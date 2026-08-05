@@ -77,7 +77,7 @@ test('bbx-795-02: docs route rejects a trusted workspace header that does not ma
     });
 
     assert.equal(res.status, 403, 'workspace docs must not return docs for the header workspace when path and header differ');
-    assert.equal((await res.json()).code, 'FORBIDDEN');
+    assert.equal((await res.json()).code, 'GW_FORBIDDEN');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

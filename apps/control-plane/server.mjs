@@ -36,6 +36,7 @@ import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
 import { buildActionParams } from './action-params.mjs';
 import { createControlPlaneMetricAttribution } from './request-metric-scope.mjs';
+import { normalizeErrorResponse } from '../shared/error-envelope.mjs';
 
 const { Pool } = pg;
 
@@ -147,7 +148,8 @@ const CORS = {
   'Access-Control-Max-Age': '600'
 };
 function sendJson(res, statusCode, body, extra = {}) {
-  const payload = body == null ? '' : JSON.stringify(body);
+  const normalized = statusCode >= 400 ? normalizeErrorResponse(statusCode, body, { ...(res._errorContext ?? {}), resource: res._errorContext?.resource }) : body;
+  const payload = statusCode >= 400 ? JSON.stringify(normalized) : (body == null ? '' : JSON.stringify(body));
   res.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8',
     'content-length': Buffer.byteLength(payload), ...CORS, ...extra });
   res.end(payload);
@@ -312,6 +314,8 @@ const server = http.createServer(async (req, res) => {
   try {
     const parsed = new URL(req.url, `http://localhost:${PORT}`);
     const path = parsed.pathname;
+    const headers = lowercaseHeaders(req.headers);
+    res._errorContext = { requestId: headers['x-request-id'], correlationId: headers['x-correlation-id'], resource: path };
     metric.route = normalizeRoute(path);
 
     if (method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
@@ -335,7 +339,6 @@ const server = http.createServer(async (req, res) => {
     }
     const route = matched.route;
 
-    const headers = lowercaseHeaders(req.headers);
     const correlationId = headers['x-correlation-id'] ?? null;
 
     let identity = null;
@@ -390,7 +393,8 @@ const server = http.createServer(async (req, res) => {
         metric,
         req,
         res,
-        cors: CORS
+        cors: CORS,
+        sendJson: (statusCode, payload, extraHeaders = {}) => sendJson(res, statusCode, payload, extraHeaders)
       };
       // Streaming routes (e.g. SSE consume) own the response: the handler writes
       // to `res` directly and ends it; we don't sendJson() after.

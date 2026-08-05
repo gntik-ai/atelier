@@ -129,11 +129,11 @@ test('bbx-emb-persist-04: routes return 501 EMBEDDING_DISABLED when the executor
       body: JSON.stringify({ providerType: 'openai', model: 'm', secretRef: { name: 'BYOK_K' } }),
     });
     assert.equal(put.status, 501);
-    assert.equal((await put.json()).code, 'EMBEDDING_DISABLED');
+    assert.equal((await put.json()).code, 'GW_NOT_IMPLEMENTED');
 
     const del = await fetch(`${baseUrl}${embPath()}`, { method: 'DELETE', headers: authHeaders });
     assert.equal(del.status, 501);
-    assert.equal((await del.json()).code, 'EMBEDDING_DISABLED');
+    assert.equal((await del.json()).code, 'GW_NOT_IMPLEMENTED');
   });
 });
 

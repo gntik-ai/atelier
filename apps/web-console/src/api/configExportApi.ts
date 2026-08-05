@@ -61,7 +61,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options)
   const data = await res.json().catch(() => ({} as Record<string, unknown>))
   if (!res.ok) {
-    const message = (data as { error?: string }).error ?? `HTTP ${res.status}`
+    const message = (data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? `HTTP ${res.status}`
     throw new ConfigExportApiError(res.status, message, (data as { code?: string }).code)
   }
   return data as T
@@ -90,6 +90,6 @@ export async function exportTenantConfig(
     return { artifact: data as ExportArtifact, status: res.status as 200 | 207 }
   }
 
-  const message = (data as { error?: string }).error ?? `HTTP ${res.status}`
+  const message = (data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? `HTTP ${res.status}`
   throw new ConfigExportApiError(res.status, message, (data as { code?: string }).code)
 }

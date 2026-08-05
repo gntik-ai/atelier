@@ -99,7 +99,7 @@ test('bbx-xt-idor-01: tenant-A admin minting an api-key in a tenant-B workspace 
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'CROSS_TENANT_VIOLATION', `expected CROSS_TENANT_VIOLATION, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN, got ${body.code}`);
     assert.equal(apiKeyStore.issued.length, 0, 'no key may be persisted for a foreign-tenant workspace');
   });
 });
@@ -128,7 +128,7 @@ test('bbx-xt-idor-03: tenant-A admin listing api-keys of a tenant-B workspace re
     const res = await fetch(`${baseUrl}/v1/workspaces/${WS_B}/api-keys`, { headers: ADMIN });
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'CROSS_TENANT_VIOLATION', `expected CROSS_TENANT_VIOLATION, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN, got ${body.code}`);
   });
 });
 
@@ -142,7 +142,7 @@ test('bbx-xt-idor-04: issuance in a workspace with no recorded owner returns 404
       method: 'POST', headers: ADMIN, body: JSON.stringify({ keyType: 'anon' }),
     });
     assert.equal(res.status, 404, `expected 404, got ${res.status}: ${await res.clone().text()}`);
-    assert.equal((await res.json()).code, 'WORKSPACE_NOT_FOUND');
+    assert.equal((await res.json()).code, 'GW_WORKSPACE_NOT_FOUND');
     assert.equal(apiKeyStore.issued.length, 0, 'unknown workspace structural writes must persist nothing');
   });
 });

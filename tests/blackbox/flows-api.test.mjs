@@ -178,7 +178,7 @@ test('bbx-flows-api-03: GET one definition returns 200; unknown returns 404', as
 
     const missing = await fetch(`${baseUrl}${flowsBase()}/does-not-exist`, { headers: authHeaders });
     assert.equal(missing.status, 404);
-    assert.equal((await missing.json()).code, 'FLOW_NOT_FOUND');
+    assert.equal((await missing.json()).code, 'GW_FLOW_NOT_FOUND');
   });
 });
 
@@ -217,7 +217,7 @@ test('bbx-flows-api-17: DELETE returns 409 when an active execution references t
     });
     const del = await fetch(`${baseUrl}${flowsBase()}/${body.flowId}`, { method: 'DELETE', headers: authHeaders });
     assert.equal(del.status, 409);
-    assert.equal((await del.json()).code, 'FLOW_HAS_ACTIVE_EXECUTIONS');
+    assert.equal((await del.json()).code, 'GW_FLOW_HAS_ACTIVE_EXECUTIONS');
     // the flow still exists
     const got = await fetch(`${baseUrl}${flowsBase()}/${body.flowId}`, { headers: authHeaders });
     assert.equal(got.status, 200);
@@ -337,7 +337,7 @@ test('bbx-flows-api-13: start with a non-existent version returns 404', async ()
       method: 'POST', headers: authHeaders, body: JSON.stringify({ version: 99 }),
     });
     assert.equal(res.status, 404);
-    assert.equal((await res.json()).code, 'VERSION_NOT_FOUND');
+    assert.equal((await res.json()).code, 'GW_VERSION_NOT_FOUND');
   });
 });
 
@@ -399,6 +399,6 @@ test('bbx-flows-api-16: signal a known approval node (202); unknown signal name 
       method: 'POST', headers: authHeaders, body: JSON.stringify({}),
     });
     assert.equal(bad.status, 422);
-    assert.equal((await bad.json()).code, 'UNKNOWN_SIGNAL');
+    assert.equal((await bad.json()).code, 'GW_UNKNOWN_SIGNAL');
   });
 });

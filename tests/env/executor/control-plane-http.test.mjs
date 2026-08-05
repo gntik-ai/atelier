@@ -171,13 +171,13 @@ test('API-key lifecycle over HTTP: issue (201) → list → anon-key cannot mana
 test('GET unknown path → 404 NO_ROUTE', async () => {
   const res = await fetch(`${baseUrl}/v1/nope`, { headers: authHeaders });
   assert.equal(res.status, 404);
-  assert.equal((await res.json()).code, 'NO_ROUTE');
+  assert.equal((await res.json()).code, 'GW_NO_ROUTE');
 });
 
 test('GET rows on unknown table → 404 TABLE_NOT_FOUND (sanitized)', async () => {
   const res = await fetch(`${baseUrl}/v1/postgres/workspaces/${WS_A}/data/appdb/schemas/public/tables/ghost/rows`, { headers: authHeaders });
   assert.equal(res.status, 404);
-  assert.equal((await res.json()).code, 'TABLE_NOT_FOUND');
+  assert.equal((await res.json()).code, 'GW_TABLE_NOT_FOUND');
 });
 
 test('list supports PostgREST-style filters + keyset pagination (cursor)', async () => {

@@ -460,9 +460,7 @@ async function eventsTopicStream(ctx, res) {
   // consumer onto another tenant's topic (P0 ISO-EVENTS).
   const scope = callerTenantScope(ctx.identity);
   if (!t || (scope != null && t.tenant_id !== scope)) {
-    res.writeHead(404, { 'content-type': 'application/json', ...(ctx.cors ?? {}) });
-    res.end(JSON.stringify({ code: 'TOPIC_NOT_FOUND', message: `topic ${ctx.params.topicId} not found` }));
-    return;
+    return ctx.sendJson(404, { code: 'TOPIC_NOT_FOUND', message: 'Topic not found' }, ctx.cors ?? {});
   }
   res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive', ...(ctx.cors ?? {}) });
   res.write(': connected\n\n');

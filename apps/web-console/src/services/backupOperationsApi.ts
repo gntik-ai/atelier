@@ -20,7 +20,8 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options)
   const data = await res.json().catch(() => ({} as Record<string, unknown>))
   if (!res.ok) {
-    throw new BackupOperationsApiError(res.status, (data as { error?: string }).error ?? 'Unknown error', (data as { error?: string }).error)
+    const error = data as { message?: string; error?: string; code?: string }
+    throw new BackupOperationsApiError(res.status, error.message ?? error.error ?? 'Unknown error', error.code ?? error.error)
   }
   return data as T
 }
