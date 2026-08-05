@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import {
+  ACTIVE_STATUSES,
+  ACTIVE_STATUS_SET
+} from '@/lib/generated/async-operation-status-vocabulary.mjs'
+import type { OperationStatus } from '@/lib/generated/async-operation-status-vocabulary.mjs'
 import type { JsonValue } from '@/lib/http'
 
 export const ASYNC_OPERATION_QUERY_ENDPOINT = '/v1/async-operation-query'
 const ASYNC_RESOURCE_ERROR_RETRY_DELAYS_MS = [1_000, 3_000] as const
 
-export type OperationStatus = 'pending' | 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled'
+export type { OperationStatus } from '@/lib/generated/async-operation-status-vocabulary.mjs'
 export type OperationResultType = 'success' | 'failure' | 'pending'
 
 export interface OperationFilters {
@@ -118,7 +123,7 @@ function useNormalizedPagination(pagination?: PaginationParams): Required<Pagina
 }
 
 function hasActiveOperations(items: OperationSummary[] = []): boolean {
-  return items.some((item) => item.status === 'pending' || item.status === 'running')
+  return items.some((item) => ACTIVE_STATUS_SET.has(item.status))
 }
 
 export async function fetchAsyncOperationQuery<T>(body: AsyncOperationQueryRequest, signal?: AbortSignal): Promise<T> {
@@ -339,30 +344,20 @@ export function useActiveOperationsCount() {
       setIsLoading(true)
 
       try {
-        const [running, pending] = await Promise.all([
-          fetchAsyncOperationQuery<OperationListResponse>(
-            {
-              queryType: 'list',
-              filters: { status: 'running' },
-              pagination: { limit: 1, offset: 0 }
-            },
-            abortController.signal
-          ),
-          fetchAsyncOperationQuery<OperationListResponse>(
-            {
-              queryType: 'list',
-              filters: { status: 'pending' },
-              pagination: { limit: 1, offset: 0 }
-            },
-            abortController.signal
-          )
-        ])
+        const active = await fetchAsyncOperationQuery<OperationListResponse>(
+          {
+            queryType: 'list',
+            filters: { status: [...ACTIVE_STATUSES] },
+            pagination: { limit: 1, offset: 0 }
+          },
+          abortController.signal
+        )
 
         if (cancelled) {
           return
         }
 
-        const nextCount = (running.total ?? 0) + (pending.total ?? 0)
+        const nextCount = active.total ?? 0
         setCount(nextCount)
         setIsLoading(false)
         clearTimer()

@@ -1,4 +1,6 @@
-export const TERMINAL_STATUSES = new Set(['completed', 'failed', 'timed_out', 'cancelled'])
+import { TERMINAL_STATUS_SET } from './generated/async-operation-status-vocabulary.mjs'
+
+export const TERMINAL_STATUSES = TERMINAL_STATUS_SET
 
 export function reconcileOperations(localSnapshot, remoteOps) {
   const remoteMap = new Map(remoteOps.map((operation) => [operation.operationId, operation]))

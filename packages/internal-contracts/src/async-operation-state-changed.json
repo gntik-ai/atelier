@@ -15,36 +15,106 @@
     "correlationId"
   ],
   "properties": {
-    "eventId": { "type": "string", "format": "uuid" },
-    "eventType": { "type": "string", "const": "async_operation.state_changed" },
-    "operationId": { "type": "string", "format": "uuid" },
-    "tenantId": { "type": "string" },
-    "workspaceId": { "type": ["string", "null"] },
-    "actorId": { "type": "string" },
-    "actorType": { "type": "string" },
-    "operationType": { "type": "string" },
-    "previousStatus": { "type": "string", "enum": ["pending", "running", "completed", "failed"] },
-    "newStatus": { "type": "string", "enum": ["pending", "running", "completed", "failed"] },
-    "errorSummary": {
-      "oneOf": [
-        { "$ref": "#/definitions/errorSummary" },
-        { "type": "null" }
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "type": "string",
+      "const": "async_operation.state_changed"
+    },
+    "operationId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "tenantId": {
+      "type": "string"
+    },
+    "workspaceId": {
+      "type": [
+        "string",
+        "null"
       ]
     },
-    "occurredAt": { "type": "string", "format": "date-time" },
-    "correlationId": { "type": "string" }
+    "actorId": {
+      "type": "string"
+    },
+    "actorType": {
+      "type": "string"
+    },
+    "operationType": {
+      "type": "string"
+    },
+    "previousStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "timed_out",
+        "cancelling",
+        "cancelled"
+      ]
+    },
+    "newStatus": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "failed",
+        "timed_out",
+        "cancelling",
+        "cancelled"
+      ]
+    },
+    "errorSummary": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/errorSummary"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "correlationId": {
+      "type": "string"
+    }
   },
   "definitions": {
     "errorSummary": {
       "type": "object",
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
-        "code": { "type": "string" },
-        "message": { "type": "string" },
-        "failedStep": { "type": ["string", "null"] }
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "failedStep": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
       "additionalProperties": false
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "x-falcone-generated-status-vocabulary": {
+    "source": "packages/internal-contracts/src/async-operation-status-vocabulary.json",
+    "generator": "scripts/generate-async-operation-status-vocabulary.mjs",
+    "command": "pnpm generate:async-operation-status-vocabulary"
+  }
 }

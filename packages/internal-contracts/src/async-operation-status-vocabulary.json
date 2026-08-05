@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "statuses": [
+    {
+      "value": "pending",
+      "active": true,
+      "terminal": false,
+      "cancellable": true,
+      "transitions": ["running", "cancelled"],
+      "consoleLabel": "Pendiente",
+      "consoleTone": "neutral"
+    },
+    {
+      "value": "running",
+      "active": true,
+      "terminal": false,
+      "cancellable": true,
+      "transitions": ["completed", "failed", "timed_out", "cancelling"],
+      "consoleLabel": "En curso",
+      "consoleTone": "progress"
+    },
+    {
+      "value": "completed",
+      "active": false,
+      "terminal": true,
+      "cancellable": false,
+      "transitions": [],
+      "consoleLabel": "Completada",
+      "consoleTone": "success"
+    },
+    {
+      "value": "failed",
+      "active": false,
+      "terminal": true,
+      "cancellable": false,
+      "transitions": [],
+      "consoleLabel": "Fallida",
+      "consoleTone": "danger"
+    },
+    {
+      "value": "timed_out",
+      "active": false,
+      "terminal": true,
+      "cancellable": false,
+      "transitions": [],
+      "consoleLabel": "Expirada",
+      "consoleTone": "warning"
+    },
+    {
+      "value": "cancelling",
+      "active": true,
+      "terminal": false,
+      "cancellable": false,
+      "transitions": ["cancelled", "failed"],
+      "consoleLabel": "Cancelando",
+      "consoleTone": "progress"
+    },
+    {
+      "value": "cancelled",
+      "active": false,
+      "terminal": true,
+      "cancellable": false,
+      "transitions": [],
+      "consoleLabel": "Cancelada",
+      "consoleTone": "neutral"
+    }
+  ]
+}

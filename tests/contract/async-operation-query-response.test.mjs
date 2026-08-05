@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import Ajv from 'ajv';
 
 import schema from '../../packages/internal-contracts/src/async-operation-query-response.json' with { type: 'json' };
+import { OPERATION_STATUSES, TERMINAL_STATUS_SET } from '../../packages/provisioning-orchestrator/src/generated/async-operation-status-vocabulary.mjs';
 
 const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
 const validate = ajv.compile(schema);
@@ -146,4 +147,49 @@ test('C07/C08/C09/C10 result payload validates success, failure and pending vari
     retryable: null,
     completedAt: '2026-03-30T10:00:00.000Z'
   });
+});
+
+test('C-12 all canonical statuses validate in list, detail, and C-11-compatible result projections', () => {
+  for (const status of OPERATION_STATUSES) {
+    const summary = {
+      operationId: '00000000-0000-4000-8000-000000000012',
+      status,
+      operationType: 'workspace.create',
+      tenantId: 'tenant_a',
+      workspaceId: 'wrk_1',
+      actorId: 'usr_1',
+      actorType: 'tenant_owner',
+      createdAt: '2026-03-30T10:00:00.000Z',
+      updatedAt: '2026-03-30T10:01:00.000Z',
+      correlationId: 'corr_c12'
+    };
+    const resultType = status === 'completed' ? 'success' : status === 'failed' ? 'failure' : 'pending';
+
+    expectValid({ queryType: 'list', items: [summary], total: 1, pagination: { limit: 20, offset: 0 } });
+    expectValid({
+      queryType: 'detail',
+      ...summary,
+      idempotencyKey: null,
+      sagaId: null,
+      errorSummary: null
+    });
+    expectValid({
+      queryType: 'result',
+      operationId: summary.operationId,
+      status,
+      resultType,
+      summary: resultType === 'success' ? 'done' : null,
+      failureReason: resultType === 'failure' ? 'failed' : null,
+      retryable: resultType === 'failure' ? false : null,
+      completedAt: TERMINAL_STATUS_SET.has(status) ? summary.updatedAt : null
+    });
+
+    for (const payload of [
+      { queryType: 'list', items: [{ ...summary, status: 'unknown_async_status' }], total: 1, pagination: { limit: 20, offset: 0 } },
+      { queryType: 'detail', ...summary, status: 'unknown_async_status', idempotencyKey: null, sagaId: null, errorSummary: null },
+      { queryType: 'result', operationId: summary.operationId, status: 'unknown_async_status', resultType: 'pending' }
+    ]) {
+      expectInvalid(payload);
+    }
+  }
 });
