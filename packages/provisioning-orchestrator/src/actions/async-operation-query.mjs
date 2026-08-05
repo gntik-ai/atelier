@@ -32,8 +32,8 @@ function requireOperationId(queryType, operationId) {
     return;
   }
 
-  if (!operationId) {
-    throw Object.assign(new Error('operationId is required for detail, logs and result queries'), {
+  if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(operationId)) {
+    throw Object.assign(new Error('operationId must be a canonical UUID for detail, logs and result queries'), {
       code: 'VALIDATION_ERROR',
       statusCode: 400
     });
