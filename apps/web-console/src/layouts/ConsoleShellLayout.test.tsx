@@ -1261,4 +1261,52 @@ describe('[#761] role badge in the chrome + observer-first nav grouping', () => 
     await within(navigation).findByRole('link', { name: /gestión de áreas de trabajo/i })
     expect(within(navigation).queryByText('Administración (requiere permisos)')).not.toBeInTheDocument()
   })
+
+  it('[C-14] muestra "Auditoría de dominios de privilegio" para platform_admin', async () => {
+    stubShellApi()
+    persistConsoleShellSession(createSessionWithRoles(['platform_admin']))
+
+    renderShell('/console/overview')
+
+    const navigation = await screen.findByRole('navigation', { name: /navegación principal de consola/i })
+    expect(within(navigation).getByRole('link', { name: /auditoría de dominios de privilegio/i })).toHaveAttribute(
+      'href',
+      '/console/privilege-domain-audit'
+    )
+  })
+
+  it('[C-14] muestra "Auditoría de dominios de privilegio" para tenant_owner', async () => {
+    stubShellApi()
+    persistConsoleShellSession(createSessionWithRoles(['tenant_owner'], { tenantIds: ['ten_alpha'] }))
+
+    renderShell('/console/overview')
+
+    const navigation = await screen.findByRole('navigation', { name: /navegación principal de consola/i })
+    expect(within(navigation).getByRole('link', { name: /auditoría de dominios de privilegio/i })).toHaveAttribute(
+      'href',
+      '/console/privilege-domain-audit'
+    )
+  })
+
+  it('[C-14] oculta "Auditoría de dominios de privilegio" para superadmin (sin ampliación de rol)', async () => {
+    stubShellApi()
+    persistConsoleShellSession(createSessionWithRoles(['superadmin']))
+
+    renderShell('/console/overview')
+
+    const navigation = await screen.findByRole('navigation', { name: /navegación principal de consola/i })
+    await within(navigation).findByRole('link', { name: /vista general/i })
+    expect(within(navigation).queryByRole('link', { name: /auditoría de dominios de privilegio/i })).not.toBeInTheDocument()
+  })
+
+  it('[C-14] oculta "Auditoría de dominios de privilegio" para un rol de solo lectura (tenant_viewer)', async () => {
+    stubShellApi()
+    persistConsoleShellSession(createSessionWithRoles(['tenant_viewer'], { tenantIds: ['ten_alpha'] }))
+
+    renderShell('/console/overview')
+
+    const navigation = await screen.findByRole('navigation', { name: /navegación principal de consola/i })
+    await within(navigation).findByRole('link', { name: /vista general/i })
+    expect(within(navigation).queryByRole('link', { name: /auditoría de dominios de privilegio/i })).not.toBeInTheDocument()
+  })
 })

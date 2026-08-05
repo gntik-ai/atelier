@@ -1,3 +1,5 @@
+import { requestConsoleSessionJson } from '@/lib/console-session';
+
 export interface PrivilegeDomainAssignment {
   memberId: string;
   workspaceId: string;
@@ -49,10 +51,23 @@ export async function updatePrivilegeDomainAssignment(workspaceId: string, membe
   return request(`/api/workspaces/${workspaceId}/members/${memberId}/privilege-domains`, { method: 'PUT', body: JSON.stringify(assignment) });
 }
 
-export async function queryPrivilegeDomainDenials(params: { tenantId?: string; workspaceId?: string; requiredDomain?: string; actorId?: string; from?: string; to?: string; limit?: number; offset?: number }): Promise<DenialsResponse> {
+// C-14: the denial-audit query is the ONLY privilege-domain client moved onto the authenticated,
+// canonical /v1 transport. The active workspace is an authoritative, required path segment (encoded)
+// — never a replaceable query value — and the active tenant is supplied as `tenantId` to satisfy the
+// action's platform_admin requirement. `requestConsoleSessionJson` supplies the console bearer, the
+// API-version and correlation headers, and the existing single refresh/retry behavior. The adjacent
+// privilege-domain assignment clients above are separate findings and intentionally left untouched.
+export async function queryPrivilegeDomainDenials(
+  workspaceId: string,
+  params: { tenantId?: string; requiredDomain?: string; actorId?: string; from?: string; to?: string; limit?: number; offset?: number } = {}
+): Promise<DenialsResponse> {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
   });
-  return request(`/api/security/privilege-domains/denials?${search.toString()}`);
+  const query = search.toString();
+  return requestConsoleSessionJson<DenialsResponse>(
+    `/v1/workspaces/${encodedWorkspaceId}/privilege-domains/audit${query ? `?${query}` : ''}`
+  );
 }

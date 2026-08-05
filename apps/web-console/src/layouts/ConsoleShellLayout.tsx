@@ -53,6 +53,7 @@ import {
 } from '@/lib/console-session'
 import { cn } from '@/lib/utils'
 import { canManageWorkspaceSecrets } from '@/lib/workspace-secrets-access'
+import { sessionCanAccessPrivilegeDomainAudit } from '@/lib/privilege-domain-audit-access'
 
 const consoleNavigationGroupLabels = {
   main: 'Principal',
@@ -178,6 +179,17 @@ const consoleNavigationItems = [
     to: '/console/members',
     icon: Users,
     description: 'Miembros, roles y permisos del realm IAM de la organización activa.'
+  },
+  {
+    // C-14: gated on the SAME exact predicate as the route guard (platform_admin OR tenant_owner).
+    // Absent for every other role, so a disallowed principal is never offered the entry and issues
+    // no background denial-history request.
+    group: 'administration',
+    label: 'Auditoría de dominios de privilegio',
+    to: '/console/privilege-domain-audit',
+    icon: Shield,
+    description: 'Historial de denegaciones de dominios de privilegio del contexto activo (solo platform_admin o tenant_owner).',
+    requiresPrivilegeDomainAuditAccess: true
   },
   {
     group: 'administration',
@@ -924,6 +936,8 @@ function ConsoleNavigation({ onNavigate }: { onNavigate?: () => void } = {}) {
   // shared `hasPlatformInventoryAccess` helper so the "Gestión de organizaciones" nav entry never
   // drifts from what the page itself renders for a role (#741).
   const canViewTenantInventory = hasPlatformInventoryAccess(session?.principal?.platformRoles)
+  // C-14: exact platform_admin/tenant_owner predicate, shared with the route guard (router.tsx).
+  const canPrivilegeDomainAudit = sessionCanAccessPrivilegeDomainAudit(session)
   // #761: read-only tenant roles (tenant_viewer/tenant_developer) get select write-ONLY nav entries
   // regrouped under "Administración (requiere permisos)" (F2c-5) — this NEVER hides an item a
   // write-capable role can see, it only changes which heading a read-only role sees it under.
@@ -933,7 +947,8 @@ function ConsoleNavigation({ onNavigate }: { onNavigate?: () => void } = {}) {
     (item) =>
       (!('requiresWorkspaceSecretsAccess' in item && item.requiresWorkspaceSecretsAccess) || canSecrets) &&
       (!('requiresSuperadminAccess' in item && item.requiresSuperadminAccess) || isSuperadmin) &&
-      (!('requiresPlatformInventoryAccess' in item && item.requiresPlatformInventoryAccess) || canViewTenantInventory)
+      (!('requiresPlatformInventoryAccess' in item && item.requiresPlatformInventoryAccess) || canViewTenantInventory) &&
+      (!('requiresPrivilegeDomainAuditAccess' in item && item.requiresPrivilegeDomainAuditAccess) || canPrivilegeDomainAudit)
   )
 
   function resolvedGroup(item: (typeof consoleNavigationItems)[number]): ConsoleNavigationGroup {

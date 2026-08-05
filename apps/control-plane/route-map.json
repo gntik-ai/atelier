@@ -1030,15 +1030,15 @@
   {
     "operationId": "queryPrivilegeDomainAudit",
     "method": "GET",
-    "path": "/api/workspaces/{workspaceId}/privilege-domains/audit",
-    "family": "iam",
+    "path": "/v1/workspaces/{workspaceId}/privilege-domains/audit",
+    "family": "workspaces",
     "module": "packages/provisioning-orchestrator/src/actions/privilege-domain-audit-query.mjs",
     "export": "main",
     "invoke": "params-auth-overrides",
     "deps": ["pg"],
     "auth": "tenant/workspace scope",
     "subroutes": "no",
-    "notes": "ConsolePrivilegeDomainAuditPage. overrides.db.",
+    "notes": "ConsolePrivilegeDomainAuditPage. overrides.db. C-14: canonical /v1 workspaces-family GET (was /api). Action still gates the exact platform_admin/tenant_owner role list; superadmin/platform_auditor/other roles stay 403 before the repository. platform_admin needs ?tenantId=; tenant_owner forced to trusted-auth tenant; unknown workspace returns empty 200.",
     "consoleUsed": true
   },
   {

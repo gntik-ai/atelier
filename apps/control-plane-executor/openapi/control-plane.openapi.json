@@ -57000,6 +57000,306 @@
         "x-workspace-binding": "required"
       }
     },
+    "/v1/workspaces/{workspaceId}/privilege-domains/audit": {
+      "get": {
+        "operationId": "queryPrivilegeDomainAudit",
+        "summary": "Query privilege-domain denial history for one workspace",
+        "description": "Returns recorded privilege-domain denial history for the addressed workspace. Authorization is the existing action's exact role list: the trusted session roles must contain `platform_admin` or `tenant_owner`; no other role — including `superadmin`, `platform_auditor`, `tenant_admin`, or any workspace role — is authorized, and none is aliased to an allowed role. A `platform_admin` must supply `tenantId` (omission is 400 before any repository read); when both allowed roles are present the platform-admin branch takes precedence. A `tenant_owner` is bound to the tenant in its trusted authentication context; an explicit different `tenantId` is 403 before any repository read. `workspaceId` is a historical row predicate, not a live-resource lookup: an authorized query for an unknown or denial-free workspace returns an empty 200 (`denials: []`, `total: 0`) under the current limit/offset, never 404.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Tenant scope for the denial history. Required for a platform_admin (omission is 400). Forced to the trusted authentication tenant for a tenant_owner; an explicit mismatch is 403."
+          },
+          {
+            "name": "requiredDomain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "structural_admin",
+                "data_access"
+              ]
+            },
+            "description": "Optional filter on the privilege domain that was required at denial time."
+          },
+          {
+            "name": "actorId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Optional filter on the denied actor identifier."
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Optional inclusive lower bound on deniedAt."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Optional inclusive upper bound on deniedAt."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 50
+            },
+            "description": "Maximum rows to return. Defaults to 50 and is clamped down to the existing upper bound of 200 rather than rejected."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Zero-based offset into the descending denial-time ordering."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Privilege-domain denial history page for the workspace. An authorized query with no matching rows, including an unknown workspace, returns an empty collection with zero total.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "denials",
+                    "total",
+                    "limit",
+                    "offset"
+                  ],
+                  "properties": {
+                    "denials": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "tenantId",
+                          "workspaceId",
+                          "actorId",
+                          "actorType",
+                          "credentialDomain",
+                          "requiredDomain",
+                          "httpMethod",
+                          "requestPath",
+                          "sourceIp",
+                          "correlationId",
+                          "deniedAt"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "tenantId": {
+                            "type": "string"
+                          },
+                          "workspaceId": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "actorId": {
+                            "type": "string"
+                          },
+                          "actorType": {
+                            "type": "string",
+                            "enum": [
+                              "user",
+                              "service_account",
+                              "api_key",
+                              "anonymous"
+                            ]
+                          },
+                          "credentialDomain": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "enum": [
+                              "structural_admin",
+                              "data_access",
+                              "none",
+                              null
+                            ]
+                          },
+                          "requiredDomain": {
+                            "type": "string",
+                            "enum": [
+                              "structural_admin",
+                              "data_access"
+                            ]
+                          },
+                          "httpMethod": {
+                            "type": "string"
+                          },
+                          "requestPath": {
+                            "type": "string"
+                          },
+                          "sourceIp": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "correlationId": {
+                            "type": "string"
+                          },
+                          "deniedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "limit": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "offset": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request. A platform_admin omitted the required tenantId."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden. The role list is not platform_admin or tenant_owner, or a tenant_owner requested another tenant."
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected control-plane error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "tags": [
+          "Workspaces",
+          "Authorization"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "platform_team"
+        ],
+        "x-family": "workspaces",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "control-read",
+        "x-resource-type": "privilege_domain_denial",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
     "/v1/workspaces/{workspaceId}/pg-captures": {
       "post": {
         "operationId": "enablePgCapture",

@@ -426,14 +426,14 @@
   },
   {
     "method": "GET",
-    "path": "/api/workspaces/{workspaceId}/privilege-domains/audit",
+    "path": "/v1/workspaces/{workspaceId}/privilege-domains/audit",
     "module": "/repo/packages/provisioning-orchestrator/src/actions/privilege-domain-audit-query.mjs",
     "export": "main",
     "invoke": "params-auth-overrides",
     "deps": ["db"],
     "auth": "authenticated",
     "mergeQueryIntoParams": true,
-    "notes": "reads params.auth + params.workspaceId (path) + params.tenantId/requiredDomain/actorId/from/to/limit/offset (query). platform_admin needs ?tenantId=; tenant_owner forced to own tenant."
+    "notes": "C-14: canonical /v1 workspaces-family path (was /api). Coarse authenticated dispatch; the action is the authorization boundary (exact platform_admin/tenant_owner). reads params.auth + params.workspaceId (path) + params.tenantId/requiredDomain/actorId/from/to/limit/offset (query). platform_admin needs ?tenantId=; tenant_owner forced to own tenant; unknown workspace returns empty 200."
   },
   {
     "method": "GET",
