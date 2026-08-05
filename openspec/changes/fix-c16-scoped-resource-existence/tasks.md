@@ -190,6 +190,6 @@ Unchecked items remain pending and are not claimed complete.
   `openspec/changes/fix-c16-scoped-resource-existence/**` artifacts plus reviewed implementation files,
   excluding `.claude`, `.codex`, `.agents`, `.agent-runtime`, loop-state, evidence, credentials,
   kubeconfigs, test-results, and Playwright artifacts.
-- [ ] 9.7 Make focused commits with no unrelated or other-agent change reverted, push the approved
+- [x] 9.7 Make focused commits with no unrelated or other-agent change reverted, push the approved
   `fix/audit-c16-scoped-resource-existence` branch, and open a draft PR with the requirement/scenario
   mapping and validation evidence; do not merge.
