@@ -150,8 +150,8 @@ test('bbx-flows-exec-ctl-01: cancel of a missing/closed Temporal run returns 404
     const res = await fetch(`${baseUrl}${flowsBase()}/${flowId}/executions/${eid}/cancellations`, { method: 'POST', headers: authHeaders });
     assert.equal(res.status, 404, 'must be a clean 404, not 500 CONTROL_PLANE_ERROR');
     const body = await res.json();
-    assert.equal(body.code, 'EXECUTION_NOT_FOUND');
-    assert.notEqual(body.code, 'CONTROL_PLANE_ERROR');
+    assert.equal(body.code, 'GW_EXECUTION_NOT_FOUND');
+    assert.notEqual(body.code, 'GW_CONTROL_PLANE_ERROR');
   }, { temporal });
 });
 
@@ -165,8 +165,8 @@ test('bbx-flows-exec-ctl-02: signal to a terminal run returns 409 EXECUTION_NOT_
     });
     assert.equal(res.status, 409, 'must be a graceful 409, not 500 CONTROL_PLANE_ERROR');
     const body = await res.json();
-    assert.equal(body.code, 'EXECUTION_NOT_RUNNING');
-    assert.notEqual(body.code, 'CONTROL_PLANE_ERROR');
+    assert.equal(body.code, 'GW_EXECUTION_NOT_RUNNING');
+    assert.notEqual(body.code, 'GW_CONTROL_PLANE_ERROR');
   }, { temporal });
 });
 
@@ -201,7 +201,7 @@ test('bbx-flows-exec-ctl-05: a generic cancel() failure still surfaces 500 (not 
     const { flowId, eid } = await startApprovalRun(baseUrl);
     const res = await fetch(`${baseUrl}${flowsBase()}/${flowId}/executions/${eid}/cancellations`, { method: 'POST', headers: authHeaders });
     assert.equal(res.status, 500, 'genuine infra errors must NOT be swallowed as a client error');
-    assert.equal((await res.json()).code, 'CONTROL_PLANE_ERROR');
+    assert.equal((await res.json()).code, 'GW_CONTROL_PLANE_ERROR');
   }, { temporal });
 });
 
@@ -214,6 +214,6 @@ test('bbx-flows-exec-ctl-06: a generic signal() failure still surfaces 500 (not 
       method: 'POST', headers: authHeaders, body: JSON.stringify({ approved: true, nodeId: 'review' }),
     });
     assert.equal(res.status, 500, 'genuine infra errors must NOT be swallowed as a client error');
-    assert.equal((await res.json()).code, 'CONTROL_PLANE_ERROR');
+    assert.equal((await res.json()).code, 'GW_CONTROL_PLANE_ERROR');
   }, { temporal });
 });

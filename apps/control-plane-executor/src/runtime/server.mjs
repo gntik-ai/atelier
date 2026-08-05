@@ -9,6 +9,7 @@
 // DDL family (schema/table/column/index); other OpenAPI families plug into the same table.
 import http from 'node:http';
 import https from 'node:https';
+import { normalizeErrorResponse } from '../../../../apps/shared/error-envelope.mjs';
 import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
 import { executePostgresData } from './postgres-data-executor.mjs';
 import { executePostgresDdl } from './postgres-ddl-executor.mjs';
@@ -33,7 +34,8 @@ function sendJson(res, statusCode, body, headers = {}) {
   delete responseHeaders['Content-Type'];
   delete responseHeaders['content-length'];
   delete responseHeaders['Content-Length'];
-  const payload = body == null ? '' : JSON.stringify(body);
+  const normalized = statusCode >= 400 ? normalizeErrorResponse(statusCode, body, { ...(res._errorContext ?? {}) }) : body;
+  const payload = statusCode >= 400 ? JSON.stringify(normalized) : (body == null ? '' : JSON.stringify(body));
   if (statusCode === 204) {
     res.writeHead(statusCode, responseHeaders);
     res.end();
@@ -871,9 +873,10 @@ async function runFlowMonitoringSse(flowMonitoringExecutor, target, c) {
     // status, NOT a 200 stream — the stream was never opened (ensureStarted not called).
     if (!started && !res.headersSent) {
       const statusCode = err.statusCode ?? 500;
-      const payload = JSON.stringify({ code: err.code ?? 'FLOW_MONITORING_ERROR', message: statusCode >= 500 ? 'Internal server error' : err.message });
-      res.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(payload) });
-      res.end(payload);
+      return sendJson(res, statusCode, {
+        code: err.code ?? 'FLOW_MONITORING_ERROR',
+        message: statusCode >= 500 ? 'Internal server error' : err.message
+      });
     } else {
       res.write(`event: error\ndata: ${JSON.stringify({ code: err.code ?? 'FLOW_MONITORING_ERROR' })}\n\n`);
       stop();
@@ -1166,6 +1169,7 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
     res.on('finish', () => recordHttp({ ...metric, status: res.statusCode, durationSeconds: Number(process.hrtime.bigint() - startNs) / 1e9 }));
     try {
       const url = new URL(req.url, 'http://control-plane.local');
+      res._errorContext = { requestId: req.headers['x-request-id'], correlationId: req.headers['x-correlation-id'], resource: url.pathname };
       metric.route = normalizeRoute(url.pathname);
 
       const match = routes.find(([m, re]) => m === method && re.test(url.pathname));

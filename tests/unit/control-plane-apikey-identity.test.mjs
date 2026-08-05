@@ -40,7 +40,7 @@ test('a valid API key is authoritative — a spoofed x-tenant-id header cannot o
     headers: { apikey: VALID_KEY, 'x-tenant-id': 'victim-tenant', 'x-workspace-id': 'victim-ws' },
   });
   assert.equal(res.status, 403);
-  assert.equal((await res.json()).code, 'FORBIDDEN');
+  assert.equal((await res.json()).code, 'GW_FORBIDDEN');
 });
 
 test('an invalid API key fails closed (401) even when x-tenant-id is present', async () => {
@@ -48,7 +48,7 @@ test('an invalid API key fails closed (401) even when x-tenant-id is present', a
     headers: { apikey: 'flc_anon_bogus', 'x-tenant-id': 'ten-admin' },
   });
   assert.equal(res.status, 401);
-  assert.equal((await res.json()).code, 'UNAUTHENTICATED');
+  assert.equal((await res.json()).code, 'GW_UNAUTHENTICATED');
 });
 
 test('no API key → gateway-injected JWT identity headers are trusted (admin path preserved)', async () => {

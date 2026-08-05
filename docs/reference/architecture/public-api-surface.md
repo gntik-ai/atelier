@@ -30,6 +30,44 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 - Error schema: `ErrorResponse` with required fields status, code, message, detail, requestId, correlationId, timestamp, resource
 - Retryable gateway statuses: 429, 502, 503, 504
 
+## Error response envelope
+
+Both HTTP runtimes serialize every buffered JSON response with status 400–599 as the canonical closed `ErrorResponse` object. The control-plane and executor use the same normalizer, and the generated SDK base template publishes the same `ErrorResponse`, `ErrorDetail`, and `ErrorResource` schemas.
+
+### Fields and identifiers
+
+| Field | Contract | Runtime source |
+| --- | --- | --- |
+| `status` | Integer 400–599 | Final HTTP status |
+| `code` | `^GW_[A-Z0-9_]+$` | Bounded public error class |
+| `message` | Generic public text | Status class |
+| `detail` | `ErrorDetail` object; `{}` for 5xx | Allow-listed public hints |
+| `requestId` | 8–128 characters | Valid `X-Request-Id` or generated UUID |
+| `correlationId` | `^[A-Za-z0-9._:-]{8,128}$` | Valid `X-Correlation-Id` or generated UUID |
+| `timestamp` | RFC 3339 `date-time` | Server UTC clock |
+| `resource` | `ErrorResource` with required `path` | Sanitized request pathname |
+| `retryable` | Optional boolean | Emitted only when explicitly supplied |
+
+`additionalProperties: false` applies at the envelope level. Missing or malformed request/correlation identifiers are replaced rather than reflected. A valid correlation identifier is preserved in the response body for the existing audit and metrics correlation chain.
+
+### Public codes, messages, and detail
+
+- For a 4xx other than 403, only an explicitly approved, server-owned public class is retained in the `GW_` namespace. An unknown, provider/datastore-supplied, or malformed non-empty code is replaced with the status-generic class; a missing code uses the compatibility fallback `GW_CONTROL_PLANE_ERROR`. Every 403 is deliberately collapsed to `GW_FORBIDDEN`, regardless of its source code, so the body never reveals the required scope, role, workspace binding, or cross-tenant classification.
+- A 5xx never derives its public code from a provider or exception. Statuses map to `GW_CONTROL_PLANE_ERROR`, `GW_NOT_IMPLEMENTED`, `GW_UPSTREAM_UNAVAILABLE`, `GW_SERVICE_UNAVAILABLE`, or `GW_UPSTREAM_TIMEOUT`.
+- Messages are fixed by status: `Invalid request` (400), `Authentication required` (401), `Request forbidden` (403), `Resource not found` (404), `Method not allowed` (405), `Request conflict` (409), `Request too large` (413), `Request could not be processed` (422), `Too many requests` (429), `Request failed` for other 4xx, and `Internal server error` for 5xx.
+- A 4xx `detail` retains only bounded public keys (`capability`, `code`, `dimension`, `errors`, `field`, `fieldPath`, `message`, `nodeId`, `reason`, `statusView`, `statusViewId`, and `violations`); other object keys, including header keys, are dropped. Retained strings are rejected when they match the bounded denylist for stack, SQL/SQLSTATE, HTTP URLs, token/password/secret/credential/authorization/bearer material, PostgreSQL, or MongoDB. Every 403 detail is exactly `{ "reason": "FORBIDDEN" }` and every 5xx `detail` is `{}`. This is defense in depth rather than general data-loss prevention: producers must still avoid internal identifiers, headers, infrastructure names, and secrets in public detail fields.
+
+### Resource safety
+
+`resource.path` is derived only from the URL pathname; query and fragment data are excluded, control characters are stripped, and the value is capped at 512 characters. Segments are collapsed to `{id}` when they use a recognized tenant/workspace/resource/flow/execution/run/user/key/secret/token/server/operation/environment identifier prefix followed by `.`, `_`, `:`, or `-`; are UUIDs or numeric; contain `:`; or exceed 64 characters. Other opaque path segments remain unchanged, so clients must never place credentials or secrets in path segments.
+
+### Client compatibility and transport boundary
+
+- The web console shared `requestJson` reader retains the wire value as `gatewayCode`, exposes the `GW_`-stripped class as `code` for existing comparisons, folds `detail.errors` into its compatibility `errors` property, and accepts the legacy `{ code, message }` body during rolling upgrades. Custom configuration and backup clients consume the canonical `message` and wire `code` directly, with their existing legacy-body fallback.
+- Machine and SDK clients must read the public `GW_` class from top-level `code`, use `requestId` and `correlationId` when correlating a failure with support, and treat the envelope as closed: undeclared top-level fields must not be assumed. Clients migrating from the legacy two-field body should not strip `GW_` or depend on handler-specific text.
+- Success bodies are unchanged. SSE frames and JSON-RPC frames keep their protocol-specific shapes. Any JSON failure emitted before a stream opens still passes through the canonical envelope boundary.
+- Executor proxy responses are streamed through unchanged because the upstream control-plane applies the same normalizer; locally generated proxy failures use the canonical envelope.
+
 ## Gateway protection matrix
 
 | Family | QoS profile | Validation profile | Max body bytes | Timeout profile | Retry profile |

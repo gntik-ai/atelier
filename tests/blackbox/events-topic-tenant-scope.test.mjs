@@ -20,6 +20,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { KAFKA_HANDLERS } from '../../apps/control-plane/kafka-handlers.mjs';
+import { normalizeErrorResponse } from '../../apps/shared/error-envelope.mjs';
 
 const TOPIC_A = {
   id: 'res_topic_aaaa',
@@ -96,8 +97,21 @@ test('bbx-events-scope-04: eventsTopicPublish cross-tenant → 404 (no event inj
 
 test('bbx-events-scope-05: eventsTopicStream cross-tenant → 404', async () => {
   const res = fakeRes();
-  await KAFKA_HANDLERS.eventsTopicStream(ctx(IDENTITY_B), res);
+  const streamCtx = ctx(IDENTITY_B);
+  streamCtx.sendJson = (statusCode, body, headers = {}) => {
+    const payload = JSON.stringify(normalizeErrorResponse(statusCode, body, {
+      resource: `/v1/events/topics/${streamCtx.params.topicId}/stream`
+    }));
+    res.writeHead(statusCode, { 'content-type': 'application/json', ...headers });
+    res.end(payload);
+  };
+  await KAFKA_HANDLERS.eventsTopicStream(streamCtx, res);
   assert.equal(res.statusCode, 404, `got ${res.statusCode} (${res.body})`);
+  const body = JSON.parse(res.body);
+  assert.equal(body.code, 'GW_TOPIC_NOT_FOUND');
+  assert.equal(body.status, 404);
+  assert.equal(body.resource.path, '/v1/events/topics/{id}/stream');
+  assert.doesNotMatch(JSON.stringify(body), /res_topic_aaaa|tenant-a|tenant-b/);
 });
 
 test('bbx-events-scope-06: eventsInventory cross-tenant workspace → 404', async () => {

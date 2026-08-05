@@ -66,7 +66,7 @@ test('bbx-emb-get-02: GET on an unconfigured workspace returns 404 (not 500)', a
     const get = await fetch(`${baseUrl}${path()}`, { method: 'GET', headers: authHeaders });
     assert.equal(get.status, 404);
     const body = await get.json();
-    assert.equal(body.code, 'EMBEDDING_PROVIDER_NOT_FOUND');
+    assert.equal(body.code, 'GW_EMBEDDING_PROVIDER_NOT_FOUND');
   });
 });
 

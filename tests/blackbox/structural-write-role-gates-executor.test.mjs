@@ -176,7 +176,7 @@ test('executor structural writes deny viewer/developer before LLM, embedding, MC
     for (const entry of cases) {
       const res = await jsonFetch(baseUrl, entry.path, entry);
       assert.equal(res.status, 403, `${entry.method} ${entry.path} should be 403, got ${res.status}: ${await res.clone().text()}`);
-      assert.equal((await res.json()).code, 'FORBIDDEN');
+      assert.equal((await res.json()).code, 'GW_FORBIDDEN');
     }
     assert.deepEqual(calls, [], 'denied structural writes must not reach any side-effecting executor');
   });
@@ -189,21 +189,21 @@ test('executor structural writes deny API keys and no-role JWTs before side effe
       body: { providerType: 'mock' },
     });
     assert.equal(apiKeyLlm.status, 403, `API-key LLM config write should be 403, got ${apiKeyLlm.status}: ${await apiKeyLlm.clone().text()}`);
-    assert.equal((await apiKeyLlm.json()).code, 'FORBIDDEN');
+    assert.equal((await apiKeyLlm.json()).code, 'GW_FORBIDDEN');
 
     const apiKeyMcp = await apiKeyJsonFetch(baseUrl, `/v1/mcp/workspaces/${WS}/servers`, {
       method: 'POST',
       body: { name: 'blocked' },
     });
     assert.equal(apiKeyMcp.status, 403, `API-key MCP create should be 403, got ${apiKeyMcp.status}: ${await apiKeyMcp.clone().text()}`);
-    assert.equal((await apiKeyMcp.json()).code, 'FORBIDDEN');
+    assert.equal((await apiKeyMcp.json()).code, 'GW_FORBIDDEN');
 
     const noRoleJwt = await jsonFetch(baseUrl, `/v1/workspaces/${WS}/llm-provider`, {
       token: 'no_roles',
       body: { providerType: 'mock' },
     });
     assert.equal(noRoleJwt.status, 403, `empty-role JWT structural write should be 403, got ${noRoleJwt.status}: ${await noRoleJwt.clone().text()}`);
-    assert.equal((await noRoleJwt.json()).code, 'FORBIDDEN');
+    assert.equal((await noRoleJwt.json()).code, 'GW_FORBIDDEN');
 
     assert.deepEqual(calls, [], 'denied API-key/no-role structural writes must not reach side-effecting executors');
   });
@@ -229,14 +229,14 @@ test('executor structural writes enforce workspaceIds and reject unknown workspa
       body: { providerType: 'mock' },
     });
     assert.equal(scopedOut.status, 403, `workspaceIds miss should be 403, got ${scopedOut.status}: ${await scopedOut.clone().text()}`);
-    assert.equal((await scopedOut.json()).code, 'FORBIDDEN');
+    assert.equal((await scopedOut.json()).code, 'GW_FORBIDDEN');
 
     const unknown = await jsonFetch(baseUrl, `/v1/workspaces/${WS_UNKNOWN}/llm-provider`, {
       token: 'owner',
       body: { providerType: 'mock' },
     });
     assert.equal(unknown.status, 404, `unknown workspace should be 404, got ${unknown.status}: ${await unknown.clone().text()}`);
-    assert.equal((await unknown.json()).code, 'WORKSPACE_NOT_FOUND');
+    assert.equal((await unknown.json()).code, 'GW_WORKSPACE_NOT_FOUND');
     assert.deepEqual(calls, [], 'workspace-scope and unknown-workspace denials must not create provider records');
   });
 });

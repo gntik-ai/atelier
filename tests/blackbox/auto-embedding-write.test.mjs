@@ -110,11 +110,11 @@ test('bbx-auto-emb-04: routes return 501 MAPPING_STORE_DISABLED when not wired',
       body: JSON.stringify({ sourceColumn: 'body', targetColumn: 'embedding' }),
     });
     assert.equal(put.status, 501);
-    assert.equal((await put.json()).code, 'MAPPING_STORE_DISABLED');
+    assert.equal((await put.json()).code, 'GW_NOT_IMPLEMENTED');
 
     const get = await fetch(`${baseUrl}${mappingPath()}`, { method: 'GET', headers: authHeaders });
     assert.equal(get.status, 501);
-    assert.equal((await get.json()).code, 'MAPPING_STORE_DISABLED');
+    assert.equal((await get.json()).code, 'GW_NOT_IMPLEMENTED');
   });
 });
 

@@ -35,6 +35,7 @@ const authHeaders = {
   'x-tenant-id': 'ten_bbx_schema',
   'x-workspace-id': 'ws_bbx_schema',
   'x-auth-subject': 'admin-schema',
+  'x-actor-roles': 'workspace_admin',
 };
 const WS = 'ws_bbx_schema';
 const flowsBase = `/v1/flows/workspaces/${WS}/flows`;
@@ -79,9 +80,9 @@ test('bbx-625-01 create with a `params` task node is rejected (400)', async () =
     const res = await createFlow(baseUrl, PARAMS_DEF);
     assert.equal(res.status, 400, 'a schema-violating definition must be rejected at create, not 201');
     const body = await res.json();
-    assert.equal(body.code, 'FLOW_DEFINITION_INVALID');
-    assert.ok(Array.isArray(body.errors) && body.errors.some((e) => /params/.test(e.message)),
-      `errors should name the offending field: ${JSON.stringify(body.errors)}`);
+    assert.equal(body.code, 'GW_FLOW_DEFINITION_INVALID');
+    assert.ok(Array.isArray(body.detail?.errors) && body.detail.errors.some((e) => /params/.test(e.message)),
+      `errors should name the offending field: ${JSON.stringify(body.detail?.errors)}`);
   });
 });
 
@@ -89,7 +90,7 @@ test('bbx-625-02 create with `parameters` is rejected (400)', async () => {
   await withServer(async (baseUrl) => {
     const res = await createFlow(baseUrl, PARAMETERS_DEF);
     assert.equal(res.status, 400);
-    assert.equal((await res.json()).code, 'FLOW_DEFINITION_INVALID');
+    assert.equal((await res.json()).code, 'GW_FLOW_DEFINITION_INVALID');
   });
 });
 
@@ -97,7 +98,7 @@ test('bbx-625-03 create with a {startAt,states} shape is rejected (400)', async 
   await withServer(async (baseUrl) => {
     const res = await createFlow(baseUrl, SFN_DEF);
     assert.equal(res.status, 400, 'an unsupported top-level shape must be rejected at create');
-    assert.equal((await res.json()).code, 'FLOW_DEFINITION_INVALID');
+    assert.equal((await res.json()).code, 'GW_FLOW_DEFINITION_INVALID');
   });
 });
 
@@ -125,7 +126,7 @@ test('bbx-625-05 a semantic-only violation still creates (201) and fails 422 at 
 
     const validate = await fetch(`${baseUrl}${flowsBase}/${flowId}/validate`, { method: 'POST', headers: authHeaders });
     assert.equal(validate.status, 422, 'semantic violations keep their 422 contract');
-    assert.equal((await validate.json()).code, 'FLOW_VALIDATION_FAILED');
+    assert.equal((await validate.json()).code, 'GW_FLOW_VALIDATION_FAILED');
 
     const publish = await fetch(`${baseUrl}${flowsBase}/${flowId}/versions`, { method: 'POST', headers: authHeaders });
     assert.equal(publish.status, 422);
@@ -139,7 +140,7 @@ test('bbx-625-06 PATCH supplying a `params` definition is rejected (400)', async
       method: 'PATCH', headers: authHeaders, body: JSON.stringify({ definition: PARAMS_DEF }),
     });
     assert.equal(patched.status, 400, 'a malformed definition must not be smuggled in via PATCH');
-    assert.equal((await patched.json()).code, 'FLOW_DEFINITION_INVALID');
+    assert.equal((await patched.json()).code, 'GW_FLOW_DEFINITION_INVALID');
   });
 });
 
@@ -153,6 +154,6 @@ test('bbx-625-07 validate of a structurally-bad stored draft returns 400', async
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}${flowsBase}/seeded-bad/validate`, { method: 'POST', headers: authHeaders });
     assert.equal(res.status, 400, 'validate must reject a structurally-bad stored draft (not {valid:true})');
-    assert.equal((await res.json()).code, 'FLOW_DEFINITION_INVALID');
+    assert.equal((await res.json()).code, 'GW_FLOW_DEFINITION_INVALID');
   }, { store });
 });

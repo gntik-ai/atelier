@@ -334,7 +334,7 @@ test('bbx-flows-sched-07: cross-tenant get of another tenant flow schedule is 40
     // allows it: B owns WS_B). The schedule id resolves to B's namespace -> not found -> 404.
     const res = await fetch(`${baseUrl}${flowsBase(WS_B)}/${flowId}/schedule`, { headers: headersFor(TEN_B, WS_B) });
     assert.equal(res.status, 404, 'a foreign flowId resolves to a non-existent schedule -> 404');
-    assert.equal((await res.json()).code, 'SCHEDULE_NOT_FOUND');
+    assert.equal((await res.json()).code, 'GW_SCHEDULE_NOT_FOUND');
   });
 });
 
@@ -381,11 +381,11 @@ test('bbx-flows-sched-10: a flow without a cron schedule yields 404 SCHEDULE_NOT
     await fetch(`${baseUrl}${flowsBase(WS_A)}/${flowId}/versions`, { method: 'POST', headers: hdrs });
     const get = await fetch(`${baseUrl}${flowsBase(WS_A)}/${flowId}/schedule`, { headers: hdrs });
     assert.equal(get.status, 404);
-    assert.equal((await get.json()).code, 'SCHEDULE_NOT_FOUND');
+    assert.equal((await get.json()).code, 'GW_SCHEDULE_NOT_FOUND');
     for (const op of ['pause', 'resume', 'trigger']) {
       const res = await fetch(`${baseUrl}${flowsBase(WS_A)}/${flowId}/schedule/${op}`, { method: 'POST', headers: hdrs });
       assert.equal(res.status, 404, `${op} on a flow with no schedule -> 404`);
-      assert.equal((await res.json()).code, 'SCHEDULE_NOT_FOUND');
+      assert.equal((await res.json()).code, 'GW_SCHEDULE_NOT_FOUND');
     }
   });
 });
@@ -405,7 +405,7 @@ test('bbx-flows-sched-12: an unknown flowId schedule is a clean 404', async () =
   await withScheduleServer(async ({ baseUrl }) => {
     const res = await fetch(`${baseUrl}${flowsBase(WS_A)}/does-not-exist/schedule`, { headers: headersFor(TEN_A, WS_A) });
     assert.equal(res.status, 404);
-    assert.equal((await res.json()).code, 'SCHEDULE_NOT_FOUND');
+    assert.equal((await res.json()).code, 'GW_SCHEDULE_NOT_FOUND');
   });
 });
 
@@ -419,7 +419,7 @@ test('bbx-flows-sched-13: x-workspace-id spoof cannot reach a foreign tenant sch
     const spoofed = { ...headersFor(TEN_B, WS_B), 'x-workspace-id': WS_A };
     const res = await fetch(`${baseUrl}${flowsBase(WS_B)}/${a.flowId}/schedule`, { headers: spoofed });
     assert.equal(res.status, 404, 'the verified tenant prefix keeps the schedule id off A’s namespace -> 404');
-    assert.equal((await res.json()).code, 'SCHEDULE_NOT_FOUND');
+    assert.equal((await res.json()).code, 'GW_SCHEDULE_NOT_FOUND');
     // A's real schedule is untouched and was never read into B's response.
     assert.ok(temporal.schedules.has(a.scheduleId));
     assert.equal(temporal.schedules.get(a.scheduleId).paused, false);
@@ -455,11 +455,11 @@ test('bbx-flows-sched-15: a REAL-SDK-shaped not-found maps to 404 across get/pau
     const hdrs = headersFor(TEN_B, WS_B);
     const get = await fetch(`${baseUrl}${flowsBase(WS_B)}/${flowId}/schedule`, { headers: hdrs });
     assert.equal(get.status, 404, 'get of a real-not-found schedule -> 404 (NOT 500)');
-    assert.equal((await get.json()).code, 'SCHEDULE_NOT_FOUND');
+    assert.equal((await get.json()).code, 'GW_SCHEDULE_NOT_FOUND');
     for (const op of ['pause', 'resume', 'trigger']) {
       const res = await fetch(`${baseUrl}${flowsBase(WS_B)}/${flowId}/schedule/${op}`, { method: 'POST', headers: hdrs });
       assert.equal(res.status, 404, `${op} of a real-not-found schedule -> 404 (NOT 500)`);
-      assert.equal((await res.json()).code, 'SCHEDULE_NOT_FOUND');
+      assert.equal((await res.json()).code, 'GW_SCHEDULE_NOT_FOUND');
     }
   });
 });

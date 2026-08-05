@@ -86,8 +86,8 @@ test('bbx-662-01: a data:read-only api-key cannot drive billable completions -> 
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);
     const json = await res.json();
-    assert.equal(json.code, 'INSUFFICIENT_SCOPE', `expected INSUFFICIENT_SCOPE, got ${json.code}`);
-    assert.equal(json.requiredScope, 'data:write', `expected requiredScope data:write, got ${json.requiredScope}`);
+    assert.equal(json.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN, got ${json.code}`);
+    assert.doesNotMatch(JSON.stringify(json), /data:write/, 'the required scope must not be disclosed');
     assert.equal(completeCalls.length, 0, 'a denied completion must not reach provider resolution');
   });
 });

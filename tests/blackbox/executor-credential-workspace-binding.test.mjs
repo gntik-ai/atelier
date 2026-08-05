@@ -121,7 +121,7 @@ test('bbx-cred-ws-01: service key bound to ws_B accessing postgres rows on ws_A 
     );
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'FORBIDDEN', `expected FORBIDDEN code, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN code, got ${body.code}`);
   });
 });
 
@@ -136,7 +136,7 @@ test('bbx-cred-ws-02: service key bound to ws_B accessing events/topics on ws_A 
     );
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'FORBIDDEN', `expected FORBIDDEN code, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN code, got ${body.code}`);
   });
 });
 
@@ -151,7 +151,7 @@ test('bbx-cred-ws-03: service key bound to ws_B accessing functions/actions on w
     );
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'FORBIDDEN', `expected FORBIDDEN code, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN code, got ${body.code}`);
   });
 });
 
@@ -170,7 +170,7 @@ test('bbx-cred-ws-04: service key bound to ws_B accessing api-keys list on ws_A 
     // Must be 403 from workspace binding (not 403 from api-key-cannot-manage check)
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'FORBIDDEN', `expected FORBIDDEN code, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN code, got ${body.code}`);
   });
 });
 
@@ -185,7 +185,7 @@ test('bbx-cred-ws-05: service key bound to ws_B accessing mongo documents on ws_
     );
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'FORBIDDEN', `expected FORBIDDEN code, got ${body.code}`);
+    assert.equal(body.code, 'GW_FORBIDDEN', `expected GW_FORBIDDEN code, got ${body.code}`);
   });
 });
 
@@ -246,7 +246,7 @@ test('bbx-cred-ws-07: JWT with workspace_id=ws_B targeting functions on ws_A pat
     );
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
-    assert.equal(body.code, 'FORBIDDEN');
+    assert.equal(body.code, 'GW_FORBIDDEN');
   } finally {
     await new Promise((r) => server.close(r));
     await registry.end().catch(() => {});

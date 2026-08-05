@@ -8,6 +8,7 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 export interface ApiError {
   status: number
   code: string
+  gatewayCode?: string
   message: string
   retryable?: boolean
   correlationId?: string
@@ -101,18 +102,29 @@ function normalizeApiError(payload: unknown, fallbackError: ApiError): ApiError 
   }
 
   const maybeError = payload as Partial<ApiError>
+  const wireCode = typeof maybeError.code === 'string' ? maybeError.code : fallbackError.code
+  const gatewayCode = wireCode.startsWith('GW_') ? wireCode : undefined
+  const detail = maybeError.detail
+  const detailErrors =
+    detail && typeof detail === 'object' && !Array.isArray(detail)
+      ? (detail as { errors?: unknown }).errors
+      : undefined
 
   return {
     status: typeof maybeError.status === 'number' ? maybeError.status : fallbackError.status,
-    code: typeof maybeError.code === 'string' ? maybeError.code : fallbackError.code,
+    // Keep existing console/domain comparisons stable while retaining the canonical wire code.
+    code: gatewayCode ? gatewayCode.slice(3) : wireCode,
+    gatewayCode,
     message: typeof maybeError.message === 'string' ? maybeError.message : fallbackError.message,
     retryable: typeof maybeError.retryable === 'boolean' ? maybeError.retryable : undefined,
     correlationId: typeof maybeError.correlationId === 'string' ? maybeError.correlationId : undefined,
     requestId: typeof maybeError.requestId === 'string' ? maybeError.requestId : undefined,
-    detail: maybeError.detail,
+    detail,
     resource: maybeError.resource,
     errors: Array.isArray((maybeError as { errors?: unknown }).errors)
       ? ((maybeError as { errors?: JsonValue }).errors)
-      : undefined
+      : Array.isArray(detailErrors)
+        ? (detailErrors as JsonValue)
+        : undefined
   }
 }

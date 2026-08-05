@@ -87,7 +87,7 @@ test('bbx-flows-iso-01: cross-tenant GET definition returns 404 with no data', a
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowId}`, { headers: B });
     assert.equal(res.status, 404);
     const body = await res.json();
-    assert.equal(body.code, 'FLOW_NOT_FOUND');
+    assert.equal(body.code, 'GW_FLOW_NOT_FOUND');
     assert.ok(!('name' in body) && !('definition' in body), 'no flow data leaked');
   });
 });
@@ -127,7 +127,7 @@ test('bbx-flows-iso-04: cross-tenant execution detail returns 404', async () => 
     const eid = encodeURIComponent(start.workflowId);
     const detail = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowId}/executions/${eid}`, { headers: B });
     assert.equal(detail.status, 404);
-    assert.equal((await detail.json()).code, 'EXECUTION_NOT_FOUND');
+    assert.equal((await detail.json()).code, 'GW_EXECUTION_NOT_FOUND');
   });
 });
 
@@ -143,7 +143,7 @@ test('bbx-flows-iso-05: cross-tenant cancel and signal return 403', async () => 
 
     const cancel = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowId}/executions/${eid}/cancellations`, { method: 'POST', headers: B });
     assert.equal(cancel.status, 403);
-    assert.equal((await cancel.json()).code, 'CROSS_TENANT_FORBIDDEN');
+    assert.equal((await cancel.json()).code, 'GW_FORBIDDEN');
 
     const signal = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows/${flowId}/executions/${eid}/signals/human-approval`, {
       method: 'POST', headers: B, body: JSON.stringify({ approved: true }),
@@ -195,7 +195,7 @@ test('bbx-flows-iso-08: flows routes are absent when no flowExecutor is injected
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/v1/flows/workspaces/ws_A/flows`, { headers: A });
     assert.equal(res.status, 404);
-    assert.equal((await res.json()).code, 'NO_ROUTE', 'falls through to the standalone 404 path');
+    assert.equal((await res.json()).code, 'GW_NO_ROUTE', 'falls through to the standalone 404 path');
     // healthz still works
     const health = await fetch(`${baseUrl}/healthz`);
     assert.equal(health.status, 200);
@@ -211,6 +211,6 @@ test('bbx-flows-iso-09: healthz + an unmatched non-flows path behave normally wi
     // a non-flows path with no upstream still 404s NO_ROUTE (proxy fall-through unchanged)
     const other = await fetch(`${baseUrl}/v1/some/unmatched/path`, { headers: A });
     assert.equal(other.status, 404);
-    assert.equal((await other.json()).code, 'NO_ROUTE');
+    assert.equal((await other.json()).code, 'GW_NO_ROUTE');
   });
 });

@@ -92,7 +92,7 @@ test('bbx-flows-task-types-03: request without tenant identity is rejected with 
     const res = await fetch(`${baseUrl}${taskTypesPath()}`);
     assert.equal(res.status, 401);
     const body = await res.json();
-    assert.equal(body.code, 'UNAUTHENTICATED');
+    assert.equal(body.code, 'GW_UNAUTHENTICATED');
   });
 });
 

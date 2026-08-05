@@ -52,5 +52,5 @@ test('list without query params forwards no filter/sort (undefined)', async () =
 test('a malformed ?filter JSON → 400 INVALID_QUERY_JSON', async () => {
   const res = await fetch(`${base}${path}?filter=${encodeURIComponent('{bad')}`, { headers });
   assert.equal(res.status, 400);
-  assert.equal((await res.json()).code, 'INVALID_QUERY_JSON');
+  assert.equal((await res.json()).code, 'GW_INVALID_QUERY_JSON');
 });

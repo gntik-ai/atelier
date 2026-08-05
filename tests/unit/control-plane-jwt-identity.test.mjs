@@ -57,7 +57,7 @@ test('an invalid Bearer JWT fails closed (401) even with x-tenant-id present', a
     headers: { authorization: 'Bearer forged', 'x-tenant-id': 'ten-admin' },
   });
   assert.equal(res.status, 401);
-  assert.equal((await res.json()).code, 'UNAUTHENTICATED');
+  assert.equal((await res.json()).code, 'GW_UNAUTHENTICATED');
 });
 
 test('no credential → gateway-injected x-tenant-id header still trusted (Helm/OIDC path)', async () => {

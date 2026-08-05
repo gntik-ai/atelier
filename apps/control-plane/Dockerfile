@@ -8,6 +8,7 @@
 # (Node's ESM resolver walks up to the filesystem root from /repo).
 FROM node:22-alpine
 WORKDIR /app
+COPY apps/shared/error-envelope.mjs /shared/error-envelope.mjs
 
 # Server deps (pg for the DI Pool; JWT/JWKS verification is dependency-free via node:crypto).
 COPY apps/control-plane/package.json ./
