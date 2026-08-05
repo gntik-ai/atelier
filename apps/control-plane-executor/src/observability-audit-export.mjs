@@ -18,6 +18,8 @@ export const AUDIT_EXPORT_ERROR_CODES = Object.freeze({
   SCOPE_VIOLATION: 'AUDIT_EXPORT_SCOPE_VIOLATION',
   LIMIT_EXCEEDED: 'AUDIT_EXPORT_LIMIT_EXCEEDED',
   INVALID_FORMAT: 'AUDIT_EXPORT_INVALID_FORMAT',
+  INVALID_SORT: 'AUDIT_EXPORT_INVALID_SORT',
+  INVALID_FILTER: 'AUDIT_EXPORT_INVALID_FILTER',
   INVALID_TIME_WINDOW: 'AUDIT_EXPORT_INVALID_TIME_WINDOW',
   UNKNOWN_MASKING_PROFILE: 'AUDIT_EXPORT_UNKNOWN_MASKING_PROFILE'
 });
@@ -31,11 +33,11 @@ function invariant(condition, message, code) {
 }
 
 function normalizeFilterValue(value) {
-  return value === undefined || value === null || value === '' ? undefined : value;
+  return value === undefined || value === null ? undefined : value;
 }
 
 function normalizeFilters(filters = {}) {
-  return Object.fromEntries(
+  const normalized = Object.fromEntries(
     [
       ['occurred_after', normalizeFilterValue(filters.occurredAfter ?? filters.occurred_after)],
       ['occurred_before', normalizeFilterValue(filters.occurredBefore ?? filters.occurred_before)],
@@ -51,35 +53,73 @@ function normalizeFilters(filters = {}) {
       ['correlation_id', normalizeFilterValue(filters.correlationId ?? filters.correlation_id)]
     ].filter(([, value]) => value !== undefined)
   );
+
+  for (const [id, value] of Object.entries(normalized)) {
+    const descriptor = getAuditQueryFilter(id);
+    invariant(Boolean(descriptor), `filters.${id} is not supported.`, AUDIT_EXPORT_ERROR_CODES.INVALID_FILTER);
+    if (descriptor.type === 'string') {
+      invariant(
+        typeof value === 'string' && value.length >= (descriptor.min_length ?? 1),
+        `filters.${id} must be a non-empty string.`,
+        AUDIT_EXPORT_ERROR_CODES.INVALID_FILTER
+      );
+    }
+    if (descriptor.type === 'enum') {
+      invariant(
+        typeof value === 'string' && (descriptor.allowed_values ?? []).includes(value),
+        `filters.${id} is not a supported value.`,
+        AUDIT_EXPORT_ERROR_CODES.INVALID_FILTER
+      );
+    }
+  }
+  return normalized;
+}
+
+const RFC3339_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|([+-])(\d{2}):(\d{2}))$/;
+
+function parseRfc3339(value, field) {
+  const text = String(value);
+  const match = RFC3339_PATTERN.exec(text);
+  invariant(Boolean(match), `${field} must be a complete RFC 3339 date-time.`, AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
+  const [, year, month, day, hour, minute, second, , zone, , offsetHour = '00', offsetMinute = '00'] = match;
+  const calendarDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  const calendarIsValid = calendarDate.getUTCFullYear() === Number(year)
+    && calendarDate.getUTCMonth() === Number(month) - 1
+    && calendarDate.getUTCDate() === Number(day);
+  const clockIsValid = Number(hour) <= 23 && Number(minute) <= 59 && Number(second) <= 59;
+  const offsetIsValid = zone === 'Z' || (Number(offsetHour) <= 23 && Number(offsetMinute) <= 59);
+  const timestamp = Date.parse(text);
+  invariant(
+    calendarIsValid && clockIsValid && offsetIsValid && Number.isFinite(timestamp),
+    `${field} must be a valid RFC 3339 date-time.`,
+    AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW
+  );
+  return timestamp;
 }
 
 function normalizeTimeWindow(filters = {}, requestContract = {}) {
   const occurredAfter = filters.occurred_after;
   const occurredBefore = filters.occurred_before;
 
-  if (occurredAfter && occurredBefore) {
-    const afterDate = new Date(occurredAfter);
-    const beforeDate = new Date(occurredBefore);
+  const afterTimestamp = occurredAfter === undefined ? null : parseRfc3339(occurredAfter, 'filters.occurredAfter');
+  const beforeTimestamp = occurredBefore === undefined ? null : parseRfc3339(occurredBefore, 'filters.occurredBefore');
+  if (afterTimestamp === null || beforeTimestamp === null) return;
 
-    invariant(!Number.isNaN(afterDate.valueOf()), 'filters.occurredAfter must be a valid ISO timestamp.', AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
-    invariant(!Number.isNaN(beforeDate.valueOf()), 'filters.occurredBefore must be a valid ISO timestamp.', AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
-    invariant(afterDate <= beforeDate, 'filters.occurredAfter must be earlier than or equal to filters.occurredBefore.', AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
-
-    const windowMs = beforeDate.valueOf() - afterDate.valueOf();
-    const maxWindowDays = requestContract.max_window_days ?? 31;
-    invariant(windowMs <= maxWindowDays * 24 * 60 * 60 * 1000, 'audit export time window exceeds the configured maximum.', AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
-  }
+  invariant(afterTimestamp <= beforeTimestamp, 'filters.occurredAfter must be earlier than or equal to filters.occurredBefore.', AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
+  const windowMs = beforeTimestamp - afterTimestamp;
+  const maxWindowDays = requestContract.max_window_days ?? 31;
+  invariant(windowMs <= maxWindowDays * 24 * 60 * 60 * 1000, 'audit export time window exceeds the configured maximum.', AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW);
 }
 
 function normalizePageSize(input = {}, requestContract = {}) {
   const pageSize = input.pageSize ?? requestContract.default_page_size ?? 500;
-  invariant(pageSize > 0, 'audit export page size must be positive.', AUDIT_EXPORT_ERROR_CODES.LIMIT_EXCEEDED);
-  invariant(pageSize <= (requestContract.max_page_size ?? 10000), 'audit export page size cannot exceed the configured maximum.', AUDIT_EXPORT_ERROR_CODES.LIMIT_EXCEEDED);
+  invariant(Number.isInteger(pageSize), 'audit export page size must be an integer.', AUDIT_EXPORT_ERROR_CODES.LIMIT_EXCEEDED);
+  invariant(pageSize >= 1 && pageSize <= (requestContract.max_page_size ?? 10000), 'audit export page size must be from 1 through 10000.', AUDIT_EXPORT_ERROR_CODES.LIMIT_EXCEEDED);
   return pageSize;
 }
 
 function normalizeFormat(input = {}, requestContract = {}) {
-  const formatId = input.format ?? requestContract.default_format;
+  const formatId = input.format;
   const format = getAuditExportFormat(formatId);
   invariant(Boolean(format), `audit export format ${formatId} is not supported.`, AUDIT_EXPORT_ERROR_CODES.INVALID_FORMAT);
   return format;
@@ -205,13 +245,19 @@ export function normalizeAuditExportRequest(scopeId, context = {}, input = {}) {
   normalizeTimeWindow(filters, requestContract);
   const format = normalizeFormat(input, requestContract);
   const maskingProfile = normalizeMaskingProfile(input);
+  const sort = input.sort ?? requestContract.supported_sort_keys?.[0] ?? '-eventTimestamp';
+  invariant(
+    (requestContract.supported_sort_keys ?? ['-eventTimestamp', 'eventTimestamp']).includes(sort),
+    'sort must be eventTimestamp or -eventTimestamp.',
+    AUDIT_EXPORT_ERROR_CODES.INVALID_SORT
+  );
 
   return {
     ...scopeBinding,
     actor: context.actor,
     correlationId: context.correlationId ?? input.correlationId,
     pageSize: normalizePageSize(input, requestContract),
-    sort: input.sort ?? requestContract.supported_sort_keys?.[0] ?? '-eventTimestamp',
+    sort,
     format,
     maskingProfile,
     filters

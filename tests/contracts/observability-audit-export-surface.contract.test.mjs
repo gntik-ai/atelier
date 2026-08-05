@@ -11,6 +11,7 @@ import {
   getAuditExportMaskingProfile,
   getAuditExportScope,
   getAuditExportSensitiveFieldRules,
+  getAuditQueryFilter,
   getPublicRoute,
   readAuthorizationModel,
   readObservabilityAuditExportSurface
@@ -48,8 +49,34 @@ test('observability audit export routes exist in the unified OpenAPI document', 
   assert.equal(tenantRoute['x-resource-type'], 'tenant_audit_export');
   assert.equal(workspaceRoute['x-resource-type'], 'workspace_audit_export');
   assert.ok(document.components.schemas.AuditExportRequest);
+  assert.equal(document.components.schemas.AuditExportRequest.properties.pageSize.default, 500);
+  assert.equal(document.components.schemas.AuditExportRequest.properties.pageSize.minimum, 1);
+  assert.equal(document.components.schemas.AuditExportRequest.properties.pageSize.maximum, 10000);
   assert.ok(document.components.schemas.AuditExportManifest);
   assert.ok(document.components.schemas.AuditExportedRecord);
+
+  const family = JSON.parse(readFileSync('apps/control-plane-executor/openapi/families/metrics.openapi.json', 'utf8'));
+  assert.deepEqual(
+    family.components.schemas.AuditExportRequest.properties.pageSize,
+    document.components.schemas.AuditExportRequest.properties.pageSize
+  );
+  assert.deepEqual(
+    family.components.schemas.AuditExportFilterSet,
+    document.components.schemas.AuditExportFilterSet
+  );
+  for (const [property, filterId] of [
+    ['subsystem', 'subsystem'],
+    ['actionCategory', 'action_category'],
+    ['outcome', 'outcome'],
+    ['actorType', 'actor_type'],
+    ['originSurface', 'origin_surface']
+  ]) {
+    assert.deepEqual(
+      document.components.schemas.AuditExportFilterSet.properties[property].enum,
+      getAuditQueryFilter(filterId).allowed_values,
+      `${property} export values must reuse the canonical audit-query filter vocabulary`
+    );
+  }
 });
 
 test('route catalog, authorization model, and console export view stay aligned for audit exports', () => {

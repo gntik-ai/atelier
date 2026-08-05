@@ -79,6 +79,52 @@ external chart and does not change C-05 or C-07 behavior. No deployment is impli
 
 Governed operations (function deployments, admin actions, rollbacks, quota enforcement) produce **query-safe audit records** (`domain-model.json`), retained for compliance and surfaced through the audit query/export/correlation surfaces.
 
+### Audit export (C-10)
+
+Authorized callers can preview a bounded export at the tenant or workspace metrics route:
+
+```text
+POST /v1/metrics/tenants/{tenantId}/audit-exports
+POST /v1/metrics/workspaces/{workspaceId}/audit-exports
+```
+
+The JSON body must include `format`, either `jsonl` or `csv`. `pageSize` is optional (default
+`500`) and, when supplied, must be an integer from `1` through `10000`. The console sends
+`{"format":"jsonl","pageSize":500,"maskingProfileId":"default_masked"}`. The body may carry the filters already supported by the
+audit-record query surface; it does not define authorization scope. Scope comes from the route and
+caller identity, and a body scope value cannot broaden it. Authorization permissions are unchanged;
+these are instructions for callers already authorized for the target tenant/workspace.
+
+Invalid format, page size, sort, filter, time window, or masking profile is rejected before querying
+audit records with a coded 4xx response. The corresponding codes are
+`AUDIT_EXPORT_INVALID_FORMAT`, `AUDIT_EXPORT_LIMIT_EXCEEDED`, `AUDIT_EXPORT_INVALID_SORT`,
+`AUDIT_EXPORT_INVALID_FILTER`, `AUDIT_EXPORT_INVALID_TIME_WINDOW`, and
+`AUDIT_EXPORT_UNKNOWN_MASKING_PROFILE`. A successful response is an inline
+`AuditExportManifest` containing the applied filters, counts, correlation metadata, and masked
+items. It is a preview manifest, not a durable server-side export artifact; the console's download
+control serializes that inline response locally.
+
+An operational store or primary-builder failure returns a coded 5xx response instead of an empty
+success or fallback manifest. The conservative inline fallback is used only when the primary builder
+is unavailable, not when an available builder fails.
+
+The default `default_masked` profile replaces credential material and provider locators with
+`[MASKED]`. If the primary masking path cannot be used, the fallback redacts the full detail field
+and remains at least as conservative. The export accepts up to 10,000 records, while the
+audit-record list endpoint retains its separate maximum of 200 records per page. Use filters, time
+windows and the smallest useful `pageSize` to avoid large payloads. Rollback of the implementation
+means reverting the C-10 change/PR. As a caller-side mitigation while rollback is prepared, stop
+the request or restore the previous size; no persisted artifact cleanup is required.
+
+Local validation can be run without deploying to Kubernetes:
+
+```bash
+node --check apps/control-plane-executor/src/observability-audit-export.mjs
+node --test tests/e2e/observability/audit-traceability.test.mjs
+```
+
+These checks are local only; they do not deploy or mutate a cluster.
+
 ## Flows & MCP signals *(Preview)*
 
 The AI-native capabilities are first-class in the same stack:

@@ -112,6 +112,7 @@ test('consultation, export, and correlation projections mask protected audit fie
     },
     {
       workspaceId: 'wrk_01a',
+      format: 'jsonl',
       correlationId: 'corr_target_01',
       records: [record]
     }

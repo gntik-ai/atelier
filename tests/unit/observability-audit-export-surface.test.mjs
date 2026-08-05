@@ -68,6 +68,53 @@ test('normalizeAuditExportRequest rejects unsupported formats', () => {
   );
 });
 
+test('normalizeAuditExportRequest requires explicit format and strict page size', () => {
+  for (const format of [undefined, 'JSONL']) assert.throws(() => normalizeAuditExportRequest('tenant', { tenantId: 'ten_01a' }, { format }), (e) => e.code === AUDIT_EXPORT_ERROR_CODES.INVALID_FORMAT);
+  for (const pageSize of [0, 1.5, '500', 10001]) assert.throws(() => normalizeAuditExportRequest('tenant', { tenantId: 'ten_01a' }, { format: 'jsonl', pageSize }), (e) => e.code === AUDIT_EXPORT_ERROR_CODES.LIMIT_EXCEEDED);
+  assert.equal(normalizeAuditExportRequest('tenant', { tenantId: 'ten_01a' }, { format: 'csv', pageSize: 10000 }).pageSize, 10000);
+  assert.equal(normalizeAuditExportRequest('tenant', { tenantId: 'ten_01a' }, { format: 'jsonl' }).pageSize, 500);
+});
+
+test('normalizeAuditExportRequest reuses canonical sort and filter validation', () => {
+  const context = { tenantId: 'ten_01a' };
+  const valid = normalizeAuditExportRequest('tenant', context, {
+    format: 'csv',
+    sort: 'eventTimestamp',
+    filters: {
+      occurredAfter: '2026-08-01T00:00:00Z',
+      subsystem: 'iam',
+      actionCategory: 'resource_creation',
+      outcome: 'succeeded',
+      actorType: 'tenant_user',
+      originSurface: 'control_api',
+      actorId: 'user-01'
+    }
+  });
+  assert.equal(valid.sort, 'eventTimestamp');
+  assert.deepEqual(valid.filters, {
+    occurred_after: '2026-08-01T00:00:00Z',
+    subsystem: 'iam',
+    action_category: 'resource_creation',
+    outcome: 'succeeded',
+    actor_type: 'tenant_user',
+    actor_id: 'user-01',
+    origin_surface: 'control_api'
+  });
+
+  assert.throws(
+    () => normalizeAuditExportRequest('tenant', context, { format: 'jsonl', sort: 'createdAt' }),
+    (error) => error.code === AUDIT_EXPORT_ERROR_CODES.INVALID_SORT
+  );
+  assert.throws(
+    () => normalizeAuditExportRequest('tenant', context, { format: 'jsonl', filters: { actorId: '' } }),
+    (error) => error.code === AUDIT_EXPORT_ERROR_CODES.INVALID_FILTER
+  );
+  assert.throws(
+    () => normalizeAuditExportRequest('tenant', context, { format: 'jsonl', filters: { occurredAfter: '2026-08-01' } }),
+    (error) => error.code === AUDIT_EXPORT_ERROR_CODES.INVALID_TIME_WINDOW
+  );
+});
+
 test('normalizeAuditExportRequest rejects oversized page sizes', () => {
   assert.throws(
     () => normalizeAuditExportRequest('tenant', { tenantId: 'ten_01a', correlationId: 'corr_01' }, { format: 'jsonl', pageSize: 10001 }),

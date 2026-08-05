@@ -371,7 +371,8 @@
               "openwhisk",
               "storage",
               "quota_metering",
-              "tenant_control_plane"
+              "tenant_control_plane",
+              "mcp"
             ],
             "type": "string"
           }
@@ -461,6 +462,7 @@
             "type": "string"
           },
           "pageSize": {
+            "default": 500,
             "maximum": 10000,
             "minimum": 1,
             "type": "integer"
