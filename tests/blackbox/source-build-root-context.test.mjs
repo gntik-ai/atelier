@@ -9,6 +9,8 @@ const fnDockerfilePath = path.join(repoRoot, 'apps/fn-runtime/Dockerfile');
 const webDockerfilePath = path.join(repoRoot, 'apps/web-console/Dockerfile');
 const fnDockerfile = fs.readFileSync(fnDockerfilePath, 'utf8');
 const webDockerfile = fs.readFileSync(webDockerfilePath, 'utf8');
+const filteredInstall = 'corepack enable && pnpm install --frozen-lockfile --filter @in-falcone/web-console...';
+const boundedBuild = 'NODE_OPTIONS=--max-old-space-size=1536 pnpm --filter @in-falcone/web-console exec vite build';
 
 function parseDockerfile(source) {
   const logicalLines = [];
@@ -78,9 +80,13 @@ function validateWebBuilder(source) {
 
   const contextCopy = oneInstruction(builder, 'COPY');
   assert.equal(contextCopy.args, '. .', 'builder must receive the root checkout, including its workspace lockfile');
-  const build = oneInstruction(builder, 'RUN');
-  assert.ok(contextCopy.line !== build.line && builder.indexOf(contextCopy) < builder.indexOf(build));
-  assert.match(build.args, /^corepack enable\s*&&\s*pnpm install --frozen-lockfile\s*&&\s*pnpm --filter @in-falcone\/web-console exec vite build$/);
+  const runs = builder.filter((entry) => entry.instruction === 'RUN');
+  assert.equal(runs.length, 2, 'dependency installation and Vite build must be separate Docker layers');
+  assert.deepEqual(runs.map((entry) => entry.args), [filteredInstall, boundedBuild]);
+  assert.ok(builder.indexOf(contextCopy) < builder.indexOf(runs[0]));
+  assert.ok(builder.indexOf(runs[0]) < builder.indexOf(runs[1]));
+  assert.match(runs[0].args, /pnpm install --frozen-lockfile --filter @in-falcone\/web-console\.\.\.$/);
+  assert.match(runs[1].args, /^NODE_OPTIONS=--max-old-space-size=1536\s/);
 
   const rootPackage = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
   assert.match(rootPackage.packageManager, /^pnpm@\d+\.\d+\.\d+$/);
@@ -140,8 +146,27 @@ test('contract validators are sensitive to both pre-fix Dockerfile regressions',
   assert.throws(() => validateFnRootContext(oldFnDockerfile), /apps\/fn-runtime\/server\.mjs/);
 
   const oldWebDockerfile = webDockerfile
-    .replace(/FROM node:22-alpine AS builder[\s\S]*?RUN corepack enable && pnpm install --frozen-lockfile && pnpm --filter @in-falcone\/web-console exec vite build\n\n/, '')
+    .replace(`FROM node:22-alpine AS builder\nWORKDIR /src\nCOPY . .\nRUN ${filteredInstall}\nRUN ${boundedBuild}\n\n`, '')
     .replace('COPY --from=builder /src/apps/web-console/dist ./dist', 'COPY apps/web-console/dist ./dist');
   assert.notEqual(oldWebDockerfile, webDockerfile);
   assert.throws(() => validateWebBuilder(oldWebDockerfile), /Dockerfile stage 1 is missing/);
+});
+
+// bbx-922-005 | fn-openshift-build-from-source | #### Scenario: Web console build avoids the previously observed build-stage OOM
+test('builder contract rejects 512/768 MiB heaps and a combined install/build RUN regression', () => {
+  for (const insufficientHeap of [512, 768]) {
+    const constrained = webDockerfile.replace(
+      '--max-old-space-size=1536',
+      `--max-old-space-size=${insufficientHeap}`,
+    );
+    assert.notEqual(constrained, webDockerfile);
+    assert.throws(() => validateWebBuilder(constrained), /1536/);
+  }
+
+  const combined = webDockerfile.replace(
+    `RUN ${filteredInstall}\nRUN ${boundedBuild}`,
+    `RUN ${filteredInstall} && ${boundedBuild}`,
+  );
+  assert.notEqual(combined, webDockerfile);
+  assert.throws(() => validateWebBuilder(combined), /must be separate Docker layers/);
 });
