@@ -62,6 +62,20 @@ test('non-terminal-update', () => {
   assert.deepEqual(delta.terminal, [])
 })
 
+test('C-12 running-to-cancelling is updated but nonterminal', () => {
+  const delta = reconcileOperations(snapshot(op('op-1', 'running')), [op('op-1', 'cancelling')])
+  assert.equal(delta.updated[0].status, 'cancelling')
+  assert.deepEqual(delta.terminal, [])
+})
+
+test('C-12 cancelling transitions to cancelled or failed are terminal', () => {
+  for (const status of ['cancelled', 'failed']) {
+    const delta = reconcileOperations(snapshot(op('op-1', 'cancelling')), [op('op-1', status)])
+    assert.equal(delta.updated[0].status, status)
+    assert.equal(delta.terminal[0].status, status)
+  }
+})
+
 test('added-op', () => {
   const delta = reconcileOperations(snapshot(op('op-1', 'running')), [op('op-1', 'running'), op('op-2', 'pending')])
   assert.deepEqual(delta.added.map((item) => item.operationId), ['op-2'])

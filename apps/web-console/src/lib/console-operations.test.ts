@@ -7,6 +7,7 @@ import {
   useActiveOperationsCount,
   useOperations
 } from './console-operations'
+import { ACTIVE_STATUSES, TERMINAL_STATUSES } from './generated/async-operation-status-vocabulary.mjs'
 
 const mockRequestConsoleSessionJson = vi.fn()
 
@@ -109,6 +110,54 @@ describe('console-operations hooks', () => {
     expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(1)
   })
 
+  it('C-12 keeps polling for cancelling and stops for every terminal status', async () => {
+    const operation = (status: (typeof ACTIVE_STATUSES)[number] | (typeof TERMINAL_STATUSES)[number]) => ({
+      operationId: `op_${status}`,
+      status,
+      operationType: 'workspace.create',
+      tenantId: 'tenant_a',
+      workspaceId: 'wrk_1',
+      actorId: 'usr_1',
+      actorType: 'tenant_owner',
+      createdAt: '2026-03-30T10:00:00.000Z',
+      updatedAt: '2026-03-30T10:00:00.000Z',
+      correlationId: `corr_${status}`
+    })
+
+    mockRequestConsoleSessionJson.mockResolvedValue({
+      queryType: 'list',
+      total: 1,
+      pagination: { limit: 20, offset: 0 },
+      items: [operation('cancelling')]
+    })
+    const cancellingHook = renderHook(() => useOperations())
+    await act(async () => { await flushAsyncWork() })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000)
+      await flushAsyncWork()
+    })
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(2)
+    cancellingHook.unmount()
+
+    for (const terminalStatus of TERMINAL_STATUSES) {
+      mockRequestConsoleSessionJson.mockReset()
+      mockRequestConsoleSessionJson.mockResolvedValue({
+        queryType: 'list',
+        total: 1,
+        pagination: { limit: 20, offset: 0 },
+        items: [operation(terminalStatus)]
+      })
+      const terminalHook = renderHook(() => useOperations())
+      await act(async () => { await flushAsyncWork() })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000)
+        await flushAsyncWork()
+      })
+      expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(1)
+      terminalHook.unmount()
+    }
+  })
+
   it('bounds retries when the operations query keeps failing', async () => {
     mockRequestConsoleSessionJson.mockRejectedValue(new Error('async_operations missing'))
 
@@ -173,10 +222,8 @@ describe('console-operations hooks', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
-  it('F23 returns the sum of pending and running operations', async () => {
-    mockRequestConsoleSessionJson
-      .mockResolvedValueOnce({ queryType: 'list', total: 2, pagination: { limit: 1, offset: 0 }, items: [] })
-      .mockResolvedValueOnce({ queryType: 'list', total: 1, pagination: { limit: 1, offset: 0 }, items: [] })
+  it('F23/C-12 returns one active-set union total including cancelling', async () => {
+    mockRequestConsoleSessionJson.mockResolvedValueOnce({ queryType: 'list', total: 3, pagination: { limit: 1, offset: 0 }, items: [] })
 
     const { result } = renderHook(() => useActiveOperationsCount())
 
@@ -186,22 +233,15 @@ describe('console-operations hooks', () => {
 
     expect(result.current.isLoading).toBe(false)
     expect(result.current.count).toBe(3)
-    expect(mockRequestConsoleSessionJson).toHaveBeenNthCalledWith(
-      1,
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(1)
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledWith(
       ASYNC_OPERATION_QUERY_ENDPOINT,
-      expect.objectContaining({ body: expect.objectContaining({ filters: { status: 'running' } }) })
-    )
-    expect(mockRequestConsoleSessionJson).toHaveBeenNthCalledWith(
-      2,
-      ASYNC_OPERATION_QUERY_ENDPOINT,
-      expect.objectContaining({ body: expect.objectContaining({ filters: { status: 'pending' } }) })
+      expect.objectContaining({ body: expect.objectContaining({ filters: { status: [...ACTIVE_STATUSES] } }) })
     )
   })
 
   it('F24 returns zero and stops polling when there are no active operations', async () => {
-    mockRequestConsoleSessionJson
-      .mockResolvedValueOnce({ queryType: 'list', total: 0, pagination: { limit: 1, offset: 0 }, items: [] })
-      .mockResolvedValueOnce({ queryType: 'list', total: 0, pagination: { limit: 1, offset: 0 }, items: [] })
+    mockRequestConsoleSessionJson.mockResolvedValueOnce({ queryType: 'list', total: 0, pagination: { limit: 1, offset: 0 }, items: [] })
 
     const { result } = renderHook(() => useActiveOperationsCount())
 
@@ -217,6 +257,6 @@ describe('console-operations hooks', () => {
       await flushAsyncWork()
     })
 
-    expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(2)
+    expect(mockRequestConsoleSessionJson).toHaveBeenCalledTimes(1)
   })
 })

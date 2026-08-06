@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { fetchAsyncOperationQuery, type OperationListResponse, type OperationSummary } from '@/lib/console-operations'
 import { requestConsoleSessionJson } from '@/lib/console-session'
+import { ACTIVE_STATUSES } from '@/lib/generated/async-operation-status-vocabulary.mjs'
 import { reconcileOperations, type ReconciliationDelta } from '@/lib/reconcile-operations'
 
 export interface ReconnectStateSyncOptions {
@@ -35,7 +36,7 @@ async function fetchAllActiveOperations(tenantId: string, workspaceId: string | 
       {
         queryType: 'list',
         filters: {
-          status: ['running', 'pending'],
+          status: [...ACTIVE_STATUSES],
           tenantId,
           workspaceId: workspaceId ?? undefined
         },

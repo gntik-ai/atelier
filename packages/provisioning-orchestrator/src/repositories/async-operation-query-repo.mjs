@@ -1,6 +1,7 @@
+import { TERMINAL_STATES } from '../models/async-operation-states.mjs';
+
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
-const DOMAIN_TERMINAL_STATUSES = new Set(['completed', 'failed', 'timed_out', 'cancelled']);
 
 function assertTenantIsolation(tenantId, isSuperadmin = false) {
   if (tenantId === null && !isSuperadmin) {
@@ -180,7 +181,7 @@ export async function getOperationResult(db, params = {}) {
       && typeof row.error_summary.retryable === 'boolean'
       ? row.error_summary.retryable
       : null;
-  const completedAt = DOMAIN_TERMINAL_STATUSES.has(row.status)
+  const completedAt = TERMINAL_STATES.has(row.status)
     ? row.completed_at ?? row.updated_at ?? null
     : null;
 

@@ -96,12 +96,12 @@ describe('useReconnectStateSync', () => {
     expect(mockFetchAsyncOperationQuery).toHaveBeenCalledTimes(1)
   })
 
-  it('requests the running-pending union once and reconciles both states', async () => {
+  it('requests the canonical active union once and reconciles all three states', async () => {
     const onStateChanged = vi.fn()
     mockFetchAsyncOperationQuery.mockResolvedValue({
       queryType: 'list',
-      items: [op('op-running', 'running'), op('op-pending', 'pending')],
-      total: 2,
+      items: [op('op-pending', 'pending'), op('op-running', 'running'), op('op-cancelling', 'cancelling')],
+      total: 3,
       pagination: { limit: 100, offset: 0 }
     })
     renderHook(() =>
@@ -123,7 +123,7 @@ describe('useReconnectStateSync', () => {
       {
         queryType: 'list',
         filters: {
-          status: ['running', 'pending'],
+          status: ['pending', 'running', 'cancelling'],
           tenantId: 'tenant-a',
           workspaceId: 'wrk-a'
         },
@@ -133,8 +133,9 @@ describe('useReconnectStateSync', () => {
     )
     expect(onStateChanged).toHaveBeenCalledTimes(1)
     expect(onStateChanged.mock.calls[0]?.[0].added.map((item: OperationSummary) => item.operationId)).toEqual([
+      'op-pending',
       'op-running',
-      'op-pending'
+      'op-cancelling'
     ])
   })
 

@@ -8,6 +8,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Select } from '@/components/ui/select'
 import { useConsoleContext } from '@/lib/console-context'
+import {
+  OPERATION_STATUSES,
+  OPERATION_STATUS_LABELS
+} from '@/lib/generated/async-operation-status-vocabulary.mjs'
 import { useReconnectStateSync } from '@/lib/hooks/use-reconnect-state-sync'
 import { useOperations, type OperationFilters, type OperationSummary } from '@/lib/console-operations'
 import type { ReconciliationDelta } from '@/lib/reconcile-operations'
@@ -88,12 +92,11 @@ export function ConsoleOperationsPage() {
             }}
           >
             <option value="">Todos</option>
-            <option value="pending">Pendiente</option>
-            <option value="running">En curso</option>
-            <option value="completed">Completada</option>
-            <option value="failed">Fallida</option>
-            <option value="timed_out">Expirada</option>
-            <option value="cancelled">Cancelada</option>
+            {OPERATION_STATUSES.map((operationStatus) => (
+              <option key={operationStatus} value={operationStatus}>
+                {OPERATION_STATUS_LABELS[operationStatus]}
+              </option>
+            ))}
           </Select>
         </label>
 

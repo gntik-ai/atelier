@@ -98,10 +98,20 @@ describe('ConsoleOperationsPage', () => {
     const statusFilter = screen.getByLabelText('Filtrar por estado')
     expect(statusFilter).toHaveClass('h-11')
     expect(screen.getByLabelText('Filtrar por tipo de operación')).toHaveClass('h-11')
+    expect(Array.from((statusFilter as HTMLSelectElement).options).map((option) => [option.value, option.text])).toEqual([
+      ['', 'Todos'],
+      ['pending', 'Pendiente'],
+      ['running', 'En curso'],
+      ['completed', 'Completada'],
+      ['failed', 'Fallida'],
+      ['timed_out', 'Expirada'],
+      ['cancelling', 'Cancelando'],
+      ['cancelled', 'Cancelada']
+    ])
 
-    fireEvent.change(statusFilter, { target: { value: 'failed' } })
+    fireEvent.change(statusFilter, { target: { value: 'cancelling' } })
 
-    expect(mockUseOperations).toHaveBeenLastCalledWith({ status: 'failed', operationType: undefined, workspaceId: undefined }, { limit: 20, offset: 0 })
+    expect(mockUseOperations).toHaveBeenLastCalledWith({ status: 'cancelling', operationType: undefined, workspaceId: undefined }, { limit: 20, offset: 0 })
   })
 
   it('F15 renders empty state when there are no operations', () => {

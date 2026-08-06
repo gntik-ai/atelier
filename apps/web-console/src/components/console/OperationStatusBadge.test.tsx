@@ -3,16 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { OperationStatusBadge } from './OperationStatusBadge'
-import type { OperationStatus } from '@/lib/console-operations'
-
-const STATUS_LABELS_BY_KEY: Record<OperationStatus, string> = {
-  pending: 'Pendiente',
-  running: 'En curso',
-  completed: 'Completada',
-  failed: 'Fallida',
-  timed_out: 'Expirada',
-  cancelled: 'Cancelada'
-}
+import { OPERATION_STATUSES, OPERATION_STATUS_LABELS } from '@/lib/generated/async-operation-status-vocabulary.mjs'
 
 describe('OperationStatusBadge', () => {
   it('F01 renders pending state with spanish label', () => {
@@ -23,11 +14,13 @@ describe('OperationStatusBadge', () => {
     expect(badge.className).toContain('bg-muted/40')
   })
 
-  it('F02 renders running state with pulse animation', () => {
+  it('F02 renders running state with motion-safe pulse animation', () => {
     render(<OperationStatusBadge status="running" />)
 
     const badge = screen.getByText('En curso')
-    expect(badge.className).toContain('animate-pulse')
+    const classes = badge.className.split(/\s+/)
+    expect(classes).toContain('motion-safe:animate-pulse')
+    expect(classes).not.toContain('animate-pulse')
   })
 
   it('F03 renders completed state with dark-root-safe emerald styling', () => {
@@ -58,11 +51,20 @@ describe('OperationStatusBadge', () => {
     expect(badge.className).toContain('bg-muted/40')
   })
 
+  it('C-12 renders cancelling as accessible visible text', () => {
+    render(<OperationStatusBadge status="cancelling" />)
+
+    const badge = screen.getByText('Cancelando')
+    expect(badge).toBeVisible()
+    const classes = badge.className.split(/\s+/)
+    expect(classes).toContain('motion-safe:animate-pulse')
+    expect(classes).not.toContain('animate-pulse')
+  })
+
   it('[#744][Scenario: Dark-theme table/panel] no state uses hardcoded light-mode color classes', () => {
-    const statuses = Object.keys(STATUS_LABELS_BY_KEY) as OperationStatus[]
-    for (const status of statuses) {
+    for (const status of OPERATION_STATUSES) {
       const { unmount } = render(<OperationStatusBadge status={status} />)
-      const badge = screen.getByText(STATUS_LABELS_BY_KEY[status])
+      const badge = screen.getByText(OPERATION_STATUS_LABELS[status])
       expect(badge.className).not.toMatch(/bg-white|bg-slate-\d|text-slate-\d/)
       unmount()
     }

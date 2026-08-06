@@ -1,8 +1,9 @@
 import type { OperationStatus, OperationSummary } from './console-operations'
+import type { TerminalOperationStatus } from './generated/async-operation-status-vocabulary.mjs'
 
 import { reconcileOperations as reconcileOperationsRuntime, TERMINAL_STATUSES as TERMINAL_STATUSES_RUNTIME } from './reconcile-operations.runtime.mjs'
 
-export type TerminalStatus = Extract<OperationStatus, 'completed' | 'failed' | 'timed_out' | 'cancelled'>
+export type TerminalStatus = TerminalOperationStatus
 
 export const TERMINAL_STATUSES: ReadonlySet<OperationStatus> = TERMINAL_STATUSES_RUNTIME as ReadonlySet<OperationStatus>
 

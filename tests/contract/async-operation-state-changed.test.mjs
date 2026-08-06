@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import Ajv from 'ajv';
 import { asyncOperationStateChangedSchema } from '../../packages/internal-contracts/src/index.mjs';
 import { buildStateChangedEvent } from '../../packages/provisioning-orchestrator/src/events/async-operation-events.mjs';
+import { STATUS_TRANSITIONS } from '../../packages/provisioning-orchestrator/src/generated/async-operation-status-vocabulary.mjs';
 
 const ajv = new Ajv({ allErrors: true, strict: false, validateFormats: false });
 const validate = ajv.compile(asyncOperationStateChangedSchema);
@@ -46,4 +47,16 @@ test('contract validates running→failed event payload', () => {
   );
   const valid = validate(event);
   assert.equal(valid, true, JSON.stringify(validate.errors));
+});
+
+test('C-12 contract validates every canonical lifecycle edge and rejects unknown endpoints', () => {
+  for (const [previousStatus, targets] of Object.entries(STATUS_TRANSITIONS)) {
+    for (const newStatus of targets) {
+      const event = buildStateChangedEvent(baseOperation({ status: newStatus }), previousStatus);
+      assert.equal(validate(event), true, `${previousStatus} → ${newStatus}: ${JSON.stringify(validate.errors)}`);
+    }
+  }
+
+  assert.equal(validate(buildStateChangedEvent(baseOperation({ status: 'running' }), 'unknown_async_status')), false);
+  assert.equal(validate(buildStateChangedEvent(baseOperation({ status: 'unknown_async_status' }), 'running')), false);
 });
