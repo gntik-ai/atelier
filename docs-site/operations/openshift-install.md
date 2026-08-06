@@ -33,7 +33,7 @@ kind/local-registry overlay.
 | --- | --- | --- | --- |
 | Public prebuilt | GHCR release images | `values/prod.yaml` + `values/platform-openshift.yaml` + `values/profiles/standard.yaml` | The cluster can pull the published images. |
 | Harbor or air-gap | Prebuilt images mirrored to a private registry | The three layers above + a completed copy of `deploy/openshift/values-openshift.yaml` | The cluster is restricted or must use an approved registry. |
-| [Build from source](#build-from-source-install-openshift-builds) | Six OpenShift Builds fed by a GitLab mirror | The three base layers + an operator-owned source-build values file | OpenShift must build Falcone inside the Project and update workloads from ImageStreams. |
+| [Build from source](#build-from-source-install-openshift-builds) | Six OpenShift Builds fed by a GitLab mirror | The three base layers + a completed OpenShift site overlay + an operator-owned source-build values file | OpenShift must build Falcone inside the Project and update workloads from ImageStreams. |
 
 The default remains the public prebuilt-image path. Build from source is opt-in and is not
 supported on vanilla Kubernetes.
@@ -153,9 +153,11 @@ also need:
 
 - an existing Project, or permission to create one;
 - a GitLab mirror of the Falcone monorepo that OpenShift builder pods can reach;
+- network access from GitLab to the cluster API endpoint used by the webhook URLs;
 - a same-Project Git source Secret when that mirror is private;
 - the OpenShift internal image registry; and
-- a same-Project Secret whose `WebHookSecretKey` entry authenticates the six GitLab webhooks.
+- a same-Project Secret whose `WebHookSecretKey` entry authenticates the six GitLab webhooks; and
+- OpenSSL, used below to create that key without exposing it in a command argument.
 
 Set the working variables and select or create the Project:
 
@@ -198,6 +200,12 @@ Project's `builder` service account the minimum access required for that one Sec
 
 ### Enable and install the mode
 
+Prepare `falcone-openshift-site-values.yaml` using the
+[Harbor/air-gap procedure](#openshift-with-harbor-or-air-gap), or supply an equivalent reviewed
+site overlay that clears fixed UID/GID defaults for `restricted-v2`, selects storage, and configures
+the remaining third-party images. On a connected cluster, remove the Harbor registry, pull-Secret,
+CA, and `airgap` settings from that copy while retaining its SCC-compatible security overrides.
+
 Create `build-from-source-values.yaml`. This file contains Secret names, never Secret bytes:
 
 ```yaml
@@ -221,15 +229,17 @@ helm upgrade --install "$RELEASE" "$CHART" \
   -f "$CHART/values/prod.yaml" \
   -f "$CHART/values/platform-openshift.yaml" \
   -f "$CHART/values/profiles/standard.yaml" \
+  -f ./falcone-openshift-site-values.yaml \
   -f ./build-from-source-values.yaml \
   --set global.namespace="$NS" \
   --set global.createNamespace=false \
   --wait --wait-for-jobs --timeout 30m
 ```
 
-Do not add the Harbor overlay unless the remaining, non-built dependency images must also come from
-Harbor. Source-build mode replaces only the six released Falcone service images. PostgreSQL,
-Keycloak, APISIX, and the other third-party images keep their normal image configuration.
+Source-build mode replaces only the six released Falcone service images. PostgreSQL, Keycloak,
+APISIX, and the other third-party images keep the configuration from the site overlay. Because the
+six BuildConfig and ImageStream names are namespace-scoped service identities rather than
+release-prefixed names, run only one source-build Falcone release in a Project.
 
 ### Verify the initial builds
 
