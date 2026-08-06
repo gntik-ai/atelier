@@ -9,6 +9,7 @@ The control-plane internal HTTP listener SHALL instantiate and serve the checked
 - **WHEN** an internal caller requests each canonical route
 - **THEN** it receives a contract-valid JSON response, a correlation ID, and the route's documented HTTP status rather than 404
 - **AND** `/healthz` and `/readyz` remain available with existing semantics and `schemaReadiness`
+- **AND** the public `/health` OpenAPI response remains aligned with the compatibility `/healthz` body reached through the gateway rewrite
 
 #### Scenario: Liveness is process-only
 - **WHEN** PostgreSQL or another dependency is unavailable and `/livez` is requested
@@ -34,11 +35,11 @@ The service SHALL apply the contract's documented status precedence and required
 
 #### Scenario: Aggregate precedence
 - **WHEN** evidence includes unhealthy, stale, unknown, and healthy components
-- **THEN** the aggregate status follows canonical precedence (unhealthy/error, then stale, then unknown, then healthy), with readiness requiring all required dependencies healthy
+- **THEN** the aggregate status follows canonical precedence (unhealthy/error, then stale, then unknown, then inherited, then healthy), with readiness requiring all required dependencies healthy
 
 #### Scenario: Correlated read-only audit
 - **WHEN** an auditor performs a bounded probe with a correlation ID
-- **THEN** the same ID is returned and no datastore mutation, audit write, or new metric family/label occurs
+- **THEN** an ID matching the canonical 8–128 character envelope boundary is returned consistently in headers and bodies, and no datastore mutation, audit write, or new metric family/label occurs
 
 ### Requirement: Internal exposure is not public API
 Canonical internal routes SHALL be reachable only through the existing internal topology/network path and SHALL NOT be registered in APISIX or consumed by the SPA; the implementation SHALL NOT claim mTLS where none exists.

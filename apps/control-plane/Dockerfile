@@ -17,6 +17,7 @@ RUN npm install --omit=dev --no-audit --no-fund \
 
 # Server source + domain-B modules + the verified runtime route table.
 COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
+     apps/control-plane/health-runtime.mjs \
      apps/control-plane/jwt-verify.mjs apps/control-plane/sa-revocation.mjs \
      apps/control-plane/kc-admin.mjs apps/control-plane/tenant-store.mjs \
      apps/control-plane/b-handlers.mjs apps/control-plane/auth-handlers.mjs \
@@ -56,6 +57,10 @@ COPY packages/webhook-engine            /repo/packages/webhook-engine
 # exits (server.mjs) -> CrashLoopBackOff on any build after v0.6.3.
 COPY packages/workspace-docs-service    /repo/packages/workspace-docs-service
 COPY apps/control-plane-executor                 /repo/apps/control-plane-executor
+
+# Parse and validate the packaged health contract now, so a missing or stale
+# runtime mapping fails the image build instead of the first production start.
+RUN node --input-type=module -e "await import('./health-runtime.mjs')"
 
 # Fail the BUILD if the route map references a handler module the image did not COPY
 # (fix-scheduling-handler-dockerfile): `/v1/scheduling/*` dispatched to

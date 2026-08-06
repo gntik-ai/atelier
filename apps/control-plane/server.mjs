@@ -18,6 +18,7 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import pg from 'pg';
+import { createHealthRuntime } from './health-runtime.mjs';
 import { createMultiRealmVerifier, deriveRealmTopology } from './jwt-verify.mjs';
 import { routes as seedRoutes } from './routes.mjs';
 import { LOCAL_HANDLERS } from './b-handlers.mjs';
@@ -290,11 +291,13 @@ export function createControlPlaneHttpServer({
   logger = console,
   schemaReadiness = readySchemaReadiness(),
   routeTable = createRouteTable(),
+  healthRuntime,
   port = PORT
 } = {}) {
   if (!pool || typeof pool.query !== 'function') throw new TypeError('pool with query() is required');
   if (!jwtVerifier || typeof jwtVerifier.verify !== 'function') throw new TypeError('jwtVerifier with verify() is required');
   const { matchRoute } = routeTable;
+  const runtimeHealth = healthRuntime ?? createHealthRuntime({ pool, schemaReadiness });
 
   // ---- request handler -----------------------------------------------------
   const server = http.createServer(async (req, res) => {
@@ -328,16 +331,54 @@ export function createControlPlaneHttpServer({
     res._errorContext = { requestId: headers['x-request-id'], correlationId: headers['x-correlation-id'], resource: path };
     metric.route = normalizeRoute(path);
 
-    if (method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
-    if (path === '/readyz') {
-      const notReady = schemaReadiness.responseForReadyProbe();
-      if (notReady) return sendJson(res, notReady.statusCode, notReady.body);
-      try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }); }
-      catch (e) { logger?.error?.('[control-plane] readyz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
+    if (method === 'GET' && path === '/livez') {
+      const correlationId = runtimeHealth.createCorrelationId(headers['x-correlation-id']);
+      return sendJson(res, 200, { status: 'live' }, { 'x-correlation-id': correlationId });
     }
-    if (path === '/healthz') {
-      try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }); }
-      catch (e) { logger?.error?.('[control-plane] healthz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }); }
+
+    const internalHealthMatch = method === 'GET'
+      ? /^\/internal\/(live|ready|health)(?:\/components\/([^/]+))?$/.exec(path)
+      : null;
+    if (internalHealthMatch) {
+      const [, routeProbeType, componentId] = internalHealthMatch;
+      const probeType = routeProbeType === 'live'
+        ? 'liveness'
+        : routeProbeType === 'ready'
+          ? 'readiness'
+          : 'health';
+      const correlationId = runtimeHealth.createCorrelationId(headers['x-correlation-id']);
+      res._errorContext.correlationId = correlationId;
+
+      if (componentId) {
+        const componentPath = `/internal/${routeProbeType}/components/{componentId}`;
+        res._errorContext.resource = componentPath;
+        metric.route = componentPath;
+        if (!runtimeHealth.componentIds.includes(componentId)) {
+          return sendJson(res, 404, {
+            code: 'HEALTH_COMPONENT_NOT_FOUND',
+            message: 'Health component not found'
+          }, { 'x-correlation-id': correlationId });
+        }
+      } else {
+        metric.route = `/internal/${routeProbeType}`;
+      }
+
+      const body = await runtimeHealth.evaluate(probeType, { componentId, correlationId });
+      return sendJson(res, 200, body, { 'x-correlation-id': correlationId });
+    }
+
+    if (method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
+    if (method === 'GET' && path === '/readyz') {
+      const correlationId = runtimeHealth.createCorrelationId(headers['x-correlation-id']);
+      const notReady = schemaReadiness.responseForReadyProbe();
+      if (notReady) return sendJson(res, notReady.statusCode, notReady.body, { 'x-correlation-id': correlationId });
+      try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }, { 'x-correlation-id': correlationId }); }
+      catch (e) { logger?.error?.('[control-plane] readyz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }, { 'x-correlation-id': correlationId }); }
+    }
+    if (method === 'GET' && path === '/healthz') {
+      const correlationId = runtimeHealth.createCorrelationId(headers['x-correlation-id']);
+      try { await pool.query('SELECT 1'); return sendJson(res, 200, { status: 'ok' }, { 'x-correlation-id': correlationId }); }
+      catch (e) { logger?.error?.('[control-plane] healthz db check failed:', e); return sendJson(res, 503, { status: 'db_unavailable' }, { 'x-correlation-id': correlationId }); }
     }
     if (path === '/') return sendJson(res, 200, { service: 'in-falcone-control-plane', routes: routeTable.size() });
 

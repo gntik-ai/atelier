@@ -158,6 +158,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "The control-plane database dependency is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -61524,9 +61534,7 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "status",
-          "service",
-          "timestamp"
+          "status"
         ],
         "properties": {
           "status": {
@@ -61534,14 +61542,6 @@
             "enum": [
               "ok"
             ]
-          },
-          "service": {
-            "type": "string",
-            "const": "control-plane"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
           }
         }
       },
