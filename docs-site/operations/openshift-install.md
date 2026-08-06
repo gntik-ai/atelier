@@ -313,8 +313,36 @@ Webhooks**, select **Push events**, and keep SSL verification enabled. Rotate th
 all six registrations if any URL is exposed.
 
 The OpenShift API must permit GitLab's unauthenticated request to create the webhook subresource.
-Grant only `create` on `buildconfigs/webhooks.build.openshift.io` to the ingress identity required by
-your cluster policy; do not grant create/update access to ordinary `BuildConfig` resources.
+Grant only `create` on `buildconfigs/webhooks` (API group `build.openshift.io`) with a namespaced
+Role and RoleBinding. Apply this example only when policy confirms GitLab enters as
+`system:unauthenticated`; otherwise replace the subject with the controlled proxy/ingress identity.
+The webhook Secret remains the authenticator.
+
+```bash
+cat <<EOF | oc -n "$NS" apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: ${RELEASE}-gitlab-webhook}
+rules:
+- apiGroups: [build.openshift.io]
+  resources: [buildconfigs/webhooks]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: ${RELEASE}-gitlab-webhook}
+subjects:
+- kind: Group
+  name: system:unauthenticated
+roleRef:
+  kind: Role
+  name: ${RELEASE}-gitlab-webhook
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+Rollback/cleanup: `oc -n "$NS" delete role/${RELEASE}-gitlab-webhook rolebinding/${RELEASE}-gitlab-webhook`.
+Do not grant create/update access to ordinary `BuildConfig` resources.
 
 ### Verify push, image update, and rollout
 
