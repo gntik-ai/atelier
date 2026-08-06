@@ -70,11 +70,11 @@ test('control-plane keeps health liveness separate and marks readiness after rec
 
   assert.match(
     source,
-    /if \(path === '\/readyz'\)[\s\S]*responseForReadyProbe\(\)[\s\S]*pool\.query\('SELECT 1'\)/
+    /if \(method === 'GET' && path === '\/readyz'\)[\s\S]*responseForReadyProbe\(\)[\s\S]*pool\.query\('SELECT 1'\)/
   );
   assert.match(
     source,
-    /if \(path === '\/healthz'\)[\s\S]*pool\.query\('SELECT 1'\)/
+    /if \(method === 'GET' && path === '\/healthz'\)[\s\S]*pool\.query\('SELECT 1'\)/
   );
   assert.match(
     source,

@@ -4,6 +4,42 @@
   "system": "in-falcone-observability-plane",
   "source_metrics_contract": "2026-03-28",
   "source_dashboard_contract": "2026-03-28",
+  "control_plane_probe_mapping": {
+    "version": "2026-03-28",
+    "probe_routes": {
+      "liveness": {
+        "path": "/livez",
+        "semantics": "process_only",
+        "kubernetes_probe": "liveness"
+      },
+      "readiness": {
+        "path": "/readyz",
+        "semantics": "schema_and_database",
+        "kubernetes_probe": "readiness"
+      },
+      "compatibility_health": {
+        "path": "/healthz",
+        "semantics": "database_compatibility",
+        "kubernetes_probe": null
+      }
+    },
+    "internal_exposures": {
+      "aggregate": {
+        "liveness": "/internal/live",
+        "readiness": "/internal/ready",
+        "health": "/internal/health"
+      },
+      "component": {
+        "liveness": "/internal/live/components/{componentId}",
+        "readiness": "/internal/ready/components/{componentId}",
+        "health": "/internal/health/components/{componentId}"
+      }
+    },
+    "public_edge": {
+      "gateway_registered": false,
+      "spa_proxy_registered": false
+    }
+  },
   "principles": [
     "Liveness, readiness, and health are distinct operational concepts and must not be collapsed into one generic status.",
     "Component health outputs stay internal and operational; they do not create a new public API commitment.",
@@ -56,10 +92,31 @@
     }
   ],
   "status_model": {
+    "aggregate_precedence": {
+      "liveness": [
+        "dead",
+        "unknown",
+        "live"
+      ],
+      "readiness": [
+        "not_ready",
+        "degraded",
+        "unknown",
+        "ready"
+      ],
+      "health": [
+        "unavailable",
+        "degraded",
+        "stale",
+        "unknown",
+        "inherited",
+        "healthy"
+      ]
+    },
     "aggregate_rules": {
       "liveness": "Platform liveness is dead when any required component is dead, unknown when no component is dead but at least one is unknown, otherwise live.",
       "readiness": "Platform readiness is not_ready when any required component is not_ready, degraded when none are not_ready but at least one is degraded, unknown when freshness is insufficient, otherwise ready.",
-      "health": "Platform health is unavailable when any required component is unavailable, degraded when any required component is degraded, stale when evidence is stale, unknown when evidence is incomplete, otherwise healthy."
+      "health": "Platform health is unavailable when any required component is unavailable, degraded when any required component is degraded, stale when evidence is stale, unknown when evidence is incomplete, inherited when the only remaining evidence is inherited, otherwise healthy."
     },
     "stale_probe_window_seconds": 120,
     "allowed_dependency_outcomes": [

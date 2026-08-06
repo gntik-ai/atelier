@@ -90,9 +90,27 @@ async function sendStatic(req, res, filePath, body, contentType) {
   res.end(body);
 }
 
+function isControlPlaneHealthPath(pathname) {
+  return pathname === '/livez'
+    || pathname === '/readyz'
+    || /^\/internal\/(live|ready|health)(?:\/|$)/.test(pathname);
+}
+
+function sendNotFound(res) {
+  const body = JSON.stringify({ code: 'NOT_FOUND', message: 'Not found' });
+  res.writeHead(404, {
+    ...SECURITY_HEADERS,
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(body)
+  });
+  res.end(body);
+}
+
 const [GW_HOST, GW_PORT = '9080'] = (process.env.GATEWAY_UPSTREAM ?? 'falcone-apisix:9080').split(':');
 const server = http.createServer(async (req, res) => {
-  if (req.url === '/healthz') { res.writeHead(200); return res.end('ok'); }
+  const rawPathname = (req.url ?? '/').split('?')[0];
+  if (rawPathname === '/healthz') { res.writeHead(200); return res.end('ok'); }
+  if (isControlPlaneHealthPath(rawPathname)) return sendNotFound(res);
   // Proxy the same-origin API surface to the gateway (must precede the SPA fallback).
   if (req.url === '/v1' || req.url?.startsWith('/v1/')) {
     const upstream = http.request(
@@ -106,10 +124,9 @@ const server = http.createServer(async (req, res) => {
     req.pipe(upstream);
     return;
   }
-  const pathname = (req.url ?? '/').split('?')[0];
   let decodedPathname;
   try {
-    decodedPathname = decodeURIComponent(pathname);
+    decodedPathname = decodeURIComponent(rawPathname);
   } catch {
     res.writeHead(400, {
       'content-type': 'text/plain; charset=utf-8',
@@ -118,6 +135,8 @@ const server = http.createServer(async (req, res) => {
     res.end(BAD_REQUEST_BODY);
     return;
   }
+  if (decodedPathname === '/healthz') { res.writeHead(200); return res.end('ok'); }
+  if (isControlPlaneHealthPath(decodedPathname)) return sendNotFound(res);
   let p = normalize(decodedPathname).replace(/^(\.\.[/\\])+/, '');
   if (p === '/' || p === '\\') p = '/index.html';
   try {

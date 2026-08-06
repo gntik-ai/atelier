@@ -37,6 +37,140 @@ kubectl -n falcone rollout status deploy --timeout=300s
 kubectl -n falcone get pods
 ```
 
+### Control-plane probe runbook (C-05)
+
+**Audience and outcome.** This runbook is for P3 platform operators/SREs and the P18 orchestration
+actor that consumes probes. P4 security/compliance auditors can use the read-only internal output
+to verify status and correlation without changing platform state. Anonymous and public-edge callers
+are an adversarial control case: the internal routes must remain unreachable there.
+
+**Status and scope.** This documents the C-05 runtime contract in builds containing
+`fix-c05-health-contract-runtime`. Validation below is local-only; this change was not deployed to or
+verified on a Kubernetes cluster. The routes report platform scope and do not accept tenant or
+workspace selectors.
+
+The control-plane serves the checked-in health contract
+(`packages/internal-contracts/src/observability-health-checks.json`). Liveness, readiness and health are
+**distinct** concepts and are never collapsed into one generic status.
+
+| Endpoint | Kind | Success | Failure |
+| --- | --- | --- | --- |
+| `GET /livez` | Process liveness (Kubernetes `livenessProbe`) | `200 {"status":"live"}` | — (never depends on a datastore) |
+| `GET /readyz` | Readiness (Kubernetes `readinessProbe`) | `200 {"status":"ok"}` | `503 {"status":"schema_not_ready"}` during bootstrap, `503 {"status":"db_unavailable"}` when PostgreSQL is unreachable |
+| `GET /healthz` | Legacy database liveness | `200 {"status":"ok"}` | `503 {"status":"db_unavailable"}` |
+| `GET /internal/live` | Liveness rollup (operations) | `200` rollup JSON | domain status in JSON |
+| `GET /internal/ready` | Readiness rollup (operations) | `200` rollup JSON | domain status in JSON |
+| `GET /internal/health` | Health rollup (operations) | `200` rollup JSON | domain status in JSON |
+| `GET /internal/{live\|ready\|health}/components/{id}` | Per-component operational view | `200` component JSON | Canonical `404 GW_NOT_FOUND` for an unknown component (the requested id is never reflected back) |
+
+Only `GET` is served; any other method falls through to the normal `404 GW_NO_ROUTE` and is never treated as a
+successful probe.
+
+**The Kubernetes liveness gate is process-only.** `/livez` evaluates the running listener and does **not**
+open or await a PostgreSQL connection, so a dependency outage cannot trigger a restart loop. The detailed
+PostgreSQL component liveness route does perform a bounded dependency check; it is diagnostic and is not the
+Kubernetes restart gate.
+
+#### The seven-component contract
+
+Rollups always contain exactly these components: `apisix`, `kafka`, `postgresql`, `mongodb`, `openwhisk`,
+`storage`, `control_plane`. Today only `control_plane` and `postgresql` have in-process adapters; the other
+five have no adapter and report **`unknown`** rather than a fabricated `healthy`/`ready` value (fail-closed).
+Each adapter is bounded by a per-check timeout (default 1s); a timed-out or failing adapter yields a
+sanitized `unknown` / `not_ready` / `unavailable` result with a fixed summary — raw exceptions, credentials,
+SQL text and hostnames are never copied into the response.
+
+Allowed statuses per probe type and the aggregate precedence (worst status wins):
+
+| Probe | Allowed statuses | Aggregate precedence |
+| --- | --- | --- |
+| liveness | `live`, `dead`, `unknown` | `dead` → `unknown` → `live` |
+| readiness | `ready`, `not_ready`, `degraded`, `unknown` | `not_ready` → `degraded` → `unknown` → `ready` |
+| health | `healthy`, `degraded`, `unavailable`, `unknown`, `stale`, `inherited` | `unavailable` → `degraded` → `stale` → `unknown` → `inherited` → `healthy` |
+
+Because five components report `unknown`, a fully-operational platform rollup is typically `unknown` on the
+internal aggregates — this is honest ("no evidence") and must not be read as an outage. Use `/readyz` (not
+`/internal/ready`) as the Kubernetes readiness gate.
+
+#### Correlation IDs
+
+Send an `X-Correlation-Id` header (matching `[A-Za-z0-9._:-]{8,128}`) to correlate a probe with your
+operational trace. It is echoed in every probe response header and in the `correlation_id` body fields of
+the six internal routes; compatibility bodies remain unchanged. If the input is absent or malformed, the
+control-plane generates a bounded identifier. Probes are strictly **read-only**: no datastore writes, no
+audit mutation, and no new metric families or labels are produced.
+
+#### Internal topology and security
+
+`/internal/*` routes are served only on the control-plane's internal listener. They are **not** registered in
+APISIX and **not** proxied by the web-console SPA (which returns `404` for them and never serves the app
+shell). Protection relies on network/topology reachability — there is **no** authentication or mTLS on these
+routes — so operators must keep the internal listener off the public edge with the existing network controls.
+
+The probe mapping is a single source of truth: `control_plane_probe_mapping` in
+`observability-health-checks.json` records `liveness → /livez`, `readiness → /readyz`, and
+`compatibility_health → /healthz`,
+lists the internal rollup routes, and asserts `gateway_registered: false` and `spa_proxy_registered: false`.
+`npm run validate:observability-health-checks` (wired into `validate:repo`) fails if this drifts. The
+control-plane image packages the contract JSON and `health-runtime.mjs`; image construction imports the
+runtime to reject missing or stale mappings, and production startup fails closed if the contract asset is
+missing or invalid.
+
+#### Probe troubleshooting
+
+| Symptom | Likely cause | Action |
+| --- | --- | --- |
+| `/livez` `200` but `/readyz` `503` | Process alive, a dependency or bootstrap is not ready | Inspect `/internal/ready` and `/internal/ready/components/postgresql` |
+| `/readyz` → `schema_not_ready` | Schema bootstrap still running | Wait for the migration/bootstrap to complete |
+| `/readyz` → `db_unavailable` | PostgreSQL unreachable | Check the PostgreSQL pod and network path |
+| Component shows `unknown` in a rollup | No in-process adapter (expected for `apisix`/`kafka`/`mongodb`/`openwhisk`/`storage`) or the probe timed out | Confirm the component is expected to be adapterless; it is deliberately not counted as healthy |
+| `/internal/...` returns the console shell | Request hit the web-console instead of the internal listener | These paths must resolve on the control-plane internal listener, not the SPA |
+
+#### Rollback
+
+Route registration is additive. `/healthz` and `/readyz` retain their previous semantics (including
+C-11 schema-readiness gating), so reverting the change simply removes `/livez` and the `/internal/*` routes
+without affecting the legacy probes — the rollback is safe and requires no data migration.
+
+#### Verification
+
+From a network location permitted by the internal controls, set the exact internal listener first. The
+loopback value below is only an example for a locally started control-plane; do not reuse it blindly for a
+cluster:
+
+```bash
+FALCONE_CP_INTERNAL=http://127.0.0.1:8080
+
+# process liveness — never touches PostgreSQL
+curl -si "$FALCONE_CP_INTERNAL/livez"
+
+# readiness gate used by Kubernetes
+curl -si "$FALCONE_CP_INTERNAL/readyz"
+
+# operational rollups and a single component, with a correlation id
+curl -si -H 'X-Correlation-Id: ops-check-1' "$FALCONE_CP_INTERNAL/internal/ready"
+curl -si "$FALCONE_CP_INTERNAL/internal/health/components/postgresql"
+```
+
+Expected checkpoints are `200` plus `{"status":"live"}` for `/livez`, a correlation header on
+each response, and a contract-valid JSON rollup/component body on internal routes. A `503` from
+`/readyz` is an actionable readiness result, not a liveness failure.
+
+To validate the implementation without a deployment:
+
+```bash
+npm run validate:observability-health-checks
+node --test tests/blackbox/control-plane-health-contract-c05.test.mjs
+node --test tests/blackbox/web-console-health-boundary-c05.test.mjs
+node --test tests/unit/control-plane-health-runtime-c05.test.mjs
+node --test tests/contracts/control-plane-health-runtime-c05.contract.test.mjs
+openspec validate fix-c05-health-contract-runtime --strict
+```
+
+All commands are read-only apart from ordinary test temporaries and require no cleanup. C-07 metric
+families and labels, component adapter expansion beyond `control_plane`/PostgreSQL, public OpenAPI,
+and live-cluster deployment are explicitly outside this remediation.
+
 ## APISIX metrics endpoint (C-06)
 
 This deployment has two deliberately different metrics paths:

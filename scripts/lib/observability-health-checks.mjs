@@ -149,6 +149,57 @@ export function collectObservabilityHealthCheckViolations(
     }
   }
 
+  const controlPlaneMapping = healthChecks?.control_plane_probe_mapping ?? {};
+  const expectedProbeRoutes = {
+    liveness: '/livez',
+    readiness: '/readyz',
+    compatibility_health: '/healthz'
+  };
+  for (const [probeId, expectedPath] of Object.entries(expectedProbeRoutes)) {
+    if (controlPlaneMapping?.probe_routes?.[probeId]?.path !== expectedPath) {
+      violations.push(`Control-plane ${probeId} probe must map to ${expectedPath}.`);
+    }
+  }
+
+  if (controlPlaneMapping?.probe_routes?.liveness?.semantics !== 'process_only') {
+    violations.push('Control-plane liveness must use process_only semantics.');
+  }
+  if (controlPlaneMapping?.probe_routes?.readiness?.semantics !== 'schema_and_database') {
+    violations.push('Control-plane readiness must use schema_and_database semantics.');
+  }
+  if (
+    controlPlaneMapping?.public_edge?.gateway_registered !== false
+    || controlPlaneMapping?.public_edge?.spa_proxy_registered !== false
+  ) {
+    violations.push('Control-plane internal health routes must not be registered at the public edge.');
+  }
+
+  for (const exposureKind of ['aggregate', 'component']) {
+    for (const probeId of REQUIRED_PROBE_IDS) {
+      const expectedPath = exposureTemplates?.[exposureKind]?.[probeId]?.path;
+      const mappedPath = controlPlaneMapping?.internal_exposures?.[exposureKind]?.[probeId];
+      if (mappedPath !== expectedPath) {
+        violations.push(
+          `Control-plane ${exposureKind} ${probeId} mapping must match its exposure template.`
+        );
+      }
+    }
+  }
+
+  const expectedAggregatePrecedence = {
+    liveness: ['dead', 'unknown', 'live'],
+    readiness: ['not_ready', 'degraded', 'unknown', 'ready'],
+    health: ['unavailable', 'degraded', 'stale', 'unknown', 'inherited', 'healthy']
+  };
+  for (const [probeId, expectedPrecedence] of Object.entries(expectedAggregatePrecedence)) {
+    if (
+      JSON.stringify(healthChecks?.status_model?.aggregate_precedence?.[probeId])
+      !== JSON.stringify(expectedPrecedence)
+    ) {
+      violations.push(`Health ${probeId} aggregate precedence must be ${expectedPrecedence.join(' > ')}.`);
+    }
+  }
+
   const compatibleHealthStates = new Set(healthChecks?.dashboard_alignment?.compatible_health_states ?? []);
   for (const state of ['healthy', 'degraded', 'unavailable', 'unknown', 'stale', 'inherited']) {
     if (!compatibleHealthStates.has(state)) {
