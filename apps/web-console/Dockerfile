@@ -16,7 +16,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /src
 COPY . .
-RUN corepack enable && pnpm install --frozen-lockfile && pnpm --filter @in-falcone/web-console exec vite build
+RUN corepack enable && pnpm install --frozen-lockfile --filter @in-falcone/web-console... && NODE_OPTIONS=--max-old-space-size=768 pnpm --filter @in-falcone/web-console exec vite build
 
 FROM node:22-alpine
 WORKDIR /app
