@@ -1,0 +1,7 @@
+- [ ] Define/validate the health contract types, status precedence, required-component catalog, correlation-ID and sanitization helpers.
+- [ ] Add injectable process, `control_plane`, PostgreSQL, and component adapters with bounded timeout/cache and unknown/stale evidence.
+- [ ] Register `/livez`, six canonical internal aggregate/component routes, and compatibility `/healthz`/`/readyz` in `createControlPlaneHttpServer`; preserve C-11 `schemaReadiness`.
+- [ ] Ensure internal-only routes are excluded from APISIX and SPA route/client manifests; update deployment probe mapping from the single source of truth.
+- [ ] Include contract assets and validators in the control-plane Docker build/package and fail packaging when assets are absent or stale.
+- [ ] Add black-box HTTP, contract-schema, unit aggregation/adapter, and Docker/package regression tests, including anonymous edge denial and timeout/cache cases.
+- [ ] Write operator runbook documenting probes, correlation IDs, statuses, internal topology, troubleshooting, rollback, and read-only audit use.
