@@ -13,12 +13,17 @@
 # (named user + writes to cache/pid/conf) cannot satisfy. Build context = repo root:
 #   pnpm --filter @in-falcone/web-console exec vite build
 #   docker build -f apps/web-console/Dockerfile -t in-falcone-web-console:<tag> .
+FROM node:22-alpine AS builder
+WORKDIR /src
+COPY . .
+RUN corepack enable && pnpm install --frozen-lockfile && pnpm --filter @in-falcone/web-console exec vite build
+
 FROM node:22-alpine
 WORKDIR /app
 
 # Zero-dependency static server + the freshly built SPA bundle.
 COPY apps/web-console/static-server.mjs ./static-server.mjs
-COPY apps/web-console/dist ./dist
+COPY --from=builder /src/apps/web-console/dist ./dist
 
 ENV NODE_ENV=production
 # Numeric non-root user -> passes runAsNonRoot verification under the restricted profile.
