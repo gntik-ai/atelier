@@ -57,7 +57,6 @@ jobs:
             build_spa: 'true'
           - image: in-falcone-fn-runtime
             dockerfile: apps/fn-runtime/Dockerfile
-            context: apps/fn-runtime
           - image: in-falcone-workflow-worker
             dockerfile: apps/workflow-worker/Dockerfile
           - image: in-falcone-mcp-runtime

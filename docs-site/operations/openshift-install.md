@@ -27,6 +27,17 @@ are actually installed.
 OpenShift installs must not reuse `../falcone-charts/deploy/kind/values-kind.yaml`. That file is a
 kind/local-registry overlay.
 
+## Installation paths
+
+| Path | Image source | Values layering | Use it when |
+| --- | --- | --- | --- |
+| Public prebuilt | GHCR release images | `values/prod.yaml` + `values/platform-openshift.yaml` + `values/profiles/standard.yaml` | The cluster can pull the published images. |
+| Harbor or air-gap | Prebuilt images mirrored to a private registry | The three layers above + a completed copy of `deploy/openshift/values-openshift.yaml` | The cluster is restricted or must use an approved registry. |
+| [Build from source](#build-from-source-install-openshift-builds) | Six OpenShift Builds fed by a GitLab mirror | The three base layers + a completed OpenShift site overlay + an operator-owned source-build values file | OpenShift must build Falcone inside the Project and update workloads from ImageStreams. |
+
+The default remains the public prebuilt-image path. Build from source is opt-in and is not
+supported on vanilla Kubernetes.
+
 ## Prerequisites
 
 - `oc` logged in to the target cluster.
@@ -109,6 +120,296 @@ helm template "$RELEASE" "$CHART" \
 
 Confirm the render contains four `Route` objects and no `Ingress` object. Continue with the full
 overlay before installing into a restricted-v2 Project.
+
+## Build-from-source install (OpenShift Builds)
+
+Chart `0.4.0` adds an opt-in path, implemented by
+[`gntik-ai/falcone-charts#4`](https://github.com/gntik-ai/falcone-charts/pull/4), that builds the six
+released Falcone images from a mirrored monorepo. When the mode is enabled, the chart creates one
+Docker-strategy `BuildConfig` and one `ImageStream` for each of these services:
+
+```text
+control-plane
+control-plane-executor
+web-console
+workflow-worker
+mcp-runtime
+fn-runtime
+```
+
+`ConfigChange` starts the first six builds. A secret-protected GitLab Push webhook starts later
+builds. The first four services are Deployments and receive OpenShift image-change triggers.
+`fn-runtime` and `mcp-runtime` are launched dynamically, so their new stream image is used only by
+function or MCP pods created after the build completes.
+
+This mode requires the OpenShift Build and Image APIs and the OpenShift internal registry. Enabling
+it on a Kubernetes cluster without those APIs produces unsupported resources and the install will
+fail. Disabling the mode renders no Build API objects and preserves the configured GHCR or Harbor
+images.
+
+### Source-build prerequisites
+
+Complete the [general prerequisites](#prerequisites) and build the chart dependencies first. You
+also need:
+
+- an existing Project, or permission to create one;
+- a GitLab mirror of the Falcone monorepo that OpenShift builder pods can reach;
+- network access from GitLab to the cluster API endpoint used by the webhook URLs;
+- a same-Project Git source Secret when that mirror is private;
+- the OpenShift internal image registry; and
+- a same-Project Secret whose `WebHookSecretKey` entry authenticates the six GitLab webhooks; and
+- OpenSSL, used below to create that key without exposing it in a command argument.
+
+Set the working variables and select or create the Project:
+
+```bash
+export RELEASE=falcone
+export NS=falcone
+export CHART=../falcone-charts/charts/in-falcone
+export TAG=latest
+
+oc get project "$NS" >/dev/null 2>&1 || oc new-project "$NS"
+oc project "$NS"
+```
+
+Confirm the required APIs and internal registry are available:
+
+```bash
+oc api-resources --api-group=build.openshift.io | grep '^buildconfigs'
+oc api-resources --api-group=image.openshift.io | grep '^imagestreams'
+oc registry info --internal
+oc -n "$NS" get limitrange,resourcequota
+```
+
+Create a 64-character webhook secret without placing its value in a command argument, values file,
+Git history, or Helm release history:
+
+```bash
+openssl rand -hex 32 | tr -d '\n' | \
+  oc -n "$NS" create secret generic falcone-gitlab-webhook \
+    --from-file=WebHookSecretKey=/dev/stdin \
+    --dry-run=client -o yaml | oc apply -f -
+
+test "$(oc -n "$NS" get secret falcone-gitlab-webhook \
+  -o jsonpath='{.data.WebHookSecretKey}' | base64 -d | wc -c | tr -d ' ')" -eq 64
+```
+
+For a private mirror, create a `kubernetes.io/basic-auth` or `kubernetes.io/ssh-auth` source Secret
+from protected local files, in the same Project as the `BuildConfig`. Set only the Secret's name in
+the Helm values. Do not put a username, password, private key, or token in `--set` or a values file,
+and do not add cluster-wide RBAC. If local policy restricts Secret use by builds, grant only the
+Project's `builder` service account the minimum access required for that one Secret.
+
+### Enable and install the mode
+
+Prepare `falcone-openshift-site-values.yaml` using the
+[Harbor/air-gap procedure](#openshift-with-harbor-or-air-gap), or supply an equivalent reviewed
+site overlay that clears fixed UID/GID defaults for `restricted-v2`, selects storage, and configures
+the remaining third-party images. On a connected cluster, remove the Harbor registry, pull-Secret,
+CA, and `airgap` settings from that copy while retaining its SCC-compatible security overrides.
+
+Create `build-from-source-values.yaml`. This file contains Secret names, never Secret bytes:
+
+```yaml
+global:
+  openshiftBuild:
+    enabled: true
+    git:
+      uri: https://gitlab.example.com/platform/falcone.git
+      ref: main
+      sourceSecret: "" # Same-Project source Secret name; empty for a public mirror.
+    webhookSecret: falcone-gitlab-webhook
+    tag: latest
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 1Gi
+    serviceResources:
+      web-console:
+        requests:
+          memory: 512Mi
+        limits:
+          memory: 3Gi
+```
+
+Apply it after the production, OpenShift, and standard-profile layers. The Project already exists,
+so the chart must not attempt to own its Namespace:
+
+```bash
+helm upgrade --install "$RELEASE" "$CHART" \
+  --namespace "$NS" \
+  -f "$CHART/values/prod.yaml" \
+  -f "$CHART/values/platform-openshift.yaml" \
+  -f "$CHART/values/profiles/standard.yaml" \
+  -f ./falcone-openshift-site-values.yaml \
+  -f ./build-from-source-values.yaml \
+  --set global.namespace="$NS" \
+  --set global.createNamespace=false \
+  --wait --wait-for-jobs --timeout 30m
+```
+
+Source-build mode replaces only the six released Falcone service images. PostgreSQL, Keycloak,
+APISIX, and the other third-party images keep the configuration from the site overlay. Because the
+six BuildConfig and ImageStream names are namespace-scoped service identities rather than
+release-prefixed names, run only one source-build Falcone release in a Project.
+
+### Verify the initial builds
+
+The install creates exactly six initial Builds through `ConfigChange`. List them oldest first:
+
+```bash
+oc -n "$NS" get builds --sort-by=.metadata.creationTimestamp
+```
+
+Inspect the latest Build and its cause for every service:
+
+```bash
+for svc in control-plane control-plane-executor web-console workflow-worker mcp-runtime fn-runtime; do
+  build=$(oc -n "$NS" get builds -l "buildconfig=in-falcone-$svc" \
+    --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
+  oc -n "$NS" get build "$build" \
+    -o jsonpath='{.metadata.name}{"\t"}{.status.phase}{"\t"}{.spec.triggeredBy[*].message}{"\n"}'
+done
+unset build
+```
+
+The first cause is `Build configuration change`. Follow a build with
+`oc -n "$NS" logs -f build/<build-name>` when it is not `Complete`. A successful build populates
+the matching stream tag. For example:
+
+```bash
+oc -n "$NS" get istag "in-falcone-web-console:$TAG" \
+  -o jsonpath='{.image.dockerImageReference}{"\n"}{.image.metadata.name}{"\n"}'
+```
+
+The first line is the internal-registry pullspec and the second is the immutable image digest.
+
+### Register the GitLab Push webhooks
+
+The chart's release notes contain one command for each service:
+
+```bash
+helm get notes "$RELEASE" -n "$NS"
+```
+
+Alternatively, retrieve the Secret at execution time and print the six URLs to a controlled
+terminal:
+
+```bash
+webhook_secret=$(oc -n "$NS" get secret falcone-gitlab-webhook \
+  -o jsonpath='{.data.WebHookSecretKey}' | base64 -d)
+server=$(oc whoami --show-server)
+for svc in control-plane control-plane-executor web-console workflow-worker mcp-runtime fn-runtime; do
+  printf '%s/apis/build.openshift.io/v1/namespaces/%s/buildconfigs/in-falcone-%s/webhooks/%s/gitlab\n' \
+    "$server" "$NS" "$svc" "$webhook_secret"
+done
+unset webhook_secret server
+```
+
+Each URL contains the webhook secret and is therefore a credential. Do not paste it into tickets,
+chat, CI logs, or shell history. In the mirrored GitLab project, add each URL under **Settings >
+Webhooks**, select **Push events**, and keep SSL verification enabled. Rotate the Secret and update
+all six registrations if any URL is exposed.
+
+The OpenShift API must permit GitLab's unauthenticated request to create the webhook subresource.
+Grant only `create` on `buildconfigs/webhooks` (API group `build.openshift.io`) with a namespaced
+Role and RoleBinding. Apply this example only when policy confirms GitLab enters as
+`system:unauthenticated`; otherwise replace the subject with the controlled proxy/ingress identity.
+The webhook Secret remains the authenticator.
+
+```bash
+cat <<EOF | oc -n "$NS" apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: {name: ${RELEASE}-gitlab-webhook}
+rules:
+- apiGroups: [build.openshift.io]
+  resources: [buildconfigs/webhooks]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: {name: ${RELEASE}-gitlab-webhook}
+subjects:
+- kind: Group
+  apiGroup: rbac.authorization.k8s.io
+  name: system:unauthenticated
+roleRef:
+  kind: Role
+  name: ${RELEASE}-gitlab-webhook
+  apiGroup: rbac.authorization.k8s.io
+EOF
+```
+
+Rollback/cleanup: `oc -n "$NS" delete role/${RELEASE}-gitlab-webhook rolebinding/${RELEASE}-gitlab-webhook`.
+Do not grant create/update access to ordinary `BuildConfig` resources.
+
+### Verify push, image update, and rollout
+
+Before pushing a commit to the mirrored ref, record each Deployment generation and image:
+
+```bash
+for svc in control-plane control-plane-executor web-console workflow-worker; do
+  oc -n "$NS" get deployment "$RELEASE-$svc" \
+    -o jsonpath='{.metadata.name}{"\t"}{.metadata.generation}{"\t"}{.spec.template.spec.containers[0].image}{"\n"}'
+done
+```
+
+Push a commit to the configured GitLab ref. Do not run `helm upgrade`. Confirm the new Build has a
+GitLab webhook cause, reaches `Complete`, and updates the stream tag:
+
+```bash
+svc=web-console
+build=$(oc -n "$NS" get builds -l "buildconfig=in-falcone-$svc" \
+  --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
+oc -n "$NS" get build "$build" \
+  -o jsonpath='{.metadata.name}{"\t"}{.status.phase}{"\t"}{.spec.triggeredBy[*].message}{"\n"}'
+oc -n "$NS" get istag "in-falcone-$svc:$TAG" \
+  -o jsonpath='{.image.dockerImageReference}{"\n"}{.image.metadata.name}{"\n"}'
+```
+
+The corresponding image-change trigger updates only the Deployment whose stream changed. Verify
+all four Deployment contracts and wait for their current rollouts:
+
+```bash
+for svc in control-plane control-plane-executor web-console workflow-worker; do
+  oc -n "$NS" get deployment "$RELEASE-$svc" \
+    -o go-template='{{ index .metadata.annotations "image.openshift.io/triggers" }}{{ "\n" }}'
+  oc -n "$NS" rollout status "deployment/$RELEASE-$svc" --timeout=15m
+done
+```
+
+The image and generation for the service rebuilt through GitLab must differ from the values
+recorded before the push, with no intervening Helm operation.
+
+The dynamic runtimes do not have Deployments to roll. Confirm that their configuration points at
+the two internal stream tags:
+
+```bash
+oc -n "$NS" get deployment "$RELEASE-control-plane" \
+  -o jsonpath='{.spec.template.spec.containers[?(@.name=="control-plane")].env[?(@.name=="FN_RUNTIME_IMAGE")].value}{"\n"}'
+oc -n "$NS" get configmap in-falcone-runtime-env \
+  -o jsonpath='{.data.MCP_RUNTIME_IMAGE}{"\n"}'
+```
+
+Function and MCP pods or revisions that already exist keep their immutable image. Pods or revisions
+created after the corresponding build use the updated stream tag.
+
+### Troubleshooting and rollback
+
+| Symptom | Checks and action |
+| --- | --- |
+| Build is `Failed` | Run `oc -n "$NS" describe build <name>` and `oc -n "$NS" logs build/<name>`. Check mirror DNS/TLS/reachability, the configured ref, same-Project `sourceSecret`, and the service Dockerfile path. For `JavaScript heap out of memory`, compare the Build pod limit with `serviceResources.web-console`; keep the tested `3Gi` default unless a larger production bundle proves it needs more. |
+| Webhook returns `403`; no Build appears | Compare the Secret name/key and URL, then check authorization for `create` on the `buildconfigs/webhooks` subresource. A wrong URL secret and missing webhook RBAC are separate failures. Never grant GitLab general `BuildConfig` write access. |
+| Build is `Complete`; stream tag is absent | Inspect `oc -n "$NS" describe build <name>` and its output reference. Check the internal registry operator and Project image-push permissions. |
+| Stream updates; Deployment does not | Inspect the `image.openshift.io/triggers` annotation, stream tag/namespace, container name, Deployment events, and rollout status. Helm and the image-trigger controller must target the same stable internal pullspec. |
+| New pod cannot pull the internal image | Inspect pod events and the stream's `dockerImageReference`. Fix Project service-account/image-puller permissions or internal-registry trust directly; registry mirror policy is not a generic fix for the internal registry. |
+
+To roll back, rerun the same Helm command with `global.openshiftBuild.enabled=false` or remove the
+source-build overlay. Helm removes its Build API objects and the six services return to their
+configured prebuilt image references. Confirm those images are pullable before disabling the mode.
+The complete values contract is in [Helm Configuration](/operations/helm-configuration#openshift-build-from-source-values).
 
 ## OpenShift with Harbor or air-gap
 
