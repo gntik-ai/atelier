@@ -123,9 +123,10 @@ overlay before installing into a restricted-v2 Project.
 
 ## Build-from-source install (OpenShift Builds)
 
-Chart `0.4.0` adds an opt-in path that builds the six released Falcone images from a mirrored
-monorepo. When the mode is enabled, the chart creates one Docker-strategy `BuildConfig` and one
-`ImageStream` for each of these services:
+Chart `0.4.0` adds an opt-in path, implemented by
+[`gntik-ai/falcone-charts#4`](https://github.com/gntik-ai/falcone-charts/pull/4), that builds the six
+released Falcone images from a mirrored monorepo. When the mode is enabled, the chart creates one
+Docker-strategy `BuildConfig` and one `ImageStream` for each of these services:
 
 ```text
 control-plane

@@ -19,8 +19,9 @@ cannot be truthful until those image entry points work from a clean checkout.
   four Deployment rollouts, and the two dynamically launched runtime images.
 - Make the `web-console` and `fn-runtime` Dockerfiles self-contained for a clean repository-root
   build context and guard them with black-box tests.
-- Coordinate with `gntik-ai/falcone-charts#3`, which owns the BuildConfig, ImageStream, image-trigger,
-  values-schema, and release-notes implementation.
+- Coordinate with `gntik-ai/falcone-charts#3` and its implementation PR
+  `gntik-ai/falcone-charts#4`, which own the BuildConfig, ImageStream, image-trigger, values-schema,
+  and release-notes implementation.
 
 ## Non-goals
 
