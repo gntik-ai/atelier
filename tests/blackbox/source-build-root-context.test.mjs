@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {spawnSync} from 'node:child_process';
 import test from 'node:test';
 import {fileURLToPath} from 'node:url';
 
@@ -169,4 +170,20 @@ test('builder contract rejects 512/768 MiB heaps and a combined install/build RU
   );
   assert.notEqual(combined, webDockerfile);
   assert.throws(() => validateWebBuilder(combined), /must be separate Docker layers/);
+});
+
+// bbx-927-001 | fn-service-catalog-validation | #### Scenario: Service catalog validates Docker COPY sources from their declared repository-root context
+test('public service-catalog validator accepts the root-context function runtime Dockerfile', () => {
+  const result = spawnSync('pnpm', ['validate:service-catalog'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(
+    output,
+    /Dockerfile COPY source does not exist in context apps\/fn-runtime: apps\/fn-runtime\/server\.mjs/,
+    'validator must not reinterpret a repository-root COPY through the legacy app-directory context',
+  );
+  assert.equal(result.status, 0, output);
 });
