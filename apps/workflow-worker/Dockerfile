@@ -8,7 +8,16 @@
 # runtime image with only production deps and the compiled dist/, running as USER node.
 # @temporalio/core-bridge ships a glibc native binary; Alpine (musl) cannot load it.
 # Use node:22-slim (Debian Bookworm slim) which provides glibc. Both stages must match.
-FROM node:22-slim AS build
+#
+# Both FROM stages must be overridable for disconnected / private-registry builds, and
+# OpenShift `dockerStrategy.from` only rewrites the FINAL FROM. A single `NODE_BASE_IMAGE`
+# build arg parameterizes both stages so they can never drift to incompatible bases (the
+# glibc requirement above); pass `--build-arg NODE_BASE_IMAGE=<registry>/library/node:22-slim`
+# (e.g. a Harbor mirror) to pull base layers only from that registry (issue #929). The
+# default preserves the current Docker Hub base, so connected builds and release-images.yml
+# are unchanged.
+ARG NODE_BASE_IMAGE=node:22-slim
+FROM ${NODE_BASE_IMAGE} AS build
 WORKDIR /app/apps/workflow-worker
 
 # Install ALL deps (incl. typescript) for the tsc compile.
@@ -22,7 +31,7 @@ COPY apps/workflow-worker/scripts ./scripts
 RUN npm run build
 
 # ---- runtime ----
-FROM node:22-slim AS runtime
+FROM ${NODE_BASE_IMAGE} AS runtime
 # Install the production deps at the /app ROOT (not under apps/workflow-worker) so
 # `pg` resolves from BOTH the worker dist (/app/apps/workflow-worker/dist) AND the
 # copied apps/control-plane-executor runtime modules (/app/apps/control-plane-executor/src/runtime) — the

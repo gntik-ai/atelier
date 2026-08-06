@@ -13,13 +13,22 @@
 # (named user + writes to cache/pid/conf) cannot satisfy. Build context = repo root:
 #   pnpm --filter @in-falcone/web-console exec vite build
 #   docker build -f apps/web-console/Dockerfile -t in-falcone-web-console:<tag> .
-FROM node:22-alpine AS builder
+#
+# This is a multi-stage build, so both the builder and the runtime stage must be
+# overridable for disconnected / private-registry builds (OpenShift `dockerStrategy.from`
+# only rewrites the FINAL FROM). A single `NODE_BASE_IMAGE` build arg parameterizes every
+# FROM so the two stages always share one base; pass
+# `--build-arg NODE_BASE_IMAGE=<registry>/library/node:22-alpine` (e.g. a Harbor mirror)
+# to pull base layers only from that registry (issue #929). The default preserves the
+# current Docker Hub base, so connected builds and release-images.yml are unchanged.
+ARG NODE_BASE_IMAGE=node:22-alpine
+FROM ${NODE_BASE_IMAGE} AS builder
 WORKDIR /src
 COPY . .
 RUN corepack enable && pnpm install --frozen-lockfile --filter @in-falcone/web-console...
 RUN NODE_OPTIONS=--max-old-space-size=1536 pnpm --filter @in-falcone/web-console exec vite build
 
-FROM node:22-alpine
+FROM ${NODE_BASE_IMAGE}
 WORKDIR /app
 
 # Zero-dependency static server + the freshly built SPA bundle.

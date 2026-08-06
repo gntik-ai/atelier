@@ -34,6 +34,7 @@ kind/local-registry overlay.
 | Public prebuilt | GHCR release images | `values/prod.yaml` + `values/platform-openshift.yaml` + `values/profiles/standard.yaml` | The cluster can pull the published images. |
 | Harbor or air-gap | Prebuilt images mirrored to a private registry | The three layers above + a completed copy of `deploy/openshift/values-openshift.yaml` | The cluster is restricted or must use an approved registry. |
 | [Build from source](#build-from-source-install-openshift-builds) | Six OpenShift Builds fed by a GitLab mirror | The three base layers + a completed OpenShift site overlay + an operator-owned source-build values file | OpenShift must build Falcone inside the Project and update workloads from ImageStreams. |
+| [Build from source — fully disconnected](#fully-disconnected-source-builds-private-base-images) | Six OpenShift Builds fed by a local GitLab mirror, with Node base images and build dependencies from Harbor and a local package mirror | The build-from-source layers **plus** `global.openshiftBuild` base-image overrides pointing at Harbor (companion chart [`falcone-charts#6`](https://github.com/gntik-ai/falcone-charts/issues/6)) | The cluster reaches no external registry or code host at all — not even Docker Hub for base layers. |
 
 The default remains the public prebuilt-image path. Build from source is opt-in and is not
 supported on vanilla Kubernetes.
@@ -147,6 +148,12 @@ it on a Kubernetes cluster without those APIs produces unsupported resources and
 fail. Disabling the mode renders no Build API objects and preserves the configured GHCR or Harbor
 images.
 
+Each released service's Dockerfile parameterizes every `FROM` through a `NODE_BASE_IMAGE` build arg
+(default `node:22-alpine`, or `node:22-slim` for the multi-stage `workflow-worker`), so a fully
+disconnected cluster can point the base images at Harbor without editing any Dockerfile — see
+[Fully disconnected source builds](#fully-disconnected-source-builds-private-base-images). Connected
+builds are unaffected because the args default to the current bases.
+
 ### Source-build prerequisites
 
 Complete the [general prerequisites](#prerequisites) and build the chart dependencies first. You
@@ -199,6 +206,132 @@ from protected local files, in the same Project as the `BuildConfig`. Set only t
 the Helm values. Do not put a username, password, private key, or token in `--set` or a values file,
 and do not add cluster-wide RBAC. If local policy restricts Secret use by builds, grant only the
 Project's `builder` service account the minimum access required for that one Secret.
+
+### Fully disconnected source builds: private base images
+
+The flow in this section already keeps built service images inside the cluster. On a **fully
+disconnected** cluster — no Docker Hub, no GHCR, no `github.com`, no public npm — two build inputs
+still resolve to the public internet by default and must be redirected to local mirrors:
+
+1. the **Node base images** each `FROM` pulls, and
+2. the **build-time dependency fetches** (`pnpm install` for `web-console`, `npm install` for
+   `workflow-worker`).
+
+Prebuilt images remain the default install path; enable this variant only when the cluster cannot
+pull any published image at all.
+
+#### Copy the required Node base images into Harbor
+
+The six services build from exactly two bases, recorded per service in `service-catalog.json` under
+`baseImageArgs` (the `NODE_BASE_IMAGE` default):
+
+| Base image | Services |
+| --- | --- |
+| `node:22-alpine` | `control-plane`, `control-plane-executor`, `web-console`, `mcp-runtime`, `fn-runtime` |
+| `node:22-slim` | `workflow-worker` (multi-stage; both the build and runtime stages) |
+
+From a host that can reach both Docker Hub and Harbor (for example a jump host used before the
+environment is sealed), copy both bases. Copy each base by its **organization-approved digest**, not
+by a floating tag: the `node:22-alpine`/`node:22-slim` tags move over time, so your platform or
+security team pins the exact digests approved for the environment and the copy references those. This
+makes every build reproducible and keeps the sealed environment on bytes that were reviewed and
+approved. Substitute the approved digests below:
+
+```bash
+export HARBOR=harbor.example.com
+export HARBOR_PROJECT=falcone
+
+# Organization-approved digests for each base (obtained from your registry/security team). Do not
+# copy a floating tag into a disconnected environment.
+export NODE_ALPINE_DIGEST=sha256:<approved-node-22-alpine-digest>
+export NODE_SLIM_DIGEST=sha256:<approved-node-22-slim-digest>
+
+skopeo copy --dest-authfile ~/harbor-auth.json \
+  docker://docker.io/library/node@${NODE_ALPINE_DIGEST} \
+  docker://${HARBOR}/${HARBOR_PROJECT}/library/node:22-alpine
+
+skopeo copy --dest-authfile ~/harbor-auth.json \
+  docker://docker.io/library/node@${NODE_SLIM_DIGEST} \
+  docker://${HARBOR}/${HARBOR_PROJECT}/library/node:22-slim
+```
+
+If Harbor presents a private CA, add `--dest-cert-dir <dir>` (or trust the CA on the copying host)
+so `skopeo` can push over TLS. Confirm both tags exist from a cluster-reachable host before
+enabling the mode:
+
+```bash
+for base in node:22-alpine node:22-slim; do
+  skopeo inspect --authfile ~/harbor-auth.json \
+    "docker://${HARBOR}/${HARBOR_PROJECT}/library/${base}" >/dev/null \
+    && echo "present: ${base}"
+done
+```
+
+The chart does not mirror base images; this manual copy is the operator's responsibility. Keep the
+Harbor tags in step with `service-catalog.json`: if a future release changes a base, the catalog's
+`baseImageArgs` default changes with it and the repository's `pnpm validate:service-catalog` check
+fails on any drift.
+
+#### Provide a build-time package mirror
+
+Even with the base image present, `web-console` and `workflow-worker` fetch their dependencies
+during the build. On a disconnected cluster these must resolve from a **local package registry**
+(Nexus, Artifactory, Verdaccio, …) or a vendored offline pnpm store — this is a hard prerequisite
+that neither the base-image override nor the chart can satisfy. Point the builds at the mirror
+through the companion chart's build-time environment: set
+`global.openshiftBuild.env.NPM_CONFIG_REGISTRY` to the local npm/pnpm proxy URL (the canonical key
+the chart injects into every `BuildConfig`), so `pnpm install` (`web-console`) and `npm install`
+(`workflow-worker`) resolve packages from it.
+
+#### Override the base images to Harbor
+
+Add base-image overrides to `build-from-source-values.yaml` so each `BuildConfig` passes its
+`NODE_BASE_IMAGE` build arg pointing at the Harbor copy, and set the package-mirror environment. This
+is the intended values contract for the disconnected mode: the companion chart
+[`gntik-ai/falcone-charts#6`](https://github.com/gntik-ai/falcone-charts/issues/6) maps
+`baseImages.<service>` to each Docker-strategy `BuildConfig` using the `NODE_BASE_IMAGE` arg name
+recorded in `service-catalog.json`, and injects `env` into every build. Chart `0.4.0` renders the
+connected build-from-source path but **not** these `baseImages`/`env` keys, so this block requires
+the chart release that closes `#6`:
+
+```yaml
+global:
+  openshiftBuild:
+    enabled: true
+    git:
+      uri: https://gitlab.example.com/platform/falcone.git
+      ref: main
+      sourceSecret: falcone-gitlab-source # Same-Project source Secret name; empty for a public mirror.
+    webhookSecret: falcone-gitlab-webhook
+    tag: latest
+    # Base-image overrides -> each service's NODE_BASE_IMAGE build arg (service-catalog.json
+    # baseImageArgs). Intended contract implemented by falcone-charts#6; chart 0.4.0 does NOT render
+    # these keys yet. Pin each ref to the organization-approved digest copied into Harbor above.
+    baseImages:
+      control-plane: harbor.example.com/falcone/library/node:22-alpine
+      control-plane-executor: harbor.example.com/falcone/library/node:22-alpine
+      web-console: harbor.example.com/falcone/library/node:22-alpine
+      workflow-worker: harbor.example.com/falcone/library/node:22-slim
+      mcp-runtime: harbor.example.com/falcone/library/node:22-alpine
+      fn-runtime: harbor.example.com/falcone/library/node:22-alpine
+    # Build-time dependency mirror. NPM_CONFIG_REGISTRY is the canonical env key the chart injects
+    # into every BuildConfig so pnpm/npm install fetch from the local proxy (falcone-charts#6).
+    env:
+      NPM_CONFIG_REGISTRY: https://nexus.example.com/repository/npm/
+```
+
+The `BuildConfig`s honor the same `privateRegistry` pull secret and CA ConfigMap the rest of the
+install uses, so the builder can pull these bases from Harbor over TLS. A connected build-from-source
+install needs **no** `baseImages` or `env` block: the `NODE_BASE_IMAGE` args default to
+`node:22-alpine` / `node:22-slim` from Docker Hub, so nothing changes for clusters that can still
+reach it.
+
+Everything else — layering this file on top of the OpenShift/air-gap overlays, the
+`helm upgrade --install` command, GitLab webhook registration, the push → build → `ImageStreamTag`
+→ rollout verification, and the `fn-runtime`/`mcp-runtime` next-pod behavior — is identical to the
+sections below; only the pull source for base layers and dependencies changes. The full values
+contract, including the base-image keys and their companion-chart status, is in
+[Helm Configuration](/operations/helm-configuration#openshift-build-from-source-values).
 
 ### Enable and install the mode
 
@@ -405,6 +538,10 @@ created after the corresponding build use the updated stream tag.
 | Build is `Complete`; stream tag is absent | Inspect `oc -n "$NS" describe build <name>` and its output reference. Check the internal registry operator and Project image-push permissions. |
 | Stream updates; Deployment does not | Inspect the `image.openshift.io/triggers` annotation, stream tag/namespace, container name, Deployment events, and rollout status. Helm and the image-trigger controller must target the same stable internal pullspec. |
 | New pod cannot pull the internal image | Inspect pod events and the stream's `dockerImageReference`. Fix Project service-account/image-puller permissions or internal-registry trust directly; registry mirror policy is not a generic fix for the internal registry. |
+| Build fails pulling the base image (fully disconnected) | The base was not overridden to Harbor or is not present there. Confirm the `baseImages` override targets the Harbor copy, that `skopeo inspect` finds `node:22-alpine`/`node:22-slim` in Harbor, and that the `builder` service account can pull it via the `privateRegistry` pull secret. A missing Harbor copy and a missing override are separate failures. |
+| Build fails fetching `pnpm`/`npm` dependencies (fully disconnected) | A present base image does not supply build-time packages. Verify the local package registry is reachable from builder pods and that `global.openshiftBuild.env.NPM_CONFIG_REGISTRY` points at it. `web-console` (`pnpm install`) and `workflow-worker` (`npm install`) are the affected builds. |
+| Webhook returns `401` (not `403`) | `403` is a wrong secret in the URL; `401` is a rejected caller identity for the `buildconfigs/webhooks` subresource. Fix the namespaced webhook RBAC (see [Register the GitLab Push webhooks](#register-the-gitlab-push-webhooks)); the webhook Secret remains the authenticator and must never be granted general `BuildConfig` write access. |
+| Harbor pulls fail with an `x509`/CA error | The build or internal registry does not trust Harbor's CA. Provide the CA ConfigMap the rest of the install uses (`caBundleConfigMap`) and confirm the builder and registry trust it; re-run `skopeo inspect --cert-dir` from a builder-equivalent host to reproduce. |
 
 To roll back, rerun the same Helm command with `global.openshiftBuild.enabled=false` or remove the
 source-build overlay. Helm removes its Build API objects and the six services return to their

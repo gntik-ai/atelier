@@ -6,7 +6,14 @@
 # repo's real action modules under /repo. Bare imports inside those modules
 # (e.g. `pg`) resolve via the /node_modules symlink -> /app/node_modules
 # (Node's ESM resolver walks up to the filesystem root from /repo).
-FROM node:22-alpine
+#
+# Base image is overridable for disconnected / private-registry builds (issue #929):
+# pass `--build-arg NODE_BASE_IMAGE=<registry>/library/node:22-alpine` (e.g. a Harbor
+# mirror) so the build pulls its base layers only from that registry. The default
+# preserves the current Docker Hub base, so connected builds and release-images.yml are
+# unchanged.
+ARG NODE_BASE_IMAGE=node:22-alpine
+FROM ${NODE_BASE_IMAGE}
 WORKDIR /app
 
 # Server deps (pg for the DI Pool; JWT/JWKS verification is dependency-free via node:crypto).

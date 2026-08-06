@@ -139,6 +139,118 @@ export function readServiceCatalog() {
   return readJson(SERVICE_CATALOG_PATH);
 }
 
+// Parse a Dockerfile for the two things the base-image contract cares about:
+//   - global `ARG NAME=default` declarations (name -> default string, or null when no default), and
+//   - every `FROM` base reference, tagged with the build ARG it interpolates (if any) and whether it
+//     merely re-uses a previously defined build stage (`FROM <stage> AS ...`, an internal reference
+//     that is not an external base image).
+// Stripping trailing comments and honoring `AS <stage>` keeps this robust for the multi-stage
+// web-console and workflow-worker Dockerfiles.
+export function parseDockerfileBaseImages(dockerfilePath) {
+  const text = readFileSync(dockerfilePath, 'utf8');
+  const argDefaults = new Map();
+  const fromRefs = [];
+  const stageNames = new Set();
+
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.replace(/\s+#.*$/, '').trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const argWithDefault = line.match(/^ARG\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/i);
+    if (argWithDefault) {
+      argDefaults.set(argWithDefault[1], argWithDefault[2]);
+      continue;
+    }
+    const argNoDefault = line.match(/^ARG\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/i);
+    if (argNoDefault) {
+      if (!argDefaults.has(argNoDefault[1])) argDefaults.set(argNoDefault[1], null);
+      continue;
+    }
+
+    const fromMatch = line.match(/^FROM\s+(.+)$/i);
+    if (!fromMatch) continue;
+    let rest = fromMatch[1].trim();
+    while (rest.startsWith('--')) rest = rest.replace(/^--\S+\s*/, '');
+    const token = rest.split(/\s+/)[0];
+    const stageName = rest.match(/\s+AS\s+([^\s]+)\s*$/i)?.[1] ?? null;
+    const argRef = token.match(/^\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?$/);
+    fromRefs.push({ raw: token, argName: argRef?.[1] ?? null, isStageRef: stageNames.has(token) });
+    if (stageName) stageNames.add(stageName);
+  }
+
+  return { argDefaults, fromRefs };
+}
+
+// Every `release: true` service must (a) parameterize each external `FROM` base through a build ARG
+// that declares a default, and (b) record those ARGs and defaults in service-catalog.json. The
+// catalog is the source of truth, so any drift between the recorded defaults and the Dockerfile ARG
+// defaults — or an un-parameterized literal FROM, or a stale/missing catalog entry — is a
+// deterministic violation. This lets the chart derive base-image build args from the catalog and
+// lets disconnected builds override every base image (issue #929).
+export function collectBaseImageArgViolations(catalog = readServiceCatalog()) {
+  const violations = [];
+  const services = Array.isArray(catalog?.services) ? catalog.services : [];
+
+  for (const service of services.filter((entry) => entry.release === true)) {
+    const image = service.imageIdentity ?? service.id;
+    const declared = Array.isArray(service.baseImageArgs) && service.baseImageArgs.length > 0
+      ? service.baseImageArgs
+      : null;
+    if (!declared) {
+      violations.push(`${image} must record at least one baseImageArgs entry (name + default) for its Dockerfile FROM stages.`);
+    }
+    if (!service.dockerfile || !existsSync(service.dockerfile)) continue;
+
+    const { argDefaults, fromRefs } = parseDockerfileBaseImages(service.dockerfile);
+    if (fromRefs.length === 0) {
+      violations.push(`${image} Dockerfile ${service.dockerfile} declares no FROM stage.`);
+      continue;
+    }
+
+    const usedArgNames = new Set();
+    for (const from of fromRefs) {
+      if (from.isStageRef) continue;
+      if (!from.argName) {
+        violations.push(`${image} Dockerfile FROM must be overridable through a build ARG, found un-parameterized base "${from.raw}".`);
+        continue;
+      }
+      if (!argDefaults.has(from.argName) || argDefaults.get(from.argName) == null) {
+        violations.push(`${image} Dockerfile FROM references $${from.argName} but no "ARG ${from.argName}=<default>" declares a default base image.`);
+        continue;
+      }
+      usedArgNames.add(from.argName);
+    }
+
+    if (!declared) continue;
+
+    const declaredByName = new Map();
+    for (const entry of declared) {
+      if (!entry || typeof entry.name !== 'string' || typeof entry.default !== 'string') {
+        violations.push(`${image} baseImageArgs entries must each declare a string "name" and string "default".`);
+        continue;
+      }
+      declaredByName.set(entry.name, entry.default);
+    }
+
+    for (const name of usedArgNames) {
+      if (!declaredByName.has(name)) {
+        violations.push(`${image} Dockerfile FROM uses ARG ${name} but the catalog baseImageArgs does not record it.`);
+        continue;
+      }
+      if (declaredByName.get(name) !== argDefaults.get(name)) {
+        violations.push(`${image} baseImageArgs default for ${name} ("${declaredByName.get(name)}") drifts from the Dockerfile ARG default ("${argDefaults.get(name)}").`);
+      }
+    }
+    for (const name of declaredByName.keys()) {
+      if (!usedArgNames.has(name)) {
+        violations.push(`${image} baseImageArgs records ${name} but no FROM stage in ${service.dockerfile} uses it.`);
+      }
+    }
+  }
+
+  return violations;
+}
+
 export function collectServiceCatalogViolations(catalog = readServiceCatalog(), matrix = readReleaseMatrix()) {
   const violations = [];
   const services = Array.isArray(catalog?.services) ? catalog.services : [];
@@ -255,6 +367,8 @@ export function collectServiceCatalogViolations(catalog = readServiceCatalog(), 
       violations.push(`route-map runtime module for ${route.method} ${route.path} does not exist: ${route.module}`);
     }
   }
+
+  violations.push(...collectBaseImageArgViolations(catalog));
 
   return violations;
 }

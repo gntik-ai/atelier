@@ -2,7 +2,13 @@
 # Build from the REPO ROOT so the executor's relative import of the adapter plan
 # builders (apps/control-plane-executor/src/runtime -> ../../../../packages/adapters/src) resolves:
 #   docker build -f apps/control-plane-executor/Dockerfile -t in-falcone-control-plane-executor:0.7.0 .
-FROM node:22-alpine
+#
+# Base image is overridable for disconnected / private-registry builds (issue #929):
+# pass `--build-arg NODE_BASE_IMAGE=<registry>/library/node:22-alpine` (e.g. a Harbor
+# mirror). The default preserves the current Docker Hub base, so connected builds and
+# release-images.yml are unchanged.
+ARG NODE_BASE_IMAGE=node:22-alpine
+FROM ${NODE_BASE_IMAGE}
 
 WORKDIR /app
 

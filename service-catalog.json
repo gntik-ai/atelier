@@ -1,6 +1,6 @@
 {
-  "version": "2026-07-12",
-  "description": "Canonical repository catalog for Falcone product services after the service-code layout restructure. Release entries are the only images published by .github/workflows/release-images.yml; non-release entries document evidence roots without claiming chart or image release status.",
+  "version": "2026-08-06",
+  "description": "Canonical repository catalog for Falcone product services after the service-code layout restructure. Release entries are the only images published by .github/workflows/release-images.yml; non-release entries document evidence roots without claiming chart or image release status. Each release entry also records baseImageArgs: the Docker build ARG name(s) and default value(s) that parameterize every FROM stage of its Dockerfile, so disconnected/OpenShift builds can override the base images to a private registry and the catalog stays the source of truth for base-image drift (issue #929).",
   "services": [
     {
       "id": "control-plane",
@@ -13,6 +13,9 @@
       },
       "source": "apps/control-plane",
       "dockerfile": "apps/control-plane/Dockerfile",
+      "baseImageArgs": [
+        { "name": "NODE_BASE_IMAGE", "default": "node:22-alpine" }
+      ],
       "directDependencies": [
         "apps/control-plane-executor",
         "packages/internal-contracts",
@@ -40,6 +43,9 @@
       },
       "source": "apps/control-plane-executor",
       "dockerfile": "apps/control-plane-executor/Dockerfile",
+      "baseImageArgs": [
+        { "name": "NODE_BASE_IMAGE", "default": "node:22-alpine" }
+      ],
       "directDependencies": [
         "apps/workflow-worker",
         "packages/adapters",
@@ -68,6 +74,9 @@
       },
       "source": "apps/web-console",
       "dockerfile": "apps/web-console/Dockerfile",
+      "baseImageArgs": [
+        { "name": "NODE_BASE_IMAGE", "default": "node:22-alpine" }
+      ],
       "directDependencies": [
         "packages/internal-contracts"
       ],
@@ -88,6 +97,9 @@
       },
       "source": "apps/fn-runtime",
       "dockerfile": "apps/fn-runtime/Dockerfile",
+      "baseImageArgs": [
+        { "name": "NODE_BASE_IMAGE", "default": "node:22-alpine" }
+      ],
       "directDependencies": [],
       "interServiceCalls": [
         "receives function source through FN_SRC for Knative-created function services",
@@ -105,6 +117,9 @@
       },
       "source": "apps/workflow-worker",
       "dockerfile": "apps/workflow-worker/Dockerfile",
+      "baseImageArgs": [
+        { "name": "NODE_BASE_IMAGE", "default": "node:22-slim" }
+      ],
       "directDependencies": [
         "apps/control-plane-executor",
         "packages/adapters",
@@ -129,6 +144,9 @@
       },
       "source": "apps/mcp-runtime",
       "dockerfile": "apps/mcp-runtime/Dockerfile",
+      "baseImageArgs": [
+        { "name": "NODE_BASE_IMAGE", "default": "node:22-alpine" }
+      ],
       "directDependencies": [
         "apps/control-plane-executor"
       ],
