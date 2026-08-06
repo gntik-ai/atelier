@@ -269,12 +269,20 @@ rendered `BuildConfig` and `ImageStream` resources require OpenShift APIs and it
 | `global.openshiftBuild.git.sourceSecret` | string | `""` | No | Name of a same-Project Git source Secret for a private mirror. Store credentials only in the Secret, never in values. Empty means no source Secret is mounted. |
 | `global.openshiftBuild.webhookSecret` | string | `""` | Yes | Name of a same-Project Secret containing the key `WebHookSecretKey`. It is a reference, not the webhook value. Webhook URLs derived from that value are credentials. |
 | `global.openshiftBuild.tag` | string | `latest` | No | Output `ImageStreamTag` and stable tag used by Deployment and dynamic-runtime pullspecs. |
+| `global.openshiftBuild.resources.requests.memory` | string | `128Mi` | No | Memory request applied to all six BuildConfigs before a service override. |
+| `global.openshiftBuild.resources.limits.memory` | string | `1Gi` | No | Memory limit applied to all six BuildConfigs before a service override. |
+| `global.openshiftBuild.serviceResources.web-console.requests.memory` | string | `512Mi` | No | Web-console-specific request merged over the common request. |
+| `global.openshiftBuild.serviceResources.web-console.limits.memory` | string | `3Gi` | No | Web-console-specific limit required by its Vite/Monaco production build; merged over the common limit. |
 
 When enabled, internal stream pullspecs take precedence over `repository`, `tag`, and `digest` for
 the six released Falcone services only. The chart annotates `control-plane`,
 `control-plane-executor`, `web-console`, and `workflow-worker` Deployments for image changes.
 `FN_RUNTIME_IMAGE` and `MCP_RUNTIME_IMAGE` point at the `fn-runtime` and `mcp-runtime` streams for
 future runtime pods. Images for APISIX, Keycloak, PostgreSQL, and other dependencies are unchanged.
+At the defaults, six simultaneous builds declare `1152Mi` of memory requests and `8Gi` of memory
+limits. Check Project LimitRanges and build quotas before enabling the mode. Raise or lower the
+common and web-console resource maps together only after rehearsing all six builds; a web-console
+limit below its documented default can terminate Vite before it emits `dist`.
 
 When disabled, the chart renders no OpenShift Build API resources or image-change annotations and
 uses the existing public or private-registry image values. The schema rejects unknown keys and

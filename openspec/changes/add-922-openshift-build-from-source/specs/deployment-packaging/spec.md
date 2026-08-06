@@ -25,12 +25,14 @@ It SHALL state that public or Harbor prebuilt images remain the default.
 
 The Helm configuration reference SHALL document the type, default, conditional requirement,
 purpose, precedence, and security boundary of every `global.openshiftBuild` key:
-`enabled`, `git.uri`, `git.ref`, `git.sourceSecret`, `webhookSecret`, and `tag`.
+`enabled`, `git.uri`, `git.ref`, `git.sourceSecret`, `webhookSecret`, `tag`, common Build resources,
+and web-console-specific Build resources.
 
 #### Scenario: Reader looks up every build value
 
 - **WHEN** a reader opens the OpenShift build-from-source values reference
-- **THEN** all six keys and the defaults `false`, `""`, `main`, `""`, `""`, and `latest` are present
+- **THEN** all image/source keys and their defaults `false`, `""`, `main`, `""`, `""`, and `latest`
+  are present, the common `128Mi`/`1Gi` and web-console `512Mi`/`3Gi` resource defaults are present,
   and Secret values are not represented as Helm values
 
 ### Requirement: Disabled mode preserves prebuilt-image behavior
@@ -54,10 +56,20 @@ Docker-strategy BuildConfig and one ImageStream for each released catalog servic
 same-Project source Secret, output tag, a `ConfigChange` trigger, and a secret-referenced GitLab
 trigger.
 
+BuildConfig resource requirements SHALL be configurable. The default common memory request and
+limit SHALL be `128Mi` and `1Gi`; the web-console BuildConfig SHALL merge a `512Mi` request and
+`3Gi` limit override so its source-only Vite build can complete under a Project LimitRange.
+
 #### Scenario: Install starts all initial builds
 
 - **WHEN** the enabled resources are first created
 - **THEN** exactly six ConfigChange-caused Builds start and target the six corresponding stream tags
+
+#### Scenario: Web console receives its build budget
+
+- **WHEN** enabled resources are rendered with default resource values
+- **THEN** five BuildConfigs receive the common `128Mi`/`1Gi` memory budget and web-console receives
+  the merged `512Mi`/`3Gi` budget
 
 #### Scenario: Enabled configuration lacks required references
 

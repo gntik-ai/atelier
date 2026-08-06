@@ -177,6 +177,7 @@ Confirm the required APIs and internal registry are available:
 oc api-resources --api-group=build.openshift.io | grep '^buildconfigs'
 oc api-resources --api-group=image.openshift.io | grep '^imagestreams'
 oc registry info --internal
+oc -n "$NS" get limitrange,resourcequota
 ```
 
 Create a 64-character webhook secret without placing its value in a command argument, values file,
@@ -218,6 +219,17 @@ global:
       sourceSecret: "" # Same-Project source Secret name; empty for a public mirror.
     webhookSecret: falcone-gitlab-webhook
     tag: latest
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 1Gi
+    serviceResources:
+      web-console:
+        requests:
+          memory: 512Mi
+        limits:
+          memory: 3Gi
 ```
 
 Apply it after the production, OpenShift, and standard-profile layers. The Project already exists,
@@ -358,7 +370,7 @@ created after the corresponding build use the updated stream tag.
 
 | Symptom | Checks and action |
 | --- | --- |
-| Build is `Failed` | Run `oc -n "$NS" describe build <name>` and `oc -n "$NS" logs build/<name>`. Check mirror DNS/TLS/reachability, the configured ref, same-Project `sourceSecret`, and the service Dockerfile path. |
+| Build is `Failed` | Run `oc -n "$NS" describe build <name>` and `oc -n "$NS" logs build/<name>`. Check mirror DNS/TLS/reachability, the configured ref, same-Project `sourceSecret`, and the service Dockerfile path. For `JavaScript heap out of memory`, compare the Build pod limit with `serviceResources.web-console`; keep the tested `3Gi` default unless a larger production bundle proves it needs more. |
 | Webhook returns `403`; no Build appears | Compare the Secret name/key and URL, then check authorization for `create` on the `buildconfigs/webhooks` subresource. A wrong URL secret and missing webhook RBAC are separate failures. Never grant GitLab general `BuildConfig` write access. |
 | Build is `Complete`; stream tag is absent | Inspect `oc -n "$NS" describe build <name>` and its output reference. Check the internal registry operator and Project image-push permissions. |
 | Stream updates; Deployment does not | Inspect the `image.openshift.io/triggers` annotation, stream tag/namespace, container name, Deployment events, and rollout status. Helm and the image-trigger controller must target the same stable internal pullspec. |

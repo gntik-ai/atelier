@@ -29,6 +29,12 @@ secret and is treated as a credential. Cluster policy grants the unauthenticated
 identity only `create` on the namespaced `buildconfigs/webhooks` subresource, never general
 BuildConfig write access. Private Git credentials live in a same-Project source Secret.
 
+The five smaller source builds use a common `128Mi` request and `1Gi` limit. The Monaco-heavy
+web-console production bundle demonstrably exceeds a 1.28 GiB Node heap, so its BuildConfig merges a
+`512Mi` request and `3Gi` limit while Vite uses a bounded 1.5 GiB heap. Both resource maps remain
+operator-configurable. The defaults total `1152Mi` of requests and `8Gi` of limits when all six
+ConfigChange builds run concurrently.
+
 ## Source-build Dockerfiles
 
 OpenShift supplies the monorepo root as the Docker build context. `fn-runtime` therefore copies
