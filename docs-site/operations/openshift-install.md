@@ -333,6 +333,7 @@ kind: RoleBinding
 metadata: {name: ${RELEASE}-gitlab-webhook}
 subjects:
 - kind: Group
+  apiGroup: rbac.authorization.k8s.io
   name: system:unauthenticated
 roleRef:
   kind: Role
