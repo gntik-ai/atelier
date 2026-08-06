@@ -27,6 +27,58 @@ are actually installed.
 OpenShift installs must not reuse `../falcone-charts/deploy/kind/values-kind.yaml`. That file is a
 kind/local-registry overlay.
 
+## Build-from-source install (OpenShift Builds)
+
+Chart 0.4.0 adds an opt-in OpenShift Builds path. The default remains pre-built GHCR/Harbor
+images; `global.openshiftBuild` is ignored on Kubernetes and is disabled by default.
+
+Requirements: an OpenShift 4.21+ project, GitLab mirror reachable by the builder, the internal
+image registry, and a Secret containing `WebHookSecretKey`. For private mirrors, set
+`global.openshiftBuild.git.sourceSecret` to a Secret readable by the build service account.
+
+Create a secret-safe values file (do not put webhook bytes in Git):
+
+```yaml
+global:
+  openshiftBuild:
+    enabled: true
+    git:
+      uri: https://gitlab.example/falcone.git
+      ref: main
+      sourceSecret: ""
+    webhookSecret: falcone-gitlab-webhook
+    tag: latest
+```
+
+Install with the OpenShift profile:
+
+```bash
+helm upgrade --install falcone ../falcone-charts/charts/in-falcone \
+  -n falcone --create-namespace \
+  -f ../falcone-charts/deploy/openshift/values-openshift.yaml \
+  -f build-from-source-values.yaml
+```
+
+For each of the six BuildConfigs, obtain the webhook value without printing it and register the
+resulting GitLab Push URL:
+
+```bash
+webhook_secret=$(oc -n falcone get secret falcone-gitlab-webhook -o jsonpath='{.data.WebHookSecretKey}' | base64 -d)
+server=$(oc whoami --show-server)
+for svc in control-plane control-plane-executor web-console workflow-worker mcp-runtime fn-runtime; do
+  printf '%s/apis/build.openshift.io/v1/namespaces/falcone/buildconfigs/in-falcone-%s/webhooks/%s/gitlab\n' "$server" "$svc" "$webhook_secret"
+done
+unset webhook_secret server
+```
+
+Verification procedure: push a commit, then `oc get builds -n falcone` and inspect the Build cause,
+`oc get istag -n falcone` for the new digest, and `oc rollout status deployment/<service>`. The four
+Deployment-backed services roll automatically; FN/MCP stream images affect newly created pods only.
+Troubleshoot failed Builds (source reachability/Dockerfile), webhook 403s (Secret key and URL),
+RBAC errors (builder service account and source Secret), and registry pulls (ImageContentSourcePolicy,
+pull Secret, and internal-registry CA). Live push-to-rollout evidence remains pending until an
+authorized OpenShift run completes.
+
 ## Prerequisites
 
 - `oc` logged in to the target cluster.

@@ -254,3 +254,12 @@ material; template validation rejects the reserved `WEBHOOK_SIGNING_KEY` name in
 validation rejects incomplete actions or a same source/target identity. Follow the complete
 [Webhook Signing Master-Key Lifecycle Runbook](/operations/webhook-signing-key-lifecycle); key bytes
 must never enter `--set`, a values file, rendered YAML, or Helm history.
+
+### OpenShift build-from-source values
+
+The additive OpenShift Builds mode is configured only under `global.openshiftBuild` (chart 0.4.0)
+so aliased component charts receive it. Defaults are `enabled: false`, `git.uri: ""`,
+`git.ref: main`, `git.sourceSecret: ""`, `webhookSecret: ""`, and `tag: latest`. Enabling it
+requires a Git URI and Secret name; it takes precedence over released service image repository/tag
+values for the six released services, while public and Harbor defaults remain unchanged when off.
+See [Build-from-source install](/operations/openshift-install#build-from-source-install-openshift-builds).
