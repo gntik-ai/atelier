@@ -1,4 +1,4 @@
 - [x] Implement chart build objects and image wiring in falcone-charts#3.
 - [x] Make web-console and fn-runtime Dockerfiles self-contained.
 - [x] Document OpenShift source-build installation and configuration.
-- [ ] Observe live GitLab push/build/rollout on an authorized OpenShift cluster.
+- [x] Observe live GitLab push/build/rollout on an authorized OpenShift cluster.
