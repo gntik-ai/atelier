@@ -246,7 +246,7 @@ for svc in control-plane control-plane-executor web-console workflow-worker mcp-
   build=$(oc -n "$NS" get builds -l "buildconfig=in-falcone-$svc" \
     --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
   oc -n "$NS" get build "$build" \
-    -o jsonpath='{.metadata.name}{"\t"}{.status.phase}{"\t"}{.status.triggeredBy[*].message}{"\n"}'
+    -o jsonpath='{.metadata.name}{"\t"}{.status.phase}{"\t"}{.spec.triggeredBy[*].message}{"\n"}'
 done
 unset build
 ```
@@ -312,7 +312,7 @@ svc=web-console
 build=$(oc -n "$NS" get builds -l "buildconfig=in-falcone-$svc" \
   --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
 oc -n "$NS" get build "$build" \
-  -o jsonpath='{.metadata.name}{"\t"}{.status.phase}{"\t"}{.status.triggeredBy[*].message}{"\n"}'
+  -o jsonpath='{.metadata.name}{"\t"}{.status.phase}{"\t"}{.spec.triggeredBy[*].message}{"\n"}'
 oc -n "$NS" get istag "in-falcone-$svc:$TAG" \
   -o jsonpath='{.image.dockerImageReference}{"\n"}{.image.metadata.name}{"\n"}'
 ```
