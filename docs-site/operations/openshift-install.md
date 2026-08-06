@@ -50,12 +50,13 @@ Create a Project and Secret without putting bytes in argv or Git:
 ```bash
 RELEASE=falcone; NS=falcone; CHART=../falcone-charts/charts/in-falcone; TAG=latest
 oc new-project "$NS" 2>/dev/null || oc project "$NS"
-head -c 64 /dev/urandom | base64 -w0 | tr -d '\n' | oc create secret generic falcone-gitlab-webhook --from-file=WebHookSecretKey=/dev/stdin --dry-run=client -o yaml | oc apply -f -
-oc api-resources | grep -E 'buildconfigs|imagestreams'; oc get deploymentconfig 2>/dev/null || true
+head -c 48 /dev/urandom | base64 -w0 | tr -d '\n' | oc -n "$NS" create secret generic falcone-gitlab-webhook --from-file=WebHookSecretKey=/dev/stdin --dry-run=client -o yaml | oc apply -f -
+oc api-resources | grep -E 'buildconfigs|imagestreams'; oc registry info --internal 2>/dev/null || oc get clusteroperator image-registry
 ```
 
-For a private mirror, create `sourceSecret` with the builder's Git credentials and grant the
-build service account read access.
+For a private mirror, create `sourceSecret` in the same Project as the BuildConfig. The Secret may
+contain supported Git basic-auth or SSH material; reference only its name in values and grant the
+builder service account access through normal Project RBAC (never place credentials in argv).
 
 Create a secret-safe values file (do not put webhook bytes in Git):
 
@@ -75,7 +76,8 @@ Install with the OpenShift profile:
 
 ```bash
 helm upgrade --install "$RELEASE" "$CHART" -n "$NS" \
-  -f values/prod.yaml -f values/platform-openshift.yaml -f values/profiles/standard.yaml \
+  --set global.namespace="$NS" --set global.createNamespace=false \
+  -f "$CHART/values/prod.yaml" -f "$CHART/values/platform-openshift.yaml" -f "$CHART/values/profiles/standard.yaml" \
   -f build-from-source-values.yaml
 ```
 
@@ -91,7 +93,8 @@ done
 unset webhook_secret server
 ```
 
-The URL includes the secret and is a credential: register it as a GitLab Push event without saving
+The URL includes the secret and is a credential: it is recovered at runtime and printed only to a
+controlled terminal. Register it as a GitLab Push event without saving
 it in shell history/logs; rotate the Secret if exposed. `helm get notes "$RELEASE" -n "$NS"` prints
 the six commands again.
 
