@@ -30,11 +30,32 @@ kind/local-registry overlay.
 ## Build-from-source install (OpenShift Builds)
 
 Chart 0.4.0 adds an opt-in OpenShift Builds path. The default remains pre-built GHCR/Harbor
-images; `global.openshiftBuild` is ignored on Kubernetes and is disabled by default.
+images. This mode is supported only where the OpenShift Build/ImageStream APIs and internal
+registry exist; do not enable it on vanilla Kubernetes.
 
-Requirements: an OpenShift 4.21+ project, GitLab mirror reachable by the builder, the internal
-image registry, and a Secret containing `WebHookSecretKey`. For private mirrors, set
+Requirements: a Project, BuildConfig/ImageStream APIs, an internal registry, GitLab mirror
+reachability, and a Secret containing `WebHookSecretKey`. For private mirrors, set
 `global.openshiftBuild.git.sourceSecret` to a Secret readable by the build service account.
+
+Routes and layers:
+
+| Mode | Required layers |
+| --- | --- |
+| Public prebuilt | `values/prod.yaml`, `values/platform-openshift.yaml`, `values/profiles/standard.yaml` |
+| Harbor/air-gap | the same layers plus `deploy/openshift/values-openshift.yaml` |
+| Build from source | the same three layers plus a local source-build overlay |
+
+Create a Project and Secret without putting bytes in argv or Git:
+
+```bash
+RELEASE=falcone; NS=falcone; CHART=../falcone-charts/charts/in-falcone; TAG=latest
+oc new-project "$NS" 2>/dev/null || oc project "$NS"
+head -c 64 /dev/urandom | base64 -w0 | tr -d '\n' | oc create secret generic falcone-gitlab-webhook --from-file=WebHookSecretKey=/dev/stdin --dry-run=client -o yaml | oc apply -f -
+oc api-resources | grep -E 'buildconfigs|imagestreams'; oc get deploymentconfig 2>/dev/null || true
+```
+
+For a private mirror, create `sourceSecret` with the builder's Git credentials and grant the
+build service account read access.
 
 Create a secret-safe values file (do not put webhook bytes in Git):
 
@@ -53,9 +74,8 @@ global:
 Install with the OpenShift profile:
 
 ```bash
-helm upgrade --install falcone ../falcone-charts/charts/in-falcone \
-  -n falcone --create-namespace \
-  -f ../falcone-charts/deploy/openshift/values-openshift.yaml \
+helm upgrade --install "$RELEASE" "$CHART" -n "$NS" \
+  -f values/prod.yaml -f values/platform-openshift.yaml -f values/profiles/standard.yaml \
   -f build-from-source-values.yaml
 ```
 
@@ -63,21 +83,25 @@ For each of the six BuildConfigs, obtain the webhook value without printing it a
 resulting GitLab Push URL:
 
 ```bash
-webhook_secret=$(oc -n falcone get secret falcone-gitlab-webhook -o jsonpath='{.data.WebHookSecretKey}' | base64 -d)
+webhook_secret=$(oc -n "$NS" get secret falcone-gitlab-webhook -o jsonpath='{.data.WebHookSecretKey}' | base64 -d)
 server=$(oc whoami --show-server)
 for svc in control-plane control-plane-executor web-console workflow-worker mcp-runtime fn-runtime; do
-  printf '%s/apis/build.openshift.io/v1/namespaces/falcone/buildconfigs/in-falcone-%s/webhooks/%s/gitlab\n' "$server" "$svc" "$webhook_secret"
+  printf '%s/apis/build.openshift.io/v1/namespaces/%s/buildconfigs/in-falcone-%s/webhooks/%s/gitlab\n' "$server" "$NS" "$svc" "$webhook_secret"
 done
 unset webhook_secret server
 ```
 
-Verification procedure: push a commit, then `oc get builds -n falcone` and inspect the Build cause,
-`oc get istag -n falcone` for the new digest, and `oc rollout status deployment/<service>`. The four
+The URL includes the secret and is a credential: register it as a GitLab Push event without saving
+it in shell history/logs; rotate the Secret if exposed. `helm get notes "$RELEASE" -n "$NS"` prints
+the six commands again.
+
+Verification procedure: push a commit, then `oc get builds -n "$NS" --sort-by=.metadata.creationTimestamp`
+and inspect `status.triggeredBy`, `oc get istag in-falcone-control-plane:$TAG -o yaml` for digest/pullspec,
+and `oc rollout status deployment/$RELEASE-control-plane` (also executor, web-console, workflow-worker). The four
 Deployment-backed services roll automatically; FN/MCP stream images affect newly created pods only.
-Troubleshoot failed Builds (source reachability/Dockerfile), webhook 403s (Secret key and URL),
-RBAC errors (builder service account and source Secret), and registry pulls (ImageContentSourcePolicy,
-pull Secret, and internal-registry CA). Live push-to-rollout evidence remains pending until an
-authorized OpenShift run completes.
+Troubleshoot Build clone/sourceSecret/Docker errors, 403s (secret URL versus `buildconfigs/webhooks`
+RBAC), IST/registry access, and rollout trigger annotation/container mismatches. Configure registry
+trust and pull credentials directly; ImageContentSourcePolicy is not a generic fix for the internal registry.
 
 ## Prerequisites
 

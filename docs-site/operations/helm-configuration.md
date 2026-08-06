@@ -257,9 +257,18 @@ must never enter `--set`, a values file, rendered YAML, or Helm history.
 
 ### OpenShift build-from-source values
 
-The additive OpenShift Builds mode is configured only under `global.openshiftBuild` (chart 0.4.0)
-so aliased component charts receive it. Defaults are `enabled: false`, `git.uri: ""`,
-`git.ref: main`, `git.sourceSecret: ""`, `webhookSecret: ""`, and `tag: latest`. Enabling it
-requires a Git URI and Secret name; it takes precedence over released service image repository/tag
-values for the six released services, while public and Harbor defaults remain unchanged when off.
+Configured only under `global.openshiftBuild` so aliased charts receive it. OpenShift-only; disabled
+by default and never enable on vanilla Kubernetes.
+
+| Key | Type | Default | Required when enabled | Purpose/security |
+|---|---|---|---|---|
+| `enabled` | boolean | `false` | no | Enables BuildConfigs/ImageStreams |
+| `git.uri` | string | `""` | yes | Git mirror URL |
+| `git.ref` | string | `main` | no | Branch/ref |
+| `git.sourceSecret` | string | `""` | no | Private mirror Secret name |
+| `webhookSecret` | string | `""` | yes | Secret name containing `WebHookSecretKey`; bytes never in values |
+| `tag` | string | `latest` | no | ImageStreamTag output |
+
+When enabled, stream pullspecs take precedence for the six released services; when disabled,
+public/Harbor image repository and digest values are unchanged.
 See [Build-from-source install](/operations/openshift-install#build-from-source-install-openshift-builds).
