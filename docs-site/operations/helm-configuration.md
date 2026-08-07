@@ -290,3 +290,32 @@ incorrect types. The templates reject enabled configurations without both
 `global.openshiftBuild.git.uri` and `global.openshiftBuild.webhookSecret`.
 
 See [Build-from-source install](/operations/openshift-install#build-from-source-install-openshift-builds).
+
+#### Base-image overrides for fully disconnected builds
+
+The keys above ship in the chart `0.4.0` build-from-source path. A **fully disconnected** cluster —
+no Docker Hub for base layers, no public npm for build dependencies — additionally needs the base
+images and build-time package fetches redirected to a private registry. The keys below are the
+**intended values contract** for that, implemented by the companion chart capability
+[`gntik-ai/falcone-charts#6`](https://github.com/gntik-ai/falcone-charts/issues/6), which is still
+open. Chart `0.4.0` renders the connected build-from-source path but **does not** render these
+`baseImages`/`env`/`buildArgs` keys yet, so the disconnected mode requires the chart release that
+closes `#6`. The Falcone-repository side of the contract is in place today: every released Dockerfile
+parameterizes each `FROM` through a `NODE_BASE_IMAGE` build arg, and `service-catalog.json` records
+those args under `baseImageArgs`, so the chart maps `baseImages.<service>` to the right build arg
+deterministically.
+
+| Key | Type | Default | Required when enabled | Purpose and security |
+| --- | --- | --- | --- | --- |
+| `global.openshiftBuild.baseImages.<service>` | string | `""` (falls back to the Dockerfile `NODE_BASE_IMAGE` default) | No; needed only when the cluster cannot reach Docker Hub | Private-registry reference for a released service's base image, passed to that `BuildConfig` as the `NODE_BASE_IMAGE` build arg (the arg name comes from `service-catalog.json` `baseImageArgs`). `<service>` is one of `control-plane`, `control-plane-executor`, `web-console`, `workflow-worker`, `mcp-runtime`, `fn-runtime`. Point it at the Harbor copy of `node:22-alpine` (or `node:22-slim` for `workflow-worker`), pinned to the organization-approved digest. Not a secret. |
+| `global.openshiftBuild.env` | map | `{}` | No | Build-time environment variables merged into every `BuildConfig`. This is the canonical channel for the package-registry mirror: set `NPM_CONFIG_REGISTRY` to the local npm/pnpm proxy so `pnpm install` (`web-console`) and `npm install` (`workflow-worker`) fetch from it instead of the public registry; it also carries proxy and CA-path variables. Reference Secrets for credentials rather than inlining them. |
+| `global.openshiftBuild.buildArgs` | map | `{}` | No | Extra Docker `--build-arg` values applied to every `BuildConfig` for toolchain settings consumed as build args rather than env. Do not put secrets here; build args are visible in build metadata. |
+
+Precedence: when `baseImages.<service>` is set it overrides the Dockerfile default for that build
+only; an unset service keeps the `node:22-alpine`/`node:22-slim` default, so connected builds are
+unchanged. The `BuildConfig`s honor the chart's existing `privateRegistry` pull secret and CA
+ConfigMap when pulling the overridden bases from Harbor. Because the built service images still land
+in the internal registry, the runtime pullspec precedence documented above is unaffected.
+
+See the disconnected walkthrough in
+[Fully disconnected source builds](/operations/openshift-install#fully-disconnected-source-builds-private-base-images).

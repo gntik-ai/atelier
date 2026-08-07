@@ -12,6 +12,20 @@ const fnDockerfile = fs.readFileSync(fnDockerfilePath, 'utf8');
 const webDockerfile = fs.readFileSync(webDockerfilePath, 'utf8');
 const filteredInstall = 'corepack enable && pnpm install --frozen-lockfile --filter @in-falcone/web-console...';
 const boundedBuild = 'NODE_OPTIONS=--max-old-space-size=1536 pnpm --filter @in-falcone/web-console exec vite build';
+// The web-console FROM stages are parameterized by a base-image build arg (issue #929); the ARG
+// default preserves the current base. These literal strings are single-quoted so `${...}` stays
+// literal (no JS interpolation).
+const webBuilderFrom = '${NODE_BASE_IMAGE} AS builder';
+const webRuntimeFrom = '${NODE_BASE_IMAGE}';
+const webBaseDefault = 'node:22-alpine';
+
+function baseImageArgDefault(instructions) {
+  const argEntry = instructions.find(
+    (entry) => entry.instruction === 'ARG' && /^NODE_BASE_IMAGE=/.test(entry.args),
+  );
+  assert.ok(argEntry, 'Dockerfile must declare ARG NODE_BASE_IMAGE=<default> before its FROM stages');
+  return argEntry.args.slice('NODE_BASE_IMAGE='.length).trim();
+}
 
 function parseDockerfile(source) {
   const logicalLines = [];
@@ -76,7 +90,10 @@ function validateWebBuilder(source) {
   const builder = stage(instructions, 0);
   const runtime = stage(instructions, 1);
   assert.equal(instructions.filter((entry) => entry.instruction === 'FROM').length, 2);
-  assert.match(builder[0].args, /^node:22-alpine\s+AS\s+builder$/i);
+  // Builder FROM is parameterized (issue #929) with an ARG default preserving today's base.
+  assert.equal(builder[0].instruction, 'FROM');
+  assert.equal(builder[0].args, webBuilderFrom, 'builder stage must interpolate the NODE_BASE_IMAGE build arg');
+  assert.equal(baseImageArgDefault(instructions), webBaseDefault);
   assert.equal(oneInstruction(builder, 'WORKDIR').args, '/src');
 
   const contextCopy = oneInstruction(builder, 'COPY');
@@ -110,7 +127,8 @@ function validateWebBuilder(source) {
 function assertFinalRuntimeContract(runtime) {
   const finalFrom = runtime[0];
   assert.equal(finalFrom.instruction, 'FROM');
-  assert.equal(finalFrom.args, 'node:22-alpine');
+  // Final runtime FROM is parameterized by the same base-image build arg (issue #929).
+  assert.equal(finalFrom.args, webRuntimeFrom);
   assert.equal(oneInstruction(runtime, 'USER').args, '1000');
   assert.match(oneInstruction(runtime, 'USER').args, /^[1-9]\d*$/);
   assert.equal(oneInstruction(runtime, 'EXPOSE').args, '3000');
@@ -147,7 +165,7 @@ test('contract validators are sensitive to both pre-fix Dockerfile regressions',
   assert.throws(() => validateFnRootContext(oldFnDockerfile), /apps\/fn-runtime\/server\.mjs/);
 
   const oldWebDockerfile = webDockerfile
-    .replace(`FROM node:22-alpine AS builder\nWORKDIR /src\nCOPY . .\nRUN ${filteredInstall}\nRUN ${boundedBuild}\n\n`, '')
+    .replace(`FROM ${webBuilderFrom}\nWORKDIR /src\nCOPY . .\nRUN ${filteredInstall}\nRUN ${boundedBuild}\n\n`, '')
     .replace('COPY --from=builder /src/apps/web-console/dist ./dist', 'COPY apps/web-console/dist ./dist');
   assert.notEqual(oldWebDockerfile, webDockerfile);
   assert.throws(() => validateWebBuilder(oldWebDockerfile), /Dockerfile stage 1 is missing/);
