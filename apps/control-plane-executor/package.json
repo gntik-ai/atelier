@@ -19,7 +19,7 @@
     "mongodb": "6.15.0",
     "pg": "8.14.1",
     "pg-logical-replication": "^2.5.0",
-    "undici": "^6.27.0",
+    "undici": "^6.28.0",
     "yaml": "2.8.3"
   }
 }
