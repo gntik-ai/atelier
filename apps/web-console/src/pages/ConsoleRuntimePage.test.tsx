@@ -1,0 +1,32 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { ConsoleRuntimePage } from './ConsoleRuntimePage'
+
+const getStatus = vi.fn()
+vi.mock('@/services/knativeRuntimeApi', () => ({ getKnativeRuntimeStatus: () => getStatus() }))
+
+const ready = { mode: 'managed', owner: 'platform', version: '1.15.0', compatibility: 'compatible', state: 'ready', stage: 'ready', reason: '', lastTransitionAt: '2026-08-07T10:00:00Z' }
+function renderPage() { return render(<MemoryRouter><ConsoleRuntimePage /></MemoryRouter>) }
+
+describe('ConsoleRuntimePage', () => {
+  beforeEach(() => { getStatus.mockReset(); Object.assign(navigator, { clipboard: { writeText: vi.fn() } }) })
+  it('presents runtime hierarchy and read-only links', async () => {
+    getStatus.mockResolvedValue(ready); renderPage()
+    expect(await screen.findByRole('heading', { name: 'Runtime de funciones' })).toBeInTheDocument()
+    expect(screen.getByText('platform')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Inspeccionar' })).toHaveAttribute('href', '/console/functions')
+  })
+  it('announces degraded reason and supports copying correlation id', async () => {
+    getStatus.mockResolvedValue({ ...ready, state: 'degraded', reason: 'Webhook pendiente' }); renderPage()
+    expect(await screen.findByRole('status')).toHaveTextContent('Webhook pendiente')
+    await userEvent.click(screen.getByRole('button', { name: 'Copiar' }))
+    expect(navigator.clipboard.writeText).toHaveBeenCalled()
+  })
+  it('offers retry on transport errors', async () => {
+    getStatus.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(ready); renderPage()
+    const retry = await screen.findByRole('button', { name: 'Reintentar' }); await userEvent.click(retry)
+    await waitFor(() => expect(screen.getByText('Estado actual')).toBeInTheDocument())
+  })
+})
