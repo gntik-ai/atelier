@@ -16,7 +16,18 @@ export function ConsoleRuntimePage() {
   const [loading, setLoading] = useState(true)
   const retryRef = useRef<HTMLButtonElement>(null)
   const [announcement, setAnnouncement] = useState('')
-  const load = () => { setLoading(true); setError(false); getKnativeRuntimeStatus().then((next) => { setStatus(next); setAnnouncement(`Estado actualizado: ${stateLabels[next.state] ?? 'disponible'}.`) }).catch(() => { setError(true); setAnnouncement('No se pudo consultar el runtime.') }).finally(() => { setLoading(false); requestAnimationFrame(() => retryRef.current?.focus()) }) }
+  const load = () => {
+    // A route navigation or an ordinary refresh already has a meaningful
+    // invoking element. Only restore focus when recovering from the error
+    // state, where the retry control is the recovery destination.
+    const restoreFocus = error
+    setLoading(true)
+    setError(false)
+    getKnativeRuntimeStatus().then((next) => { setStatus(next); setAnnouncement(`Estado actualizado: ${stateLabels[next.state] ?? 'disponible'}.`) }).catch(() => { setError(true); setAnnouncement('No se pudo consultar el runtime.') }).finally(() => {
+      setLoading(false)
+      if (restoreFocus) requestAnimationFrame(() => retryRef.current?.focus())
+    })
+  }
   useEffect(() => { load() }, [])
   useEffect(() => { document.title = 'Runtime de funciones · Consola In Falcone'; return () => { document.title = 'Consola In Falcone' } }, [])
   if (loading) return <div><ConsolePageState kind="loading" title="Consultando runtime de plataforma" description="Estamos verificando el estado de Knative. Esta operación es de solo lectura." /></div>
