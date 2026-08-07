@@ -384,6 +384,7 @@ function isValidConsoleAuthenticationState(value: unknown): value is ConsoleShel
 
 function isValidConsoleStatusView(value: unknown): value is ConsoleShellSession['statusView'] {
   return (
+    value === 'active' ||
     value === 'login' ||
     value === 'signup' ||
     value === 'pending_activation' ||
