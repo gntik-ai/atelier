@@ -41,3 +41,9 @@ test('mcp-runtime-cleaner-02: invalid namespace input fails before any Kubernete
   );
   assert.equal(calls, 0);
 });
+
+test('mcp-runtime-cleaner-03: missing preconditions retained and conflict throws', async () => {
+  let deletes = 0;
+  const cleaner = createMcpRuntimeCleaner({ apiBase: 'https://k', readFile: () => 't', fetchImpl: async (url, init) => init.method === 'GET' ? { status: 200, body: { items: [{ metadata: { name: 'x', labels: { 'in-falcone.io/tenant': 'tenant-a', 'in-falcone.io/mcp-server': 's' } } }] } } : (() => { deletes++; return { status: 409 }; })() });
+  await cleaner.deleteOwnedRuntimeResources({ tenantId: 'tenant-a', resourceId: 's' }); assert.equal(deletes, 0);
+});
