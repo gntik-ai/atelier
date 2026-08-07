@@ -1,5 +1,5 @@
 /**
- * bbx-933-console-02..05 | fn-knative-runtime-status, fn-mcp-hosted-runtime
+ * bbx-933-console-02..05, bbx-933-console-10 | fn-knative-runtime-status, fn-mcp-hosted-runtime
  * OpenSpec scenarios:
  * - #### Scenario: Disabled mode is deliberate
  * - #### Scenario: External canary is absent or unreadable
@@ -11,7 +11,7 @@ import { createElement } from 'react'
 import type { ComponentType } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { createMemoryRouter, matchRoutes, MemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
+import { createMemoryRouter, Link, matchRoutes, MemoryRouter, Outlet, RouterProvider } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ConsoleShellLayout } from '../../../apps/web-console/src/layouts/ConsoleShellLayout'
@@ -92,6 +92,35 @@ function renderRuntimePage(runtimeStatus: KnativeRuntimeStatus) {
 }
 
 describe('issue #933 runtime console route', () => {
+  /**
+   * bbx-933-console-10 | fn-knative-runtime-status
+   * OpenSpec: #### Scenario: Developer receives actionable availability status
+   */
+  it('bbx-933-console-10 preserves route-navigation focus after a successful initial status load', async () => {
+    runtimeApi.getStatus.mockResolvedValue(status('ready'))
+    const router = createMemoryRouter([
+      {
+        path: '/',
+        element: <><Link to="/runtime">Abrir estado del runtime</Link><Outlet /></>,
+        children: [
+          { index: true, element: <p>Resumen de plataforma</p> },
+          { path: 'runtime', element: <ConsoleRuntimePage /> }
+        ]
+      }
+    ], { initialEntries: ['/'] })
+
+    render(<RouterProvider router={router} />)
+    const routeLink = screen.getByRole('link', { name: 'Abrir estado del runtime' })
+    await userEvent.click(routeLink)
+
+    await screen.findByRole('heading', { name: 'Runtime de funciones' })
+    const recheck = await screen.findByRole('button', { name: /volver a comprobar/i })
+    await waitFor(() => expect(runtimeApi.getStatus).toHaveBeenCalledTimes(1))
+
+    expect(routeLink).toHaveFocus()
+    expect(recheck).not.toHaveFocus()
+  })
+
   it('bbx-933-console-02 exposes a titled, single-main route in keyboard navigation and links only to served destinations', async () => {
     runtimeApi.getStatus.mockResolvedValue(status('ready'))
     const router = createMemoryRouter([
