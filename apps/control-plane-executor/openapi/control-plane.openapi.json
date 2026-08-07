@@ -47979,6 +47979,14 @@
               }
             }
           },
+          "501": {
+            "description": "The Functions capability is intentionally disabled.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+          },
+          "503": {
+            "description": "The selected Knative runtime cannot serve workloads; no rerun was attempted.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnativeUnavailableError" } } }
+          },
           "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
