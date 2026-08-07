@@ -1148,7 +1148,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -1271,7 +1271,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -1476,7 +1476,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -46659,7 +46659,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -46796,7 +46796,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/TriggerId"
@@ -48161,7 +48161,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -48282,7 +48282,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -48445,7 +48445,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -48608,7 +48608,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -48763,7 +48763,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -48929,7 +48929,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/TriggerId"
@@ -49056,7 +49056,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -49221,7 +49221,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/TriggerId"
@@ -49338,7 +49338,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -49463,7 +49463,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionVersionId"
@@ -50709,7 +50709,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -62691,7 +62691,7 @@
         }
       },
       "FunctionActionId": {
-        "name": "actionId",
+        "name": "resourceId",
         "in": "path",
         "required": true,
         "schema": {
