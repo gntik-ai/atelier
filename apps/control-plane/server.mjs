@@ -36,6 +36,7 @@ import { listenAfterRequiredGates } from './control-plane-startup.mjs';
 import { resolveWebhookDatabasePrincipalNames } from './webhook-database-principals.mjs';
 import { prepareControlPlaneDatabases } from './control-plane-database-startup.mjs';
 import { createKnativeRuntimeSource } from './knative-runtime.mjs';
+import { isKnativeStatusObserver } from './knative-runtime-handlers.mjs';
 import { createRuntimeCleanupRepository, recoverFunctionCleanupObligations } from './runtime-cleanup-repository.mjs';
 import { deleteKnativeService } from './function-executor.mjs';
 
@@ -256,9 +257,10 @@ function authzOk(route, identity) {
     || identity.roles.includes('superadmin') || identity.roles.includes('platform_admin');
   if (need === 'tenant_owner') return ['tenant_owner', 'tenant_admin', 'superadmin', 'internal'].includes(identity.actorType)
     || identity.roles.some((r) => ['tenant_owner', 'tenant_admin', 'superadmin', 'platform_admin'].includes(r));
-  if (need === 'knative_status') return identity.roles.some((role) => [
-    'superadmin', 'platform_admin', 'platform_operator', 'platform_auditor',
-  ].includes(role)) || identity.actorType === 'superadmin';
+  // Read-only platform runtime status: authorize EXACTLY the platform-observer roles the web console
+  // gates the runtime page on (isKnativeStatusObserver). Role-only, with no actor_type fallback, so a
+  // token asserting actor_type=superadmin without a platform role cannot out-grant the UI.
+  if (need === 'knative_status') return isKnativeStatusObserver(identity);
   return true; // unknown -> defer to the action's own check
 }
 
