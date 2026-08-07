@@ -314,6 +314,7 @@ export const routes = [
   { method: 'GET',  path: '/v1/functions/actions/{actionId}/activations/{activationId}', localHandler: 'fnActivation', auth: 'authenticated' },
   { method: 'GET',  path: '/v1/functions/actions/{actionId}/activations/{activationId}/logs', localHandler: 'fnActivationLogs', auth: 'authenticated' },
   { method: 'GET',  path: '/v1/functions/actions/{actionId}/activations/{activationId}/result', localHandler: 'fnActivationResult', auth: 'authenticated' },
+  { method: 'POST', path: '/v1/functions/actions/{actionId}/activations/{activationId}/rerun', localHandler: 'fnActivationRerun', auth: 'authenticated' },
 
   // ---- domain B: Events / Kafka (REAL kafkajs; PLAINTEXT broker) ------------
   { method: 'GET',  path: '/v1/events/workspaces/{workspaceId}/inventory', localHandler: 'eventsInventory', auth: 'authenticated' },

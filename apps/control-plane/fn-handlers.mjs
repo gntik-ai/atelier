@@ -638,7 +638,7 @@ async function fnActivationLogs(ctx) {
   if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
   if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
-  return ok(200, { activationId: r.activation_id, lines: Array.isArray(r.logs) ? r.logs : [], truncated: false });
+  return ok(200, { activationId: r.activation_id, lines: Array.isArray(r.logs) ? r.logs : [], truncated: false, policy: activationPolicyOut() });
 }
 // GET .../activations/{activationId}/result
 async function fnActivationResult(ctx) {
@@ -646,7 +646,17 @@ async function fnActivationResult(ctx) {
   if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
   if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
-  return ok(200, { activationId: r.activation_id, status: r.status === 'success' ? 'succeeded' : 'failed', result: r.result ?? {}, contentType: 'application/json' });
+  return ok(200, { activationId: r.activation_id, status: r.status === 'success' ? 'available' : 'redacted', result: r.result ?? {}, contentType: 'application/json', policy: activationPolicyOut() });
+}
+async function fnActivationRerun(ctx) {
+  const st = ctx.store ?? store;
+  const source = await st.getFnActivation(ctx.pool, ctx.params.activationId);
+  if (!source || source.resource_id !== ctx.params.actionId) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const action = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  if (!functionVisible(ctx, action, 'invoke')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const invoked = await fnInvoke({ ...ctx, store: st, params: { ...ctx.params, actionId: ctx.params.actionId }, body: ctx.body ?? {} });
+  const body = invoked?.body ?? invoked?.data ?? {};
+  return ok(202, { activationId: source.activation_id, rerunInvocationId: body.invocationId, status: 'accepted', acceptedAt: body.acceptedAt ?? new Date().toISOString() });
 }
 // GET /v1/functions/actions/{actionId}/versions
 async function fnVersions(ctx) {
@@ -982,7 +992,7 @@ async function fnPackageDefinitionImport(ctx) { return importDefinitions(ctx, { 
 
 export const FN_HANDLERS = {
   fnDeploy, fnInventory, fnListActions, fnActionDetail, fnDelete, fnInvoke,
-  fnActivations, fnActivation, fnActivationLogs, fnActivationResult, fnVersions, fnRollback,
+  fnActivations, fnActivation, fnActivationLogs, fnActivationResult, fnActivationRerun, fnVersions, fnRollback,
   secretSet, secretReplace, secretList, secretGet, secretDelete,
   fnDefinitionExport, fnPackageDefinitionExport, fnDefinitionImport, fnPackageDefinitionImport
 };
