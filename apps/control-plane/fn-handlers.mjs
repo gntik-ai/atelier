@@ -159,6 +159,8 @@ export function canMutateFunctionWorkspace(identity, workspace) {
 const FUNCTION_READ_ROLES = new Set([
   'workspace_owner', 'workspace_admin', 'workspace_developer', 'workspace_operator',
   'workspace_viewer', 'workspace_auditor', 'service_account', 'developer_external',
+]);
+const FUNCTION_PLATFORM_READ_ROLES = new Set([
   'platform_operator', 'platform_auditor', 'platform_admin', 'superadmin',
 ]);
 const FUNCTION_INVOKE_ROLES = new Set([
@@ -171,14 +173,26 @@ function hasFunctionWorkspaceClaim(identity, workspaceId) {
 }
 export function canAccessFunctionWorkspace(identity, workspace, mode = 'read') {
   if (!identity || !workspace?.id || !workspace?.tenant_id) return false;
-  if (identity.tenantId !== workspace.tenant_id) return false;
   const roles = new Set(Array.isArray(identity.roles) ? identity.roles : []);
+  const trustedPlatformReader = (identity.trustKind ?? identity.trust?.kind) === 'platform'
+    && [...roles].some((role) => FUNCTION_PLATFORM_READ_ROLES.has(role));
+  if (mode === 'read' && trustedPlatformReader) return true;
+  if (identity.tenantId !== workspace.tenant_id) return false;
+  if (mode === 'read' && (roles.has('tenant_owner') || roles.has('tenant_admin'))) return true;
   const allowed = mode === 'invoke' ? FUNCTION_INVOKE_ROLES : FUNCTION_READ_ROLES;
   return [...roles].some((role) => allowed.has(role)) && hasFunctionWorkspaceClaim(identity, workspace.id);
 }
 
 function functionVisible(ctx, row, mode = 'read') {
   return row && canAccessFunctionWorkspace(ctx.identity, { id: row.workspace_id, tenant_id: row.tenant_id }, mode);
+}
+
+function functionAuditScope(row) {
+  return { tenantId: row.tenant_id, workspaceId: row.workspace_id, resourceId: row.resource_id };
+}
+
+function auditedFunctionOk(statusCode, body, row) {
+  return { ...ok(statusCode, body), auditScope: functionAuditScope(row) };
 }
 
 // Public dispatch always injects this source. Requiring it at the handler boundary prevents a
@@ -436,11 +450,11 @@ async function fnDeploy(ctx) {
     sourceCode: code, parameters: b.execution?.parameters ?? null, memoryMb, timeoutMs,
     ksvcName: name, createdBy: ctx.identity?.sub
   });
-  return ok(202, {
+  return auditedFunctionOk(202, {
     requestId: randomUUID(), correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
     family: 'functions', resourceType: 'function_action',
     resourceId: rec.resource_id, status: 'accepted', acceptedAt: new Date().toISOString()
-  });
+  }, rec);
 }
 
 // GET /v1/functions/workspaces/{workspaceId}/inventory
@@ -550,13 +564,13 @@ async function fnDelete(ctx) {
   const deleted = await st.deleteFnAction(ctx.pool, r);
   if (!deleted) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
 
-  return ok(202, {
+  return auditedFunctionOk(202, {
     requestId: randomUUID(),
     correlationId,
     resourceId: deleted.resource_id,
     status: 'accepted',
     acceptedAt: new Date().toISOString()
-  });
+  }, deleted);
 }
 // POST /v1/functions/actions/{actionId}/invocations  — REAL execution
 async function fnInvoke(ctx) {
@@ -596,10 +610,10 @@ async function fnInvoke(ctx) {
     status: run.status, statusCode: run.statusCode, result: run.result, logs: run.logs,
     durationMs: run.durationMs, startedAt, finishedAt: new Date().toISOString()
   });
-  return ok(202, {
+  return auditedFunctionOk(202, {
     invocationId: activationId, resourceId: r.resource_id,
     status: run.status === 'success' ? 'completed' : 'failed', acceptedAt: startedAt
-  });
+  }, r);
 }
 // GET /v1/functions/actions/{actionId}/activations
 async function fnActivations(ctx) {
@@ -688,14 +702,14 @@ async function fnRollback(ctx) {
 
   const updated = await st.activateFnActionVersion(ctx.pool, r, target);
   if (!updated) return err(409, 'ROLLBACK_STATE_CONFLICT', 'function version could not be activated');
-  return ok(202, {
+  return auditedFunctionOk(202, {
     requestId: randomUUID(),
     resourceId: r.resource_id,
     requestedVersionId: versionId,
     status: 'accepted',
     correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
     acceptedAt: new Date().toISOString()
-  });
+  }, r);
 }
 
 // ---- Workspace secrets (add-vault-secret-consumption, #612; console convergence,

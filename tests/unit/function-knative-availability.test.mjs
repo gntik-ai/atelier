@@ -29,7 +29,11 @@ const unavailableRuntime = {
 function store(overrides = {}) {
   return {
     getWorkspace: async (_pool, id) => id === 'ws-a' ? WS : null,
-    getFnAction: async (_pool, id, tenantId) => id === ACTION.resource_id && tenantId === ACTION.tenant_id ? ACTION : null,
+    getFnAction: async (_pool, id, tenantId) => (
+      id === ACTION.resource_id && (tenantId == null || tenantId === ACTION.tenant_id)
+        ? ACTION
+        : null
+    ),
     listFnActionVersions: async () => [{
       ...ACTION, version_id: 'ver-0', version_number: 0, status: 'historical',
     }],
@@ -42,11 +46,16 @@ function store(overrides = {}) {
   };
 }
 
-function context({ params = {}, body = {}, runtime = unavailableRuntime, storeOverrides = {}, extra = {} } = {}) {
+function context({
+  params = {}, body = {}, runtime = unavailableRuntime, storeOverrides = {}, extra = {},
+  identity = IDENTITY,
+} = {}) {
   return {
-    params, body, query: {}, identity: IDENTITY, pool: {}, store: store(storeOverrides),
+    params, body, query: {}, identity, pool: {}, store: store(storeOverrides),
     knativeRuntime: runtime,
-    callerContext: { correlationId: 'corr-a', tenantId: 'tenant-a', workspaceId: 'ws-a' },
+    callerContext: {
+      correlationId: 'corr-a', tenantId: identity.tenantId, workspaceId: identity.workspaceId ?? null,
+    },
     ...extra,
   };
 }
@@ -143,4 +152,54 @@ test('function-knative-06: degraded metadata remains scoped and never reports wo
   });
   assert.equal(result.body.provisioning.state, 'unavailable');
   assert.ok(!JSON.stringify(result.body).includes('falcone-managed'));
+});
+
+test('function-knative-07: metadata reads preserve trusted tenant-wide and platform-wide access', async () => {
+  const authorized = [
+    {
+      sub: 'tenant-owner-a', tenantId: 'tenant-a', workspaceId: null,
+      actorType: 'tenant_owner', roles: ['tenant_owner'], scopes: [],
+    },
+    {
+      sub: 'platform-auditor', tenantId: null, workspaceId: null,
+      actorType: 'platform_auditor', roles: ['platform_auditor'], scopes: [], trustKind: 'platform',
+    },
+    {
+      sub: 'platform-superadmin', tenantId: null, workspaceId: null,
+      actorType: 'superadmin', roles: ['superadmin'], scopes: [],
+      trust: { kind: 'platform', realm: 'in-falcone-platform' },
+    },
+  ];
+
+  for (const identity of authorized) {
+    const result = await FN_HANDLERS.fnActionDetail(context({
+      params: { actionId: ACTION.resource_id }, identity,
+    }));
+    assert.equal(result.statusCode, 200, `${identity.sub} must retain Function metadata access`);
+  }
+});
+
+test('function-knative-08: copied platform roles, actor-type spoofing, and wrong-workspace readers remain concealed', async () => {
+  const denied = [
+    {
+      sub: 'tenant-platform-role-copy', tenantId: 'tenant-a', workspaceId: null,
+      actorType: 'tenant_member', roles: ['platform_auditor'], scopes: [], trustKind: 'tenant',
+    },
+    {
+      sub: 'actor-type-only-spoof', tenantId: null, workspaceId: null,
+      actorType: 'superadmin', roles: [], scopes: [], trustKind: 'platform',
+    },
+    {
+      sub: 'wrong-workspace-viewer', tenantId: 'tenant-a', workspaceId: 'ws-b',
+      actorType: 'tenant_member', roles: ['workspace_viewer'], scopes: [], trustKind: 'tenant',
+    },
+  ];
+
+  for (const identity of denied) {
+    const result = await FN_HANDLERS.fnActionDetail(context({
+      params: { actionId: ACTION.resource_id }, identity,
+    }));
+    assert.equal(result.statusCode, 404, `${identity.sub} must not discover Function metadata`);
+    assert.equal(result.body.code, 'ACTION_NOT_FOUND');
+  }
 });

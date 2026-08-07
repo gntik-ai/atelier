@@ -57,6 +57,9 @@ function fakeStore(calls) {
       calls.push({ kind: 'activate-version' });
       return ACTION;
     },
+    insertFnActivation: async () => {
+      calls.push({ kind: 'activation-write' });
+    },
   };
 }
 
@@ -94,6 +97,10 @@ function context(identity, { ready = true, params = {}, body = {} } = {}) {
       knativeRuntime: runtime({ ready }, calls),
       deployKnativeService: async () => { calls.push({ kind: 'deploy' }); },
       deleteKnativeService: async () => { calls.push({ kind: 'runtime-delete' }); },
+      waitKsvcReady: async () => true,
+      invokeKnative: async () => ({
+        status: 'success', statusCode: 200, result: { ok: true }, logs: [], durationMs: 1,
+      }),
     },
   };
 }
@@ -104,6 +111,7 @@ const MUTATIONS = [
     run: (ctx) => FN_HANDLERS.fnDeploy(ctx),
     input: {
       body: {
+        tenantId: 'tenant-body-spoof',
         workspaceId: WORKSPACE.id,
         actionName: ACTION.action_name,
         source: { inlineCode: ACTION.source_code },
@@ -116,10 +124,19 @@ const MUTATIONS = [
     input: {
       params: { actionId: ACTION.resource_id },
       body: {
+        tenantId: 'tenant-body-spoof',
         workspaceId: WORKSPACE.id,
         actionName: ACTION.action_name,
         source: { inlineCode: 'export function main() { return 2; }' },
       },
+    },
+  },
+  {
+    name: 'invoke',
+    run: (ctx) => FN_HANDLERS.fnInvoke(ctx),
+    input: {
+      params: { actionId: ACTION.resource_id },
+      body: { parameters: { orderId: 'order-a' } },
     },
   },
   {
@@ -166,7 +183,9 @@ test('function-mutation-auth-01: viewer and wrong-workspace claims are denied be
         `${mutation.name} must authorize before disclosing runtime readiness`,
       );
       assert.equal(
-        calls.some(({ kind }) => ['deploy', 'runtime-delete', 'logical-delete', 'write', 'activate-version'].includes(kind)),
+        calls.some(({ kind }) => [
+          'deploy', 'runtime-delete', 'logical-delete', 'write', 'activation-write', 'activate-version',
+        ].includes(kind)),
         false,
         `${mutation.name} must deny before mutation side effects`,
       );
@@ -179,6 +198,11 @@ test('function-mutation-auth-02: a workspace developer bound to the target works
     const { ctx } = context(WORKSPACE_DEVELOPER, mutation.input);
     const result = await mutation.run(ctx);
     assert.equal(result.statusCode, 202, `${mutation.name} must accept a bound workspace developer`);
+    assert.deepEqual(result.auditScope, {
+      tenantId: ACTION.tenant_id,
+      workspaceId: ACTION.workspace_id,
+      resourceId: result.body.resourceId,
+    }, `${mutation.name} must expose only the persisted Function audit scope`);
   }
 });
 
