@@ -62279,7 +62279,7 @@
           },
           "invitationId": {
             "type": "string",
-            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$"
+            "pattern": "^inv_[0-9a-z]+$"
           },
           "grantedByUserId": {
             "type": "string",
@@ -62340,7 +62340,7 @@
           },
           "invitationId": {
             "type": "string",
-            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$"
+            "pattern": "^inv_[0-9a-z]+$"
           },
           "grantedByUserId": {
             "type": "string",
@@ -87728,7 +87728,7 @@
           },
           "rerunInvocationId": {
             "type": "string",
-            "pattern": "^inv_[0-9a-z]+$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$"
           },
           "status": {
             "type": "string",

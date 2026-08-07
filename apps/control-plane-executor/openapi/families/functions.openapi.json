@@ -16,7 +16,7 @@
         "name": "activationId",
         "required": true,
         "schema": {
-          "pattern": "^act_[0-9a-z]+$",
+          "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
           "type": "string"
         }
       },
@@ -821,7 +821,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-f]{8}-[0-9a-f]{3}$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "durationMs": {
@@ -834,7 +834,7 @@
             "type": "string"
           },
           "invocationId": {
-            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$",
+            "pattern": "^inv_[0-9a-z]+$",
             "type": "string"
           },
           "memoryMb": {
@@ -910,7 +910,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "lines": {
@@ -994,7 +994,7 @@
             "type": "string"
           },
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "rerunInvocationId": {
@@ -1022,7 +1022,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "contentType": {
@@ -1786,7 +1786,7 @@
             "type": "string"
           },
           "invocationId": {
-            "pattern": "^act_[0-9a-f]{8}-[0-9a-f]{3}$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "resourceId": {
