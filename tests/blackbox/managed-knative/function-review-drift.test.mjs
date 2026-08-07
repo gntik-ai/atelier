@@ -21,6 +21,8 @@
  * OpenSpec #### Scenario: Authentication and ownership precede dependency status
  * bbx-933-aggregate-pending-response-34 | fn-managed-knative-owner-scoped-teardown |
  * OpenSpec #### Scenario: Teardown is deferred safely during an outage
+ * bbx-933-aggregate-completed-response-35 | fn-managed-knative-owner-scoped-teardown |
+ * OpenSpec #### Scenario: Tenant teardown leaves no function workloads
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -853,6 +855,122 @@ test('bbx-933-aggregate-pending-response-34: tenant purge and workspace delete p
     failures,
     [],
     `pending aggregate teardown acknowledgements must validate against their published 202 schemas:\n${JSON.stringify(failures, null, 2)}`,
+  );
+});
+
+/**
+ * bbx-933-aggregate-completed-response-35 | fn-managed-knative-owner-scoped-teardown
+ * OpenSpec #### Scenario: Tenant teardown leaves no function workloads
+ * OpenSpec #### Scenario: Tenant deprovision removes the complete MCP footprint
+ */
+test('bbx-933-aggregate-completed-response-35: completed tenant purge and workspace delete bodies have drift-safe 200 schemas', async () => {
+  const identity = {
+    sub: 'platform-superadmin',
+    actorType: 'superadmin',
+    roles: ['superadmin'],
+  };
+  const runtimeTeardownCoordinator = {
+    async purgeTenant() { return { pending: false, obligations: [] }; },
+    async purgeWorkspace() { return { pending: false, obligations: [] }; },
+  };
+  const poolFor = ({ tenant = null, workspace = null }) => ({
+    async query(sql) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      if (statement.includes('FROM tenants WHERE id = $1 OR slug = $1')) {
+        return { rows: tenant ? [structuredClone(tenant)] : [] };
+      }
+      if (statement.includes('FROM workspaces WHERE id = $1 OR slug = $1')) {
+        return { rows: workspace ? [structuredClone(workspace)] : [] };
+      }
+      return { rows: [] };
+    },
+  });
+
+  const tenant = await LOCAL_HANDLERS.purgeTenant({
+    params: { tenantId: 'ten_completed' },
+    identity,
+    pool: poolFor({ tenant: { id: 'ten_completed', iam_realm: null } }),
+    callerContext: { correlationId: 'corr-tenant-completed' },
+    runtimeTeardownCoordinator,
+  });
+  const workspace = await LOCAL_HANDLERS.deleteWorkspace({
+    params: { workspaceId: 'wrk_completed' },
+    identity,
+    pool: poolFor({ workspace: { id: 'wrk_completed', tenant_id: 'ten_completed' } }),
+    callerContext: { correlationId: 'corr-workspace-completed' },
+    runtimeTeardownCoordinator,
+    dropWorkspaceDatabase: async () => undefined,
+    deleteBucket: async () => undefined,
+    deleteTopics: async () => undefined,
+  });
+
+  assert.deepEqual(tenant, {
+    statusCode: 200,
+    body: {
+      tenantId: 'ten_completed',
+      purged: true,
+      removed: {
+        workspaces: 0,
+        databases: [],
+        realm: null,
+        buckets: [],
+        topics: [],
+        mongoDatabases: [],
+        mongoDatabasesRetained: [],
+      },
+      residual: { knativeServices: [] },
+    },
+  });
+  assert.deepEqual(workspace, {
+    statusCode: 200,
+    body: {
+      workspaceId: 'wrk_completed',
+      tenantId: 'ten_completed',
+      deleted: true,
+      removed: {
+        databases: [],
+        buckets: [],
+        topics: [],
+        mongoDatabases: [],
+        mongoDatabasesRetained: [],
+      },
+      residual: { knativeServices: [] },
+    },
+  });
+
+  const published200 = {
+    tenantPurge: openapi.paths?.[TENANT_PURGE_PATH]?.post?.responses?.['200']
+      ?.content?.['application/json']?.schema ?? null,
+    workspaceDelete: openapi.paths?.[WORKSPACE_PATH]?.delete?.responses?.['200']
+      ?.content?.['application/json']?.schema ?? null,
+  };
+  assert.deepEqual(
+    Object.entries(published200).filter(([, schema]) => !schema).map(([operation]) => operation),
+    [],
+    'authoritative OpenAPI must publish application/json 200 schemas for both completed teardown operations',
+  );
+
+  const validateTenant = validatorForResponse('post', TENANT_PURGE_PATH, 200);
+  const validateWorkspace = validatorForResponse('delete', WORKSPACE_PATH, 200);
+  const rejectedActual = [
+    ...(!validateTenant(tenant.body) ? [{ operation: 'tenantPurge', errors: structuredClone(validateTenant.errors) }] : []),
+    ...(!validateWorkspace(workspace.body) ? [{ operation: 'workspaceDelete', errors: structuredClone(validateWorkspace.errors) }] : []),
+  ];
+  const driftCandidates = {
+    tenantNotPurged: [validateTenant, { ...tenant.body, purged: false }],
+    tenantWrongIdentityKind: [validateTenant, { ...tenant.body, tenantId: 'wrk_completed' }],
+    tenantPendingClaim: [validateTenant, { ...tenant.body, status: 'cleanup_pending' }],
+    workspaceNotDeleted: [validateWorkspace, { ...workspace.body, deleted: false }],
+    workspaceWrongIdentityKind: [validateWorkspace, { ...workspace.body, workspaceId: 'ten_completed' }],
+    workspacePendingClaim: [validateWorkspace, { ...workspace.body, status: 'cleanup_pending' }],
+  };
+  const acceptedDrift = Object.entries(driftCandidates)
+    .filter(([, [validate, body]]) => validate(body))
+    .map(([name]) => name);
+  assert.deepEqual(
+    { rejectedActual, acceptedDrift },
+    { rejectedActual: [], acceptedDrift: [] },
+    'completed teardown schemas must accept real bodies and reject completion or identity drift',
   );
 });
 
