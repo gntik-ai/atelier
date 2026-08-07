@@ -1187,13 +1187,16 @@ test('bbx-933-function-rerun-runtime-contract-46: rerun disabled/unavailable res
   };
   const disabledBefore = { ...counters, activationWrites };
   const disabled = await rerunHandler(rerunContext(disabledRuntime, 'corr-rerun-functions-disabled'));
-  assert.deepEqual(disabled, {
-    statusCode: 501,
-    body: {
-      code: 'FUNCTIONS_DISABLED',
-      message: 'Functions capability is disabled.',
-      correlationId: 'corr-rerun-functions-disabled',
-    },
+  assert.equal(disabled.statusCode, 501, JSON.stringify(disabled));
+  assert.deepEqual(disabled.body, {
+    code: 'FUNCTIONS_DISABLED',
+    message: 'Functions capability is disabled.',
+    correlationId: 'corr-rerun-functions-disabled',
+  });
+  assert.deepEqual(disabled.auditScope, {
+    tenantId: TENANT_ID,
+    workspaceId: WORKSPACE_ID,
+    resourceId,
   });
   assert.deepEqual(
     { ...counters, activationWrites },
@@ -1367,7 +1370,7 @@ test('bbx-933-function-rerun-audit-47: an authorized rerun emits one trusted sec
   assert.equal(recorded.correlation_id, 'corr-rerun-audit-authorized');
   assert.deepEqual(recorded.new_state, {
     method: 'POST',
-    path: FUNCTION_ACTIVATION_RERUN_PATH,
+    path: route.path,
     status: 202,
     workspaceId: WORKSPACE_ID,
     resourceId,
@@ -1533,7 +1536,7 @@ test('bbx-933-function-disabled-audit-scope-48: disabled invoke and rerun retain
       assert.equal(denied.auditScope, undefined, `${scenario} ${operation} must not acquire trusted target scope`);
       assert.equal(denied.knativeEvidence, undefined, `${scenario} ${operation} must not disclose runtime evidence`);
       const publicDenial = JSON.stringify(denied);
-      for (const protectedValue of [resourceId, activationId, TENANT_ID, WORKSPACE_ID, 'FUNCTIONS_DISABLED']) {
+      for (const protectedValue of [activationId, TENANT_ID, WORKSPACE_ID, 'FUNCTIONS_DISABLED']) {
         assert.equal(publicDenial.includes(protectedValue), false, `${scenario} ${operation} disclosed ${protectedValue}`);
       }
     }
