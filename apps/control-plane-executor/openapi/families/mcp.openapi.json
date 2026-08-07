@@ -429,6 +429,183 @@
         ],
         "type": "object"
       },
+      "McpExecutorError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "McpJsonRpcResponse": {
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "not": {
+              "required": [
+                "error"
+              ]
+            },
+            "required": [
+              "result"
+            ]
+          },
+          {
+            "not": {
+              "required": [
+                "result"
+              ]
+            },
+            "required": [
+              "error"
+            ]
+          }
+        ],
+        "properties": {
+          "error": {
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "code": {
+                      "const": -32005
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/McpJsonRpcUnavailableData"
+                    },
+                    "message": {
+                      "const": "Hosted MCP runtime is unavailable."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "data": {
+                      "properties": {
+                        "code": {
+                          "const": "KNATIVE_UNAVAILABLE"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "code": {
+                      "const": -32005
+                    }
+                  }
+                }
+              }
+            ],
+            "properties": {
+              "code": {
+                "type": "integer"
+              },
+              "data": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "correlationId": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "state": {
+                    "enum": [
+                      "degraded",
+                      "unavailable"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ],
+            "type": "object"
+          },
+          "id": {},
+          "jsonrpc": {
+            "const": "2.0",
+            "type": "string"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "jsonrpc",
+          "id"
+        ],
+        "type": "object"
+      },
+      "McpJsonRpcUnavailableData": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "KNATIVE_UNAVAILABLE",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reason": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "degraded",
+              "unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "state",
+          "reason",
+          "correlationId"
+        ],
+        "type": "object"
+      },
       "McpRuntimeDependency": {
         "additionalProperties": false,
         "properties": {
@@ -540,23 +717,22 @@
         ],
         "type": "object"
       },
-      "PageInfo": {
+      "McpServerList": {
         "additionalProperties": false,
         "properties": {
-          "after": {
-            "type": "string"
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/McpServerDetail"
+            },
+            "type": "array"
           },
-          "nextCursor": {
-            "type": "string"
-          },
-          "size": {
-            "maximum": 200,
-            "minimum": 1,
-            "type": "integer"
+          "runtimeDependency": {
+            "$ref": "#/components/schemas/McpRuntimeDependency"
           }
         },
         "required": [
-          "size"
+          "items",
+          "runtimeDependency"
         ],
         "type": "object"
       }
@@ -596,53 +772,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "items": {
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "currentVersion": {
-                            "type": "string"
-                          },
-                          "endpoint": {
-                            "type": "string"
-                          },
-                          "id": {
-                            "minLength": 1,
-                            "type": "string"
-                          },
-                          "name": {
-                            "minLength": 1,
-                            "type": "string"
-                          },
-                          "status": {
-                            "enum": [
-                              "draft",
-                              "pending_review",
-                              "published",
-                              "archived"
-                            ],
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "name",
-                          "status"
-                        ],
-                        "type": "object"
-                      },
-                      "type": "array"
-                    },
-                    "pageInfo": {
-                      "$ref": "#/components/schemas/PageInfo"
-                    }
-                  },
-                  "required": [
-                    "items"
-                  ],
-                  "type": "object"
+                  "$ref": "#/components/schemas/McpServerList"
                 }
               }
             },
@@ -1370,7 +1500,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/McpExecutorError"
                 }
               }
             },
@@ -1390,7 +1520,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/McpExecutorError"
                 }
               }
             },
@@ -1541,8 +1671,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
+                  "$ref": "#/components/schemas/McpJsonRpcResponse"
                 }
               }
             },
@@ -1555,7 +1684,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/McpExecutorError"
                 }
               }
             },

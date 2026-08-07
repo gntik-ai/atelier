@@ -586,7 +586,7 @@
             "$ref": "#/components/schemas/FunctionProvisioningState"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "rollbackAvailable": {
@@ -3304,7 +3304,7 @@
             "type": "string"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "rollbackEligible": {

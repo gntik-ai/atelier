@@ -223,6 +223,29 @@
         ],
         "type": "string"
       },
+      "CleanupObligation": {
+        "additionalProperties": false,
+        "properties": {
+          "resourceId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "resourceType": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "const": "pending",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "resourceId",
+          "status"
+        ],
+        "type": "object"
+      },
       "ConsoleInvitationWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1791,6 +1814,31 @@
         ],
         "type": "object"
       },
+      "TenantCleanupPending": {
+        "additionalProperties": false,
+        "properties": {
+          "obligations": {
+            "items": {
+              "$ref": "#/components/schemas/CleanupObligation"
+            },
+            "type": "array"
+          },
+          "status": {
+            "const": "cleanup_pending",
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "status",
+          "obligations"
+        ],
+        "type": "object"
+      },
       "TenantCollectionResponse": {
         "additionalProperties": false,
         "properties": {
@@ -2782,49 +2830,6 @@
           "dedicated_database"
         ],
         "type": "string"
-      },
-      "TenantPurgeAccepted": {
-        "additionalProperties": false,
-        "properties": {
-          "acceptedAt": {
-            "format": "date-time",
-            "type": "string"
-          },
-          "approvalTicket": {
-            "maxLength": 128,
-            "minLength": 6,
-            "type": "string"
-          },
-          "commandId": {
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "consistencyCheckpoint": {
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "accepted",
-              "queued"
-            ],
-            "type": "string"
-          },
-          "tenantId": {
-            "pattern": "^ten_[0-9a-z]+$",
-            "type": "string"
-          }
-        },
-        "required": [
-          "commandId",
-          "tenantId",
-          "status",
-          "acceptedAt",
-          "approvalTicket"
-        ],
-        "type": "object"
       },
       "TenantPurgeRequest": {
         "additionalProperties": false,
@@ -6127,7 +6132,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantPurgeAccepted"
+                  "$ref": "#/components/schemas/TenantCleanupPending"
                 }
               }
             },

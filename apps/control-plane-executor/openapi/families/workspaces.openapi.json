@@ -241,6 +241,29 @@
         ],
         "type": "string"
       },
+      "CleanupObligation": {
+        "additionalProperties": false,
+        "properties": {
+          "resourceId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "resourceType": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "const": "pending",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "resourceId",
+          "status"
+        ],
+        "type": "object"
+      },
       "DurationString": {
         "description": "Compact duration string used by in-falcone lifecycle policies.",
         "pattern": "^[0-9]+(?:s|m|h|d)$",
@@ -3108,6 +3131,36 @@
         ],
         "type": "object"
       },
+      "WorkspaceCleanupPending": {
+        "additionalProperties": false,
+        "properties": {
+          "obligations": {
+            "items": {
+              "$ref": "#/components/schemas/CleanupObligation"
+            },
+            "type": "array"
+          },
+          "status": {
+            "const": "cleanup_pending",
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "tenantId",
+          "status",
+          "obligations"
+        ],
+        "type": "object"
+      },
       "WorkspaceCloneAccepted": {
         "allOf": [
           {
@@ -4187,7 +4240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MutationAccepted"
+                  "$ref": "#/components/schemas/WorkspaceCleanupPending"
                 }
               }
             },
