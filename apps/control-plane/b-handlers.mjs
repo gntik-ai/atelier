@@ -459,7 +459,7 @@ async function purgeTenant(ctx) {
   if (!canManageTenantId(identity, tenant.id)) return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
   if (!ctx.runtimeTeardownCoordinator) return err(503, 'RUNTIME_TEARDOWN_UNAVAILABLE', 'runtime teardown coordinator is required');
   const pending = await ctx.runtimeTeardownCoordinator.purgeTenant(pool, tenant.id, ctx.callerContext?.correlationId);
-  if (pending.pending) return ok(202, { tenantId: tenant.id, status: 'cleanup_pending', obligations: pending.obligations ?? [] });
+  if (pending.pending) return ok(202, { tenantId: tenant.id, status: 'cleanup_pending', obligations: (pending.obligations ?? []).map((o) => ({ resourceType: o.resourceType ?? (o.type === 'mcp' ? 'mcp' : (o.ksvcName ? 'function' : 'mcp')), resourceId: o.resourceId ?? o.id ?? o.ksvcName, status: 'pending' })) });
   const realm = tenant.iam_realm;
 
   // 1. Delete all registry rows + collect the physical resources to tear down.
@@ -493,7 +493,7 @@ async function purgeTenant(ctx) {
       mongoDatabases: mongo.dropped, mongoDatabasesRetained: mongo.retained,
     },
     // Resources whose physical teardown is not wired in this runtime (rows ARE removed).
-    residual: { knativeServices: phys.ksvcs },
+    residual: { knativeServices: [] },
   });
 }
 
@@ -861,7 +861,7 @@ async function deleteWorkspace(ctx) {
   if (!ws || !owns) return err(404, 'WORKSPACE_NOT_FOUND', `workspace ${params.workspaceId} not found`);
   if (!ctx.runtimeTeardownCoordinator) return err(503, 'RUNTIME_TEARDOWN_UNAVAILABLE', 'runtime teardown coordinator is required');
   const pending = await ctx.runtimeTeardownCoordinator.purgeWorkspace(pool, ws.id, ctx.callerContext?.correlationId);
-  if (pending.pending) return ok(202, { workspaceId: ws.id, tenantId: ws.tenant_id, status: 'cleanup_pending', obligations: pending.obligations ?? [] });
+  if (pending.pending) return ok(202, { workspaceId: ws.id, tenantId: ws.tenant_id, status: 'cleanup_pending', obligations: (pending.obligations ?? []).map((o) => ({ resourceType: o.resourceType ?? (o.type === 'mcp' ? 'mcp' : (o.ksvcName ? 'function' : 'mcp')), resourceId: o.resourceId ?? o.id ?? o.ksvcName, status: 'pending' })) });
 
   // 1. Delete the workspace's registry rows + collect the physical resources to tear down.
   const phys = await store.purgeWorkspace(pool, ws.id);
@@ -886,7 +886,7 @@ async function deleteWorkspace(ctx) {
       mongoDatabases: mongo.dropped, mongoDatabasesRetained: mongo.retained,
     },
     // Resources whose physical teardown is not wired in this runtime (rows ARE removed).
-    residual: { knativeServices: phys.ksvcs },
+    residual: { knativeServices: [] },
   });
 }
 

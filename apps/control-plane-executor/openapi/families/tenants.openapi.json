@@ -1511,6 +1511,23 @@
         ],
         "type": "string"
       },
+      "RuntimeTeardownUnavailable": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "RUNTIME_TEARDOWN_UNAVAILABLE"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
       "StorageCapabilityBaseline": {
         "additionalProperties": false,
         "properties": {
@@ -6296,6 +6313,16 @@
               }
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
+                }
+              }
+            },
+            "description": "Runtime teardown coordinator unavailable."
           },
           "504": {
             "content": {

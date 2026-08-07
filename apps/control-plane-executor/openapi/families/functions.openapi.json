@@ -1,6 +1,15 @@
 {
   "components": {
     "parameters": {
+      "FunctionActionId": {
+        "in": "path",
+        "name": "actionId",
+        "required": true,
+        "schema": {
+          "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
+          "type": "string"
+        }
+      },
       "FunctionActivationId": {
         "description": "Stable activation identifier assigned to one governed function execution.",
         "in": "path",
@@ -822,7 +831,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^act_[0-9a-f]{8}-[0-9a-f]{3}$",
             "type": "string"
           },
           "durationMs": {
@@ -843,11 +852,8 @@
             "minimum": 128,
             "type": "integer"
           },
-          "policy": {
-            "$ref": "#/components/schemas/FunctionActivationPolicy"
-          },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "startedAt": {
@@ -871,6 +877,7 @@
           },
           "triggerKind": {
             "enum": [
+              "manual",
               "direct",
               "http",
               "kafka",
@@ -886,8 +893,7 @@
           "status",
           "startedAt",
           "durationMs",
-          "triggerKind",
-          "policy"
+          "triggerKind"
         ],
         "type": "object"
       },
@@ -1789,22 +1795,18 @@
             "format": "date-time",
             "type": "string"
           },
-          "activationPolicy": {
-            "$ref": "#/components/schemas/FunctionActivationPolicy"
-          },
           "invocationId": {
-            "pattern": "^inv_[0-9a-z]+$",
+            "pattern": "^act_[0-9a-f]{8}-[0-9a-f]{3}$",
             "type": "string"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "status": {
             "enum": [
-              "accepted",
-              "queued",
-              "running"
+              "completed",
+              "failed"
             ],
             "type": "string"
           }
@@ -1813,8 +1815,7 @@
           "invocationId",
           "resourceId",
           "status",
-          "acceptedAt",
-          "activationPolicy"
+          "acceptedAt"
         ],
         "type": "object"
       },
@@ -2502,7 +2503,7 @@
             "type": "string"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "status": {
@@ -4864,7 +4865,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/PageSize"
@@ -4996,7 +4997,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -5122,7 +5123,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -5248,7 +5249,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -5416,7 +5417,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -6548,7 +6549,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6990,7 +6991,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"

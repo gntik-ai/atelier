@@ -13,29 +13,6 @@
           "type": "string"
         }
       },
-      "PageAfter": {
-        "description": "Opaque cursor for the next page window.",
-        "in": "query",
-        "name": "page[after]",
-        "required": false,
-        "schema": {
-          "maxLength": 256,
-          "minLength": 1,
-          "type": "string"
-        }
-      },
-      "PageSize": {
-        "description": "Maximum number of items to return for list and catalog routes.",
-        "in": "query",
-        "name": "page[size]",
-        "required": false,
-        "schema": {
-          "default": 25,
-          "maximum": 200,
-          "minimum": 1,
-          "type": "integer"
-        }
-      },
       "WorkspaceId": {
         "description": "Stable workspace identifier.",
         "in": "path",
@@ -540,8 +517,10 @@
                   },
                   "state": {
                     "enum": [
+                      "unverified",
                       "degraded",
-                      "unavailable"
+                      "unavailable",
+                      "disabled"
                     ],
                     "type": "string"
                   }
@@ -592,8 +571,10 @@
           },
           "state": {
             "enum": [
+              "unverified",
               "degraded",
-              "unavailable"
+              "unavailable",
+              "disabled"
             ],
             "type": "string"
           }
@@ -759,12 +740,6 @@
           },
           {
             "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "$ref": "#/components/parameters/PageSize"
-          },
-          {
-            "$ref": "#/components/parameters/PageAfter"
           }
         ],
         "responses": {
@@ -1490,11 +1465,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/McpExecutorError"
                 }
               }
             },
-            "description": "The request body is not valid JSON."
+            "description": "Runtime MCP error."
           },
           "401": {
             "content": {
@@ -1510,11 +1485,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/McpExecutorError"
                 }
               }
             },
-            "description": "The caller is not authorized for this workspace mutation."
+            "description": "Runtime MCP error."
           },
           "404": {
             "content": {
@@ -1680,6 +1655,16 @@
           "202": {
             "description": "Notification accepted with an intentionally empty HTTP body."
           },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpExecutorError"
+                }
+              }
+            },
+            "description": "Runtime MCP error."
+          },
           "401": {
             "content": {
               "application/json": {
@@ -1694,11 +1679,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/McpExecutorError"
                 }
               }
             },
-            "description": "The caller is not authorized."
+            "description": "Runtime MCP error."
           },
           "413": {
             "content": {
