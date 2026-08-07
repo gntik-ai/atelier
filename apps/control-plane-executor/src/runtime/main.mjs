@@ -363,7 +363,7 @@ const mcpEngine = process.env.MCP_ENABLED === 'true'
       store: mcpStateStore,
       cleanupRepository: runtimeCleanupRepository,
       mcpRuntimeAdapter,
-      auditSink: async (event) => { console.info(JSON.stringify({ type: 'audit', ...event })); },
+      auditSink: async (event) => { await keyPool.query('INSERT INTO plan_audit_events(event_id, event_timestamp, event_type, tenant_id, workspace_id, correlation_id, payload) VALUES ($1,$2,$3,$4,$5,$6,$7)', [event.event_id, event.event_timestamp, event.actionType ?? 'mcp.runtime', event.tenantId, event.workspaceId, event.correlationId, JSON.stringify(event)]).catch(() => {}); },
     })
   : undefined;
 

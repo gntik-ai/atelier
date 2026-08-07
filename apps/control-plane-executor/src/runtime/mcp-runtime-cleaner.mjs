@@ -64,12 +64,14 @@ export function createMcpRuntimeCleaner({
       for (const item of items) {
         const labels = item.metadata?.labels ?? {};
         if (labels['in-falcone.io/tenant'] !== namespace || labels['in-falcone.io/mcp-server'] !== serverId) continue;
+        if (!item.metadata?.uid || !item.metadata?.resourceVersion) continue;
         const name = encodeURIComponent(item.metadata?.name ?? '');
         const response = await request(`${apiBase}${path}/${name}`, {
           method: 'DELETE', headers, ca,
           body: JSON.stringify({ apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background', preconditions: { uid: item.metadata.uid, resourceVersion: item.metadata.resourceVersion } }),
         });
-        if (![200, 202, 404, 409].includes(response.status)) {
+        if (response.status === 409) throw Object.assign(new Error('MCP runtime replacement conflict; retained for retry'), { code: 'MCP_RUNTIME_DELETE_CONFLICT', statusCode: 409 });
+        if (![200, 202, 404].includes(response.status)) {
         throw Object.assign(new Error(`Kubernetes hosted MCP cleanup failed with ${response.status}`), {
           code: 'MCP_RUNTIME_DELETE_FAILED',
           statusCode: response.status,
