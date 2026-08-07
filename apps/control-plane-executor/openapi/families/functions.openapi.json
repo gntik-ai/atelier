@@ -5349,6 +5349,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no rerun was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -5386,7 +5406,8 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",

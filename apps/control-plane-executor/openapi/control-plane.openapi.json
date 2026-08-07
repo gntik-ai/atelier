@@ -48100,9 +48100,7 @@
         "x-visibility": "public",
         "x-rate-limit-class": "data-control",
         "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "openwhisk"
-        ]
+        "x-downstream-adapters": ["knative", "local-control-plane"]
       }
     },
     "/v1/functions/actions/{resourceId}/http-exposure": {
