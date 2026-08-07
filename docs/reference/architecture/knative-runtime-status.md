@@ -24,7 +24,11 @@ X-API-Version: 2026-03-26
 X-Correlation-Id: <trace token>
 ```
 
-Allowed roles are `platform_operator`, `platform_auditor`, `platform_admin`, and `superadmin`.
+Allowed roles are `platform_operator`, `platform_auditor`, `platform_admin`, and `superadmin`, and
+the token must be platform-trusted. A tenant-realm token carrying a copied platform role, or a
+roleless token whose `actor_type` says superadmin, receives `403`; role names are not sufficient
+without the verifier's trust context. The console calls this protected route through its
+authenticated session transport and never exposes a bearer token to page code.
 Tenant/workspace roles receive `403`; an absent or invalid identity receives `401`.
 
 Example unavailable response:
@@ -105,6 +109,11 @@ Metadata reads remain available. A tenant-scoped Function response adds:
 Tenant metadata intentionally omits the runtime owner/version and cluster detail exposed by the
 platform-only route.
 
+The console presents `ready`, `unavailable`, `unverified`, and `disabled` as distinct states with a
+bounded reason and user-actionable text. Retry is available for recoverable states and preserves
+keyboard focus; dependent Function and MCP actions remain disabled while `ready: false`. Hosted MCP
+detail and Playground views show dependency state before allowing invoke.
+
 ## Outage deletion and recovery
 
 An authorized Function delete while the runtime gate is closed makes one atomic database change:
@@ -135,7 +144,10 @@ tenant/workspace scoped and may contain operation, mode, bounded state/reason, r
 correlation ID. They must not contain source code, parameters, tokens, credentials, status-file
 content, endpoints, or raw exceptions. Operational metrics use bounded capability/operation/mode/
 state/reason/result labels and never resource, Function, Knative Service, tenant, workspace, or
-principal names.
+principal names. Prometheus output uses bounded route templates rather than raw paths. Tenant-scoped
+series cannot be presented as global data. Platform-trusted operators and auditors have read-only
+observability access; tenant-realm copied roles do not. Audit queries support the `correlationId`
+filter so cleanup and dependency transitions can be followed without exposing secrets.
 
 ## Troubleshooting
 
