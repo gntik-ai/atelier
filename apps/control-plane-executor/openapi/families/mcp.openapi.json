@@ -250,6 +250,155 @@
         ],
         "type": "object"
       },
+      "McpCuratedTool": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "inputSchema": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "longRunning": {
+            "type": "boolean"
+          },
+          "method": {
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ],
+            "type": "string"
+          },
+          "mutates": {
+            "type": "boolean"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "suggestedScope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "inputSchema",
+          "mutates",
+          "suggestedScope",
+          "method",
+          "path",
+          "scope"
+        ],
+        "type": "object"
+      },
+      "McpCurationDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "scope": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "McpCurationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "decisions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/McpCurationDecision"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "McpCurationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "serverId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "const": "curated",
+            "type": "string"
+          },
+          "tools": {
+            "items": {
+              "$ref": "#/components/schemas/McpCuratedTool"
+            },
+            "type": "array"
+          },
+          "violations": {
+            "items": {
+              "$ref": "#/components/schemas/McpCurationViolation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "serverId",
+          "status",
+          "tools",
+          "violations"
+        ],
+        "type": "object"
+      },
+      "McpCurationViolation": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "no_enabled_tools",
+              "mutating_tool_without_scope"
+            ],
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "tool": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
       "McpDeletionPending": {
         "additionalProperties": false,
         "properties": {
@@ -1155,6 +1304,180 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "data-read",
         "x-resource-type": "mcp_audit_event",
+        "x-scope": "workspace",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations": {
+      "post": {
+        "operationId": "curateMcpServer",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          },
+          {
+            "$ref": "#/components/parameters/WorkspaceId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "in": "path",
+            "name": "serverId",
+            "required": true,
+            "schema": {
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/McpCurationRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/McpCurationResponse"
+                }
+              }
+            },
+            "description": "The server draft was curated without publishing or activating it."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The request body is not valid JSON."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not authorized for this workspace mutation."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The workspace or tenant-scoped hosted MCP server was not found."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected an oversized body."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS rejected the request."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected invalid request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out waiting for the control plane."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected MCP curation error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Curate the generated tools for one hosted MCP server",
+        "tags": [
+          "MCP"
+        ],
+        "x-audiences": [
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_team"
+        ],
+        "x-authorized-role-claims": [
+          "tenant_owner",
+          "tenant_admin",
+          "workspace_owner",
+          "workspace_admin",
+          "platform_admin",
+          "superadmin"
+        ],
+        "x-downstream-adapters": [
+          "postgresql"
+        ],
+        "x-family": "mcp",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "data-write",
+        "x-resource-type": "mcp_server_curation",
         "x-scope": "workspace",
         "x-visibility": "public"
       }

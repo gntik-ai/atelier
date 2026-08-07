@@ -224,6 +224,7 @@ Workspace-scoped MCP server publishing, version curation, and tool-call mediatio
 | DELETE | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}` | workspace | mcp_server | Delete a hosted MCP server or durably defer cleanup during a Knative outage |
 | GET | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}` | workspace | mcp_server | Read one tenant-scoped hosted MCP server and its runtime dependency state |
 | GET | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/audit` | workspace | mcp_audit_event | Read tenant-scoped hosted MCP audit events and dependency readiness |
+| POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations` | workspace | mcp_server_curation | Curate the generated tools for one hosted MCP server |
 | POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc` | workspace | mcp_jsonrpc | Dispatch one JSON-RPC request or notification to a hosted MCP server |
 | POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/tool-calls` | workspace | mcp_tool_call | Invoke a published hosted MCP tool |
 | POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions` | workspace | mcp_server_version | Publish and deploy a hosted MCP server version |

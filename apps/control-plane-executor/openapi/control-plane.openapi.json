@@ -60181,6 +60181,62 @@
         "x-visibility": "public", "x-rate-limit-class": "data-write", "x-owning-service": "control_api", "x-downstream-adapters": ["postgresql", "mcp-runtime"]
       }
     },
+    "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations": {
+      "post": {
+        "operationId": "curateMcpServer",
+        "summary": "Curate the generated tools for one hosted MCP server",
+        "tags": ["MCP"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/XApiVersion" },
+          { "$ref": "#/components/parameters/XCorrelationId" },
+          { "$ref": "#/components/parameters/WorkspaceId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
+          {
+            "name": "serverId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/McpCurationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The server draft was curated without publishing or activating it.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/McpCurationResponse" }
+              }
+            }
+          },
+          "400": { "description": "The request body is not valid JSON.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized for this workspace mutation.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "The workspace or tenant-scoped hosted MCP server was not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP curation error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        },
+        "x-family": "mcp",
+        "x-scope": "workspace",
+        "x-resource-type": "mcp_server_curation",
+        "x-audiences": ["tenant_owner", "tenant_admin", "workspace_owner", "workspace_admin", "platform_team"],
+        "x-authorized-role-claims": ["tenant_owner", "tenant_admin", "workspace_owner", "workspace_admin", "platform_admin", "superadmin"],
+        "x-visibility": "public",
+        "x-rate-limit-class": "data-write",
+        "x-owning-service": "control_api",
+        "x-downstream-adapters": ["postgresql"]
+      }
+    },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions": {
       "post": {
         "operationId": "publishMcpServerVersion", "summary": "Publish and deploy a hosted MCP server version", "tags": ["MCP"], "security": [{ "bearerAuth": [] }],
@@ -61533,6 +61589,63 @@
           "obligationId": { "type": "string", "minLength": 1, "maxLength": 512 }
         }
       },
+      "McpCurationDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "description": { "type": "string" },
+          "scope": { "type": "string", "minLength": 1 }
+        }
+      },
+      "McpCurationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "decisions": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/McpCurationDecision" }
+          }
+        }
+      },
+      "McpCuratedTool": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "description", "inputSchema", "mutates", "suggestedScope", "method", "path", "scope"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "inputSchema": { "type": "object", "additionalProperties": true },
+          "mutates": { "type": "boolean" },
+          "suggestedScope": { "type": ["string", "null"] },
+          "scope": { "type": ["string", "null"] },
+          "source": { "type": "object", "additionalProperties": true },
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+          "path": { "type": "string", "minLength": 1 },
+          "longRunning": { "type": "boolean" }
+        }
+      },
+      "McpCurationViolation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string", "enum": ["no_enabled_tools", "mutating_tool_without_scope"] },
+          "message": { "type": "string", "minLength": 1 },
+          "tool": { "type": "string", "minLength": 1 }
+        }
+      },
+      "McpCurationResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["serverId", "status", "tools", "violations"],
+        "properties": {
+          "serverId": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "const": "curated" },
+          "tools": { "type": "array", "items": { "$ref": "#/components/schemas/McpCuratedTool" } },
+          "violations": { "type": "array", "items": { "$ref": "#/components/schemas/McpCurationViolation" } }
+        }
+      },
       "KnativeRuntimeStatus": {
         "type": "object",
         "additionalProperties": false,
@@ -61680,6 +61793,51 @@
           "state": { "type": "string", "enum": ["ready", "unverified", "degraded", "unavailable", "disabled"] },
           "reason": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
           "ready": { "type": "boolean" }
+        }
+      },
+      "FunctionLifecycleState": {
+        "type": "string",
+        "enum": ["active", "unavailable", "deletion_pending"]
+      },
+      "FunctionProvisioningState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state"],
+        "properties": {
+          "state": { "$ref": "#/components/schemas/FunctionLifecycleState" }
+        }
+      },
+      "FunctionActionExecutionLimits": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timeoutMs", "memoryMb"],
+        "properties": {
+          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 900000 },
+          "memoryMb": { "type": "integer", "minimum": 128, "maximum": 2048 }
+        }
+      },
+      "FunctionActionExecutionConfiguration": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["runtime", "entrypoint", "parameters", "limits"],
+        "properties": {
+          "runtime": { "type": "string", "minLength": 3, "maxLength": 40 },
+          "entrypoint": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["string", "number", "integer", "boolean", "object", "array", "null"]
+            }
+          },
+          "limits": { "$ref": "#/components/schemas/FunctionActionExecutionLimits" }
+        }
+      },
+      "FunctionActionPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["total"],
+        "properties": {
+          "total": { "type": "integer", "minimum": 0 }
         }
       },
       "HealthStatus": {
@@ -65675,6 +65833,8 @@
           "execution",
           "activationPolicy",
           "status",
+          "runtimeDependency",
+          "provisioning",
           "timestamps",
           "versionCount",
           "rollbackAvailable",
@@ -65702,23 +65862,14 @@
             "$ref": "#/components/schemas/FunctionDeploymentSource"
           },
           "execution": {
-            "$ref": "#/components/schemas/FunctionExecutionConfiguration"
+            "$ref": "#/components/schemas/FunctionActionExecutionConfiguration"
           },
           "activationPolicy": {
             "$ref": "#/components/schemas/FunctionActivationPolicy"
           },
           "status": {
             "type": "string",
-            "enum": [
-              "draft",
-              "deploying",
-              "active",
-              "suspended",
-              "failed",
-              "deleting",
-              "deletion_pending",
-              "unavailable"
-            ]
+            "enum": ["active", "unavailable", "deletion_pending"]
           },
           "runtimeDependency": {
             "$ref": "#/components/schemas/FunctionRuntimeDependency"
@@ -65727,7 +65878,7 @@
             "$ref": "#/components/schemas/LifecycleTimestamps"
           },
           "provisioning": {
-            "$ref": "#/components/schemas/ProvisioningResourceState"
+            "$ref": "#/components/schemas/FunctionProvisioningState"
           },
           "packageName": {
             "type": "string",
@@ -86711,7 +86862,7 @@
             }
           },
           "page": {
-            "$ref": "#/components/schemas/FunctionAdminPage"
+            "$ref": "#/components/schemas/FunctionActionPage"
           }
         }
       },

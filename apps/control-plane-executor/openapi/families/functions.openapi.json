@@ -552,7 +552,7 @@
             "type": "string"
           },
           "execution": {
-            "$ref": "#/components/schemas/FunctionExecutionConfiguration"
+            "$ref": "#/components/schemas/FunctionActionExecutionConfiguration"
           },
           "httpExposure": {
             "$ref": "#/components/schemas/FunctionHttpExposure"
@@ -583,7 +583,7 @@
             "$ref": "#/components/schemas/OpenWhiskProviderCompatibility"
           },
           "provisioning": {
-            "$ref": "#/components/schemas/ProvisioningResourceState"
+            "$ref": "#/components/schemas/FunctionProvisioningState"
           },
           "resourceId": {
             "pattern": "^res_[0-9a-z]+$",
@@ -606,14 +606,9 @@
           },
           "status": {
             "enum": [
-              "draft",
-              "deploying",
               "active",
-              "suspended",
-              "failed",
-              "deleting",
-              "deletion_pending",
-              "unavailable"
+              "unavailable",
+              "deletion_pending"
             ],
             "type": "string"
           },
@@ -660,6 +655,8 @@
           "execution",
           "activationPolicy",
           "status",
+          "runtimeDependency",
+          "provisioning",
           "timestamps",
           "versionCount",
           "rollbackAvailable",
@@ -678,12 +675,84 @@
             "type": "array"
           },
           "page": {
-            "$ref": "#/components/schemas/FunctionAdminPage"
+            "$ref": "#/components/schemas/FunctionActionPage"
           }
         },
         "required": [
           "items",
           "page"
+        ],
+        "type": "object"
+      },
+      "FunctionActionExecutionConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "entrypoint": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/FunctionActionExecutionLimits"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "integer",
+                "boolean",
+                "object",
+                "array",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "runtime": {
+            "maxLength": 40,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtime",
+          "entrypoint",
+          "parameters",
+          "limits"
+        ],
+        "type": "object"
+      },
+      "FunctionActionExecutionLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "memoryMb": {
+            "maximum": 2048,
+            "minimum": 128,
+            "type": "integer"
+          },
+          "timeoutMs": {
+            "maximum": 900000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "timeoutMs",
+          "memoryMb"
+        ],
+        "type": "object"
+      },
+      "FunctionActionPage": {
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total"
         ],
         "type": "object"
       },
@@ -1986,6 +2055,14 @@
         ],
         "type": "object"
       },
+      "FunctionLifecycleState": {
+        "enum": [
+          "active",
+          "unavailable",
+          "deletion_pending"
+        ],
+        "type": "string"
+      },
       "FunctionPackage": {
         "additionalProperties": false,
         "properties": {
@@ -2133,6 +2210,18 @@
         },
         "required": [
           "packageName"
+        ],
+        "type": "object"
+      },
+      "FunctionProvisioningState": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/FunctionLifecycleState"
+          }
+        },
+        "required": [
+          "state"
         ],
         "type": "object"
       },
