@@ -457,6 +457,10 @@ async function purgeTenant(ctx) {
   const tenant = await store.getTenant(pool, params.tenantId);
   if (!tenant) return err(404, 'TENANT_NOT_FOUND', `tenant ${params.tenantId} not found`);
   if (!canManageTenantId(identity, tenant.id)) return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  if (ctx.runtimeTeardownCoordinator) {
+    const pending = await ctx.runtimeTeardownCoordinator.purgeTenant(pool, tenant.id, ctx.callerContext?.correlationId);
+    if (pending.pending) return ok(202, { tenantId: tenant.id, status: 'cleanup_pending', obligations: pending.obligations ?? [] });
+  }
   const realm = tenant.iam_realm;
 
   // 1. Delete all registry rows + collect the physical resources to tear down.
@@ -856,6 +860,10 @@ async function deleteWorkspace(ctx) {
   // internal bypass the tenant match; everyone else must own the workspace's tenant.
   const owns = ws && canManageTenantId(identity, ws.tenant_id);
   if (!ws || !owns) return err(404, 'WORKSPACE_NOT_FOUND', `workspace ${params.workspaceId} not found`);
+  if (ctx.runtimeTeardownCoordinator) {
+    const pending = await ctx.runtimeTeardownCoordinator.purgeWorkspace(pool, ws.id, ctx.callerContext?.correlationId);
+    if (pending.pending) return ok(202, { workspaceId: ws.id, tenantId: ws.tenant_id, status: 'cleanup_pending', obligations: pending.obligations ?? [] });
+  }
 
   // 1. Delete the workspace's registry rows + collect the physical resources to tear down.
   const phys = await store.purgeWorkspace(pool, ws.id);

@@ -1088,6 +1088,20 @@ export async function deleteTenant(pool, id) {
   await pool.query('DELETE FROM tenants WHERE id = $1', [id]);
 }
 
+export async function listRuntimeOwnership(pool, { tenantId, workspaceId }) {
+  const where = tenantId ? 'tenant_id=$1' : 'workspace_id=$1';
+  const { rows: functions } = await pool.query(`SELECT tenant_id AS "tenantId", workspace_id AS "workspaceId", resource_id AS "resourceId", ksvc_name AS "ksvcName", uid, resource_version AS "resourceVersion" FROM fn_actions WHERE ${where} AND ksvc_name IS NOT NULL`, [tenantId ?? workspaceId]);
+  let mcpState = null;
+  try { const r = await pool.query('SELECT state FROM falcone_mcp_state WHERE id=$1', [tenantId ?? 'global']); mcpState = r.rows[0]?.state ?? null; } catch { mcpState = null; }
+  return { tenantId: tenantId ?? functions[0]?.tenantId, workspaceId, functions, mcpState };
+}
+
+export async function deferAggregateCleanup(pool, { tenantId, workspaceId, resources = [], correlationId }) {
+  for (const resource of resources) {
+    await pool.query(`INSERT INTO runtime_cleanup_obligations (obligation_id,resource_type,operation,tenant_id,workspace_id,resource_id,runtime_resource_name,correlation_id,status) VALUES ($1,$2,'delete',$3,$4,$5,$6,$7,'pending') ON CONFLICT (obligation_id) DO UPDATE SET updated_at=NOW()`, [`aggregate:${resource.resourceId ?? resource.name ?? resource}`, resource.type ?? 'aggregate', tenantId, workspaceId, resource.resourceId ?? String(resource), resource.ksvcName ?? resource.name ?? String(resource), correlationId ?? null]);
+  }
+}
+
 // Soft delete: mark the tenant 'deleted' (offboarding without destroying data yet).
 export async function markTenantDeleted(pool, id) {
   const { rows } = await pool.query(
