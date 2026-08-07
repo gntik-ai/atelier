@@ -12327,6 +12327,9 @@
       },
       "delete": {
         "operationId": "deleteWorkspace",
+        "x-runtime-aggregate-teardown": {
+          "ownedCapabilities": ["functions", "hosted_mcp"], "ownershipVerification": "required_before_delete", "readyCompletion": "only_after_owned_resources_absent", "unavailableStatus": "cleanup_pending", "retainOwnershipMetadata": true, "durableObligations": "owner_scoped", "retry": "idempotent_after_readiness", "adjacentTenantEffect": "none"
+        },
         "summary": "Soft-delete one canonical workspace while preserving audit and clone lineage metadata",
         "tags": [
           "Workspaces"
@@ -12352,7 +12355,7 @@
         ],
         "responses": {
           "202": {
-            "description": "Workspace deletion accepted.",
+            "description": "Workspace deletion accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
               "application/json": {
                 "schema": {
@@ -18807,7 +18810,7 @@
         },
         "responses": {
           "202": {
-            "description": "Tenant mutation accepted.",
+            "description": "Tenant mutation accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19054,6 +19057,9 @@
     "/v1/tenants/{tenantId}/purge": {
       "post": {
         "operationId": "purgeTenant",
+        "x-runtime-aggregate-teardown": {
+          "ownedCapabilities": ["functions", "hosted_mcp"], "ownershipVerification": "required_before_delete", "readyCompletion": "only_after_owned_resources_absent", "unavailableStatus": "cleanup_pending", "retainOwnershipMetadata": true, "durableObligations": "owner_scoped", "retry": "idempotent_after_readiness", "adjacentTenantEffect": "none"
+        },
         "summary": "Definitively purge one logically deleted tenant after retention and elevated confirmation checks",
         "tags": [
           "Tenants"
@@ -19089,7 +19095,7 @@
         },
         "responses": {
           "202": {
-            "description": "Tenant mutation accepted.",
+            "description": "Tenant mutation accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
               "application/json": {
                 "schema": {
