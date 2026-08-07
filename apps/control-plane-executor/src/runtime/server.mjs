@@ -130,9 +130,14 @@ function identityFromHeaders(headers, pathWorkspaceId) {
   const workspaceIds = typeof rawWorkspaceIds === 'string'
     ? rawWorkspaceIds.split(/[ ,]+/).map((s) => s.trim()).filter(Boolean)
     : undefined;
+  const credentialWorkspaceId = headers['x-workspace-id'] || undefined;
   return {
     tenantId: headers['x-tenant-id'],
-    workspaceId: headers['x-workspace-id'] || pathWorkspaceId,
+    workspaceId: credentialWorkspaceId || pathWorkspaceId,
+    // A trusted gateway header is an explicit singular credential binding just like an API key or
+    // JWT workspace_id claim. Keeping this distinct from the path fallback prevents a caller whose
+    // verified header names workspace B from addressing workspace A through any hosted MCP route.
+    ...(credentialWorkspaceId ? { credentialWorkspaceId } : {}),
     actorId: headers['x-auth-subject'],
     roleName: headers['x-pg-role'] || 'falcone_app',
     ...(scopes ? { scopes } : {}),
@@ -331,6 +336,14 @@ function structuralWriteDenyMessage(identity) {
 
 function workspaceIdFromPath(pathname) {
   return /\/workspaces\/([^/]+)/.exec(pathname)?.[1];
+}
+
+function isHostedMcpWorkspaceRequest(pathname) {
+  return /^\/v1\/mcp\/workspaces\/[^/]+\/servers(?:\/|$)/.test(pathname);
+}
+
+function isHostedMcpRpcRequest(pathname) {
+  return /^\/v1\/mcp\/workspaces\/[^/]+\/servers\/[^/]+\/rpc$/.test(pathname);
 }
 
 function isStructuralWriteRequest(method, pathname) {
@@ -931,12 +944,36 @@ async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner)
     await recordMcpUnavailable(mcpEngine, params, dependency, correlationId, operation);
     return { status: 503, body: knativeUnavailableResponse(dependency, correlationId) };
   }
-  if (params.operation === 'delete_server') await runtimeCleaner?.deleteOwnedRuntimeResources?.({
-    tenantId: params.identity.tenantId,
-    workspaceId: params.workspaceId,
-    resourceId: params.serverId,
-    runtimeResourceName: `mcp-${params.serverId}`,
-  });
+  if (params.operation === 'delete_server' && runtimeCleaner?.deleteOwnedRuntimeResources) {
+    try {
+      await runtimeCleaner.deleteOwnedRuntimeResources({
+        tenantId: params.identity.tenantId,
+        workspaceId: params.workspaceId,
+        resourceId: params.serverId,
+        runtimeResourceName: `mcp-${params.serverId}`,
+      });
+    } catch (cleanupError) {
+      // A Kubernetes authorization/transport error, unsafe object identity, replacement conflict,
+      // or failed absence verification must never remove the logical owner. Persist the same
+      // idempotent obligation used for outage deletion before acknowledging the request as pending.
+      const correlationId = params.correlationId ?? randomUUID();
+      try {
+        const pending = await mcpEngine.deferServerDeletion({
+          ...params,
+          correlationId,
+          runtime: {
+            ...dependency,
+            reason: cleanupError.code ?? 'MCP_RUNTIME_CLEANUP_UNVERIFIED',
+          },
+        });
+        recordMcpDependency({ operation: 'delete', outcome: 'deferred', ...dependency });
+        return { status: 202, body: pending };
+      } catch (storageError) {
+        cleanupError.cause = storageError;
+        throw cleanupError;
+      }
+    }
+  }
   const result = await mcpEngine.executeMcp(params);
   if (params.operation === 'call_tool') return { status: successStatus, body: { content: result.content ?? [], isError: result.result?.isError === true } };
   if (params.operation === 'create_server') {
@@ -956,6 +993,20 @@ async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner)
 // the dispatch identity gate (401) and the engine's per-tenant server lookup before reaching here.
 async function runMcpRpc(mcpEngine, params, runtime) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
+  if (params.identity?.hostedMcpWorkspaceBindingDenied) {
+    // Preserve JSON-RPC's HTTP transport semantics while denying the singular workspace mismatch
+    // before server lookup, dependency probing, or tool dispatch. The response is tenant-safe and
+    // indistinguishable from another unavailable-to-this-principal server.
+    if (params.message?.id === undefined || params.message?.id === null) return { status: 202, body: null };
+    return {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        id: params.message.id,
+        error: { code: -32001, message: 'No such MCP server for this tenant/workspace.' },
+      },
+    };
+  }
   const result = await mcpEngine.executeMcpRpc({
     ...params,
     beforeDispatch: async () => {
@@ -1271,8 +1322,19 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
       // gateway-injected identity headers) are not subject to this check.
       if (!opts?.noAuth && identity.credentialWorkspaceId) {
         if (workspaceInPath && workspaceInPath !== identity.credentialWorkspaceId) {
-          return sendJson(res, 403, { code: 'FORBIDDEN', message: 'Credential workspace does not match the requested workspace' });
+          if (isHostedMcpRpcRequest(url.pathname)) {
+            identity.hostedMcpWorkspaceBindingDenied = true;
+          } else {
+            return sendJson(res, 403, { code: 'FORBIDDEN', message: 'Credential workspace does not match the requested workspace' });
+          }
         }
+      }
+      // Hosted MCP has both read and dispatch routes whose dependency status and stored metadata are
+      // sensitive. A verified plural workspace claim therefore binds every hosted MCP route, not
+      // just structural writes, and is enforced before the handler can inspect runtime readiness.
+      if (!opts?.noAuth && workspaceInPath && isHostedMcpWorkspaceRequest(url.pathname)
+          && Array.isArray(identity.workspaceIds) && !identity.workspaceIds.includes(workspaceInPath)) {
+        return sendJson(res, 403, { code: 'FORBIDDEN', message: 'Caller workspace scope does not include the requested workspace' });
       }
       let owningTenantId;
       let checkedWorkspaceTenant = false;

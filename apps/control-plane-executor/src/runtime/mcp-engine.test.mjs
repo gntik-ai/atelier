@@ -111,20 +111,44 @@ test('cross-tenant: B cannot get / call / audit A\'s server (404)', async () => 
 });
 
 test('version pinning: a tool-description change is held for review, then served after approval', async () => {
-  const e = engine();
+  const applyCalls = [];
+  const e = createMcpEngine({
+    selfBaseUrl: 'http://cp.local',
+    gatewayBaseUrl: 'https://gw.local',
+    fetchImpl: fakeFetch(),
+    runtimeImageDigest: TEST_DIGEST,
+    mcpRuntimeAdapter: {
+      async apply(input) {
+        applyCalls.push(structuredClone(input));
+        return { status: 'accepted' };
+      },
+    },
+  });
   const created = await e.executeMcp({ operation: 'create_server', identity: A, workspaceId: A.workspaceId, body: { name: 'Pinned', source: 'official' } });
   const sid = created.serverId;
   await e.executeMcp({ operation: 'publish_version', identity: A, workspaceId: A.workspaceId, serverId: sid, version: 'v1', body: { version: 'v1' } });
+  assert.equal(applyCalls.length, 1);
+  assert.equal(applyCalls[0].operation, 'publish');
+  assert.equal(applyCalls[0].version, 'v1');
 
   // v2 changes a tool description via a real curation decision → requiresReview, NOT served.
   const firstTool = (await e.executeMcp({ operation: 'get_server', identity: A, workspaceId: A.workspaceId, serverId: sid })).tools[0].name;
   const pub2 = await e.executeMcp({ operation: 'publish_version', identity: A, workspaceId: A.workspaceId, serverId: sid, version: 'v2', body: { version: 'v2', curation: { decisions: { [firstTool]: { description: 'CHANGED for v2' } } } } });
   assert.equal(pub2.requiresReview, true);
   assert.equal(pub2.activeVersion, 'v1'); // still serving v1
+  assert.equal(applyCalls.length, 1, 'a review-held publish must not reconcile');
 
   // approve → v2 serves.
-  const approved = await e.executeMcp({ operation: 'approve_version', identity: A, workspaceId: A.workspaceId, serverId: sid, version: 'v2' });
+  const approved = await e.executeMcp({
+    operation: 'approve_version', identity: A, workspaceId: A.workspaceId, serverId: sid,
+    version: 'v2', correlationId: 'corr-unit-approve-v2',
+  });
   assert.equal(approved.activeVersion, 'v2');
+  assert.equal(applyCalls.length, 2);
+  assert.equal(applyCalls[1].operation, 'approve');
+  assert.equal(applyCalls[1].version, 'v2');
+  assert.equal(applyCalls[1].correlationId, 'corr-unit-approve-v2');
+  assert.equal(applyCalls[1].manifest.tools.find((tool) => tool.name === firstTool).description, 'CHANGED for v2');
 });
 
 test('quota: server-count limit is enforced (429 QUOTA_EXCEEDED with dimension)', async () => {

@@ -34,12 +34,52 @@ export function createMcpRuntimeCleaner({
       ca: init.ca,
       rejectUnauthorized: true,
     }, (response) => {
-      response.resume();
-      response.on('end', () => resolve({ status: response.statusCode ?? 500 }));
+      let body = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { body += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode ?? 500, body }));
     });
     request.on('error', reject);
     request.end(init.body);
   }));
+
+  function statusOf(response) {
+    const status = Number(response?.status ?? response?.statusCode);
+    return Number.isFinite(status) ? status : 500;
+  }
+
+  function kubernetesError(operation, status, code = 'MCP_RUNTIME_KUBERNETES_FAILED') {
+    return Object.assign(new Error(`Kubernetes hosted MCP ${operation} failed with ${status}`), {
+      code,
+      statusCode: status,
+    });
+  }
+
+  async function parseListResponse(response) {
+    const status = statusOf(response);
+    if (status === 404) return { status, items: [] };
+    if (status < 200 || status >= 300) throw kubernetesError('list', status, 'MCP_RUNTIME_LIST_FAILED');
+
+    let payload;
+    try {
+      if (typeof response?.json === 'function') payload = await response.json();
+      else if (typeof response?.body === 'string') payload = response.body ? JSON.parse(response.body) : null;
+      else payload = response?.body ?? response;
+    } catch (error) {
+      throw Object.assign(new Error('Kubernetes hosted MCP list returned invalid JSON'), {
+        code: 'MCP_RUNTIME_LIST_INVALID',
+        statusCode: 502,
+        cause: error,
+      });
+    }
+    if (!payload || !Array.isArray(payload.items)) {
+      throw Object.assign(new Error('Kubernetes hosted MCP list omitted items'), {
+        code: 'MCP_RUNTIME_LIST_INVALID',
+        statusCode: 502,
+      });
+    }
+    return { status, items: payload.items };
+  }
 
   async function deleteOwnedRuntimeResources({ tenantId, resourceId }) {
     if (!apiBase) throw new Error('Kubernetes API is unavailable for hosted MCP cleanup');
@@ -58,25 +98,42 @@ export function createMcpRuntimeCleaner({
     ];
     for (const path of resources) {
       const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
-      const listed = await request(`${apiBase}${path}?labelSelector=${selector}`, { method: 'GET', headers, ca });
-      if (listed.status === 404) continue;
-      const items = listed.body?.items ?? listed.items ?? [];
-      for (const item of items) {
+      const listUrl = `${apiBase}${path}?labelSelector=${selector}`;
+      const listed = await parseListResponse(await request(listUrl, { method: 'GET', headers, ca }));
+      const ownedItems = listed.items.filter((item) => {
         const labels = item.metadata?.labels ?? {};
-        if (labels['in-falcone.io/tenant'] !== namespace || labels['in-falcone.io/mcp-server'] !== serverId) continue;
-        if (!item.metadata?.uid || !item.metadata?.resourceVersion) continue;
-        const name = encodeURIComponent(item.metadata?.name ?? '');
+        return labels['in-falcone.io/tenant'] === namespace && labels['in-falcone.io/mcp-server'] === serverId;
+      });
+      if (ownedItems.length === 0) continue;
+      for (const item of ownedItems) {
+        if (!item.metadata?.name || !item.metadata?.uid || !item.metadata?.resourceVersion) {
+          throw Object.assign(new Error('Kubernetes hosted MCP resource lacks deletion preconditions'), {
+            code: 'MCP_RUNTIME_DELETE_PRECONDITION_MISSING',
+            statusCode: 409,
+          });
+        }
+        const name = encodeURIComponent(item.metadata.name);
         const response = await request(`${apiBase}${path}/${name}`, {
           method: 'DELETE', headers, ca,
           body: JSON.stringify({ apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background', preconditions: { uid: item.metadata.uid, resourceVersion: item.metadata.resourceVersion } }),
         });
-        if (response.status === 409) throw Object.assign(new Error('MCP runtime replacement conflict; retained for retry'), { code: 'MCP_RUNTIME_DELETE_CONFLICT', statusCode: 409 });
-        if (![200, 202, 404].includes(response.status)) {
-        throw Object.assign(new Error(`Kubernetes hosted MCP cleanup failed with ${response.status}`), {
-          code: 'MCP_RUNTIME_DELETE_FAILED',
-          statusCode: response.status,
+        const status = statusOf(response);
+        if (status === 409) throw Object.assign(new Error('MCP runtime replacement conflict; retained for retry'), { code: 'MCP_RUNTIME_DELETE_CONFLICT', statusCode: 409 });
+        if (status !== 404 && (status < 200 || status >= 300)) throw kubernetesError('delete', status, 'MCP_RUNTIME_DELETE_FAILED');
+      }
+
+      // Kubernetes may acknowledge an asynchronous deletion or return 404 after a race. Re-list the
+      // exact ownership selector and finalize only when absence is independently verified.
+      const verified = await parseListResponse(await request(listUrl, { method: 'GET', headers, ca }));
+      const remaining = verified.items.some((item) => {
+        const labels = item.metadata?.labels ?? {};
+        return labels['in-falcone.io/tenant'] === namespace && labels['in-falcone.io/mcp-server'] === serverId;
+      });
+      if (remaining) {
+        throw Object.assign(new Error('Kubernetes hosted MCP resource deletion is not yet verified'), {
+          code: 'MCP_RUNTIME_DELETE_UNVERIFIED',
+          statusCode: 409,
         });
-        }
       }
     }
     return { deleted: true, tenantId: namespace, serverId };

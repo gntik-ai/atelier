@@ -52,6 +52,51 @@ test('mcp runtime parses trusted scope headers without synthesizing base scope',
   assert.deepEqual(ctx.roles, ['tenant_owner', 'platform_admin']);
 });
 
+test('mcp runtime consumes the approved hosted manifest and credential-derived workspace context', async () => {
+  const mod = await import(`../../apps/mcp-runtime/server.mjs?hosted=${Date.now()}`);
+  const calls = [];
+  const manifest = {
+    status: 'published',
+    tools: [{
+      name: 'query_orders',
+      description: 'Query orders.',
+      method: 'GET',
+      path: '/v1/postgres/workspaces/{workspaceId}/data/app/schemas/public/tables/orders/rows',
+      source: { type: 'postgres' },
+      mutates: false,
+      scope: null,
+    }],
+  };
+  const response = await mod.handleHostedMcpMessage({
+    jsonrpc: '2.0',
+    id: 'corr-hosted-unit',
+    method: 'tools/call',
+    params: {
+      name: 'query_orders',
+      arguments: {
+        query: 'kept', tenantId: 'smuggled', tenant_id: 'smuggled',
+        workspaceId: 'wrong', workspace_id: 'wrong',
+      },
+    },
+  }, {
+    tenantId: 'tenant-a',
+    workspaceId: 'workspace-a',
+    grantedScopes: [BASE_SCOPE],
+    async callFalcone(method, path, body) {
+      calls.push({ method, path, body });
+      return { rows: [] };
+    },
+  }, manifest, 'v2');
+
+  assert.equal(response.error, undefined);
+  assert.deepEqual(calls, [{
+    method: 'GET',
+    path: '/v1/postgres/workspaces/workspace-a/data/app/schemas/public/tables/orders/rows',
+    body: undefined,
+  }]);
+  assert.deepEqual(JSON.parse(response.result.content[0].text), { rows: [] });
+});
+
 test('mcp runtime refuses tool calls when trusted headers omit the base scope', async () => {
   const upstream = http.createServer((_req, res) => {
     assert.fail('runtime must not call upstream without the base scope');

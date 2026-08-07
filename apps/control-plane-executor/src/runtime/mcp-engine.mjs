@@ -44,6 +44,17 @@ function slug(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'server';
 }
 
+function stripOwnershipArguments(args = {}) {
+  const {
+    tenantId: _tenantId,
+    tenant_id: _tenantIdSnake,
+    workspaceId: _workspaceId,
+    workspace_id: _workspaceIdSnake,
+    ...safeArgs
+  } = args ?? {};
+  return safeArgs;
+}
+
 /** Build a curation-ready DRAFT for the requested source (instant generators or the official catalog). */
 function draftForSource(serverId, source, resources) {
   if (source === 'official') {
@@ -223,7 +234,7 @@ export function createMcpEngine({
     let path = String(tool.path ?? '').replace('{workspaceId}', ws);
     const method = tool.method ?? 'GET';
     // Defence in depth: a caller must not steer routing by smuggling tenant/workspace in args.
-    const { tenantId: _t, workspaceId: _w, ...safeArgs } = args ?? {};
+    const safeArgs = stripOwnershipArguments(args);
 
     switch (source.type) {
       case 'postgres': {
@@ -294,8 +305,18 @@ export function createMcpEngine({
     if (tool.mutates && toolScope && !granted.has(toolScope)) return { content: [{ type: 'text', text: `mutating tool requires scope: ${toolScope}` }], isError: true };
 
     if (mcpRuntimeAdapter?.invoke) {
-      const hosted = await mcpRuntimeAdapter.invoke({ tenantId: entry.tenantId, workspaceId: entry.workspaceId, serverId: entry.serverId,
-        version: registered.activeVersion, tool: toolName, args, manifest: activeRecord, correlationId });
+      const hosted = await mcpRuntimeAdapter.invoke({
+        tenantId: entry.tenantId,
+        workspaceId: entry.workspaceId,
+        serverId: entry.serverId,
+        version: registered.activeVersion,
+        tool: toolName,
+        args: stripOwnershipArguments(args),
+        manifest: activeRecord.manifest ?? activeRecord,
+        correlationId,
+        roles: Array.isArray(identity.roles) ? identity.roles : [],
+        scopes: Array.isArray(identity.scopes) ? identity.scopes : [],
+      });
       return { content: hosted?.content ?? [], isError: hosted?.isError === true, ...hosted };
     }
 
@@ -388,11 +409,14 @@ export function createMcpEngine({
         const reg = registerVersion(registry, { tenantId: tid, serverId, version: v, image: registryImage, manifest: pub.manifest, source: entry.source === 'official' ? 'official' : entry.source === 'custom' ? 'custom' : 'instant', signatureVerified: true });
         if (!reg.ok) throw httpError(reg.violations?.[0]?.code === 'duplicate_version' ? 409 : 422, 'MCP_VERSION_REJECTED', reg.violations?.[0]?.message ?? 'Version rejected.', { errors: reg.violations });
         const record = reg.version;
+        // Retain the exact curated runtime contract so an approval reconciles precisely the version
+        // that was reviewed instead of rebuilding from a later mutable draft.
+        record.manifest = structuredClone(pub.manifest);
         let activated = false;
         if (!record.requiresReview) { activateVersion(registry, tid, serverId, v, { approved: false }); activated = true; }
-        if (mcpRuntimeAdapter?.apply) {
+        if (!record.requiresReview && mcpRuntimeAdapter?.apply) {
           await mcpRuntimeAdapter.apply({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
-            operation: 'publish', version: v, runtimeImage: pinnedImage, manifest: pub.manifest,
+            operation: 'publish', version: v, runtimeImage: pinnedImage, manifest: record.manifest,
             correlationId: body.correlationId ?? randomUUID() });
         }
         audit('server_published', { serverId });
@@ -401,9 +425,30 @@ export function createMcpEngine({
       }
 
       case 'approve_version': {
-        requireServer(identity, serverId, workspaceId);
+        const entry = requireServer(identity, serverId, workspaceId);
         const result = activateVersion(registry, tid, serverId, version, { approved: true });
         if (!result.ok) throw httpError(404, 'MCP_VERSION_NOT_FOUND', result.violations?.[0]?.message ?? 'Version not found.', { errors: result.violations });
+        const approved = getServer(registry, tid, serverId)?.versions?.find((record) => record.version === version);
+        if (!approved) throw httpError(404, 'MCP_VERSION_NOT_FOUND', 'Version not found.');
+        // Versions persisted before the runtime-manifest field was introduced still retain their
+        // complete normalized tool contract. Reconstruct only for that upgrade-compatibility case;
+        // newly published versions always reconcile the exact reviewed manifest captured above.
+        const approvedManifest = approved.manifest ?? {
+          status: 'published',
+          tools: structuredClone(approved.tools ?? []),
+        };
+        if (mcpRuntimeAdapter?.apply) {
+          await mcpRuntimeAdapter.apply({
+            tenantId: tid,
+            workspaceId: entry.workspaceId,
+            serverId,
+            operation: 'approve',
+            version,
+            runtimeImage: pinnedImage,
+            manifest: approvedManifest,
+            correlationId: params.correlationId ?? randomUUID(),
+          });
+        }
         audit('scopes_changed', { serverId });
         return changed({ serverId, approvedVersion: version, activeVersion: getServer(registry, tid, serverId)?.activeVersion ?? null });
       }
@@ -446,15 +491,47 @@ export function createMcpEngine({
 
       case 'delete_server': {
         const entry = requireServer(identity, serverId, workspaceId);
+        const retainForRetry = () => {
+          entry.lifecycleStatus = 'deletion_pending';
+          entry.deletionRequestedAt ??= new Date(clock()).toISOString();
+          return changed({
+            serverId,
+            status: 'deletion_pending',
+            correlationId: params.correlationId ?? randomUUID(),
+          });
+        };
         if (mcpRuntimeAdapter?.listOwned && mcpRuntimeAdapter?.deleteOwned) {
-          const observed = await mcpRuntimeAdapter.listOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId });
+          let observed;
+          try {
+            observed = await mcpRuntimeAdapter.listOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId });
+          } catch {
+            return retainForRetry();
+          }
+          if (!Array.isArray(observed)) return retainForRetry();
           for (const resource of observed ?? []) {
-            const deleted = await mcpRuntimeAdapter.deleteOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
-              kind: resource.kind, namespace: resource.namespace, name: resource.name, uid: resource.uid, resourceVersion: resource.resourceVersion });
-            if (deleted?.status === 409 || deleted?.code === 'PRECONDITION_CONFLICT') {
-              entry.lifecycleStatus = 'deletion_pending';
-              entry.deletionRequestedAt ??= new Date(clock()).toISOString();
-              return changed({ serverId, status: 'deletion_pending', correlationId: randomUUID() });
+            if (!resource?.uid || !resource?.resourceVersion) return retainForRetry();
+            let deleted;
+            try {
+              deleted = await mcpRuntimeAdapter.deleteOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
+                kind: resource.kind, namespace: resource.namespace, name: resource.name, uid: resource.uid, resourceVersion: resource.resourceVersion });
+            } catch {
+              return retainForRetry();
+            }
+            const status = Number(deleted?.status ?? deleted?.statusCode);
+            if (deleted?.code === 'PRECONDITION_CONFLICT' || status === 409) return retainForRetry();
+            if (status === 404) {
+              let remaining;
+              try {
+                remaining = await mcpRuntimeAdapter.listOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId });
+              } catch {
+                return retainForRetry();
+              }
+              if (!Array.isArray(remaining) || remaining.some((item) =>
+                item?.kind === resource.kind && item?.namespace === resource.namespace && item?.name === resource.name)) {
+                return retainForRetry();
+              }
+            } else if (!Number.isFinite(status) || status < 200 || status >= 300) {
+              return retainForRetry();
             }
           }
         }
