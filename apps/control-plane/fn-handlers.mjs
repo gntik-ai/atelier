@@ -210,7 +210,7 @@ function functionDependencyGate(ctx, operation, scope) {
   const runtime = runtimeFor(ctx);
   const correlationId = ctx.callerContext?.correlationId ?? randomUUID();
   if (!runtime.functionsEnabled) {
-    return { statusCode: 501, body: functionsDisabledResponse(correlationId) };
+    return { statusCode: 501, body: functionsDisabledResponse(correlationId), auditScope: scope };
   }
   const status = runtime.status();
   if (!runtime.canServeWorkloads(status)) {

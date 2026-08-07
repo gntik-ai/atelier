@@ -42,7 +42,8 @@ const AUDITABLE_LOCAL_HANDLERS = {
   fnDeploy: 'workspace.function.deploy',
   fnDelete: 'workspace.function.delete',
   fnInvoke: 'workspace.function.invoke',
-  fnRollback: 'workspace.function.rollback'
+  fnRollback: 'workspace.function.rollback',
+  fnActivationRerun: 'workspace.function.activation.rerun'
 };
 
 // Map an HTTP status to the audited outcome (#644): the TRUE result of the action,
@@ -107,6 +108,8 @@ export function auditEventForRoute(route, ctx, result) {
       path: route.path,
       status,
       ...(safeEvidence ? { knative: safeEvidence } : {}),
+      ...(actionType === 'workspace.function.activation.rerun' && result?.auditScope?.resourceId
+        ? { resourceId: result.auditScope.resourceId } : {}),
     }
   };
 }
