@@ -57,6 +57,10 @@ const ISSUER = process.env.KEYCLOAK_ISSUER || null;   // optional exact-match ch
 const AUDIENCE = process.env.KEYCLOAK_AUDIENCE || null;
 const ROUTE_MAP_FILE = process.env.ROUTE_MAP_FILE || null; // optional JSON merged over seedRoutes
 const knativeRuntime = createKnativeRuntimeSource({ env: process.env });
+// Handle for the durable Function cleanup interval so shutdown can stop it gracefully (parity with
+// the executor's MCP cleanup timer). Declared at module scope because it is assigned inside
+// bootstrapControlPlane() and cleared in the SIGINT/SIGTERM handler below.
+let functionCleanupTimer = null;
 
 const pool = DB_URL
   ? new Pool(withPostgresSsl({ connectionString: DB_URL, max: 12 }))
@@ -557,8 +561,10 @@ export async function bootstrapControlPlane() {
       .catch(() => console.warn('[control-plane] #673 legacy identity cleanup failed (non-fatal)'));
   }
 
-  // Durable Function cleanup recovery. The worker is readiness-gated and claims a bounded batch;
-  // concurrent ticks/processes are safe through FOR UPDATE SKIP LOCKED in the repository.
+  // Durable Function cleanup recovery. The worker is readiness-gated (it no-ops while Knative is
+  // unavailable, so `disabled` mode never touches the database) and claims a bounded batch;
+  // concurrent ticks/processes are safe through FOR UPDATE SKIP LOCKED in the repository. The
+  // interval handle is retained so the shutdown handler can stop it gracefully.
   const cleanupRepository = createRuntimeCleanupRepository(pool);
   const recoverCleanup = () => recoverFunctionCleanupObligations({
     runtime: knativeRuntime,
@@ -598,7 +604,8 @@ export async function bootstrapControlPlane() {
     },
   }).catch(() => undefined);
   void recoverCleanup();
-  setInterval(recoverCleanup, 30_000).unref();
+  functionCleanupTimer = setInterval(recoverCleanup, 30_000);
+  functionCleanupTimer.unref();
 }
 
 await bootstrapControlPlane();
@@ -607,6 +614,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
     if (shutdownStarted) return;
     shutdownStarted = true;
+    if (functionCleanupTimer) clearInterval(functionCleanupTimer);
     const closeServer = server.listening
       ? new Promise((resolve) => server.close(resolve))
       : Promise.resolve();
