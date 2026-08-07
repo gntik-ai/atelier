@@ -152,6 +152,12 @@ const REMOTE_ACCEPTANCE_ENV = [
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 type JsonObject = { [key: string]: Json }
+type FunctionActorFixture = {
+  persona: 'P8' | 'P13'
+  token: string
+  tenantId: string
+  workspaceId: string
+}
 type RuntimeMode = 'managed' | 'external' | 'disabled'
 type RuntimeStatus = {
   mode: RuntimeMode
@@ -186,6 +192,30 @@ type DisposableAttestation = {
   clusterUid: string
   expiresAt: string
 }
+
+const P8_FUNCTION_ACTOR: FunctionActorFixture = {
+  persona: 'P8',
+  token: ENV.functionDeveloperToken,
+  tenantId: ENV.tenantA,
+  workspaceId: ENV.workspaceA,
+}
+
+const P13_FUNCTION_ACTOR: FunctionActorFixture = {
+  persona: 'P13',
+  token: ENV.tenantBToken,
+  tenantId: ENV.tenantB,
+  workspaceId: ENV.workspaceB,
+}
+
+const GATEWAY_MUTATION_ACCEPTED_KEYS = [
+  'acceptedAt',
+  'correlationId',
+  'family',
+  'requestId',
+  'resourceId',
+  'resourceType',
+  'status',
+] as const
 
 const LIFECYCLE_OPERATION: Record<LifecycleCommandName, 'outage' | 'restart' | 'recover'> = {
   E2E_933_OUTAGE_COMMAND_JSON: 'outage',
@@ -351,6 +381,68 @@ async function jsonBody<T = JsonObject>(response: APIResponse): Promise<T> {
 async function expectStatus(response: APIResponse, status: number, label: string): Promise<JsonObject> {
   const body = await jsonBody<JsonObject>(response)
   expect(response.status(), `${label}: ${JSON.stringify(body).slice(0, 600)}`).toBe(status)
+  return body
+}
+
+function jwtPayload(token: string): Record<string, unknown> {
+  const segments = token.split('.')
+  expect(segments, 'P8 Function developer fixture must be a JWT').toHaveLength(3)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(Buffer.from(segments[1], 'base64url').toString('utf8'))
+  } catch (error) {
+    throw new Error(`P8 Function developer JWT payload is not valid JSON: ${String(error)}`)
+  }
+  expect(parsed && typeof parsed === 'object' && !Array.isArray(parsed), 'P8 Function developer JWT payload must be an object').toBeTruthy()
+  return parsed as Record<string, unknown>
+}
+
+function expectP8FunctionActorClaims(actor: FunctionActorFixture): void {
+  expect(actor.persona).toBe('P8')
+  expect(actor.token).toBe(ENV.functionDeveloperToken)
+  expect(actor.tenantId).toBe(ENV.tenantA)
+  expect(actor.workspaceId).toBe(ENV.workspaceA)
+
+  const claims = jwtPayload(actor.token)
+  const realmAccess = claims.realm_access
+  const roles = realmAccess && typeof realmAccess === 'object' && !Array.isArray(realmAccess)
+    ? (realmAccess as Record<string, unknown>).roles
+    : undefined
+  expect(roles, 'P8 JWT realm_access.roles must be an array').toEqual(expect.any(Array))
+  expect((roles as unknown[]).map(String), 'P8 JWT must carry the Function write role').toContain('workspace_developer')
+
+  const workspaceIds = [
+    ...(typeof claims.workspace_id === 'string' ? [claims.workspace_id] : []),
+    ...(Array.isArray(claims.workspace_ids) ? claims.workspace_ids.map(String) : []),
+    ...(typeof claims.workspace_ids === 'string' ? claims.workspace_ids.split(/[ ,]+/).filter(Boolean) : []),
+  ]
+  expect(workspaceIds, 'P8 JWT must be bound to the target workspace supplied by the fixture').toContain(actor.workspaceId)
+  if (typeof claims.tenant_id === 'string') {
+    expect(claims.tenant_id, 'P8 JWT tenant_id, when present, must match the target tenant fixture').toBe(actor.tenantId)
+  }
+}
+
+async function expectFunctionMutationAccepted(
+  response: APIResponse,
+  label: string,
+  expectedResourceId?: string,
+): Promise<JsonObject> {
+  const body = await expectStatus(response, 202, label)
+  expect(Object.keys(body).sort(), `${label} must return exactly GatewayMutationAccepted`).toEqual([...GATEWAY_MUTATION_ACCEPTED_KEYS])
+  expect(body).toMatchObject({
+    status: 'accepted',
+    family: 'functions',
+    resourceType: 'function_action',
+    correlationId: correlation(label),
+  })
+  expect(body.requestId).toEqual(expect.any(String))
+  expect(String(body.requestId).length).toBeGreaterThanOrEqual(8)
+  expect(String(body.requestId).length).toBeLessThanOrEqual(128)
+  expect(body.resourceId).toEqual(expect.any(String))
+  expect(String(body.resourceId).length).toBeGreaterThan(0)
+  expect(body.acceptedAt).toEqual(expect.any(String))
+  expect(Number.isFinite(Date.parse(String(body.acceptedAt))), `${label} acceptedAt must be an RFC 3339 date-time`).toBeTruthy()
+  if (expectedResourceId !== undefined) expect(body.resourceId).toBe(expectedResourceId)
   return body
 }
 
@@ -642,15 +734,12 @@ function functionBody(tenantId: string, workspaceId: string, version: 'one' | 't
 
 async function createFunction(
   request: APIRequestContext,
-  token: string,
-  tenantId: string,
-  workspaceId: string,
+  actor: FunctionActorFixture,
   suffix: string,
 ): Promise<string> {
-  const response = await call(request, MANAGED_API, token, 'POST', '/v1/functions/actions', `function-create-${suffix}`, functionBody(tenantId, workspaceId, 'one'))
-  expect([201, 202], `Function create ${suffix}: ${await response.text()}`).toContain(response.status())
-  const body = await jsonBody<JsonObject>(response)
-  expect(body.resourceId).toEqual(expect.any(String))
+  const label = `function-create-${suffix}`
+  const response = await call(request, MANAGED_API, actor.token, 'POST', '/v1/functions/actions', label, functionBody(actor.tenantId, actor.workspaceId, 'one'))
+  const body = await expectFunctionMutationAccepted(response, label)
   return String(body.resourceId)
 }
 
@@ -708,7 +797,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     // Recovery and public-API deletion are best-effort fallback cleanup for an assertion failure.
     // The successful path proves cleanup explicitly in the final scenario.
     if (outageApplied && verifiedTarget) await runLifecycleCommand('E2E_933_RECOVERY_COMMAND_JSON', verifiedTarget).catch(() => undefined)
-    if (functionA) await deleteBestEffort(request, ENV.functionDeveloperToken, `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'fallback-function-a')
+    if (functionA) await deleteBestEffort(request, P8_FUNCTION_ACTOR.token, `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'fallback-function-a')
     if (functionB) await deleteBestEffort(request, ENV.tenantBToken, `/v1/functions/actions/${encodeURIComponent(functionB)}`, 'fallback-function-b')
     if (mcpA) await deleteBestEffort(request, ENV.mcpOwnerToken, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'fallback-mcp-a')
     if (mcpB) await deleteBestEffort(request, ENV.tenantBToken, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceB)}/servers/${encodeURIComponent(mcpB)}`, 'fallback-mcp-b')
@@ -766,7 +855,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
       expect(status.mode).toBe('managed')
     }
 
-    const denied = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'GET', '/v1/platform/runtime/knative', 'status-tenant-denied')
+    const denied = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', '/v1/platform/runtime/knative', 'status-tenant-denied')
     expect(denied.status()).toBe(403)
     expect(JSON.stringify(await jsonBody(denied))).not.toMatch(/owner|version|READY|degraded|unavailable/i)
 
@@ -822,12 +911,13 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   })
 
   test('issue-933-04 | P8/P13: adjacent tenants deploy and invoke same-name Functions without collision', async ({ request }) => {
-    functionA = await createFunction(request, ENV.functionDeveloperToken, ENV.tenantA, ENV.workspaceA, 'tenant-a')
-    functionB = await createFunction(request, ENV.tenantBToken, ENV.tenantB, ENV.workspaceB, 'tenant-b')
+    expectP8FunctionActorClaims(P8_FUNCTION_ACTOR)
+    functionA = await createFunction(request, P8_FUNCTION_ACTOR, 'tenant-a')
+    functionB = await createFunction(request, P13_FUNCTION_ACTOR, 'tenant-b')
     expect(functionA).not.toBe(functionB)
 
     for (const [token, resourceId, tenantEcho, label] of [
-      [ENV.functionDeveloperToken, functionA, 'A', 'a'],
+      [P8_FUNCTION_ACTOR.token, functionA, 'A', 'a'],
       [ENV.tenantBToken, functionB, 'B', 'b'],
     ]) {
       const invoke = await call(request, MANAGED_API, token, 'POST', `/v1/functions/actions/${encodeURIComponent(resourceId)}/invocations`, `function-invoke-${label}`, {
@@ -853,10 +943,12 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   })
 
   test('issue-933-05 | P8: update creates a version, invocation uses it, and rollback restores the prior version', async ({ request }) => {
-    const update = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'PATCH', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'function-update-a', functionBody(ENV.tenantA, ENV.workspaceA, 'two'))
-    expect([200, 202], `Function update: ${await update.text()}`).toContain(update.status())
+    expectP8FunctionActorClaims(P8_FUNCTION_ACTOR)
+    const updateLabel = 'function-update-a'
+    const update = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'PATCH', `/v1/functions/actions/${encodeURIComponent(functionA)}`, updateLabel, functionBody(P8_FUNCTION_ACTOR.tenantId, P8_FUNCTION_ACTOR.workspaceId, 'two'))
+    await expectFunctionMutationAccepted(update, updateLabel, functionA)
 
-    const versionsResponse = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/versions`, 'function-versions-a')
+    const versionsResponse = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/versions`, 'function-versions-a')
     const versionsBody = await expectStatus(versionsResponse, 200, 'Function versions')
     const versions = versionsBody.items as JsonObject[]
     expect(versions).toHaveLength(2)
@@ -867,14 +959,14 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     rollbackVersionA = String(rollbackTarget?.versionId)
     activeVersionBeforeOutage = String(active?.versionId)
 
-    const rollback = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/rollback`, 'function-rollback-a', {
+    const rollback = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/rollback`, 'function-rollback-a', {
       versionId: rollbackVersionA,
       reason: 'Issue #933 managed-runtime acceptance rollback',
     })
     const rollbackBody = await expectStatus(rollback, 202, 'Function rollback')
     expect(rollbackBody.requestedVersionId).toBe(rollbackVersionA)
 
-    const detail = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'function-detail-after-rollback')
+    const detail = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'function-detail-after-rollback')
     const detailBody = await expectStatus(detail, 200, 'Function detail after rollback')
     expect(detailBody.activeVersionId).toBe(rollbackVersionA)
   })
@@ -934,6 +1026,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   })
 
   test('issue-933-08 | P3/P8/P7/P12/P13: outage contracts are exact and tenant-safe', async ({ request }) => {
+    expectP8FunctionActorClaims(P8_FUNCTION_ACTOR)
     expect(verifiedTarget, 'live target identity must be verified before outage').not.toBeNull()
     await runLifecycleCommand('E2E_933_OUTAGE_COMMAND_JSON', verifiedTarget!)
     outageApplied = true
@@ -945,18 +1038,18 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     }).not.toBe('ready')
 
     const createLabel = 'outage-function-create'
-    const create = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'POST', '/v1/functions/actions', createLabel, {
-      ...functionBody(ENV.tenantA, ENV.workspaceA, 'one'),
+    const create = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', '/v1/functions/actions', createLabel, {
+      ...functionBody(P8_FUNCTION_ACTOR.tenantId, P8_FUNCTION_ACTOR.workspaceId, 'one'),
       actionName: `${SAME_NAME}-outage`.slice(0, 63).replace(/-+$/, ''),
     })
     expectUnavailable(await expectStatus(create, 503, 'outage Function create'), correlation(createLabel))
 
     const invokeLabel = 'outage-function-invoke'
-    const invoke = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, invokeLabel, { parameters: {}, responseMode: 'accepted' })
+    const invoke = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, invokeLabel, { parameters: {}, responseMode: 'accepted' })
     expectUnavailable(await expectStatus(invoke, 503, 'outage Function invoke'), correlation(invokeLabel))
 
     const rollbackLabel = 'outage-function-rollback'
-    const rollback = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/rollback`, rollbackLabel, { versionId: activeVersionBeforeOutage })
+    const rollback = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/rollback`, rollbackLabel, { versionId: activeVersionBeforeOutage })
     expectUnavailable(await expectStatus(rollback, 503, 'outage Function rollback'), correlation(rollbackLabel))
 
     const publishLabel = 'outage-mcp-publish'
@@ -1073,7 +1166,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
       intervals: [1_000, 2_000, 5_000, 10_000],
     }).toBe(404)
 
-    const invokeA = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, 'recovery-function-a-still-isolated', {
+    const invokeA = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, 'recovery-function-a-still-isolated', {
       parameters: { tenantEcho: 'A-after-recovery' }, responseMode: 'accepted',
     })
     expect(invokeA.status()).toBe(202)
@@ -1114,13 +1207,14 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   })
 
   test('issue-933-12 | P8/P7/P18: public deletion removes all issue resources, compute, RBAC, and networking', async ({ request }) => {
-    const functionDelete = await call(request, MANAGED_API, ENV.functionDeveloperToken, 'DELETE', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'cleanup-function-a')
+    expectP8FunctionActorClaims(P8_FUNCTION_ACTOR)
+    const functionDelete = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'DELETE', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'cleanup-function-a')
     expect((await expectStatus(functionDelete, 202, 'cleanup Function A')).status).toBe('accepted')
 
     const mcpDelete = await call(request, MANAGED_API, ENV.mcpOwnerToken, 'DELETE', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'cleanup-mcp-a')
     expect([200, 204]).toContain(mcpDelete.status())
 
-    await expect.poll(async () => (await call(request, MANAGED_API, ENV.functionDeveloperToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'cleanup-function-a-gone')).status(), {
+    await expect.poll(async () => (await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'cleanup-function-a-gone')).status(), {
       timeout: 2 * 60_000,
       intervals: [500, 1_000, 2_000, 5_000],
     }).toBe(404)
