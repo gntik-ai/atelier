@@ -50,6 +50,8 @@ COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
      apps/control-plane/transport-security.mjs \
      apps/control-plane/request-body.mjs \
      apps/control-plane/control-plane-startup.mjs \
+     apps/control-plane/knative-runtime.mjs apps/control-plane/knative-runtime-handlers.mjs \
+     apps/control-plane/runtime-cleanup-repository.mjs \
      apps/control-plane/control-plane-database-startup.mjs \
      apps/control-plane/tenant-config-export.mjs \
      apps/control-plane/route-map.runtime.json ./
@@ -86,7 +88,10 @@ RUN node -e "const fs=require('fs');const list=JSON.parse(fs.readFileSync('./rou
 # before the published image can crash-loop with ERR_MODULE_NOT_FOUND.
 RUN node -e "import('./control-plane-database-startup.mjs').then(()=>console.log('[build] control-plane database-startup import resolves')).catch((error)=>{console.error('[build] control-plane database-startup import failed:',error.code||error.name);process.exit(1)})"
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    KNATIVE_RUNTIME_MODE=disabled \
+    KNATIVE_RUNTIME_STATUS_FILE=/var/run/falcone/knative/status.json \
+    FUNCTIONS_ENABLED=true
 USER 1000
 EXPOSE 8080
 CMD ["node", "server.mjs"]
