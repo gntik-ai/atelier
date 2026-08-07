@@ -1,9 +1,11 @@
-# Knative runtime status and Function outage contract
+# Knative runtime status, Function, and hosted MCP outage contract
 
 > Maturity: **proposed**. The runtime status API and Function gate are implemented for issue #933,
-> but managed installation remains unavailable until the companion chart and disposable-cluster
-> acceptance are complete. Hosted MCP wiring and web-console presentation are separate delivery
-> slices and are not claimed by this page.
+> as are the application-side hosted MCP and web-console contracts documented here. Managed
+> installation remains unavailable: `gntik-ai/falcone-charts#8` is open and unimplemented, and no
+> authorized disposable remote OpenShift 4.21 or Kubernetes 1.34 cluster-admin acceptance target is
+> available. These source-level contracts do not establish release, deployment, or support
+> availability; live managed acceptance is blocked.
 
 ## Scope and actors
 
@@ -91,6 +93,22 @@ The response does not contain a Knative Service name, revision, endpoint, owner,
 cluster resource, or another tenant identifier. When `FUNCTIONS_ENABLED=false`, the same operation
 instead returns HTTP `501`, code `FUNCTIONS_DISABLED`, preserving capability-off semantics.
 
+Function read and write scopes are deliberately different:
+
+- a verified `tenant_owner` or `tenant_admin` may read Function metadata across workspaces in its
+  own tenant without carrying a workspace claim;
+- a platform-trusted `platform_operator`, `platform_auditor`, `platform_admin`, or `superadmin` may
+  read Function metadata platform-wide;
+- a tenant-realm identity with a copied platform role, or a roleless identity that only sets
+  `actor_type`, receives no platform-reader authority; and
+- create, update, invoke, rollback, and delete remain bound to the exact tenant and workspace in the
+  verified identity. A same-tenant role without the required workspace claim cannot mutate another
+  workspace's Function.
+
+Successful create, update, invoke, rollback, and delete results carry the persisted Function's
+tenant, workspace, and resource audit scope. The route audit writer uses that result scope rather
+than an untrusted or absent request workspace, so an adjacent workspace audit cannot see the event.
+
 Metadata reads remain available. A tenant-scoped Function response adds:
 
 ```json
@@ -107,12 +125,67 @@ Metadata reads remain available. A tenant-scoped Function response adds:
 ```
 
 Tenant metadata intentionally omits the runtime owner/version and cluster detail exposed by the
-platform-only route.
+platform-only route. Both detail and list items use the Function-specific public representation:
+`status` and `provisioning.state` distinguish `active`, `unavailable`, and `deletion_pending`, while
+`runtimeDependency` carries only the bounded dependency state. The public OpenAPI schemas describe
+these same states instead of treating Function lifecycle as a generic provisioning resource.
 
 The console presents `ready`, `unavailable`, `unverified`, and `disabled` as distinct states with a
-bounded reason and user-actionable text. Retry is available for recoverable states and preserves
-keyboard focus; dependent Function and MCP actions remain disabled while `ready: false`. Hosted MCP
-detail and Playground views show dependency state before allowing invoke.
+bounded reason and user-actionable text. On the runtime page, a successful initial route load does
+not move focus away from the navigation control that opened the page. After an error or an explicit
+retry, focus is restored to the retry/recheck control when the request completes. Function update,
+invoke, rollback, and delete controls are disabled for both `unavailable` and `deletion_pending`,
+and each disabled control references the accessible explanation for that state. Active Function
+affordances remain available. Hosted MCP detail and Playground views show dependency state before
+allowing invoke.
+
+## Hosted MCP authorization and public operations
+
+Hosted MCP routes derive tenant and workspace authority from the verified identity, never from the
+request body or JSON-RPC parameters. If the identity carries a singular `workspace_id`, that value
+must match the route workspace. If it carries plural `workspace_ids`, the route workspace must be a
+member. The binding is enforced consistently for server list, detail, audit, REST tool-call, and
+JSON-RPC routes before runtime status is inspected or a hosted tool is dispatched. A caller bound
+only to an adjacent workspace therefore receives a tenant-safe denial without a Knative reason,
+server detail, or tool result.
+
+The public management surface includes:
+
+```http
+GET  /v1/mcp/workspaces/{workspaceId}/servers
+GET  /v1/mcp/workspaces/{workspaceId}/servers/{serverId}
+GET  /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/audit
+POST /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations
+POST /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions
+POST /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions/{version}/approval
+POST /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/tool-calls
+POST /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc
+```
+
+The curation operation is a workspace-scoped, bearer-authenticated public API. It applies tool
+enablement, description overrides, and per-tool scopes to the generated draft, then returns the
+curated tools and bounded publish-gate violations; it does not itself publish or activate a version.
+Its authoritative OpenAPI operation, generated MCP family, route catalog, and
+[public API surface](./public-api-surface.md#mcp) are generated from the same contract.
+
+## Hosted MCP publication and invocation
+
+Publishing first generates and curates the draft, runs the publish gate, registers the named
+version, and persists the exact normalized manifest associated with that version. A version that
+does not require review reconciles that stored manifest, version, operation, workspace, pinned
+runtime image, and correlation ID to the runtime. A review-held version remains
+`requires_review`, leaves the prior version active, and causes no runtime reconciliation. Approval
+then activates and reconciles the exact persisted manifest that was reviewed; later edits to the
+mutable draft cannot change the approved deployment contract.
+
+Both the REST tool-call endpoint and JSON-RPC `tools/call` path dispatch a hosted invocation as a
+JSON-RPC 2.0 `tools/call` request. The runtime adapter supplies tenant ID, workspace ID, caller
+roles, granted scopes, active version, and correlation ID from the credential-bound server and
+verified caller context. It removes top-level `tenantId`, `tenant_id`, `workspaceId`, and
+`workspace_id` fields from caller arguments before dispatch, so a tool call cannot smuggle an
+ownership boundary. The remaining arguments, tool name, and request ID are preserved. Runtime
+errors remain bounded MCP/HTTP errors; they do not replace the server-derived authorization
+context with caller input.
 
 ## Outage deletion and recovery
 
@@ -136,6 +209,29 @@ while the runtime is unavailable. Once ready, it claims at most 25 Function obli
 success), and atomically removes only the matching tenant/resource Function rows before marking the
 obligation complete. Failure returns the obligation to `pending` with a bounded code for a later
 retry. It never deletes by an unscoped resource name.
+
+### Hosted MCP cleanup
+
+Hosted MCP cleanup fails closed across both runtime readiness and Kubernetes object replacement:
+
+1. list each supported namespaced resource kind by the exact Falcone tenant and MCP-server labels;
+2. parse the Kubernetes `List` response and treat only HTTP `404` as already absent;
+3. reject malformed responses and every other non-2xx response, including `401`, `403`, and `500`;
+4. require the observed object's name, UID, and `resourceVersion` before any delete;
+5. send both UID and `resourceVersion` as Kubernetes delete preconditions; and
+6. re-list the exact ownership selector after a successful or `404` delete and finalize only after
+   absence is verified.
+
+Missing preconditions, a `409` replacement conflict, an authorization/transport error, malformed
+JSON, or an object still present after delete is not success. The public delete returns HTTP `202`
+with `status: deletion_pending`; the logical hosted MCP owner remains readable and the same atomic
+state transaction creates or reuses its durable cleanup obligation. Retries preserve the original
+correlation ID. Recovery removes the logical server/registry state only when owner-scoped runtime
+cleanup has completed.
+
+Tenant or capability teardown follows the same rule. While any hosted MCP cleanup obligation is
+pending, logical metadata is retained and the MCP teardown domain reports an error. The aggregate
+tenant purge therefore remains incomplete and cannot publish a successful teardown finalization.
 
 ## Audit and metrics expectations
 

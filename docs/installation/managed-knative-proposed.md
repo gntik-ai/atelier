@@ -6,6 +6,11 @@
 > currently installs or supports managed Knative. The existing Knative prerequisite remains
 > authoritative until both repositories pass the coordinated acceptance described below.
 
+As of 2026-08-07, `gntik-ai/falcone-charts#8` is open and unimplemented. There is also no authorized
+disposable remote OpenShift 4.21 or Kubernetes 1.34 cluster-admin target for the required managed
+acceptance. Consequently, the application-side contracts described here are source-level behavior,
+not release, deployment, or support availability; live managed acceptance is blocked.
+
 ## Audience and outcome
 
 This proposal is for P18 platform installers, P3 platform operators/SREs, P10 read-only auditors,
@@ -106,7 +111,7 @@ independent acceptance proves all of the following:
    custom SCC, privilege escalation, or extra capabilities;
 5. staged CRD, webhook, Serving, Kourier, and smoke-service readiness;
 6. Function and hosted MCP create/invoke/version/rollback/delete, scale-to-zero, tenant isolation,
-   outage/recovery, and teardown journeys;
+   outage/recovery, preconditioned owner-safe cleanup with verified absence, and teardown journeys;
 7. one-minor upgrade, compatible rollback, forward-repair boundary, retain-by-default uninstall,
    explicit purge, and owner-safe handoff; and
 8. independent contract, authorization, tenant-isolation, accessibility, documentation, deployment,
