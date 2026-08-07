@@ -16,22 +16,38 @@
  * ---------------------------
  * Full acceptance is skipped with an explicit annotation unless ALL REMOTE_ACCEPTANCE_ENV values
  * below are present and E2E_933_ACCEPTANCE_PROFILE is exactly
- * `remote-openshift-4.21-cluster-admin`. The spec then proves the live server is OpenShift 4.21,
- * Kubernetes 1.34, and the supplied credential can create cluster-scoped Knative prerequisites.
- * It also requires chart issue #8's coordinated release/status declaration and verifies the
- * chart-fed Falcone status API reports managed/compatible/ready. Environment claims alone are
- * therefore insufficient to pass.
+ * `remote-openshift-4.21-cluster-admin`. A non-default run ID and a short-lived disposable-target
+ * attestation must name the expected Infrastructure object/id and kube-system namespace UID. The
+ * spec rejects non-HTTPS and local/loopback/CRC API hosts, then reconciles every attested field with
+ * the live OpenShift APIs. It also proves OpenShift 4.21/Kubernetes 1.34, reconciles the current
+ * SelfSubjectReview identity with a live cluster-admin ClusterRoleBinding, and retains selected
+ * cluster-scoped permission probes. Environment claims alone are therefore insufficient to pass.
  *
- * Lifecycle command variables are JSON argv arrays, for example:
- *   E2E_933_OUTAGE_COMMAND_JSON='["falcone-knative","acceptance","outage",...]'
- * They are executed without a shell. They must target only the disposable acceptance cluster.
- * The companion chart owns their implementation; this repository only consumes the public CLI.
+ * Chart issue #8 must publish a Helm-owned lifecycle status ConfigMap. Its schema, coordinated
+ * release/version/status, run ID, cluster identity, and lifecycle executable SHA-256 must match
+ * both the environment, the local executable, and those live OpenShift identities before any
+ * workload or lifecycle scenario can run.
+ * The disposable attestation is deliberately redundant with live discovery and expires quickly:
+ *   E2E_933_DISPOSABLE_ATTESTATION_JSON='{"runId":"ocp421-...","apiUrl":"https://api...:6443","infrastructureName":"cluster","infrastructureId":"...","clusterUid":"...","expiresAt":"<ISO-8601, 5m..72h ahead>"}'
+ *
+ * Lifecycle command variables are JSON argv arrays. They are rejected unless argv[0] equals
+ * E2E_933_CHART_LIFECYCLE_EXECUTABLE (whose basename must be `falcone-knative`), argv[1] is
+ * `acceptance`, argv[2] is the exact operation (`outage`, `restart`, or `recover`), and the only
+ * remaining arguments are explicit --api-server/--cluster-uid/--infrastructure-name/
+ * --infrastructure-id/--run-id/--release/--status-namespace/--status-configmap pairs that match
+ * the already verified live target. They are executed without a shell. The companion chart owns
+ * their implementation; this repository only consumes its public CLI.
+ * Example shape (the concrete values must match the live-attested target exactly):
+ *   ["/path/falcone-knative","acceptance","outage","--api-server","https://api...:6443","--cluster-uid","...","--infrastructure-name","cluster","--infrastructure-id","...","--run-id","ocp421-...","--release","falcone-knative","--status-namespace","knative-serving","--status-configmap","falcone-knative-status"]
  *
  * A local kind run may opt into the separately labelled contract/regression subset with
  * E2E_933_LOCAL_REGRESSION=1. That subset never satisfies or claims OpenShift acceptance.
  */
 
 import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
+import { basename } from 'node:path'
 import { promisify } from 'node:util'
 import { expect, test, type APIRequestContext, type APIResponse, type Page } from '@playwright/test'
 
@@ -42,9 +58,10 @@ const MANAGED_API = process.env.E2E_933_API_BASE_URL ?? process.env.E2E_API_BASE
 const MANAGED_CONSOLE = process.env.E2E_933_CONSOLE_BASE_URL ?? process.env.E2E_BASE_URL ?? 'http://localhost:3000'
 const EXTERNAL_API = process.env.E2E_933_EXTERNAL_API_BASE_URL ?? ''
 const DISABLED_API = process.env.E2E_933_DISABLED_API_BASE_URL ?? ''
-const OPENSHIFT_API = process.env.E2E_933_OPENSHIFT_API_URL ?? ''
+const OPENSHIFT_API = (process.env.E2E_933_OPENSHIFT_API_URL ?? '').replace(/\/+$/, '')
 const METRICS_URL = process.env.E2E_933_METRICS_URL ?? ''
-const RUN_ID = (process.env.E2E_933_RUN_ID ?? 'issue933').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'issue933'
+const RUN_ID_INPUT = (process.env.E2E_933_RUN_ID ?? '').trim()
+const RUN_ID = RUN_ID_INPUT.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'missing-run-id'
 const SAME_NAME = `e2e-${RUN_ID}`.slice(0, 63).replace(/-+$/, '')
 
 const ENV = {
@@ -71,6 +88,17 @@ const ENV = {
   appNamespace: process.env.E2E_933_APP_NAMESPACE ?? '',
   mcpNamespaceA: process.env.E2E_933_MCP_NAMESPACE_A ?? '',
   mcpNamespaceB: process.env.E2E_933_MCP_NAMESPACE_B ?? '',
+  expectedInfrastructureName: process.env.E2E_933_EXPECTED_INFRASTRUCTURE_NAME ?? '',
+  expectedInfrastructureId: process.env.E2E_933_EXPECTED_INFRASTRUCTURE_ID ?? '',
+  expectedClusterUid: process.env.E2E_933_EXPECTED_CLUSTER_UID ?? '',
+  expectedClusterAdminUser: process.env.E2E_933_EXPECTED_CLUSTER_ADMIN_USER ?? '',
+  chartRelease: process.env.E2E_933_CHART_ISSUE8_RELEASE ?? '',
+  chartVersion: process.env.E2E_933_CHART_ISSUE8_VERSION ?? '',
+  chartStatusNamespace: process.env.E2E_933_CHART_STATUS_NAMESPACE ?? '',
+  chartStatusConfigMap: process.env.E2E_933_CHART_STATUS_CONFIGMAP ?? '',
+  chartStatusDataKey: process.env.E2E_933_CHART_STATUS_DATA_KEY ?? '',
+  chartLifecycleExecutable: process.env.E2E_933_CHART_LIFECYCLE_EXECUTABLE ?? '',
+  chartLifecycleSha256: process.env.E2E_933_CHART_LIFECYCLE_SHA256 ?? '',
 }
 
 const REMOTE_ACCEPTANCE_ENV = [
@@ -80,8 +108,20 @@ const REMOTE_ACCEPTANCE_ENV = [
   'E2E_933_DISABLED_API_BASE_URL',
   'E2E_933_OPENSHIFT_API_URL',
   'E2E_933_OPENSHIFT_TOKEN',
+  'E2E_933_RUN_ID',
+  'E2E_933_EXPECTED_INFRASTRUCTURE_NAME',
+  'E2E_933_EXPECTED_INFRASTRUCTURE_ID',
+  'E2E_933_EXPECTED_CLUSTER_UID',
+  'E2E_933_EXPECTED_CLUSTER_ADMIN_USER',
+  'E2E_933_DISPOSABLE_ATTESTATION_JSON',
   'E2E_933_CHART_ISSUE8_RELEASE',
+  'E2E_933_CHART_ISSUE8_VERSION',
   'E2E_933_CHART_ISSUE8_STATUS',
+  'E2E_933_CHART_STATUS_NAMESPACE',
+  'E2E_933_CHART_STATUS_CONFIGMAP',
+  'E2E_933_CHART_STATUS_DATA_KEY',
+  'E2E_933_CHART_LIFECYCLE_EXECUTABLE',
+  'E2E_933_CHART_LIFECYCLE_SHA256',
   'E2E_933_PLATFORM_OPERATOR_TOKEN',
   'E2E_933_PLATFORM_AUDITOR_TOKEN',
   'E2E_933_PLATFORM_ADMIN_TOKEN',
@@ -125,14 +165,137 @@ type RuntimeStatus = {
 }
 
 type CommandSpec = { file: string; args: string[] }
+type LifecycleCommandName = 'E2E_933_OUTAGE_COMMAND_JSON' | 'E2E_933_RESTART_COMMAND_JSON' | 'E2E_933_RECOVERY_COMMAND_JSON'
+type VerifiedTarget = {
+  apiUrl: string
+  runId: string
+  infrastructureName: string
+  infrastructureId: string
+  clusterUid: string
+  release: string
+  chartVersion: string
+  statusNamespace: string
+  statusConfigMap: string
+  lifecycleSha256: string
+}
+type DisposableAttestation = {
+  runId: string
+  apiUrl: string
+  infrastructureName: string
+  infrastructureId: string
+  clusterUid: string
+  expiresAt: string
+}
+
+const LIFECYCLE_OPERATION: Record<LifecycleCommandName, 'outage' | 'restart' | 'recover'> = {
+  E2E_933_OUTAGE_COMMAND_JSON: 'outage',
+  E2E_933_RESTART_COMMAND_JSON: 'restart',
+  E2E_933_RECOVERY_COMMAND_JSON: 'recover',
+}
+
+function targetFromEnvironment(): VerifiedTarget {
+  return {
+    apiUrl: OPENSHIFT_API,
+    runId: RUN_ID,
+    infrastructureName: ENV.expectedInfrastructureName,
+    infrastructureId: ENV.expectedInfrastructureId,
+    clusterUid: ENV.expectedClusterUid,
+    release: ENV.chartRelease,
+    chartVersion: ENV.chartVersion,
+    statusNamespace: ENV.chartStatusNamespace,
+    statusConfigMap: ENV.chartStatusConfigMap,
+    lifecycleSha256: ENV.chartLifecycleSha256,
+  }
+}
+
+function remoteApiError(value: string): string | null {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return 'E2E_933_OPENSHIFT_API_URL(valid URL)'
+  }
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
+  const forbiddenExact = new Set([
+    'localhost',
+    'host.docker.internal',
+    'kubernetes.default.svc',
+    'kubernetes.default.svc.cluster.local',
+    '::1',
+  ])
+  if (url.protocol !== 'https:') return 'E2E_933_OPENSHIFT_API_URL(remote HTTPS required)'
+  if (url.username || url.password) return 'E2E_933_OPENSHIFT_API_URL(credentials forbidden in URL)'
+  if (
+    forbiddenExact.has(hostname)
+    || hostname.endsWith('.localhost')
+    || hostname.endsWith('.crc.testing')
+    || /^127(?:\.\d{1,3}){3}$/.test(hostname)
+  ) return 'E2E_933_OPENSHIFT_API_URL(local/loopback/CRC target rejected)'
+  return null
+}
+
+function parseDisposableAttestation(): DisposableAttestation | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(process.env.E2E_933_DISPOSABLE_ATTESTATION_JSON ?? '')
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const value = parsed as Record<string, unknown>
+  if (!['runId', 'apiUrl', 'infrastructureName', 'infrastructureId', 'clusterUid', 'expiresAt']
+    .every((key) => typeof value[key] === 'string' && String(value[key]).trim().length > 0)) return null
+  return value as unknown as DisposableAttestation
+}
+
+function disposableAttestationError(): string | null {
+  const attestation = parseDisposableAttestation()
+  if (!attestation) return 'E2E_933_DISPOSABLE_ATTESTATION_JSON(valid object)'
+  if (
+    attestation.runId !== RUN_ID
+    || attestation.apiUrl.replace(/\/+$/, '') !== OPENSHIFT_API
+    || attestation.infrastructureName !== ENV.expectedInfrastructureName
+    || attestation.infrastructureId !== ENV.expectedInfrastructureId
+    || attestation.clusterUid !== ENV.expectedClusterUid
+  ) return 'E2E_933_DISPOSABLE_ATTESTATION_JSON(target identity mismatch)'
+  const expiry = Date.parse(attestation.expiresAt)
+  const remainingMs = expiry - Date.now()
+  if (!Number.isFinite(expiry) || remainingMs < 5 * 60_000 || remainingMs > 72 * 60 * 60_000) {
+    return 'E2E_933_DISPOSABLE_ATTESTATION_JSON(expiresAt must be 5m..72h in the future)'
+  }
+  return null
+}
 
 function missingAcceptancePrerequisites(): string[] {
-  const missing = REMOTE_ACCEPTANCE_ENV.filter((name) => !(process.env[name] ?? '').trim())
+  const missing: string[] = REMOTE_ACCEPTANCE_ENV.filter((name) => !(process.env[name] ?? '').trim())
   if (process.env.E2E_933_ACCEPTANCE_PROFILE !== ACCEPTANCE_PROFILE) {
     missing.unshift(`E2E_933_ACCEPTANCE_PROFILE=${ACCEPTANCE_PROFILE}`)
   }
+  if (
+    !/^[a-z0-9][a-z0-9-]{7,31}$/.test(RUN_ID_INPUT)
+    || RUN_ID_INPUT !== RUN_ID
+    || ['issue933', 'issue-933', 'default', 'test', 'acceptance'].includes(RUN_ID)
+  ) missing.push('E2E_933_RUN_ID(non-default 8..32 lowercase alnum/hyphen value)')
+  const apiError = remoteApiError(OPENSHIFT_API)
+  if (apiError) missing.push(apiError)
+  const attestationError = disposableAttestationError()
+  if (attestationError) missing.push(attestationError)
   if (process.env.E2E_933_CHART_ISSUE8_STATUS !== 'compatible') {
     missing.push('E2E_933_CHART_ISSUE8_STATUS=compatible')
+  }
+  if (!ENV.chartLifecycleExecutable || basename(ENV.chartLifecycleExecutable) !== 'falcone-knative') {
+    missing.push('E2E_933_CHART_LIFECYCLE_EXECUTABLE(path basename must be falcone-knative)')
+  }
+  if (!/^[a-f0-9]{64}$/.test(ENV.chartLifecycleSha256)) {
+    missing.push('E2E_933_CHART_LIFECYCLE_SHA256(lowercase SHA-256)')
+  }
+  const environmentTarget = targetFromEnvironment()
+  for (const name of Object.keys(LIFECYCLE_OPERATION) as LifecycleCommandName[]) {
+    try {
+      parseCommand(name, environmentTarget)
+    } catch {
+      missing.push(`${name}(strict chart-owned argv/verified-target contract)`)
+    }
   }
   return [...new Set(missing)]
 }
@@ -140,7 +303,7 @@ function missingAcceptancePrerequisites(): string[] {
 const missingAcceptance = missingAcceptancePrerequisites()
 const acceptanceSkipReason = [
   'OpenShift acceptance is fail-closed: companion gntik-ai/falcone-charts#8 must publish a compatible coordinated release,',
-  'and a disposable REMOTE OpenShift 4.21 cluster-admin target must be supplied. kind/CRC/local OpenShift are not substitutes.',
+  'and a live-attested disposable REMOTE OpenShift 4.21 cluster-admin target must be supplied. kind/CRC/local OpenShift are rejected, not substitutes.',
   `Missing or incompatible prerequisites: ${missingAcceptance.join(', ') || 'none'}`,
 ].join(' ')
 
@@ -219,7 +382,7 @@ async function getRuntime(request: APIRequestContext, baseUrl: string, token: st
   return body
 }
 
-function parseCommand(name: 'E2E_933_OUTAGE_COMMAND_JSON' | 'E2E_933_RESTART_COMMAND_JSON' | 'E2E_933_RECOVERY_COMMAND_JSON'): CommandSpec {
+function parseCommand(name: LifecycleCommandName, target: VerifiedTarget): CommandSpec {
   let value: unknown
   try {
     value = JSON.parse(process.env[name] ?? '')
@@ -230,11 +393,30 @@ function parseCommand(name: 'E2E_933_OUTAGE_COMMAND_JSON' | 'E2E_933_RESTART_COM
     throw new Error(`${name} must be a non-empty JSON array of non-empty strings`)
   }
   const [file, ...args] = value as string[]
+  if (file !== ENV.chartLifecycleExecutable || basename(file) !== 'falcone-knative') {
+    throw new Error(`${name} must invoke exactly E2E_933_CHART_LIFECYCLE_EXECUTABLE with basename falcone-knative`)
+  }
+  const expectedArgs = [
+    'acceptance',
+    LIFECYCLE_OPERATION[name],
+    '--api-server', target.apiUrl,
+    '--cluster-uid', target.clusterUid,
+    '--infrastructure-name', target.infrastructureName,
+    '--infrastructure-id', target.infrastructureId,
+    '--run-id', target.runId,
+    '--release', target.release,
+    '--status-namespace', target.statusNamespace,
+    '--status-configmap', target.statusConfigMap,
+  ]
+  if (args.length !== expectedArgs.length || args.some((part, index) => part !== expectedArgs[index])) {
+    throw new Error(`${name} must use only the chart acceptance ${LIFECYCLE_OPERATION[name]} subcommand and exact verified target flags in the documented order`)
+  }
   return { file, args }
 }
 
-async function runLifecycleCommand(name: 'E2E_933_OUTAGE_COMMAND_JSON' | 'E2E_933_RESTART_COMMAND_JSON' | 'E2E_933_RECOVERY_COMMAND_JSON'): Promise<void> {
-  const { file, args } = parseCommand(name)
+async function runLifecycleCommand(name: LifecycleCommandName, target: VerifiedTarget): Promise<void> {
+  const { file, args } = parseCommand(name, target)
+  await verifyLifecycleExecutable(target)
   try {
     await execFileAsync(file, args, {
       timeout: 10 * 60_000,
@@ -245,6 +427,17 @@ async function runLifecycleCommand(name: 'E2E_933_OUTAGE_COMMAND_JSON' | 'E2E_93
     const code = (error as { code?: string | number }).code ?? 'unknown'
     throw new Error(`${name} failed (exit/code ${String(code)}); command output is intentionally omitted because acceptance evidence may be sensitive`)
   }
+}
+
+async function verifyLifecycleExecutable(target: VerifiedTarget): Promise<void> {
+  let binary: Buffer
+  try {
+    binary = await readFile(ENV.chartLifecycleExecutable)
+  } catch {
+    throw new Error('E2E_933_CHART_LIFECYCLE_EXECUTABLE is not a readable chart-installed falcone-knative binary')
+  }
+  const digest = createHash('sha256').update(binary).digest('hex')
+  expect(digest, 'chart-installed falcone-knative binary must match the chart status/environment SHA-256').toBe(target.lifecycleSha256)
 }
 
 async function openshiftFetch(
@@ -273,6 +466,119 @@ async function canCreateClusterResource(request: APIRequestContext, group: strin
   })
   const body = await expectStatus(response, 201, `P18 create ${group}/${resource}`)
   expect((body.status as JsonObject | undefined)?.allowed, `P18 must have cluster-admin create authority for ${group}/${resource}`).toBe(true)
+}
+
+async function verifyClusterAdminIdentity(request: APIRequestContext): Promise<void> {
+  const reviewResponse = await openshiftFetch(request, 'POST', '/apis/authentication.k8s.io/v1/selfsubjectreviews', {
+    apiVersion: 'authentication.k8s.io/v1',
+    kind: 'SelfSubjectReview',
+  })
+  const review = await expectStatus(reviewResponse, 201, 'P18 SelfSubjectReview')
+  const userInfo = (review.status as JsonObject | undefined)?.userInfo as JsonObject | undefined
+  const username = String(userInfo?.username ?? '')
+  const groups = Array.isArray(userInfo?.groups) ? userInfo.groups.map(String) : []
+  expect(username, 'SelfSubjectReview user must match the explicitly attested cluster-admin subject').toBe(ENV.expectedClusterAdminUser)
+
+  const bindings = await listClusterResources(request, '/apis/rbac.authorization.k8s.io/v1/clusterrolebindings')
+  const matchingBinding = bindings.find((binding) => {
+    const roleRef = binding.roleRef as JsonObject | undefined
+    if (roleRef?.apiGroup !== 'rbac.authorization.k8s.io' || roleRef?.kind !== 'ClusterRole' || roleRef?.name !== 'cluster-admin') return false
+    const subjects = Array.isArray(binding.subjects) ? binding.subjects as JsonObject[] : []
+    return subjects.some((subject) => (
+      (subject.kind === 'User' && subject.name === username)
+      || (subject.kind === 'Group' && groups.includes(String(subject.name)))
+    ))
+  })
+  const systemMastersEquivalent = groups.includes('system:masters')
+  expect(
+    systemMastersEquivalent || Boolean(matchingBinding),
+    `SelfSubjectReview identity ${username} (${groups.join(',')}) must belong to system:masters or be a live subject of a ClusterRoleBinding to ClusterRole cluster-admin`,
+  ).toBeTruthy()
+}
+
+async function verifyLiveTargetIdentity(request: APIRequestContext): Promise<VerifiedTarget> {
+  const infrastructureResponse = await openshiftFetch(request, 'GET', '/apis/config.openshift.io/v1/infrastructures/cluster')
+  const infrastructure = await expectStatus(infrastructureResponse, 200, 'OpenShift Infrastructure identity')
+  const infrastructureName = String((infrastructure.metadata as JsonObject | undefined)?.name ?? '')
+  const infrastructureId = String((infrastructure.status as JsonObject | undefined)?.infrastructureName ?? '')
+  expect(infrastructureName).toBe(ENV.expectedInfrastructureName)
+  expect(infrastructureId).toBe(ENV.expectedInfrastructureId)
+
+  const kubeSystemResponse = await openshiftFetch(request, 'GET', '/api/v1/namespaces/kube-system')
+  const kubeSystem = await expectStatus(kubeSystemResponse, 200, 'kube-system cluster UID')
+  const clusterUid = String((kubeSystem.metadata as JsonObject | undefined)?.uid ?? '')
+  expect(clusterUid).toBe(ENV.expectedClusterUid)
+
+  const attestation = parseDisposableAttestation()
+  expect(attestation, 'a valid disposable-target attestation is mandatory').not.toBeNull()
+  expect(attestation).toMatchObject({
+    runId: RUN_ID,
+    apiUrl: OPENSHIFT_API,
+    infrastructureName,
+    infrastructureId,
+    clusterUid,
+  })
+  const remainingMs = Date.parse(attestation!.expiresAt) - Date.now()
+  expect(remainingMs, 'disposable-target attestation must remain valid for at least five minutes').toBeGreaterThanOrEqual(5 * 60_000)
+  expect(remainingMs, 'disposable-target attestation must expire within 72 hours').toBeLessThanOrEqual(72 * 60 * 60_000)
+
+  return {
+    apiUrl: OPENSHIFT_API,
+    runId: RUN_ID,
+    infrastructureName,
+    infrastructureId,
+    clusterUid,
+    release: ENV.chartRelease,
+    chartVersion: ENV.chartVersion,
+    statusNamespace: ENV.chartStatusNamespace,
+    statusConfigMap: ENV.chartStatusConfigMap,
+    lifecycleSha256: ENV.chartLifecycleSha256,
+  }
+}
+
+async function verifyChartLifecycleStatus(request: APIRequestContext, target: VerifiedTarget): Promise<void> {
+  const response = await openshiftFetch(
+    request,
+    'GET',
+    `/api/v1/namespaces/${encodeURIComponent(target.statusNamespace)}/configmaps/${encodeURIComponent(target.statusConfigMap)}`,
+  )
+  const configMap = await expectStatus(response, 200, 'chart #8 lifecycle status ConfigMap')
+  const metadata = configMap.metadata as JsonObject | undefined
+  const labels = metadata?.labels as JsonObject | undefined
+  const annotations = metadata?.annotations as JsonObject | undefined
+  expect(labels?.['app.kubernetes.io/managed-by']).toBe('Helm')
+  expect(labels?.['app.kubernetes.io/instance']).toBe(target.release)
+  expect(labels?.['app.kubernetes.io/version']).toBe(target.chartVersion)
+  expect(annotations?.['meta.helm.sh/release-name']).toBe(target.release)
+  expect(annotations?.['meta.helm.sh/release-namespace']).toBe(target.statusNamespace)
+
+  const data = configMap.data as JsonObject | undefined
+  const rawStatus = data?.[ENV.chartStatusDataKey]
+  expect(typeof rawStatus, `ConfigMap data.${ENV.chartStatusDataKey} must contain chart lifecycle JSON`).toBe('string')
+  let status: JsonObject
+  try {
+    status = JSON.parse(String(rawStatus)) as JsonObject
+  } catch {
+    throw new Error(`ConfigMap data.${ENV.chartStatusDataKey} is not valid JSON`)
+  }
+  expect(status).toMatchObject({
+    schemaVersion: 'falcone.knative-lifecycle/v1',
+    release: target.release,
+    version: target.chartVersion,
+    status: 'compatible',
+    runId: target.runId,
+    clusterIdentity: {
+      apiUrl: target.apiUrl,
+      infrastructureName: target.infrastructureName,
+      infrastructureId: target.infrastructureId,
+      clusterUid: target.clusterUid,
+    },
+    lifecycleExecutable: {
+      name: 'falcone-knative',
+      version: target.chartVersion,
+      sha256: target.lifecycleSha256,
+    },
+  })
 }
 
 async function listClusterResources(request: APIRequestContext, path: string): Promise<JsonObject[]> {
@@ -396,11 +702,12 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   let mcpDeleteCorrelation = ''
   let outageApplied = false
   let baselineFunctionKsvcs: string[] = []
+  let verifiedTarget: VerifiedTarget | null = null
 
   test.afterAll(async ({ request }) => {
     // Recovery and public-API deletion are best-effort fallback cleanup for an assertion failure.
     // The successful path proves cleanup explicitly in the final scenario.
-    if (outageApplied) await runLifecycleCommand('E2E_933_RECOVERY_COMMAND_JSON').catch(() => undefined)
+    if (outageApplied && verifiedTarget) await runLifecycleCommand('E2E_933_RECOVERY_COMMAND_JSON', verifiedTarget).catch(() => undefined)
     if (functionA) await deleteBestEffort(request, ENV.functionDeveloperToken, `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'fallback-function-a')
     if (functionB) await deleteBestEffort(request, ENV.tenantBToken, `/v1/functions/actions/${encodeURIComponent(functionB)}`, 'fallback-function-b')
     if (mcpA) await deleteBestEffort(request, ENV.mcpOwnerToken, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'fallback-mcp-a')
@@ -409,7 +716,10 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
 
   test('issue-933-01 | P18/P3: remote OpenShift 4.21 cluster-admin and chart #8 compatible managed status are real', async ({ request }) => {
     expect(process.env.E2E_933_CHART_ISSUE8_STATUS).toBe('compatible')
-    expect(process.env.E2E_933_CHART_ISSUE8_RELEASE).toMatch(/\S/)
+    expect(ENV.chartRelease).toMatch(/\S/)
+    expect(ENV.chartVersion).toMatch(/\S/)
+    expect(RUN_ID_INPUT).toBe(RUN_ID)
+    expect(remoteApiError(OPENSHIFT_API)).toBeNull()
 
     const versionResponse = await openshiftFetch(request, 'GET', '/version')
     const version = await expectStatus(versionResponse, 200, 'OpenShift Kubernetes version')
@@ -420,9 +730,13 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     const desiredVersion = (clusterVersion.status as JsonObject | undefined)?.desiredVersion as JsonObject | undefined
     expect(desiredVersion?.version).toMatch(/^4\.21(?:\.|$)/)
 
+    verifiedTarget = await verifyLiveTargetIdentity(request)
+    await verifyClusterAdminIdentity(request)
     await canCreateClusterResource(request, 'apiextensions.k8s.io', 'customresourcedefinitions')
     await canCreateClusterResource(request, 'rbac.authorization.k8s.io', 'clusterroles')
     await canCreateClusterResource(request, 'admissionregistration.k8s.io', 'validatingwebhookconfigurations')
+    await verifyChartLifecycleStatus(request, verifiedTarget)
+    await verifyLifecycleExecutable(verifiedTarget)
 
     const managed = await getRuntime(request, MANAGED_API, ENV.operatorToken, 'managed-ready')
     expect(managed).toMatchObject({
@@ -620,7 +934,8 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   })
 
   test('issue-933-08 | P3/P8/P7/P12/P13: outage contracts are exact and tenant-safe', async ({ request }) => {
-    await runLifecycleCommand('E2E_933_OUTAGE_COMMAND_JSON')
+    expect(verifiedTarget, 'live target identity must be verified before outage').not.toBeNull()
+    await runLifecycleCommand('E2E_933_OUTAGE_COMMAND_JSON', verifiedTarget!)
     outageApplied = true
 
     await expect.poll(async () => (await getRuntime(request, MANAGED_API, ENV.operatorToken, 'outage-poll')).state, {
@@ -728,7 +1043,8 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   })
 
   test('issue-933-10 | P3: pending cleanup survives control-plane restart and recovers idempotently', async ({ request }) => {
-    await runLifecycleCommand('E2E_933_RESTART_COMMAND_JSON')
+    expect(verifiedTarget, 'live target identity must be verified before restart/recovery').not.toBeNull()
+    await runLifecycleCommand('E2E_933_RESTART_COMMAND_JSON', verifiedTarget!)
 
     const stillPendingFunction = await call(request, MANAGED_API, ENV.tenantBToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionB)}`, 'restart-function-pending')
     expect((await expectStatus(stillPendingFunction, 200, 'Function pending after restart')).status).toBe('deletion_pending')
@@ -736,7 +1052,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     const stillPendingMcp = await call(request, MANAGED_API, ENV.tenantBToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceB)}/servers/${encodeURIComponent(mcpB)}`, 'restart-mcp-pending')
     expect((await expectStatus(stillPendingMcp, 200, 'MCP pending after restart')).lifecycleStatus).toBe('deletion_pending')
 
-    await runLifecycleCommand('E2E_933_RECOVERY_COMMAND_JSON')
+    await runLifecycleCommand('E2E_933_RECOVERY_COMMAND_JSON', verifiedTarget!)
     outageApplied = false
     await expect.poll(async () => (await getRuntime(request, MANAGED_API, ENV.operatorToken, 'recovery-poll')).state, {
       message: 'managed runtime must return to ready',
