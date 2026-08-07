@@ -4191,7 +4191,7 @@
                 }
               }
             },
-            "description": "Workspace deletion accepted."
+            "description": "Workspace deletion accepted; cleanup.pending is returned while owner-verified runtime resources remain."
           },
           "400": {
             "content": {
@@ -4294,6 +4294,19 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
         "x-resource-type": "workspace",
+        "x-runtime-aggregate-teardown": {
+          "adjacentTenantEffect": "none",
+          "durableObligations": "owner_scoped",
+          "ownedCapabilities": [
+            "functions",
+            "hosted_mcp"
+          ],
+          "ownershipVerification": "required_before_delete",
+          "readyCompletion": "only_after_owned_resources_absent",
+          "retainOwnershipMetadata": true,
+          "retry": "idempotent_after_readiness",
+          "unavailableStatus": "cleanup_pending"
+        },
         "x-scope": "workspace",
         "x-visibility": "public"
       },

@@ -283,6 +283,9 @@ export function buildRouteCatalog(
         consoleDelegationMode: operation['x-console-delegation-mode'] ?? null,
         consoleStatusOperationIds: operation['x-console-status-operation-ids'] ?? [],
         consoleDiscoverySurface: operation['x-console-discovery-surface'] === true,
+        ...(operation['x-runtime-aggregate-teardown'] ? {
+          runtimeAggregateTeardown: operation['x-runtime-aggregate-teardown']
+        } : {}),
         tags: operation.tags ?? [],
         deprecated: operation.deprecated === true,
         discoveryRoute: taxonomy.versioning.discovery_route

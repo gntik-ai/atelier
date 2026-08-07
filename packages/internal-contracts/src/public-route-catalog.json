@@ -31386,9 +31386,6 @@
       "maxRequestBodyBytes": 262144,
       "method": "POST",
       "operationId": "purgeTenant",
-      "runtimeAggregateTeardown": {
-        "ownedCapabilities": ["functions", "hosted_mcp"], "ownershipVerification": "required_before_delete", "readyCompletion": "only_after_owned_resources_absent", "unavailableStatus": "cleanup_pending", "retainOwnershipMetadata": true, "durableObligations": "owner_scoped", "retry": "idempotent_after_readiness", "adjacentTenantEffect": "none"
-      },
       "path": "/v1/tenants/{tenantId}/purge",
       "planCapabilityAnyOf": [],
       "qosBurst": 60,
@@ -31400,6 +31397,19 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "tenant_purge",
+      "runtimeAggregateTeardown": {
+        "adjacentTenantEffect": "none",
+        "durableObligations": "owner_scoped",
+        "ownedCapabilities": [
+          "functions",
+          "hosted_mcp"
+        ],
+        "ownershipVerification": "required_before_delete",
+        "readyCompletion": "only_after_owned_resources_absent",
+        "retainOwnershipMetadata": true,
+        "retry": "idempotent_after_readiness",
+        "unavailableStatus": "cleanup_pending"
+      },
       "scope": "tenant",
       "summary": "Definitively purge one logically deleted tenant after retention and elevated confirmation checks",
       "supportsIdempotencyKey": true,
@@ -32106,9 +32116,6 @@
       "maxRequestBodyBytes": 262144,
       "method": "DELETE",
       "operationId": "deleteWorkspace",
-      "runtimeAggregateTeardown": {
-        "ownedCapabilities": ["functions", "hosted_mcp"], "ownershipVerification": "required_before_delete", "readyCompletion": "only_after_owned_resources_absent", "unavailableStatus": "cleanup_pending", "retainOwnershipMetadata": true, "durableObligations": "owner_scoped", "retry": "idempotent_after_readiness", "adjacentTenantEffect": "none"
-      },
       "path": "/v1/workspaces/{workspaceId}",
       "planCapabilityAnyOf": [],
       "qosBurst": 60,
@@ -32120,6 +32127,19 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "workspace",
+      "runtimeAggregateTeardown": {
+        "adjacentTenantEffect": "none",
+        "durableObligations": "owner_scoped",
+        "ownedCapabilities": [
+          "functions",
+          "hosted_mcp"
+        ],
+        "ownershipVerification": "required_before_delete",
+        "readyCompletion": "only_after_owned_resources_absent",
+        "retainOwnershipMetadata": true,
+        "retry": "idempotent_after_readiness",
+        "unavailableStatus": "cleanup_pending"
+      },
       "scope": "workspace",
       "summary": "Soft-delete one canonical workspace while preserving audit and clone lineage metadata",
       "supportsIdempotencyKey": true,
