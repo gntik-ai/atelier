@@ -41,6 +41,8 @@
  * OpenSpec #### Scenario: Version and rollback preserve Function semantics
  * bbx-933-function-activation-response-44 | fn-function-runtime-availability-gate |
  * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ * bbx-933-function-rerun-authorization-45 | fn-function-runtime-availability-gate |
+ * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -109,6 +111,13 @@ const UNAVAILABLE_RUNTIME = {
   functionsEnabled: true,
   status: () => ({ mode: 'managed', state: 'unavailable', reason: 'SERVING_UNAVAILABLE' }),
   canServeWorkloads: () => false,
+};
+
+const ACTIVATION_POLICY = {
+  logsAccess: 'workspace_developers',
+  resultAccess: 'workspace_developers',
+  rerunPolicy: 'manual_only',
+  retentionHours: 168,
 };
 
 function functionRow({ resourceId, lifecycleStatus = 'active' }) {
@@ -733,15 +742,16 @@ test('bbx-933-function-activation-identity-43: production activation IDs satisfy
   const result = await FN_HANDLERS.fnActivationResult(publicContext({ actionId: resourceId, activationId }));
   assert.deepEqual(logs, {
     statusCode: 200,
-    body: { activationId, lines: [], truncated: false },
+    body: { activationId, lines: [], truncated: false, policy: ACTIVATION_POLICY },
   });
   assert.deepEqual(result, {
     statusCode: 200,
     body: {
       activationId,
-      status: 'succeeded',
+      status: 'available',
       result: { ok: true },
       contentType: 'application/json',
+      policy: ACTIVATION_POLICY,
     },
   });
   const rerunAccepted = {
@@ -848,15 +858,16 @@ test('bbx-933-function-activation-response-44: literal activation logs, result, 
   const result = await FN_HANDLERS.fnActivationResult(handlerContext({ actionId: resourceId, activationId }));
   assert.deepEqual(logs, {
     statusCode: 200,
-    body: { activationId, lines: [], truncated: false },
+    body: { activationId, lines: [], truncated: false, policy: ACTIVATION_POLICY },
   });
   assert.deepEqual(result, {
     statusCode: 200,
     body: {
       activationId,
-      status: 'succeeded',
+      status: 'available',
       result: { ok: true },
       contentType: 'application/json',
+      policy: ACTIVATION_POLICY,
     },
   });
 
@@ -919,6 +930,193 @@ test('bbx-933-function-activation-response-44: literal activation logs, result, 
     { dispatchFailures, responseFailures },
     { dispatchFailures: [], responseFailures: [] },
     `activation public handlers and route dispatch must satisfy complete published responses:\n${JSON.stringify({ dispatchFailures, responseFailures, rerun }, null, 2)}`,
+  );
+});
+
+/**
+ * bbx-933-function-rerun-authorization-45 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ */
+test('bbx-933-function-rerun-authorization-45: activation rerun enforces parent, workspace, and tenant binding before runtime disclosure', async () => {
+  const actions = new Map();
+  const activations = new Map();
+  const store = {
+    async getWorkspace(_pool, workspaceId) {
+      return [WORKSPACE_ID, ADJACENT_WORKSPACE_ID].includes(workspaceId)
+        ? { id: workspaceId, tenant_id: TENANT_ID }
+        : null;
+    },
+    async getFnAction(_pool, resourceId) {
+      return structuredClone(actions.get(resourceId) ?? null);
+    },
+    async upsertFnAction(_pool, input) {
+      const existing = [...actions.values()].find((action) => (
+        action.workspace_id === input.workspaceId && action.action_name === input.actionName
+      ));
+      const action = {
+        ...(existing ?? {}),
+        resource_id: existing?.resource_id ?? input.resourceId,
+        tenant_id: input.tenantId,
+        workspace_id: input.workspaceId,
+        action_name: input.actionName,
+        runtime: input.runtime,
+        entrypoint: input.entrypoint,
+        source_code: input.sourceCode,
+        parameters: input.parameters,
+        memory_mb: input.memoryMb,
+        timeout_ms: input.timeoutMs,
+        ksvc_name: input.ksvcName,
+        version: existing ? existing.version + 1 : 1,
+        created_at: existing?.created_at ?? CREATED_AT,
+        updated_at: CREATED_AT,
+      };
+      actions.set(action.resource_id, action);
+      return structuredClone(action);
+    },
+    async getFnActivation(_pool, activationId) {
+      return structuredClone(activations.get(activationId) ?? null);
+    },
+    async insertFnActivation(_pool, input) {
+      const activation = {
+        activation_id: input.activationId,
+        resource_id: input.resourceId,
+        workspace_id: input.workspaceId,
+        status: input.status,
+        status_code: input.statusCode,
+        result: structuredClone(input.result),
+        logs: structuredClone(input.logs),
+        duration_ms: input.durationMs,
+        started_at: input.startedAt,
+        finished_at: input.finishedAt,
+      };
+      activations.set(activation.activation_id, activation);
+      return structuredClone(activation);
+    },
+  };
+  const deploy = async (actionName) => {
+    const body = deployBody(`export async function main() { return { action: '${actionName}' }; }`);
+    body.actionName = actionName;
+    const response = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+      correlationId: `corr-rerun-deploy-${actionName}`,
+      body,
+    }));
+    assert.equal(response.statusCode, 202, JSON.stringify(response.body));
+    return response.body.resourceId;
+  };
+  const invoke = async (resourceId, label) => {
+    const response = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+      correlationId: `corr-rerun-source-${label}`,
+      params: { actionId: resourceId },
+      body: { parameters: { source: label } },
+    }));
+    assert.equal(response.statusCode, 202, JSON.stringify(response.body));
+    return response.body.invocationId;
+  };
+  const firstActionId = await deploy('rerun-first');
+  const secondActionId = await deploy('rerun-second');
+  const firstActivationId = await invoke(firstActionId, 'first');
+  const secondActivationId = await invoke(secondActionId, 'second');
+  assert.match(firstActivationId, /^act_[0-9a-f]{8}-[0-9a-f]{3}$/);
+  assert.match(secondActivationId, /^act_[0-9a-f]{8}-[0-9a-f]{3}$/);
+
+  const normalizePath = (value) => String(value).replace(/\{[^}]+\}/g, '{}');
+  const rerunRoutes = routes.filter((route) => (
+    route.method === 'POST'
+    && normalizePath(route.path) === normalizePath(FUNCTION_ACTIVATION_RERUN_PATH)
+  ));
+  const failures = [];
+  if (rerunRoutes.length !== 1) {
+    failures.push({ error: 'activation rerun must resolve to exactly one production route', routeCount: rerunRoutes.length });
+  } else {
+    const route = rerunRoutes[0];
+    const rerunHandler = FN_HANDLERS[route.localHandler];
+    if (typeof rerunHandler !== 'function') {
+      failures.push({ error: 'activation rerun route handler is not registered', localHandler: route.localHandler });
+    } else {
+      const counters = { waits: 0, invokes: 0 };
+      const ownerIdentity = {
+        sub: 'rerun-owner', tenantId: TENANT_ID, workspaceId: WORKSPACE_ID,
+        workspaceIds: [WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+      };
+      const requestContext = ({
+        actionId = firstActionId,
+        activationId = firstActivationId,
+        identity = ownerIdentity,
+        runtime = READY_RUNTIME,
+        correlationId,
+      } = {}) => ({
+        pool: {}, store,
+        params: { actionId, resourceId: actionId, activationId },
+        body: {}, identity,
+        callerContext: {
+          correlationId,
+          actor: { id: identity.sub, type: identity.actorType },
+          tenantId: identity.tenantId,
+          workspaceId: identity.workspaceId,
+        },
+        knativeRuntime: runtime,
+        waitKsvcReady: async () => { counters.waits += 1; return true; },
+        invokeKnative: async () => {
+          counters.invokes += 1;
+          return { status: 'success', statusCode: 200, result: { rerun: true }, logs: [], durationMs: 1 };
+        },
+      });
+      const expectConcealed = async (scenario, context) => {
+        const before = structuredClone(counters);
+        const response = await rerunHandler(context);
+        if (response.statusCode !== 404 || JSON.stringify(response.body).includes('KNATIVE')) {
+          failures.push({ scenario, error: 'rerun target was not concealed as 404', response });
+        }
+        if (!isDeepStrictEqual(counters, before)) {
+          failures.push({ scenario, error: 'concealed rerun caused a runtime side effect', before, after: structuredClone(counters) });
+        }
+      };
+
+      await expectConcealed('activation belongs to another action', requestContext({
+        activationId: secondActivationId,
+        correlationId: 'corr-rerun-parent-mismatch',
+      }));
+      await expectConcealed('unknown activation', requestContext({
+        activationId: 'act_unknown123',
+        correlationId: 'corr-rerun-unknown',
+      }));
+      await expectConcealed('same-tenant wrong-workspace identity', requestContext({
+        identity: {
+          sub: 'rerun-wrong-workspace', tenantId: TENANT_ID, workspaceId: ADJACENT_WORKSPACE_ID,
+          workspaceIds: [ADJACENT_WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+        },
+        runtime: UNAVAILABLE_RUNTIME,
+        correlationId: 'corr-rerun-wrong-workspace',
+      }));
+      await expectConcealed('foreign-tenant identity', requestContext({
+        identity: {
+          sub: 'rerun-foreign-tenant', tenantId: 'ten_foreign', workspaceId: WORKSPACE_ID,
+          workspaceIds: [WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+        },
+        runtime: UNAVAILABLE_RUNTIME,
+        correlationId: 'corr-rerun-foreign-tenant',
+      }));
+
+      const beforeAuthorized = structuredClone(counters);
+      const authorized = await rerunHandler(requestContext({ correlationId: 'corr-rerun-authorized' }));
+      if (authorized.statusCode !== 202) {
+        failures.push({ scenario: 'authorized ready rerun', error: 'expected HTTP 202', response: authorized });
+      }
+      if (counters.waits !== beforeAuthorized.waits + 1 || counters.invokes !== beforeAuthorized.invokes + 1) {
+        failures.push({
+          scenario: 'authorized ready rerun',
+          error: 'expected exactly one readiness check and one invocation',
+          before: beforeAuthorized,
+          after: structuredClone(counters),
+        });
+      }
+    }
+  }
+  assert.deepEqual(
+    failures,
+    [],
+    `activation rerun authorization and parent binding must precede dependency status and runtime effects:\n${JSON.stringify(failures, null, 2)}`,
   );
 });
 
