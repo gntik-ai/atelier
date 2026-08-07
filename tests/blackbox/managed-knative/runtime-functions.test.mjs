@@ -152,8 +152,14 @@ test('bbx-933-runtime-auth-02: published runtime status requires platform authen
   const statusRoute = catalogRoute('get', STATUS_PATH);
 
   assert.deepEqual(statusOperation.security, [{ bearerAuth: [] }]);
-  assert.equal(responseSchemaRef('get', STATUS_PATH, 401), 'ErrorResponse');
-  assert.equal(responseSchemaRef('get', STATUS_PATH, 403), 'ErrorResponse');
+  assert.equal(
+    responseSchemaRef('get', STATUS_PATH, 401),
+    'KnativeRuntimeAuthenticationError',
+  );
+  assert.equal(
+    responseSchemaRef('get', STATUS_PATH, 403),
+    'KnativeRuntimeAuthorizationError',
+  );
   assert.match(statusOperation.responses['200'].description, /operator or auditor/i);
   assert.match(statusOperation.responses['403'].description, /operator.*auditor.*administrator/i);
 

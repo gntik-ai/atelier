@@ -320,7 +320,9 @@ test('bbx-786-01: owner deploys two versions, rolls back to retained prior versi
   const codeV2 = 'module.exports=async()=>({version:"two"})';
 
   const create = await FN_HANDLERS.fnDeploy(ctx(pool, { body: deployBody(codeV1), deployKnativeService: fakeDeploy }));
-  assert.equal(create.statusCode, 201);
+  assert.equal(create.statusCode, 202);
+  assert.equal(create.body.family, 'functions');
+  assert.equal(create.body.resourceType, 'function_action');
   const resourceId = create.body.resourceId;
 
   const update = await FN_HANDLERS.fnDeploy(ctx(pool, {
@@ -328,7 +330,9 @@ test('bbx-786-01: owner deploys two versions, rolls back to retained prior versi
     body: deployBody(codeV2),
     deployKnativeService: fakeDeploy
   }));
-  assert.equal(update.statusCode, 200);
+  assert.equal(update.statusCode, 202);
+  assert.equal(update.body.family, 'functions');
+  assert.equal(update.body.resourceType, 'function_action');
 
   const detailBefore = await FN_HANDLERS.fnActionDetail(ctx(pool, { params: { actionId: resourceId } }));
   assert.equal(detailBefore.statusCode, 200);
@@ -405,7 +409,9 @@ test('bbx-786-02: first post-upgrade update of a legacy action retains the pre-u
     body: deployBody(updatedCode),
     deployKnativeService: fakeDeploy
   }));
-  assert.equal(update.statusCode, 200);
+  assert.equal(update.statusCode, 202);
+  assert.equal(update.body.family, 'functions');
+  assert.equal(update.body.resourceType, 'function_action');
 
   const listed = await FN_HANDLERS.fnVersions(ctx(pool, { params: { actionId: legacy.resource_id } }));
   assert.equal(listed.statusCode, 200);
