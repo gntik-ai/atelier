@@ -9,12 +9,14 @@
 // DDL family (schema/table/column/index); other OpenAPI families plug into the same table.
 import http from 'node:http';
 import https from 'node:https';
+import { randomUUID } from 'node:crypto';
 import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
 import { executePostgresData } from './postgres-data-executor.mjs';
 import { executePostgresDdl } from './postgres-ddl-executor.mjs';
 import { handleMcpMessage } from '../mcp-official-server.mjs';
 import { BASE_SCOPE } from '../mcp-official-catalog.mjs';
 import { mcpConfigStore } from '../mcp-config.mjs';
+import { createKnativeRuntimeSource, knativeUnavailableResponse } from '../../../../apps/control-plane/knative-runtime.mjs';
 import { main as workspaceDocsAction } from '../../../../packages/workspace-docs-service/actions/workspace-docs.mjs';
 // Shared write-capable admin role set — the single source of truth for both the API-key
 // management gate (here) and the flow-definition write gate (flow-executor.mjs, #760) so they
@@ -887,6 +889,16 @@ async function runFlows(flowExecutor, params, successStatus) {
 // err.dimension on the 429 envelope). Cross-tenant reads surface as 404 (MCP_SERVER_NOT_FOUND).
 async function runMcp(mcpEngine, params, successStatus) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
+  // Managed/external Knative modes fail closed before any hosted-runtime mutation. Disabled
+  // hosting retains the historical MCP_DISABLED behavior above.
+  const runtime = createKnativeRuntimeSource();
+  if (runtime.mode !== 'disabled' && !runtime.canServeWorkloads()) {
+    throw Object.assign(new Error('Knative runtime is unavailable.'), {
+      statusCode: 503,
+      code: 'KNATIVE_UNAVAILABLE',
+      details: knativeUnavailableResponse(runtime.status()),
+    });
+  }
   const result = await mcpEngine.executeMcp(params);
   return { status: successStatus, body: result };
 }
@@ -897,6 +909,16 @@ async function runMcp(mcpEngine, params, successStatus) {
 // the dispatch identity gate (401) and the engine's per-tenant server lookup before reaching here.
 async function runMcpRpc(mcpEngine, params) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
+  const runtime = createKnativeRuntimeSource();
+  if (runtime.mode !== 'disabled' && !runtime.canServeWorkloads()) {
+    const id = params?.message?.id;
+    if (id === undefined || id === null) return { status: 202, body: {} };
+    return { status: 200, body: { jsonrpc: '2.0', id, error: {
+      code: -32005,
+      message: 'Hosted MCP runtime is unavailable.',
+      data: { code: 'KNATIVE_UNAVAILABLE', state: runtime.status().state, reason: runtime.status().reason, correlationId: randomUUID() },
+    } } };
+  }
   const result = await mcpEngine.executeMcpRpc(params);
   if (result === null || result === undefined) return { status: 202, body: {} };
   return { status: 200, body: result };
