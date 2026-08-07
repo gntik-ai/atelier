@@ -28,6 +28,7 @@ import { createMcpEngine } from './mcp-engine.mjs';
 import { createMcpPostgresStore } from './mcp-pg-store.mjs';
 import { createMcpRuntimeCleaner } from './mcp-runtime-cleaner.mjs';
 import { createMcpRuntimeAdapter } from './mcp-runtime-adapter.mjs';
+import { recordAuditEvent } from '../../../../apps/control-plane/audit-store.mjs';
 import { createKnativeRuntimeSource } from '../../../../apps/control-plane/knative-runtime.mjs';
 import { createRuntimeCleanupRepository, recoverMcpCleanupObligations } from '../../../../apps/control-plane/runtime-cleanup-repository.mjs';
 import { withPostgresSsl, resolveKafkaSecurity } from '../../../../packages/internal-contracts/src/transport-security.mjs';
@@ -363,7 +364,7 @@ const mcpEngine = process.env.MCP_ENABLED === 'true'
       store: mcpStateStore,
       cleanupRepository: runtimeCleanupRepository,
       mcpRuntimeAdapter,
-      auditSink: async (event) => { await keyPool.query('INSERT INTO plan_audit_events(event_id, event_timestamp, event_type, tenant_id, workspace_id, correlation_id, payload) VALUES ($1,$2,$3,$4,$5,$6,$7)', [event.event_id, event.event_timestamp, event.actionType ?? 'mcp.runtime', event.tenantId, event.workspaceId, event.correlationId, JSON.stringify(event)]).catch(() => {}); },
+      auditSink: async (event) => { try { await recordAuditEvent(keyPool, { actionType: String(event.actionType ?? 'mcp.runtime').slice(0, 64), actorId: event.actor?.actor_id, tenantId: event.tenantId, workspaceId: event.workspaceId, outcome: event.result?.outcome ?? 'succeeded', correlationId: event.correlationId, newState: { subsystem: 'mcp', serverId: event.resource?.mcp_server_id } }); } catch (err) { console.error('[mcp-audit] write failed', err.code ?? err.message); } },
     })
   : undefined;
 
