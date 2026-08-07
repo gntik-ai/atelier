@@ -215,7 +215,9 @@ function kubeResponse(statusCode, payload) {
   return { statusCode, body: JSON.stringify(payload) };
 }
 
-function ownedService({ uid = 'uid-service-933', resourceVersion = '41' } = {}) {
+function ownedService(options = {}) {
+  const uid = Object.hasOwn(options, 'uid') ? options.uid : 'uid-service-933';
+  const resourceVersion = Object.hasOwn(options, 'resourceVersion') ? options.resourceVersion : '41';
   const metadata = {
     namespace: TENANT,
     name: 'mcp-orders-followup-933',
