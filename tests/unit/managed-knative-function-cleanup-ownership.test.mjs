@@ -152,7 +152,7 @@ test('managed-function-ownership-06: immediate deletion forwards the stored tena
       sub: 'owner-a',
       tenantId: action.tenant_id,
       actorType: 'tenant_owner',
-      roles: ['tenant_owner'],
+      roles: ['workspace_owner'], workspaceId: action.workspace_id, workspaceIds: [action.workspace_id],
     },
     callerContext: { correlationId: 'corr-a' },
     pool: {},
@@ -186,7 +186,7 @@ test('managed-function-ownership-07: creation forwards one stable tenant and Fun
       source: { inlineCode: 'export function main() {}' },
     },
     identity: {
-      sub: 'owner-a', tenantId: workspace.tenant_id, actorType: 'tenant_owner', roles: ['tenant_owner'],
+      sub: 'owner-a', tenantId: workspace.tenant_id, actorType: 'tenant_member', roles: ['workspace_owner'], workspaceId: workspace.id, workspaceIds: [workspace.id],
     },
     callerContext: { correlationId: 'corr-a' },
     pool: {},
@@ -226,8 +226,8 @@ test('managed-function-ownership-08: immediate mismatch retains both runtime and
     identity: {
       sub: 'owner-a',
       tenantId: action.tenant_id,
-      actorType: 'tenant_owner',
-      roles: ['tenant_owner'],
+      actorType: 'tenant_member',
+      roles: ['workspace_owner'], workspaceId: action.workspace_id, workspaceIds: [action.workspace_id],
     },
     callerContext: { correlationId: 'corr-a' },
     pool: {},

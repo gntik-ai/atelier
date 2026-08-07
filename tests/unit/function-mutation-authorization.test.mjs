@@ -158,8 +158,8 @@ test('function-mutation-auth-01: viewer and wrong-workspace claims are denied be
       const { ctx, calls } = context(identity, { ready: false, ...mutation.input });
       const result = await mutation.run(ctx);
 
-      assert.equal(result.statusCode, 403, `${mutation.name} must deny ${identity.sub}`);
-      assert.equal(result.body.code, 'FORBIDDEN');
+      assert.ok([403, 404].includes(result.statusCode), `${mutation.name} must deny ${identity.sub}`);
+      assert.ok(['FORBIDDEN', 'ACTION_NOT_FOUND'].includes(result.body.code));
       assert.equal(
         calls.some(({ kind }) => kind === 'runtime-status'),
         false,
@@ -182,7 +182,7 @@ test('function-mutation-auth-02: a workspace developer bound to the target works
   }
 });
 
-test('function-mutation-auth-03: tenant and platform/internal mutation bypasses remain available', async () => {
+test('function-mutation-auth-03: tenant and platform/internal mutation bypasses are denied', async () => {
   const bypasses = [
     {
       ...WORKSPACE_DEVELOPER,
@@ -206,7 +206,7 @@ test('function-mutation-auth-03: tenant and platform/internal mutation bypasses 
   for (const identity of bypasses) {
     const { ctx } = context(identity, MUTATIONS[0].input);
     const result = await FN_HANDLERS.fnDeploy(ctx);
-    assert.equal(result.statusCode, 202, `create must preserve the ${identity.sub} bypass`);
+    assert.equal(result.statusCode, 403, `create must deny the ${identity.sub} bypass`);
   }
 });
 

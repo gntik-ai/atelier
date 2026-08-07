@@ -30,7 +30,7 @@ test('knative-status-wiring-00: the gate authorizes exactly the platform-observe
     'platform_admin', 'platform_auditor', 'platform_operator', 'superadmin',
   ]);
   for (const role of KNATIVE_STATUS_OBSERVER_ROLES) {
-    assert.equal(isKnativeStatusObserver({ roles: [role], actorType: 'tenant_member' }), true);
+    assert.equal(isKnativeStatusObserver({ roles: [role], actorType: 'tenant_member', trustKind: 'platform' }), true);
   }
   // The removed fallback: actor_type=superadmin without a platform role is NOT an observer.
   assert.equal(isKnativeStatusObserver({ roles: [], actorType: 'superadmin' }), false);

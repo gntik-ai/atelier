@@ -29,7 +29,7 @@ test('knative-status-route-03: read-only status is authorized by exactly the pla
     ['platform_admin', 'platform_auditor', 'platform_operator', 'superadmin'],
   );
   for (const role of KNATIVE_STATUS_OBSERVER_ROLES) {
-    assert.equal(isKnativeStatusObserver({ roles: [role], actorType: 'internal' }), true, `role ${role} must observe`);
+    assert.equal(isKnativeStatusObserver({ roles: [role], actorType: 'internal', trustKind: 'platform' }), true, `role ${role} must observe`);
   }
 });
 
@@ -53,6 +53,7 @@ test('knative-status-route-02: handler returns only the sanitized source-of-trut
     lastTransitionAt: '2026-08-07T10:00:00.000Z',
   };
   const result = await KNATIVE_RUNTIME_HANDLERS.getKnativeRuntimeStatus({
+    identity: { roles: ['platform_auditor'], trustKind: 'platform' },
     knativeRuntime: { status: () => ({ ...status, secret: 'must-not-escape' }) },
   });
   assert.equal(result.statusCode, 200);
