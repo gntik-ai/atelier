@@ -27,7 +27,20 @@ if [ -f go.mod ]; then
 elif [ -f package.json ]; then
   mapfile -d '' BLACKBOX_TESTS < <(find tests/blackbox -type f -name '*.test.mjs' -print0 | sort -z)
   if [ -n "$FILTER" ]; then
-    exec node --test --test-name-pattern="$FILTER" "${BLACKBOX_TESTS[@]}"
+    # Avoid importing every test file for a focused run: some black-box files
+    # intentionally validate optional external fixtures at module load time.
+    # Select files that declare the requested bbx/name pattern, while retaining
+    # the previous whole-suite fallback for dynamic test names.
+    FILTERED_BLACKBOX_TESTS=()
+    for TEST_FILE in "${BLACKBOX_TESTS[@]}"; do
+      if grep -Eq -- "$FILTER" "$TEST_FILE"; then
+        FILTERED_BLACKBOX_TESTS+=("$TEST_FILE")
+      fi
+    done
+    if [ "${#FILTERED_BLACKBOX_TESTS[@]}" -eq 0 ]; then
+      FILTERED_BLACKBOX_TESTS=("${BLACKBOX_TESTS[@]}")
+    fi
+    exec node --test --test-name-pattern="$FILTER" "${FILTERED_BLACKBOX_TESTS[@]}"
   else
     exec node --test "${BLACKBOX_TESTS[@]}"
   fi

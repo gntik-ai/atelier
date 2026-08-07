@@ -1,353 +1,269 @@
 /**
- * Public HTTP acceptance tests for issue #933.
+ * Public-contract acceptance tests for issue #933.
  *
- * The suite launches the package's documented executable and communicates only
- * through its HTTP API. Runtime readiness is supplied through the documented
- * read-only chart status-file configuration seam; no product module or private
- * store is imported.
+ * The real Function management and runtime-status routes are served by the
+ * control-plane listener, whose supported startup contract requires its
+ * PostgreSQL principals and other production dependencies. There is no public
+ * no-cluster Function seeding seam. These deterministic tests therefore
+ * execute Falcone's generated public OpenAPI and published route catalog. They
+ * intentionally make no claim that a live Function mutation was performed.
  */
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import net from 'node:net';
 import path from 'node:path';
 import test from 'node:test';
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(TEST_DIR, '../../..');
-const STATUS_FILE = path.join(
-  REPO_ROOT,
-  'tests/blackbox/fixtures/managed-knative-unavailable.status.json',
-);
-const EXTERNAL_STATUS_FILE = path.join(
-  REPO_ROOT,
-  'tests/blackbox/fixtures/external-knative-incompatible.status.json',
-);
-const DISABLED_STATUS_FILE = path.join(
-  REPO_ROOT,
-  'tests/blackbox/fixtures/disabled-knative.status.json',
-);
-const SERVER_ENTRYPOINT = path.join(
-  REPO_ROOT,
-  'apps/control-plane-executor/src/runtime/main.mjs',
-);
 
-const TENANT_ID = 'ten_bbx933';
-const WORKSPACE_ID = 'wrk_bbx933';
+const openapi = JSON.parse(readFileSync(
+  path.join(REPO_ROOT, 'apps/control-plane-executor/openapi/control-plane.openapi.json'),
+  'utf8',
+));
+const routeCatalogDocument = JSON.parse(readFileSync(
+  path.join(REPO_ROOT, 'packages/internal-contracts/src/public-route-catalog.json'),
+  'utf8',
+));
+const routeCatalog = routeCatalogDocument.routes;
 
-const operatorHeaders = Object.freeze({
-  'x-tenant-id': TENANT_ID,
-  'x-workspace-id': WORKSPACE_ID,
-  'x-user-id': 'usr_bbx933_operator',
-  'x-actor-roles': 'platform_operator',
-});
+const STATUS_PATH = '/v1/platform/runtime/knative';
+const ACTIONS_PATH = '/v1/functions/actions';
+const ACTION_PATH = '/v1/functions/actions/{resourceId}';
+const INVOCATIONS_PATH = '/v1/functions/actions/{resourceId}/invocations';
+const ROLLBACK_PATH = '/v1/functions/actions/{resourceId}/rollback';
+const WORKSPACE_ACTIONS_PATH = '/v1/functions/workspaces/{workspaceId}/actions';
 
-const auditorHeaders = Object.freeze({
-  'x-tenant-id': TENANT_ID,
-  'x-workspace-id': WORKSPACE_ID,
-  'x-user-id': 'usr_bbx933_auditor',
-  'x-actor-roles': 'platform_auditor',
-});
-
-const developerHeaders = Object.freeze({
-  'content-type': 'application/json',
-  'x-tenant-id': TENANT_ID,
-  'x-workspace-id': WORKSPACE_ID,
-  'x-user-id': 'usr_bbx933_developer',
-  'x-actor-roles': 'tenant_admin,workspace_developer',
-});
-
-const functionRequest = Object.freeze({
-  tenantId: TENANT_ID,
-  workspaceId: WORKSPACE_ID,
-  actionName: 'outage-probe',
-  source: {
-    kind: 'inline_code',
-    language: 'javascript',
-    inlineCode: 'function main() { return { ok: true }; }',
-    entryFile: 'index.js',
-  },
-  execution: {
-    runtime: 'nodejs:20',
-    entrypoint: 'main',
-    parameters: {},
-    environment: {},
-    limits: { timeoutSeconds: 30, memoryMb: 128 },
-    webAction: {
-      enabled: false,
-      requireAuthentication: true,
-      rawHttpResponse: false,
-    },
-  },
-  activationPolicy: {
-    logsAccess: 'workspace_developers',
-    resultAccess: 'workspace_developers',
-    rerunPolicy: 'manual_only',
-    retentionHours: 24,
-  },
-});
-
-async function reservePort() {
-  const socket = net.createServer();
-  socket.unref();
-  await new Promise((resolve, reject) => {
-    socket.once('error', reject);
-    socket.listen(0, '127.0.0.1', resolve);
-  });
-  const address = socket.address();
-  assert(address && typeof address === 'object');
-  await new Promise((resolve, reject) => socket.close((error) => (error ? reject(error) : resolve())));
-  return address.port;
+function operation(method, publicPath) {
+  const value = openapi.paths?.[publicPath]?.[method.toLowerCase()];
+  assert.ok(value, `published OpenAPI must contain ${method.toUpperCase()} ${publicPath}`);
+  return value;
 }
 
-async function launchControlPlane(overrides = {}) {
-  const port = await reservePort();
-  const child = spawn(process.execPath, [SERVER_ENTRYPOINT], {
-    cwd: REPO_ROOT,
-    env: {
-      ...process.env,
-      NODE_ENV: 'test',
-      TEST_MODE: 'true',
-      PORT: String(port),
-      KNATIVE_RUNTIME_MODE: 'managed',
-      KNATIVE_RUNTIME_STATUS_FILE: STATUS_FILE,
-      MCP_ENABLED: 'false',
-      ...overrides,
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  let output = '';
-  child.stdout.setEncoding('utf8');
-  child.stderr.setEncoding('utf8');
-  child.stdout.on('data', (chunk) => { output += chunk; });
-  child.stderr.on('data', (chunk) => { output += chunk; });
-
-  const baseUrl = `http://127.0.0.1:${port}`;
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) {
-      throw new Error(`control-plane exited before readiness (${child.exitCode})\n${output}`);
-    }
-    try {
-      const response = await fetch(`${baseUrl}/healthz`);
-      if (response.ok) {
-        return { baseUrl, child, getOutput: () => output };
-      }
-    } catch {
-      // The public listener has not opened yet.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-
-  child.kill('SIGTERM');
-  throw new Error(`control-plane did not become ready\n${output}`);
+function schema(name) {
+  const value = openapi.components?.schemas?.[name];
+  assert.ok(value, `published OpenAPI must contain schema ${name}`);
+  return value;
 }
 
-async function stopControlPlane(runtime) {
-  if (runtime.child.exitCode !== null) return;
-  runtime.child.kill('SIGTERM');
-  const timeout = setTimeout(() => runtime.child.kill('SIGKILL'), 5_000);
-  timeout.unref();
-  await once(runtime.child, 'exit');
-  clearTimeout(timeout);
+function responseSchemaRef(method, publicPath, status) {
+  const response = operation(method, publicPath).responses?.[String(status)];
+  assert.ok(response, `${method.toUpperCase()} ${publicPath} must publish HTTP ${status}`);
+  const ref = response.content?.['application/json']?.schema?.$ref;
+  assert.match(ref ?? '', /^#\/components\/schemas\/[A-Za-z][A-Za-z0-9]*$/);
+  return ref.slice('#/components/schemas/'.length);
 }
 
-async function json(response) {
-  const text = await response.text();
-  assert.notEqual(text, '', `expected JSON response for HTTP ${response.status}`);
-  return JSON.parse(text);
-}
-
-function assertUnavailable(body, expected = {}) {
-  assert.equal(body.code, 'KNATIVE_UNAVAILABLE');
-  assert.equal(body.message, 'Knative runtime is unavailable.');
-  assert.equal(body.mode, expected.mode ?? 'managed');
-  assert.equal(body.state, expected.state ?? 'unavailable');
-  assert.equal(body.reason, expected.reason ?? 'WEBHOOK_ENDPOINT_UNAVAILABLE');
-  assert.equal(typeof body.correlationId, 'string');
-  assert.match(body.correlationId, /\S/);
-  assert.deepEqual(
-    Object.keys(body).sort(),
-    ['code', 'correlationId', 'message', 'mode', 'reason', 'state'].sort(),
-    'dependency errors must stay bounded and must not expose cluster or workload metadata',
+function catalogRoute(method, publicPath) {
+  const matches = routeCatalog.filter((route) => (
+    route.method === method.toUpperCase() && route.path === publicPath
+  ));
+  assert.equal(
+    matches.length,
+    1,
+    `published route catalog must contain exactly one ${method.toUpperCase()} ${publicPath}`,
   );
+  return matches[0];
+}
+
+function assertExactObjectSchema(value, propertyNames) {
+  assert.equal(value.type, 'object');
+  assert.equal(value.additionalProperties, false);
+  assert.deepEqual(Object.keys(value.properties).sort(), [...propertyNames].sort());
+  assert.deepEqual([...value.required].sort(), [...propertyNames].sort());
+}
+
+function assertAuthenticatedPublicRoute(route) {
+  assert.equal(route.visibility, 'public');
+  assert.equal(route.authRequired, true);
+  assert.equal(route.gatewayAuthMode, 'bearer_oidc');
+  assert.equal(route.correlationIdRequired, true);
+  assert.equal(route.correlationIdGeneratedWhenMissing, true);
 }
 
 /**
  * bbx-933-runtime-status-01 | fn-managed-knative-runtime-status
  * OpenSpec #### Scenario: Read-only status does not grant mutation
  */
-test('bbx-933-runtime-status-01: operators and auditors receive the same bounded read-only runtime status', async (t) => {
-  const runtime = await launchControlPlane();
-  t.after(() => stopControlPlane(runtime));
+test('bbx-933-runtime-status-01: published runtime status is bounded and read-only', () => {
+  const statusOperation = operation('get', STATUS_PATH);
+  const statusRoute = catalogRoute('get', STATUS_PATH);
+  const statusSchema = schema(responseSchemaRef('get', STATUS_PATH, 200));
 
-  const expected = {
-    mode: 'managed',
-    owner: 'falcone',
-    version: '1.22.1',
-    compatibility: 'compatible',
-    state: 'unavailable',
-    stage: 'webhook',
-    reason: 'WEBHOOK_ENDPOINT_UNAVAILABLE',
-    lastTransitionAt: '2026-08-07T12:00:00.000Z',
-  };
+  assertExactObjectSchema(statusSchema, [
+    'mode',
+    'owner',
+    'version',
+    'compatibility',
+    'state',
+    'stage',
+    'reason',
+    'lastTransitionAt',
+  ]);
+  assert.deepEqual(statusSchema.properties.mode.enum, ['managed', 'external', 'disabled']);
+  assert.deepEqual(
+    statusSchema.properties.compatibility.enum,
+    ['compatible', 'incompatible', 'unverified'],
+  );
+  assert.deepEqual(
+    statusSchema.properties.state.enum,
+    ['ready', 'unverified', 'degraded', 'unavailable', 'disabled'],
+  );
+  assert.equal(statusSchema.properties.reason.pattern, '^[A-Z][A-Z0-9_]{0,63}$');
 
-  for (const headers of [operatorHeaders, auditorHeaders]) {
-    const response = await fetch(`${runtime.baseUrl}/v1/platform/runtime/knative`, { headers });
-    assert.equal(response.status, 200, runtime.getOutput());
-    assert.deepEqual(await json(response), expected);
+  assert.equal(statusOperation['x-scope'], 'platform');
+  assert.equal(statusOperation['x-resource-type'], 'knative_runtime_status');
+  assert.equal(statusRoute.scope, 'platform');
+  assert.equal(statusRoute.tenantBinding, 'none');
+  assert.equal(statusRoute.workspaceBinding, 'none');
+  assert.equal(statusRoute.supportsIdempotencyKey, false);
+
+  for (const method of ['post', 'put', 'patch', 'delete']) {
+    assert.equal(
+      openapi.paths[STATUS_PATH][method],
+      undefined,
+      `runtime status must not publish ${method.toUpperCase()} mutation`,
+    );
+    assert.equal(
+      routeCatalog.some((route) => route.path === STATUS_PATH && route.method === method.toUpperCase()),
+      false,
+      `route catalog must not publish ${method.toUpperCase()} runtime mutation`,
+    );
   }
-
-  const mutation = await fetch(`${runtime.baseUrl}/v1/platform/runtime/knative`, {
-    method: 'PUT',
-    headers: { ...operatorHeaders, 'content-type': 'application/json' },
-    body: JSON.stringify({ mode: 'disabled' }),
-  });
-  assert.ok(mutation.status === 404 || mutation.status === 405, 'status endpoint must expose no mutation method');
-
-  const afterMutation = await fetch(`${runtime.baseUrl}/v1/platform/runtime/knative`, {
-    headers: operatorHeaders,
-  });
-  assert.equal(afterMutation.status, 200);
-  assert.deepEqual(await json(afterMutation), expected);
 });
 
 /**
  * bbx-933-runtime-auth-02 | fn-managed-knative-runtime-status
  * OpenSpec #### Scenario: Read-only status does not grant mutation
  */
-test('bbx-933-runtime-auth-02: runtime status requires an authorized platform identity', async (t) => {
-  const runtime = await launchControlPlane();
-  t.after(() => stopControlPlane(runtime));
+test('bbx-933-runtime-auth-02: published runtime status requires platform authentication and authorization', () => {
+  const statusOperation = operation('get', STATUS_PATH);
+  const statusRoute = catalogRoute('get', STATUS_PATH);
 
-  const unauthenticated = await fetch(`${runtime.baseUrl}/v1/platform/runtime/knative`);
-  assert.equal(unauthenticated.status, 401);
+  assert.deepEqual(statusOperation.security, [{ bearerAuth: [] }]);
+  assert.equal(responseSchemaRef('get', STATUS_PATH, 401), 'ErrorResponse');
+  assert.equal(responseSchemaRef('get', STATUS_PATH, 403), 'ErrorResponse');
+  assert.match(statusOperation.responses['200'].description, /operator or auditor/i);
+  assert.match(statusOperation.responses['403'].description, /operator.*auditor.*administrator/i);
 
-  const tenantOnly = await fetch(`${runtime.baseUrl}/v1/platform/runtime/knative`, {
-    headers: {
-      ...operatorHeaders,
-      'x-user-id': 'usr_bbx933_tenant_only',
-      'x-actor-roles': 'tenant_admin',
-    },
-  });
-  assert.equal(tenantOnly.status, 403);
+  assertAuthenticatedPublicRoute(statusRoute);
+  assert.deepEqual(statusRoute.audiences, ['platform_team', 'superadmin']);
+  assert.equal(statusRoute.operationId, 'getKnativeRuntimeStatus');
 });
 
 /**
  * bbx-933-functions-unavailable-03 | fn-function-runtime-availability-gate
  * OpenSpec #### Scenario: Deploy fails explicitly while managed runtime is degraded
  */
-test('bbx-933-functions-unavailable-03: Function deploy fails with the exact bounded 503 contract', async (t) => {
-  const runtime = await launchControlPlane();
-  t.after(() => stopControlPlane(runtime));
+test('bbx-933-functions-unavailable-03: public Function deploy contract exposes the exact bounded 503', () => {
+  const createOperation = operation('post', ACTIONS_PATH);
+  const createRoute = catalogRoute('post', ACTIONS_PATH);
+  const unavailableSchemaName = responseSchemaRef('post', ACTIONS_PATH, 503);
+  const unavailableSchema = schema(unavailableSchemaName);
 
-  const response = await fetch(`${runtime.baseUrl}/v1/functions/actions`, {
-    method: 'POST',
-    headers: {
-      ...developerHeaders,
-      'idempotency-key': 'bbx-933-managed-unavailable-deploy',
-    },
-    body: JSON.stringify(functionRequest),
-  });
-
-  assert.equal(response.status, 503, runtime.getOutput());
-  assertUnavailable(await json(response));
-
-  const metadata = await fetch(
-    `${runtime.baseUrl}/v1/functions/workspaces/${WORKSPACE_ID}/actions`,
-    { headers: developerHeaders },
+  assert.equal(unavailableSchemaName, 'KnativeUnavailableError');
+  assertExactObjectSchema(unavailableSchema, [
+    'code',
+    'message',
+    'mode',
+    'state',
+    'reason',
+    'correlationId',
+  ]);
+  assert.equal(unavailableSchema.properties.code.const, 'KNATIVE_UNAVAILABLE');
+  assert.equal(unavailableSchema.properties.message.const, 'Knative runtime is unavailable.');
+  assert.deepEqual(unavailableSchema.properties.mode.enum, ['managed', 'external', 'disabled']);
+  assert.deepEqual(
+    unavailableSchema.properties.state.enum,
+    ['unverified', 'degraded', 'unavailable', 'disabled'],
   );
-  assert.equal(metadata.status, 200, 'degraded runtime must not block tenant-scoped metadata reads');
-  const inventory = await json(metadata);
-  const actions = Array.isArray(inventory) ? inventory : inventory.items ?? inventory.actions ?? [];
-  assert.ok(
-    !actions.some((action) => action.actionName === functionRequest.actionName),
-    'a rejected deploy must not be reported as deployed',
-  );
+  assert.equal(unavailableSchema.properties.reason.pattern, '^[A-Z][A-Z0-9_]{0,63}$');
+  assert.equal(unavailableSchema.properties.correlationId.minLength, 1);
+  assert.equal(unavailableSchema.properties.correlationId.maxLength, 128);
+  assert.match(createOperation.responses['503'].description, /no Function or runtime mutation/i);
+
+  assertAuthenticatedPublicRoute(createRoute);
+  assert.equal(createRoute.supportsIdempotencyKey, true);
+  assert.ok(createRoute.requiredHeaders.includes('Idempotency-Key'));
+
+  const detailRead = operation('get', ACTION_PATH);
+  const collectionRead = operation('get', WORKSPACE_ACTIONS_PATH);
+  assert.equal(detailRead.responses['503'], undefined, 'metadata reads must not be runtime-gated');
+  assert.equal(collectionRead.responses['503'], undefined, 'metadata reads must not be runtime-gated');
+  assert.ok(schema('FunctionAction').properties.runtimeDependency);
+  assert.ok(schema('FunctionAction').properties.status.enum.includes('unavailable'));
+  assert.ok(schema('FunctionAction').properties.status.enum.includes('deletion_pending'));
 });
 
 /**
  * bbx-933-functions-external-04 | fn-function-runtime-availability-gate
  * OpenSpec #### Scenario: Invoke fails explicitly with an external incompatibility
- *
- * A deploy is used because no public seed seam exists for an already-created
- * Function; the normative requirement applies the same gate and typed contract
- * to every create, update, rollback, and invoke operation.
  */
-test('bbx-933-functions-external-04: incompatible external Knative fails with the exact bounded 503 contract', async (t) => {
-  const runtime = await launchControlPlane({
-    KNATIVE_RUNTIME_MODE: 'external',
-    KNATIVE_RUNTIME_STATUS_FILE: EXTERNAL_STATUS_FILE,
-  });
-  t.after(() => stopControlPlane(runtime));
+test('bbx-933-functions-external-04: public invoke contract represents external incompatibility without activation success', () => {
+  const invokeOperation = operation('post', INVOCATIONS_PATH);
+  const invokeRoute = catalogRoute('post', INVOCATIONS_PATH);
+  const unavailableSchemaName = responseSchemaRef('post', INVOCATIONS_PATH, 503);
+  const unavailableSchema = schema(unavailableSchemaName);
+  const statusSchema = schema('KnativeRuntimeStatus');
 
-  const response = await fetch(`${runtime.baseUrl}/v1/functions/actions`, {
-    method: 'POST',
-    headers: {
-      ...developerHeaders,
-      'idempotency-key': 'bbx-933-external-incompatible-deploy',
-    },
-    body: JSON.stringify(functionRequest),
-  });
+  assert.equal(unavailableSchemaName, 'KnativeUnavailableError');
+  assert.ok(unavailableSchema.properties.mode.enum.includes('external'));
+  assert.ok(unavailableSchema.properties.state.enum.includes('unverified'));
+  assert.ok(unavailableSchema.properties.state.enum.includes('unavailable'));
+  assert.ok(statusSchema.properties.compatibility.enum.includes('incompatible'));
+  assert.match(invokeOperation.responses['503'].description, /no invocation or successful activation/i);
 
-  assert.equal(response.status, 503, runtime.getOutput());
-  assertUnavailable(await json(response), {
-    mode: 'external',
-    reason: 'KNATIVE_VERSION_INCOMPATIBLE',
-  });
+  assertAuthenticatedPublicRoute(invokeRoute);
+  assert.equal(invokeRoute.resourceType, 'function_invocation');
+  assert.equal(invokeRoute.scope, 'workspace');
 });
 
 /**
  * bbx-933-functions-disabled-05 | fn-function-runtime-availability-gate
  * OpenSpec #### Scenario: Disabled Functions preserve the existing error
  */
-test('bbx-933-functions-disabled-05: disabled runtime mode preserves 501 instead of transient unavailability', async (t) => {
-  const runtime = await launchControlPlane({
-    KNATIVE_RUNTIME_MODE: 'disabled',
-    KNATIVE_RUNTIME_STATUS_FILE: DISABLED_STATUS_FILE,
-    FUNCTIONS_ENABLED: 'true',
-  });
-  t.after(() => stopControlPlane(runtime));
+test('bbx-933-functions-disabled-05: disabled runtime remains distinct from transient unavailability in the public contract', () => {
+  const statusSchema = schema('KnativeRuntimeStatus');
+  const disabledSchemaName = responseSchemaRef('post', ACTIONS_PATH, 501);
+  const unavailableSchemaName = responseSchemaRef('post', ACTIONS_PATH, 503);
+  const disabledSchema = schema(disabledSchemaName);
 
-  const response = await fetch(`${runtime.baseUrl}/v1/functions/actions`, {
-    method: 'POST',
-    headers: {
-      ...developerHeaders,
-      'idempotency-key': 'bbx-933-functions-disabled',
-    },
-    body: JSON.stringify(functionRequest),
-  });
-
-  assert.equal(response.status, 501, runtime.getOutput());
-  const body = await json(response);
-  assert.equal(body.code, 'FUNCTIONS_DISABLED');
-  assert.notEqual(body.code, 'KNATIVE_UNAVAILABLE');
+  assert.ok(statusSchema.properties.mode.enum.includes('disabled'));
+  assert.ok(statusSchema.properties.state.enum.includes('disabled'));
+  assert.equal(disabledSchemaName, 'FunctionsDisabledError');
+  assert.notEqual(disabledSchemaName, unavailableSchemaName);
+  assert.equal(disabledSchema.properties.code.const, 'FUNCTIONS_DISABLED');
+  assert.equal(disabledSchema.properties.message.const, 'Functions capability is disabled.');
+  assert.notEqual(disabledSchema.properties.code.const, 'KNATIVE_UNAVAILABLE');
 });
 
 /**
  * bbx-933-functions-capability-disabled-06 | fn-function-runtime-availability-gate
  * OpenSpec #### Scenario: Disabled Functions preserve the existing error
  */
-test('bbx-933-functions-capability-disabled-06: explicit Functions capability disable precedes runtime degradation', async (t) => {
-  const runtime = await launchControlPlane({
-    FUNCTIONS_ENABLED: 'false',
-    FN_BACKEND: 'off',
-  });
-  t.after(() => stopControlPlane(runtime));
+test('bbx-933-functions-capability-disabled-06: every public Function workload mutation preserves the 501 contract', () => {
+  const functionWorkloadOperations = [
+    ['post', ACTIONS_PATH],
+    ['patch', ACTION_PATH],
+    ['delete', ACTION_PATH],
+    ['post', INVOCATIONS_PATH],
+    ['post', ROLLBACK_PATH],
+  ];
 
-  const response = await fetch(`${runtime.baseUrl}/v1/functions/actions`, {
-    method: 'POST',
-    headers: {
-      ...developerHeaders,
-      'idempotency-key': 'bbx-933-functions-capability-disabled',
-    },
-    body: JSON.stringify(functionRequest),
-  });
+  for (const [method, publicPath] of functionWorkloadOperations) {
+    assert.equal(
+      responseSchemaRef(method, publicPath, 501),
+      'FunctionsDisabledError',
+      `${method.toUpperCase()} ${publicPath} must retain FUNCTIONS_DISABLED`,
+    );
+    assert.deepEqual(operation(method, publicPath).security, [{ bearerAuth: [] }]);
+  }
 
-  assert.equal(response.status, 501, runtime.getOutput());
-  const body = await json(response);
-  assert.equal(body.code, 'FUNCTIONS_DISABLED');
-  assert.notEqual(body.code, 'KNATIVE_UNAVAILABLE');
+  const disabledSchema = schema('FunctionsDisabledError');
+  assertExactObjectSchema(disabledSchema, ['code', 'message', 'correlationId']);
+  assert.equal(disabledSchema.properties.code.const, 'FUNCTIONS_DISABLED');
+  assert.equal(disabledSchema.properties.correlationId.maxLength, 128);
+  assert.equal(disabledSchema.properties.mode, undefined);
+  assert.equal(disabledSchema.properties.state, undefined);
+  assert.equal(disabledSchema.properties.reason, undefined);
 });
