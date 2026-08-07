@@ -12382,6 +12382,16 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "Workspace deletion completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDeleteCompleted"
+                }
+              }
+            }
+          },
           "202": {
             "description": "Workspace deletion accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
@@ -19132,6 +19142,16 @@
           }
         },
         "responses": {
+          "200": {
+            "description": "Tenant purge completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantPurgeCompleted"
+                }
+              }
+            }
+          },
           "202": {
             "description": "Tenant mutation accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
@@ -94919,6 +94939,177 @@
           "message": {
             "type": "string",
             "minLength": 1
+          }
+        }
+      },
+      "TenantPurgeCompleted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenantId",
+          "purged",
+          "removed",
+          "residual"
+        ],
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "purged": {
+            "const": true
+          },
+          "removed": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "workspaces",
+              "databases",
+              "realm",
+              "buckets",
+              "topics",
+              "mongoDatabases",
+              "mongoDatabasesRetained"
+            ],
+            "properties": {
+              "workspaces": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "databases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "realm": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "buckets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "topics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "mongoDatabases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "mongoDatabasesRetained": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "residual": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "knativeServices"
+            ],
+            "properties": {
+              "knativeServices": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "WorkspaceDeleteCompleted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceId",
+          "tenantId",
+          "deleted",
+          "removed",
+          "residual"
+        ],
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "pattern": "^wrk_[0-9a-z]+$"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^ten_[0-9a-z]+$"
+          },
+          "deleted": {
+            "const": true
+          },
+          "removed": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "databases",
+              "buckets",
+              "topics",
+              "mongoDatabases",
+              "mongoDatabasesRetained"
+            ],
+            "properties": {
+              "databases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "buckets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "topics": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "mongoDatabases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "mongoDatabasesRetained": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "residual": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "knativeServices"
+            ],
+            "properties": {
+              "knativeServices": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

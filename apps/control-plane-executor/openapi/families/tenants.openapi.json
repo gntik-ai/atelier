@@ -2831,6 +2831,95 @@
         ],
         "type": "string"
       },
+      "TenantPurgeCompleted": {
+        "additionalProperties": false,
+        "properties": {
+          "purged": {
+            "const": true
+          },
+          "removed": {
+            "additionalProperties": false,
+            "properties": {
+              "buckets": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "databases": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mongoDatabases": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mongoDatabasesRetained": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "realm": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "topics": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "workspaces": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "workspaces",
+              "databases",
+              "realm",
+              "buckets",
+              "topics",
+              "mongoDatabases",
+              "mongoDatabasesRetained"
+            ],
+            "type": "object"
+          },
+          "residual": {
+            "additionalProperties": false,
+            "properties": {
+              "knativeServices": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "knativeServices"
+            ],
+            "type": "object"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "purged",
+          "removed",
+          "residual"
+        ],
+        "type": "object"
+      },
       "TenantPurgeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -6128,6 +6217,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantPurgeCompleted"
+                }
+              }
+            },
+            "description": "Tenant purge completed."
+          },
           "202": {
             "content": {
               "application/json": {
