@@ -108,9 +108,13 @@ function RequireSuperadminRoute({ children }: { children: JSX.Element }) {
   )
 }
 
+export function isPlatformObserverRole(role: string): boolean {
+  return ['superadmin', 'platform_admin', 'platform_operator', 'platform_auditor'].includes(role)
+}
+
 function RequirePlatformObserverRoute({ children }: { children: JSX.Element }) {
   const roles = readConsoleShellSession()?.principal?.platformRoles ?? []
-  return roles.some((role) => ['superadmin', 'platform_admin', 'platform_operator', 'platform_team'].includes(role)) ? children : (
+  return roles.some(isPlatformObserverRole) ? children : (
     <ConsoleAccessDeniedState title="Estado de plataforma restringido" description="Esta vista está disponible para operadores de plataforma. Solicita acceso a un administrador para consultar el runtime global." />
   )
 }

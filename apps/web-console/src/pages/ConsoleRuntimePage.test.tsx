@@ -11,18 +11,17 @@ const ready = { mode: 'managed', owner: 'platform', version: '1.15.0', compatibi
 function renderPage() { return render(<MemoryRouter><ConsoleRuntimePage /></MemoryRouter>) }
 
 describe('ConsoleRuntimePage', () => {
-  beforeEach(() => { getStatus.mockReset(); Object.assign(navigator, { clipboard: { writeText: vi.fn() } }) })
+  beforeEach(() => { getStatus.mockReset() })
   it('presents runtime hierarchy and read-only links', async () => {
     getStatus.mockResolvedValue(ready); renderPage()
     expect(await screen.findByRole('heading', { name: 'Runtime de funciones' })).toBeInTheDocument()
     expect(screen.getByText('platform')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Inspeccionar' })).toHaveAttribute('href', '/console/functions')
   })
-  it('announces degraded reason and supports copying correlation id', async () => {
+  it('announces degraded reason without inventing correlation data', async () => {
     getStatus.mockResolvedValue({ ...ready, state: 'degraded', reason: 'Webhook pendiente' }); renderPage()
     expect(await screen.findByRole('status')).toHaveTextContent('Webhook pendiente')
-    await userEvent.click(screen.getByRole('button', { name: 'Copiar' }))
-    expect(navigator.clipboard.writeText).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Copiar' })).not.toBeInTheDocument()
   })
   it('offers retry on transport errors', async () => {
     getStatus.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(ready); renderPage()
