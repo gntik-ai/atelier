@@ -36,7 +36,11 @@ import { listenAfterRequiredGates } from './control-plane-startup.mjs';
 import { resolveWebhookDatabasePrincipalNames } from './webhook-database-principals.mjs';
 import { prepareControlPlaneDatabases } from './control-plane-database-startup.mjs';
 import { createKnativeRuntimeSource } from './knative-runtime.mjs';
-import { isKnativeStatusObserver } from './knative-runtime-handlers.mjs';
+import {
+  isKnativeStatusObserver,
+  knativeRuntimeAuthenticationError,
+  knativeRuntimeAuthorizationError,
+} from './knative-runtime-handlers.mjs';
 import { createRuntimeCleanupRepository, recoverFunctionCleanupObligations } from './runtime-cleanup-repository.mjs';
 import { deleteKnativeService } from './function-executor.mjs';
 
@@ -362,9 +366,22 @@ const server = http.createServer(async (req, res) => {
     let identity = null;
     if (route.auth !== 'public') {
       try { identity = await authenticate(headers); }
-      catch (e) { console.error('[control-plane] token verification failed:', e); return sendJson(res, 401, { code: 'INVALID_TOKEN', message: 'Token verification failed' }); }
-      if (!identity) return sendJson(res, 401, { code: 'UNAUTHENTICATED', message: 'Missing or invalid Bearer token' });
-      if (!authzOk(route, identity)) return sendJson(res, 403, { code: 'FORBIDDEN', message: `requires ${route.auth}` });
+      catch (e) {
+        console.error('[control-plane] token verification failed:', e);
+        return sendJson(res, 401, route.auth === 'knative_status'
+          ? knativeRuntimeAuthenticationError('INVALID_TOKEN', correlationId)
+          : { code: 'INVALID_TOKEN', message: 'Token verification failed' });
+      }
+      if (!identity) {
+        return sendJson(res, 401, route.auth === 'knative_status'
+          ? knativeRuntimeAuthenticationError('UNAUTHENTICATED', correlationId)
+          : { code: 'UNAUTHENTICATED', message: 'Missing or invalid Bearer token' });
+      }
+      if (!authzOk(route, identity)) {
+        return sendJson(res, 403, route.auth === 'knative_status'
+          ? knativeRuntimeAuthorizationError(correlationId)
+          : { code: 'FORBIDDEN', message: `requires ${route.auth}` });
+      }
     }
     metric.tenantId = identity?.tenantId ?? '';
 

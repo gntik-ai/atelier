@@ -4214,14 +4214,36 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_action",
+        "x-runtime-success-contract": {
+          "requiredBodyFields": {
+            "family": "functions",
+            "resourceType": "function_action"
+          },
+          "schema": "GatewayMutationAccepted",
+          "status": 202
+        },
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       }
     },
     "/v1/functions/actions/{resourceId}": {
@@ -4379,7 +4401,8 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
@@ -4397,7 +4420,20 @@
           ]
         },
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       },
       "get": {
         "operationId": "getFunctions",
@@ -4696,14 +4732,36 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_action",
+        "x-runtime-success-contract": {
+          "requiredBodyFields": {
+            "family": "functions",
+            "resourceType": "function_action"
+          },
+          "schema": "GatewayMutationAccepted",
+          "status": 202
+        },
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       }
     },
     "/v1/functions/actions/{resourceId}/activations": {
@@ -6567,7 +6625,8 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
@@ -7006,14 +7065,28 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_rollback",
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       }
     },
     "/v1/functions/actions/{resourceId}/storage-triggers": {

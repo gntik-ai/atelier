@@ -258,6 +258,12 @@ export function buildRouteCatalog(
         ...(operation['x-runtime-cleanup-ownership'] !== undefined
           ? { runtimeCleanupOwnership: operation['x-runtime-cleanup-ownership'] }
           : {}),
+        ...(operation['x-workspace-mutation-authorization'] !== undefined
+          ? { workspaceMutationAuthorization: operation['x-workspace-mutation-authorization'] }
+          : {}),
+        ...(operation['x-runtime-success-contract'] !== undefined
+          ? { runtimeSuccessContract: operation['x-runtime-success-contract'] }
+          : {}),
         planCapabilityAnyOf: routing.planCapabilityAnyOf ?? [],
         requiredPlanFlags: operation['x-plan-flags'] ?? [],
         adminChannel: operation['x-admin-channel'] ?? null,

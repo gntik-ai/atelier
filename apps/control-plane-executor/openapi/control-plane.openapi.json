@@ -1096,8 +1096,30 @@
         "x-rate-limit-class": "provisioning",
         "x-owning-service": "control_api",
         "x-downstream-adapters": [
-          "openwhisk"
-        ]
+          "knative",
+          "local-control-plane"
+        ],
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required",
+          "dependencyDisclosure": "after_authorization"
+        },
+        "x-runtime-success-contract": {
+          "status": 202,
+          "schema": "GatewayMutationAccepted",
+          "requiredBodyFields": {
+            "family": "functions",
+            "resourceType": "function_action"
+          }
+        }
       }
     },
     "/v1/functions/actions/{resourceId}": {
@@ -1398,8 +1420,30 @@
         "x-rate-limit-class": "provisioning",
         "x-owning-service": "control_api",
         "x-downstream-adapters": [
-          "openwhisk"
-        ]
+          "knative",
+          "local-control-plane"
+        ],
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required",
+          "dependencyDisclosure": "after_authorization"
+        },
+        "x-runtime-success-contract": {
+          "status": 202,
+          "schema": "GatewayMutationAccepted",
+          "requiredBodyFields": {
+            "family": "functions",
+            "resourceType": "function_action"
+          }
+        }
       },
       "delete": {
         "operationId": "deleteFunctions",
@@ -1555,8 +1599,22 @@
         "x-rate-limit-class": "provisioning",
         "x-owning-service": "control_api",
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required",
+          "dependencyDisclosure": "after_authorization"
+        },
         "x-runtime-cleanup-ownership": {
           "requiredIdentity": [
             "tenantId",
@@ -8738,7 +8796,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/KnativeRuntimeAuthenticationError"
                 }
               }
             }
@@ -8748,7 +8806,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/KnativeRuntimeAuthorizationError"
                 }
               }
             }
@@ -47310,7 +47368,8 @@
         "x-rate-limit-class": "data-control",
         "x-owning-service": "control_api",
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ]
       }
     },
@@ -49600,14 +49659,28 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_rollback",
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required",
+          "dependencyDisclosure": "after_authorization"
+        }
       }
     },
     "/v1/functions/workspaces/{workspaceId}/secrets": {
@@ -61502,6 +61575,61 @@
           }
         }
       },
+      "KnativeRuntimeAuthenticationError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "correlationId"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "INVALID_TOKEN",
+              "UNAUTHENTICATED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$"
+          }
+        }
+      },
+      "KnativeRuntimeAuthorizationError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "message",
+          "correlationId"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "const": "FORBIDDEN"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "correlationId": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$"
+          }
+        }
+      },
       "KnativeUnavailableError": {
         "type": "object",
         "additionalProperties": false,
@@ -64773,6 +64901,80 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          },
+          "workspaceMutationAuthorization": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "allowedWorkspaceRoles",
+              "deniedWorkspaceRoles",
+              "workspaceClaim",
+              "workspaceClaimMatch",
+              "dependencyDisclosure"
+            ],
+            "properties": {
+              "allowedWorkspaceRoles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "deniedWorkspaceRoles": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "workspaceClaim": {
+                "type": "string",
+                "const": "workspace_id"
+              },
+              "workspaceClaimMatch": {
+                "type": "string",
+                "const": "required"
+              },
+              "dependencyDisclosure": {
+                "type": "string",
+                "const": "after_authorization"
+              }
+            }
+          },
+          "runtimeSuccessContract": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "schema",
+              "requiredBodyFields"
+            ],
+            "properties": {
+              "status": {
+                "type": "integer",
+                "const": 202
+              },
+              "schema": {
+                "type": "string",
+                "const": "GatewayMutationAccepted"
+              },
+              "requiredBodyFields": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "family",
+                  "resourceType"
+                ],
+                "properties": {
+                  "family": {
+                    "type": "string",
+                    "const": "functions"
+                  },
+                  "resourceType": {
+                    "type": "string",
+                    "const": "function_action"
+                  }
+                }
+              }
             }
           },
           "rateLimitClass": {

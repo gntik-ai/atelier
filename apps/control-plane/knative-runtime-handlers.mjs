@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { publicKnativeStatus } from './knative-runtime.mjs';
 
 // Platform roles allowed to READ the runtime status route (GET /v1/platform/runtime/knative). This
@@ -16,6 +17,33 @@ export const KNATIVE_STATUS_OBSERVER_ROLES = Object.freeze([
 export function isKnativeStatusObserver(identity) {
   const roles = identity?.roles;
   return Array.isArray(roles) && roles.some((role) => KNATIVE_STATUS_OBSERVER_ROLES.includes(role));
+}
+
+const PUBLIC_CORRELATION_ID = /^[A-Za-z0-9._:-]{8,128}$/;
+
+function boundedCorrelationId(value) {
+  const candidate = typeof value === 'string' ? value : '';
+  return PUBLIC_CORRELATION_ID.test(candidate) ? candidate : randomUUID();
+}
+
+// The status route is implemented by this local control-plane rather than the gateway error
+// serializer. Keep its authentication envelopes route-specific and exactly aligned with the public
+// schemas without changing the unrelated global ErrorResponse contract.
+export function knativeRuntimeAuthenticationError(code, correlationId) {
+  const invalidToken = code === 'INVALID_TOKEN';
+  return {
+    code: invalidToken ? 'INVALID_TOKEN' : 'UNAUTHENTICATED',
+    message: invalidToken ? 'Token verification failed' : 'Missing or invalid Bearer token',
+    correlationId: boundedCorrelationId(correlationId),
+  };
+}
+
+export function knativeRuntimeAuthorizationError(correlationId) {
+  return {
+    code: 'FORBIDDEN',
+    message: 'Caller lacks a platform observer role',
+    correlationId: boundedCorrelationId(correlationId),
+  };
 }
 
 async function getKnativeRuntimeStatus(ctx) {

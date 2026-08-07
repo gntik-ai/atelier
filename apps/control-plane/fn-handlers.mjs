@@ -131,6 +131,34 @@ function callerTenantId(identity) {
   return identity.tenantId ?? null;
 }
 
+const FUNCTION_WORKSPACE_MUTATION_ROLES = new Set([
+  'workspace_owner',
+  'workspace_admin',
+  'workspace_developer',
+]);
+
+// Function writes are workspace mutations, not merely same-tenant operations. Tenant/platform
+// control-plane identities retain their existing administrative bypass, while ordinary principals
+// must carry both a write-capable workspace role and a verified binding for the target workspace.
+// The workspace is always resolved from persisted state (or the create target), never trusted from
+// a caller-supplied Function body alone.
+export function canMutateFunctionWorkspace(identity, workspace) {
+  if (!identity || !workspace?.id || !workspace?.tenant_id) return false;
+  if (canManageTenant(identity, workspace.tenant_id)) return true;
+
+  const roles = new Set(Array.isArray(identity.roles) ? identity.roles : []);
+  if (roles.has('superadmin') || roles.has('platform_admin')) return true;
+  if (identity.tenantId !== workspace.tenant_id) return false;
+  if (![...roles].some((role) => FUNCTION_WORKSPACE_MUTATION_ROLES.has(role))) return false;
+
+  const claimedWorkspaceIds = new Set(
+    [identity.workspaceId, ...(Array.isArray(identity.workspaceIds) ? identity.workspaceIds : [])]
+      .filter(Boolean)
+      .map(String),
+  );
+  return claimedWorkspaceIds.has(String(workspace.id));
+}
+
 // Public dispatch always injects this source. Requiring it at the handler boundary prevents a
 // direct call from silently bypassing the dependency gate; focused tests inject a deterministic
 // ready/unavailable source explicitly.
@@ -309,15 +337,40 @@ function actionOut(r, latest, versionState = null, runtimeStatus = null) {
 async function fnDeploy(ctx) {
   const st = ctx.store ?? store;
   const b = ctx.body ?? {};
-  const workspaceId = b.workspaceId ?? ctx.params.workspaceId;
+  const actionId = ctx.params.actionId ?? ctx.params.resourceId ?? null;
   const actionName = b.actionName ?? b.name;
-  if (!workspaceId || !actionName) return err(400, 'VALIDATION_ERROR', 'workspaceId and actionName are required');
+  if (!actionName) return err(400, 'VALIDATION_ERROR', 'workspaceId and actionName are required');
+  // Preserve the create/update no-oracle behavior for an explicitly supplied foreign or unknown
+  // workspace before looking up the Function path id. The persisted Function still remains the
+  // authoritative update scope below.
+  const requestedWorkspace = actionId && b.workspaceId != null
+    ? await ownedWorkspace(ctx, b.workspaceId)
+    : null;
+  if (actionId && b.workspaceId != null && !requestedWorkspace) {
+    return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  }
+  // On update, the persisted Function determines the authorization workspace. A body.workspaceId
+  // cannot move an existing Function or substitute a same-tenant workspace the caller does own.
+  const existing = actionId
+    ? await st.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity))
+    : null;
+  if (actionId && !existing) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
+  const workspaceId = existing?.workspace_id ?? b.workspaceId ?? ctx.params.workspaceId;
+  if (!workspaceId) return err(400, 'VALIDATION_ERROR', 'workspaceId and actionName are required');
+  if (existing && b.workspaceId != null && String(b.workspaceId) !== String(existing.workspace_id)) {
+    return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  }
   // Tenant isolation (#869, the write twin of #784): resolve + own-check the workspace BEFORE any
   // write or Knative deploy side effect. ownedWorkspace returns null for a foreign or unknown
   // workspace (no existence oracle) → 403; the check is skipped for superadmin/internal callers
   // (callerTenantId → null), preserving the cross-tenant deploy bypass.
-  const ws = await ownedWorkspace(ctx, workspaceId);
+  const ws = requestedWorkspace?.id === workspaceId
+    ? requestedWorkspace
+    : await ownedWorkspace(ctx, workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  if (!canMutateFunctionWorkspace(ctx.identity, ws)) {
+    return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
+  }
   const code = b.source?.inlineCode ?? b.source?.code;
   if (!code) return err(400, 'VALIDATION_ERROR', 'source.inlineCode is required');
   // Ownership and validation precede dependency status, but the gate precedes secret resolution,
@@ -326,8 +379,7 @@ async function fnDeploy(ctx) {
     tenantId: ws.tenant_id, workspaceId: ws.id,
   });
   if (dependencyError) return dependencyError;
-  const existing = ctx.params.actionId ? await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity)) : null;
-  const resourceId = existing?.resource_id ?? ctx.params.actionId ?? `fn_${randomUUID().slice(0, 12)}`;
+  const resourceId = existing?.resource_id ?? `fn_${randomUUID().slice(0, 12)}`;
   const limits = b.execution?.limits ?? {};
   const memoryMb = Number(limits.memoryMb) || 256;
   const timeoutMs = Number(limits.timeoutMs) || 60000;
@@ -362,8 +414,9 @@ async function fnDeploy(ctx) {
     sourceCode: code, parameters: b.execution?.parameters ?? null, memoryMb, timeoutMs,
     ksvcName: name, createdBy: ctx.identity?.sub
   });
-  return ok(existing ? 200 : 201, {
+  return ok(202, {
     requestId: randomUUID(), correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
+    family: 'functions', resourceType: 'function_action',
     resourceId: rec.resource_id, status: 'accepted', acceptedAt: new Date().toISOString()
   });
 }
@@ -420,8 +473,8 @@ async function fnDelete(ctx) {
   const actionId = ctx.params.actionId ?? ctx.params.resourceId;
   const r = await st.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
-  if (!canManageTenant(ctx.identity, r.tenant_id)) {
-    return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  if (!canMutateFunctionWorkspace(ctx.identity, { id: r.workspace_id, tenant_id: r.tenant_id })) {
+    return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
   }
 
   const runtime = runtimeFor(ctx);
@@ -574,8 +627,8 @@ async function fnRollback(ctx) {
   const st = ctx.store ?? store;
   const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', 'action not found');
-  if (!canManageTenant(ctx.identity, r.tenant_id)) {
-    return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  if (!canMutateFunctionWorkspace(ctx.identity, { id: r.workspace_id, tenant_id: r.tenant_id })) {
+    return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
   }
   const dependencyError = functionDependencyGate(ctx, 'rollback', {
     tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id,

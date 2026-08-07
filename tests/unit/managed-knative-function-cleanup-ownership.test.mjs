@@ -204,7 +204,7 @@ test('managed-function-ownership-07: creation forwards one stable tenant and Fun
     },
     deployKnativeService: async (_name, _source, options) => deploys.push(options),
   });
-  assert.equal(result.statusCode, 201);
+  assert.equal(result.statusCode, 202);
   assert.equal(deploys.length, 1);
   assert.equal(writes.length, 1);
   assert.deepEqual(

@@ -2023,7 +2023,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -2072,6 +2073,14 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "function_action",
+      "runtimeSuccessContract": {
+        "requiredBodyFields": {
+          "family": "functions",
+          "resourceType": "function_action"
+        },
+        "schema": "GatewayMutationAccepted",
+        "status": 202
+      },
       "scope": "workspace",
       "summary": "Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs",
       "supportsIdempotencyKey": true,
@@ -2080,7 +2089,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -2105,7 +2127,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -2173,7 +2196,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -2282,7 +2318,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -2331,6 +2368,14 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "function_action",
+      "runtimeSuccessContract": {
+        "requiredBodyFields": {
+          "family": "functions",
+          "resourceType": "function_action"
+        },
+        "schema": "GatewayMutationAccepted",
+        "status": 202
+      },
       "scope": "workspace",
       "summary": "Update one governed function action without exposing native namespace, subject, or unrestricted provider administration",
       "supportsIdempotencyKey": true,
@@ -2339,7 +2384,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -3350,7 +3408,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -3599,7 +3658,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -3656,7 +3716,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,

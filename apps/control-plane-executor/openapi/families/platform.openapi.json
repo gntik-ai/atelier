@@ -721,6 +721,61 @@
         ],
         "type": "object"
       },
+      "KnativeRuntimeAuthenticationError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "INVALID_TOKEN",
+              "UNAUTHENTICATED"
+            ],
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "correlationId"
+        ],
+        "type": "object"
+      },
+      "KnativeRuntimeAuthorizationError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "FORBIDDEN",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+            "type": "string"
+          },
+          "message": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "correlationId"
+        ],
+        "type": "object"
+      },
       "KnativeRuntimeStatus": {
         "additionalProperties": false,
         "properties": {
@@ -1819,6 +1874,43 @@
           "resourceType": {
             "type": "string"
           },
+          "runtimeSuccessContract": {
+            "additionalProperties": false,
+            "properties": {
+              "requiredBodyFields": {
+                "additionalProperties": false,
+                "properties": {
+                  "family": {
+                    "const": "functions",
+                    "type": "string"
+                  },
+                  "resourceType": {
+                    "const": "function_action",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "family",
+                  "resourceType"
+                ],
+                "type": "object"
+              },
+              "schema": {
+                "const": "GatewayMutationAccepted",
+                "type": "string"
+              },
+              "status": {
+                "const": 202,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "status",
+              "schema",
+              "requiredBodyFields"
+            ],
+            "type": "object"
+          },
           "scope": {
             "type": "string"
           },
@@ -1841,6 +1933,43 @@
               "deprecated"
             ],
             "type": "string"
+          },
+          "workspaceMutationAuthorization": {
+            "additionalProperties": false,
+            "properties": {
+              "allowedWorkspaceRoles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "deniedWorkspaceRoles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "dependencyDisclosure": {
+                "const": "after_authorization",
+                "type": "string"
+              },
+              "workspaceClaim": {
+                "const": "workspace_id",
+                "type": "string"
+              },
+              "workspaceClaimMatch": {
+                "const": "required",
+                "type": "string"
+              }
+            },
+            "required": [
+              "allowedWorkspaceRoles",
+              "deniedWorkspaceRoles",
+              "workspaceClaim",
+              "workspaceClaimMatch",
+              "dependencyDisclosure"
+            ],
+            "type": "object"
           }
         },
         "required": [
@@ -3817,7 +3946,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/KnativeRuntimeAuthenticationError"
                 }
               }
             },
@@ -3827,7 +3956,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/KnativeRuntimeAuthorizationError"
                 }
               }
             },
