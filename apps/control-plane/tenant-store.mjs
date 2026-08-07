@@ -1090,7 +1090,7 @@ export async function deleteTenant(pool, id) {
 
 export async function listRuntimeOwnership(pool, { tenantId, workspaceId }) {
   const where = tenantId ? 'tenant_id=$1' : 'workspace_id=$1';
-  const { rows: functions } = await pool.query(`SELECT tenant_id AS "tenantId", workspace_id AS "workspaceId", resource_id AS "resourceId", ksvc_name AS "ksvcName", uid, resource_version AS "resourceVersion" FROM fn_actions WHERE ${where} AND ksvc_name IS NOT NULL`, [tenantId ?? workspaceId]);
+  const { rows: functions } = await pool.query(`SELECT tenant_id AS "tenantId", workspace_id AS "workspaceId", resource_id AS "resourceId", ksvc_name AS "ksvcName" FROM fn_actions WHERE ${where} AND ksvc_name IS NOT NULL`, [tenantId ?? workspaceId]);
   let mcpState = null;
   try { const r = await pool.query('SELECT state FROM falcone_mcp_state WHERE id=$1', [tenantId ?? 'global']); mcpState = r.rows[0]?.state ?? null; } catch { mcpState = null; }
   return { tenantId: tenantId ?? functions[0]?.tenantId, workspaceId, functions, mcpState };
