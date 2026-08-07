@@ -834,7 +834,7 @@
             "type": "string"
           },
           "invocationId": {
-            "pattern": "^inv_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "memoryMb": {
@@ -998,7 +998,7 @@
             "type": "string"
           },
           "rerunInvocationId": {
-            "pattern": "^inv_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "status": {
