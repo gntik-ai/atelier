@@ -16,7 +16,9 @@ export const KNATIVE_STATUS_OBSERVER_ROLES = Object.freeze([
 // observer. Deliberately ignores actor_type so the backend cannot out-grant the UI.
 export function isKnativeStatusObserver(identity) {
   const roles = identity?.roles;
-  return Array.isArray(roles) && roles.some((role) => KNATIVE_STATUS_OBSERVER_ROLES.includes(role));
+  return (identity?.trustKind ?? identity?.trust?.kind) === 'platform'
+    && Array.isArray(roles)
+    && roles.some((role) => KNATIVE_STATUS_OBSERVER_ROLES.includes(role));
 }
 
 const PUBLIC_CORRELATION_ID = /^[A-Za-z0-9._:-]{8,128}$/;
@@ -47,6 +49,9 @@ export function knativeRuntimeAuthorizationError(correlationId) {
 }
 
 async function getKnativeRuntimeStatus(ctx) {
+  if (!isKnativeStatusObserver(ctx?.identity)) {
+    return { statusCode: 403, body: knativeRuntimeAuthorizationError(ctx?.callerContext?.correlationId) };
+  }
   return { statusCode: 200, body: publicKnativeStatus(ctx.knativeRuntime.status()) };
 }
 

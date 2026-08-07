@@ -235,6 +235,7 @@ async function authenticate(headers) {
     workspaceId: payload.workspace_id ?? null,
     workspaceIds,
     actorType: deriveActorType(payload),
+    trustKind: trust.kind,
     roles, scopes,
     // The trusted x-* headers a Falcone action / buildCallerContext expects.
     trustedHeaders: {

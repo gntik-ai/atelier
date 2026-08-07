@@ -144,10 +144,7 @@ const FUNCTION_WORKSPACE_MUTATION_ROLES = new Set([
 // a caller-supplied Function body alone.
 export function canMutateFunctionWorkspace(identity, workspace) {
   if (!identity || !workspace?.id || !workspace?.tenant_id) return false;
-  if (canManageTenant(identity, workspace.tenant_id)) return true;
-
   const roles = new Set(Array.isArray(identity.roles) ? identity.roles : []);
-  if (roles.has('superadmin') || roles.has('platform_admin')) return true;
   if (identity.tenantId !== workspace.tenant_id) return false;
   if (![...roles].some((role) => FUNCTION_WORKSPACE_MUTATION_ROLES.has(role))) return false;
 
@@ -157,6 +154,31 @@ export function canMutateFunctionWorkspace(identity, workspace) {
       .map(String),
   );
   return claimedWorkspaceIds.has(String(workspace.id));
+}
+
+const FUNCTION_READ_ROLES = new Set([
+  'workspace_owner', 'workspace_admin', 'workspace_developer', 'workspace_operator',
+  'workspace_viewer', 'workspace_auditor', 'service_account', 'developer_external',
+  'platform_operator', 'platform_auditor', 'platform_admin', 'superadmin',
+]);
+const FUNCTION_INVOKE_ROLES = new Set([
+  'workspace_owner', 'workspace_admin', 'workspace_developer', 'workspace_operator',
+  'service_account', 'developer_external',
+]);
+function hasFunctionWorkspaceClaim(identity, workspaceId) {
+  return new Set([identity?.workspaceId, ...(identity?.workspaceIds ?? [])].filter(Boolean).map(String))
+    .has(String(workspaceId));
+}
+export function canAccessFunctionWorkspace(identity, workspace, mode = 'read') {
+  if (!identity || !workspace?.id || !workspace?.tenant_id) return false;
+  if (identity.tenantId !== workspace.tenant_id) return false;
+  const roles = new Set(Array.isArray(identity.roles) ? identity.roles : []);
+  const allowed = mode === 'invoke' ? FUNCTION_INVOKE_ROLES : FUNCTION_READ_ROLES;
+  return [...roles].some((role) => allowed.has(role)) && hasFunctionWorkspaceClaim(identity, workspace.id);
+}
+
+function functionVisible(ctx, row, mode = 'read') {
+  return row && canAccessFunctionWorkspace(ctx.identity, { id: row.workspace_id, tenant_id: row.tenant_id }, mode);
 }
 
 // Public dispatch always injects this source. Requiring it at the handler boundary prevents a
@@ -459,7 +481,7 @@ async function fnListActions(ctx) {
 async function fnActionDetail(ctx) {
   const st = ctx.store ?? store;
   const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  if (!functionVisible(ctx, r, 'read')) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
   return ok(200, actionOut(
     r,
     await st.latestFnActivation(ctx.pool, r.resource_id),
@@ -472,7 +494,7 @@ async function fnDelete(ctx) {
   const st = ctx.store ?? store;
   const actionId = ctx.params.actionId ?? ctx.params.resourceId;
   const r = await st.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
+  if (!functionVisible(ctx, r, 'read')) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
   if (!canMutateFunctionWorkspace(ctx.identity, { id: r.workspace_id, tenant_id: r.tenant_id })) {
     return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
   }
@@ -540,7 +562,7 @@ async function fnDelete(ctx) {
 async function fnInvoke(ctx) {
   const st = ctx.store ?? store;
   const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  if (!functionVisible(ctx, r, 'invoke')) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
   const dependencyError = functionDependencyGate(ctx, 'invoke', {
     tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id,
   });
@@ -583,7 +605,7 @@ async function fnInvoke(ctx) {
 async function fnActivations(ctx) {
   // Verify the action exists and belongs to the caller's tenant before listing its activations.
   const action = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
   const rows = await store.listFnActivations(ctx.pool, ctx.params.actionId);
   return ok(200, { items: rows.map(activationOut), page: { total: rows.length } });
 }
@@ -593,7 +615,7 @@ async function fnActivation(ctx) {
   if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   // Verify the parent function belongs to the caller's tenant (fail-closed, no existence leak).
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   return ok(200, activationOut(r));
 }
 // GET .../activations/{activationId}/logs
@@ -601,7 +623,7 @@ async function fnActivationLogs(ctx) {
   const r = await store.getFnActivation(ctx.pool, ctx.params.activationId);
   if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   return ok(200, { activationId: r.activation_id, lines: Array.isArray(r.logs) ? r.logs : [], truncated: false });
 }
 // GET .../activations/{activationId}/result
@@ -609,13 +631,13 @@ async function fnActivationResult(ctx) {
   const r = await store.getFnActivation(ctx.pool, ctx.params.activationId);
   if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   return ok(200, { activationId: r.activation_id, status: r.status === 'success' ? 'succeeded' : 'failed', result: r.result ?? {}, contentType: 'application/json' });
 }
 // GET /v1/functions/actions/{actionId}/versions
 async function fnVersions(ctx) {
   const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', 'action not found');
+  if (!functionVisible(ctx, r, 'read')) return err(404, 'ACTION_NOT_FOUND', 'action not found');
   const rows = await store.listFnActionVersions(ctx.pool, r.resource_id);
   const items = rows.length
     ? rows.map((row) => versionOut(row, activeVersionNumber(rows, r)))
