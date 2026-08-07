@@ -73,7 +73,7 @@ const pool = DB_URL
   : new Pool(withPostgresSsl({ max: 12 }));
 // Always provide the aggregate teardown boundary. Without a live runtime adapter it fails closed
 // and returns 202, preventing destructive registry purges during an outage.
-const runtimeTeardownCoordinator = createRuntimeTeardownCoordinator({ store: tenantStore, runtime: createProductionRuntimeAdapter() });
+const runtimeTeardownCoordinator = createRuntimeTeardownCoordinator({ store: tenantStore, runtime: createProductionRuntimeAdapter({ knativeRuntime }) });
 const webhookSchemaPool = WEBHOOK_SCHEMA_DATABASE_URL
   ? new Pool(withPostgresSsl({ connectionString: WEBHOOK_SCHEMA_DATABASE_URL, max: 1 }))
   : null;
