@@ -157,6 +157,7 @@ export async function queryAuditEvents(db, {
   outcome = null,
   actionCategory = null,
   actorId = null,
+  correlationId = null,
   occurredAfter = null,
   occurredBefore = null
 } = {}) {
@@ -182,6 +183,11 @@ export async function queryAuditEvents(db, {
   if (actorFilter) {
     params.push(actorFilter);
     where.push(`actor_id = $${params.length}`);
+  }
+  const correlationFilter = filterValue(correlationId);
+  if (correlationFilter) {
+    params.push(correlationFilter);
+    where.push(`correlation_id = $${params.length}`);
   }
   const afterFilter = filterValue(occurredAfter);
   if (afterFilter) {

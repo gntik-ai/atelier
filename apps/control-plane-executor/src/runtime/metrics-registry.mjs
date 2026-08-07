@@ -6,7 +6,7 @@
 // per-resource), plus method/status and the tenant when known. No external deps — the kind
 // runtime images bundle no metrics library.
 
-const requestsTotal = new Map();   // "method|route|status|tenant" -> count
+const requestsTotal = new Map();   // "method|route|status" -> count
 const durationByRoute = new Map(); // "method|route" -> { buckets:number[], sum, count }
 const mcpDependencyEvents = new Map(); // "operation|outcome|mode|state|reason" -> count
 const LE = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
@@ -17,20 +17,23 @@ const esc = (v) => String(v ?? '').replace(/[\\"\n]/g, '_');
 // Collapse id-like path segments so the `route` label is bounded (a UUID, a long token/key, or a
 // purely numeric segment becomes {id}). Keeps the structural shape (/v1/tenants/{id}/workspaces).
 export function normalizeRoute(path) {
-  const norm = (path || '/').split('?')[0].split('/').map((seg) => {
+  const raw = (path || '/').split('?')[0];
+  if (/^\/v1\/functions\/actions\/[^/]+/.test(raw)) return '/v1/functions/actions/:id';
+  if (/^\/v1\/mcp\/workspaces\/[^/]+\/servers\/[^/]+/.test(raw)) return '/v1/mcp/workspaces/:id/servers/:id';
+  const norm = raw.split('/').map((seg) => {
     if (!seg) return seg;
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(seg)) return '{id}';
     if (/^[0-9]+$/.test(seg)) return '{id}';
-    if (seg.length > 24) return '{id}';
-    return seg;
+    if (seg.length > 24) return ':id';
+    return ':unmatched';
   }).join('/');
   return norm || '/';
 }
 
 // Record one handled request. durationSeconds is the wall-clock handler time.
-export function recordHttp({ method = 'GET', route = 'unmatched', status = 0, tenantId = '', durationSeconds = 0 }) {
-  const tenant = tenantId || 'anonymous';
-  const rk = `${method}|${route}|${status}|${tenant}`;
+export function recordHttp({ method = 'GET', route = 'unmatched', status = 0, durationSeconds = 0 }) {
+  route = normalizeRoute(route);
+  const rk = `${method}|${route}|${status}`;
   requestsTotal.set(rk, (requestsTotal.get(rk) ?? 0) + 1);
 
   const dk = `${method}|${route}`;
@@ -66,8 +69,8 @@ export function renderMetrics() {
   out.push('# HELP falcone_http_requests_total Total HTTP requests handled.');
   out.push('# TYPE falcone_http_requests_total counter');
   for (const [k, v] of requestsTotal) {
-    const [method, route, status, tenant] = k.split('|');
-    out.push(`falcone_http_requests_total{method="${esc(method)}",route="${esc(route)}",status="${esc(status)}",tenant_id="${esc(tenant)}"} ${v}`);
+    const [method, route, status] = k.split('|');
+    out.push(`falcone_http_requests_total{method="${esc(method)}",route="${esc(route)}",status="${esc(status)}"} ${v}`);
   }
   out.push('# HELP falcone_http_request_duration_seconds HTTP request latency in seconds.');
   out.push('# TYPE falcone_http_request_duration_seconds histogram');
