@@ -215,6 +215,7 @@ export function ConsoleMcpServerDetailPage() {
             serverId={view.id ?? mcpServerId}
             tools={tools}
             endpoint={view.endpoint}
+            disabledReason={view.runtimeReady ? undefined : 'El runtime Hosted MCP no está disponible; la invocación está deshabilitada.'}
           />
         )}
       </section>

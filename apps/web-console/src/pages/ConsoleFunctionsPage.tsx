@@ -236,13 +236,7 @@ type FunctionActionWriteRequest = {
   activationPolicy: FunctionActivationPolicy
 }
 
-type GatewayMutationAccepted = {
-  requestId?: string
-  correlationId?: string
-  resourceId?: string
-  status?: string
-  acceptedAt?: string
-}
+type GatewayMutationAccepted = import('@/services/functionsApi').GatewayMutationAccepted
 
 type FunctionRollbackWriteRequest = {
   versionId: string

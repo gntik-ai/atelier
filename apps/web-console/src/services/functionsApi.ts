@@ -56,11 +56,13 @@ export interface FunctionRecord {
 }
 
 export interface GatewayMutationAccepted {
-  requestId?: string
-  correlationId?: string
-  resourceId?: string
-  status?: string
-  acceptedAt?: string
+  acceptedAt: string
+  correlationId: string
+  family: string
+  requestId: string
+  resourceId: string
+  resourceType: string
+  status: string
 }
 
 export interface InvocationResult {
@@ -118,8 +120,8 @@ export function deployFunction(
   workspaceId: string,
   spec: LegacyFunctionDeploySpec | FunctionActionWriteRequest,
   tenantId?: string
-): Promise<FunctionRecord> {
-  return requestConsoleSessionJson<FunctionRecord>('/v1/functions/actions', {
+): Promise<GatewayMutationAccepted> {
+  return requestConsoleSessionJson<GatewayMutationAccepted>('/v1/functions/actions', {
     method: 'POST',
     body: toFunctionActionWriteRequest(workspaceId, spec, tenantId) as unknown as JsonValue
   })

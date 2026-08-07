@@ -1,7 +1,7 @@
 // Shared client contract for the operator/read-only Knative status route. UI presentation is owned
 // by the later UX slice; keeping this transport-only module here lets that slice consume the same
 // generated/public contract without duplicating enums or exposing a mutation method.
-import { requestJson } from '@/lib/http'
+import { requestConsoleSessionJson } from '@/lib/console-session'
 
 export type KnativeRuntimeMode = 'managed' | 'external' | 'disabled'
 export type KnativeCompatibility = 'compatible' | 'incompatible' | 'unverified'
@@ -31,5 +31,5 @@ export interface KnativeRuntimeStatus {
 }
 
 export function getKnativeRuntimeStatus(signal?: AbortSignal): Promise<KnativeRuntimeStatus> {
-  return requestJson<KnativeRuntimeStatus>('/v1/platform/runtime/knative', { signal })
+  return requestConsoleSessionJson<KnativeRuntimeStatus>('/v1/platform/runtime/knative', { signal })
 }

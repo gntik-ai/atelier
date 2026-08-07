@@ -32,6 +32,8 @@ export interface McpServerDetailInput {
     tools?: Array<{ name: string; description?: string | null; mutates?: boolean; scope?: string | null; suggestedScope?: string | null }>
   } | null
   tools?: Array<{ name: string; description?: string | null; mutates?: boolean; scope?: string | null; suggestedScope?: string | null }>
+  runtimeDependency?: { state?: string; reason?: string } | null
+  runtimeReady?: boolean
 }
 
 export interface McpServerDetailView {
@@ -44,6 +46,8 @@ export interface McpServerDetailView {
   source: string | null
   transport: string
   tools: McpToolView[]
+  runtimeDependency: { state: string; reason: string } | null
+  runtimeReady: boolean
 }
 
 function toToolView(t: { name: string; description?: string | null; mutates?: boolean; scope?: string | null; suggestedScope?: string | null }): McpToolView {
@@ -68,7 +72,9 @@ export function toMcpServerDetailViewModel(input: McpServerDetailInput = {}): Mc
     version: active?.version ?? input.version ?? null,
     source: active?.source ?? input.source ?? null,
     transport: input.transport ?? 'streamable-http',
-    tools: rawTools.map(toToolView)
+    tools: rawTools.map(toToolView),
+    runtimeDependency: input.runtimeDependency ? { state: input.runtimeDependency.state ?? 'unknown', reason: input.runtimeDependency.reason ?? '' } : null,
+    runtimeReady: input.runtimeReady !== false
   }
 }
 
