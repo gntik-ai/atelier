@@ -37,6 +37,8 @@
  * OpenSpec #### Scenario: Runtime outage defers cleanup honestly
  * bbx-933-mcp-list-pagination-42 | fn-mcp-hosted-publish |
  * OpenSpec #### Scenario: Degraded audit read remains available
+ * bbx-933-function-activation-identity-43 | fn-function-runtime-availability-gate |
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -73,6 +75,10 @@ const ACTIONS_PATH = '/v1/functions/workspaces/{workspaceId}/actions';
 const FUNCTION_INVOCATIONS_PATH = '/v1/functions/actions/{resourceId}/invocations';
 const FUNCTION_VERSIONS_PATH = '/v1/functions/actions/{resourceId}/versions';
 const FUNCTION_ROLLBACK_PATH = '/v1/functions/actions/{resourceId}/rollback';
+const FUNCTION_ACTIVATION_PATH = '/v1/functions/actions/{resourceId}/activations/{activationId}';
+const FUNCTION_ACTIVATION_LOGS_PATH = '/v1/functions/actions/{resourceId}/activations/{activationId}/logs';
+const FUNCTION_ACTIVATION_RESULT_PATH = '/v1/functions/actions/{resourceId}/activations/{activationId}/result';
+const FUNCTION_ACTIVATION_RERUN_PATH = '/v1/functions/actions/{resourceId}/activations/{activationId}/rerun';
 const CURATIONS_PATH = '/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations';
 const MCP_SERVERS_PATH = '/v1/mcp/workspaces/{workspaceId}/servers';
 const MCP_RPC_PATH = '/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc';
@@ -387,6 +393,9 @@ function lifecycleStore() {
       });
       return structuredClone(activations.at(-1));
     },
+    async getFnActivation(_pool, activationId) {
+      return structuredClone(activations.find((activation) => activation.activation_id === activationId) ?? null);
+    },
     async deleteFnAction(_pool, row) {
       if (action?.resource_id !== row.resource_id) return null;
       const deleted = structuredClone(action);
@@ -665,6 +674,126 @@ test('bbx-933-function-identity-contract-37: production Function IDs satisfy act
     { pathFailures, responseFailures },
     { pathFailures: [], responseFailures: [] },
     'Function-specific path and lifecycle response contracts must accept literal production fn_* identities and handler payloads',
+  );
+});
+
+/**
+ * bbx-933-function-activation-identity-43 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ */
+test('bbx-933-function-activation-identity-43: production activation IDs satisfy all activation path and response identity contracts', async () => {
+  const store = lifecycleStore();
+  const created = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-function-activation-create',
+    body: deployBody('export async function main() { return { activationIdentity: true }; }'),
+  }));
+  assert.equal(created.statusCode, 202, JSON.stringify(created.body));
+  const resourceId = created.body.resourceId;
+
+  const invoked = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-function-activation-invoke',
+    params: { actionId: resourceId },
+    body: { parameters: { execution: 'original' } },
+  }));
+  assert.equal(invoked.statusCode, 202, JSON.stringify(invoked.body));
+  const activationId = invoked.body.invocationId;
+  assert.match(activationId, /^act_[0-9a-f]{8}-[0-9a-f]{3}$/);
+
+  const rerunInvocation = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-function-activation-rerun',
+    params: { actionId: resourceId },
+    body: { parameters: { execution: 'rerun' } },
+  }));
+  assert.equal(rerunInvocation.statusCode, 202, JSON.stringify(rerunInvocation.body));
+  assert.match(rerunInvocation.body.invocationId, /^act_[0-9a-f]{8}-[0-9a-f]{3}$/);
+
+  const action = await store.getFnAction({}, resourceId);
+  const activation = await store.getFnActivation({}, activationId);
+  assert.ok(action);
+  assert.ok(activation);
+  const activationPool = {
+    async query(sql, params = []) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      if (statement.includes('FROM fn_activations WHERE activation_id=$1')) {
+        return { rows: params[0] === activationId ? [structuredClone(activation)] : [] };
+      }
+      if (statement.includes('FROM fn_actions WHERE resource_id=$1')) {
+        return { rows: params[0] === resourceId ? [structuredClone(action)] : [] };
+      }
+      throw new Error(`Unexpected activation public-fixture query: ${statement}`);
+    },
+  };
+  const publicContext = (params) => ({
+    ...lifecycleContext(store, { params }),
+    pool: activationPool,
+  });
+  const logs = await FN_HANDLERS.fnActivationLogs(publicContext({ actionId: resourceId, activationId }));
+  const result = await FN_HANDLERS.fnActivationResult(publicContext({ actionId: resourceId, activationId }));
+  assert.deepEqual(logs, {
+    statusCode: 200,
+    body: { activationId, lines: [], truncated: false },
+  });
+  assert.deepEqual(result, {
+    statusCode: 200,
+    body: {
+      activationId,
+      status: 'succeeded',
+      result: { ok: true },
+      contentType: 'application/json',
+    },
+  });
+  const rerunAccepted = {
+    activationId,
+    rerunInvocationId: rerunInvocation.body.invocationId,
+    status: 'accepted',
+    acceptedAt: rerunInvocation.body.acceptedAt,
+  };
+
+  const resolveParameter = (parameter) => {
+    if (!parameter?.$ref) return parameter;
+    const name = parameter.$ref.match(/^#\/components\/parameters\/([^/]+)$/)?.[1];
+    return name ? openapi.components?.parameters?.[name] : null;
+  };
+  const pathFailures = [];
+  for (const [operation, method, publicPath] of [
+    ['activation detail', 'get', FUNCTION_ACTIVATION_PATH],
+    ['activation logs', 'get', FUNCTION_ACTIVATION_LOGS_PATH],
+    ['activation result', 'get', FUNCTION_ACTIVATION_RESULT_PATH],
+    ['activation rerun', 'post', FUNCTION_ACTIVATION_RERUN_PATH],
+  ]) {
+    const parameters = openapi.paths?.[publicPath]?.[method]?.parameters ?? [];
+    const activationParameter = parameters.find((parameter) => resolveParameter(parameter)?.name === 'activationId');
+    const schema = resolveParameter(activationParameter)?.schema;
+    assert.ok(schema, `${operation} must publish an activationId path parameter schema`);
+    const validate = new Ajv({ strict: false }).compile(schema);
+    const productionAccepted = validate(activationId);
+    const legacyAccepted = validate('act_legacy123');
+    if (!productionAccepted || !legacyAccepted) {
+      pathFailures.push({ operation, productionAccepted, legacyAccepted, reference: activationParameter?.$ref ?? 'inline' });
+    }
+  }
+
+  const responseIdentities = [
+    ['FunctionActivationLog.activationId', openapi.components.schemas.FunctionActivationLog.properties.activationId, logs.body.activationId],
+    ['FunctionActivationResult.activationId', openapi.components.schemas.FunctionActivationResult.properties.activationId, result.body.activationId],
+    ['FunctionActivationRerunAccepted.activationId', openapi.components.schemas.FunctionActivationRerunAccepted.properties.activationId, rerunAccepted.activationId],
+    ['FunctionActivationRerunAccepted.rerunInvocationId', openapi.components.schemas.FunctionActivationRerunAccepted.properties.rerunInvocationId, rerunAccepted.rerunInvocationId],
+  ];
+  const responseFailures = [];
+  for (const [property, schema, value] of responseIdentities) {
+    const validate = new Ajv({ strict: false }).compile(schema);
+    const productionAccepted = validate(value);
+    const productionErrors = structuredClone(validate.errors);
+    const legacyValue = property.endsWith('rerunInvocationId') ? 'inv_legacy123' : 'act_legacy123';
+    const legacyAccepted = validate(legacyValue);
+    if (!productionAccepted || !legacyAccepted) {
+      responseFailures.push({ property, value, productionAccepted, legacyAccepted, errors: productionErrors });
+    }
+  }
+  assert.deepEqual(
+    { pathFailures, responseFailures },
+    { pathFailures: [], responseFailures: [] },
+    'activation identity contracts must accept real hyphenated act_* IDs and preserve legacy compact IDs',
   );
 });
 
