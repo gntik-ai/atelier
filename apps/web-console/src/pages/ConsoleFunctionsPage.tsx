@@ -406,6 +406,15 @@ function getWriteDisabledReason(action: FunctionAction | null): string | null {
   if (state === 'suspended') {
     return 'Las acciones de escritura están deshabilitadas porque la función está suspendida.'
   }
+  // Managed Knative outage states (#933): a delete is accepted as `deletion_pending` cleanup and
+  // every other write (deploy/update, invoke, rollback) is non-actionable while the runtime is
+  // unavailable — surface an honest explanation instead of letting the affordances look usable.
+  if (state === 'unavailable') {
+    return 'Las acciones de escritura están deshabilitadas porque el runtime de Knative no está disponible.'
+  }
+  if (state === 'deletion_pending') {
+    return 'Las acciones de escritura están deshabilitadas porque la eliminación de la función está pendiente de limpieza.'
+  }
   return null
 }
 
