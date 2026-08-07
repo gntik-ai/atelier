@@ -61424,7 +61424,7 @@
         "description": "Stable activation identifier assigned to one governed function execution.",
         "schema": {
           "type": "string",
-          "pattern": "^act_[0-9a-z]+$"
+          "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$"
         }
       },
       "FunctionVersionId": {
@@ -62279,7 +62279,7 @@
           },
           "invitationId": {
             "type": "string",
-            "pattern": "^inv_[0-9a-z]+$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$"
           },
           "grantedByUserId": {
             "type": "string",
@@ -62340,7 +62340,7 @@
           },
           "invitationId": {
             "type": "string",
-            "pattern": "^inv_[0-9a-z]+$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$"
           },
           "grantedByUserId": {
             "type": "string",
@@ -87530,7 +87530,7 @@
         "properties": {
           "invocationId": {
             "type": "string",
-            "pattern": "^act_[0-9a-f]{8}-[0-9a-f]{3}$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$"
           },
           "resourceId": {
             "type": "string",
@@ -87563,7 +87563,7 @@
         "properties": {
           "activationId": {
             "type": "string",
-            "pattern": "^act_[0-9a-f]{8}-[0-9a-f]{3}$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$"
           },
           "resourceId": {
             "type": "string",
@@ -87650,7 +87650,7 @@
         "properties": {
           "activationId": {
             "type": "string",
-            "pattern": "^act_[0-9a-z]+$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$"
           },
           "lines": {
             "type": "array",
@@ -87678,7 +87678,7 @@
         "properties": {
           "activationId": {
             "type": "string",
-            "pattern": "^act_[0-9a-z]+$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$"
           },
           "status": {
             "type": "string",
@@ -87724,7 +87724,7 @@
         "properties": {
           "activationId": {
             "type": "string",
-            "pattern": "^act_[0-9a-z]+$"
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$"
           },
           "rerunInvocationId": {
             "type": "string",
