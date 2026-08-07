@@ -908,7 +908,7 @@ async function recordMcpUnavailable(mcpEngine, params, status, correlationId, op
 async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
   const operation = MCP_RUNTIME_OPERATION[params.operation];
-  if (operation) await mcpEngine.assertOwnedServer(params);
+  if (operation || params.serverId) await mcpEngine.assertOwnedServer(params);
   const dependency = mcpRuntimeDependency(runtime);
   if (!operation) {
     const result = await mcpEngine.executeMcp({ ...params, runtimeDependency: dependency });
