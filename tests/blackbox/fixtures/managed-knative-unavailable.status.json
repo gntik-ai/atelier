@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "falcone.knative-runtime/v1",
+  "mode": "managed",
+  "owner": "falcone",
+  "version": "1.22.1",
+  "compatibility": "compatible",
+  "readiness": {
+    "state": "unavailable",
+    "stage": "webhook",
+    "reason": "WEBHOOK_ENDPOINT_UNAVAILABLE",
+    "lastTransitionAt": "2026-08-07T12:00:00.000Z"
+  }
+}

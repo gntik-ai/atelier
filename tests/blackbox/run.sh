@@ -25,10 +25,11 @@ fi
 if [ -f go.mod ]; then
   exec go test ./tests/blackbox/... ${FILTER:+-run "$FILTER"}
 elif [ -f package.json ]; then
+  mapfile -d '' BLACKBOX_TESTS < <(find tests/blackbox -type f -name '*.test.mjs' -print0 | sort -z)
   if [ -n "$FILTER" ]; then
-    exec node --test --test-name-pattern="$FILTER" tests/blackbox/*.test.mjs
+    exec node --test --test-name-pattern="$FILTER" "${BLACKBOX_TESTS[@]}"
   else
-    exec node --test tests/blackbox/*.test.mjs
+    exec node --test "${BLACKBOX_TESTS[@]}"
   fi
 elif command -v pytest >/dev/null 2>&1; then
   exec pytest tests/blackbox ${FILTER:+-k "$FILTER"} -q
