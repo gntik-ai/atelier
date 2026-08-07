@@ -21,7 +21,7 @@ const NOW = '2026-08-07T10:00:00.000Z';
 const WS = { id: 'ws-a', tenant_id: 'tenant-a', slug: 'app', created_at: NOW };
 const OWNER = {
   sub: 'dev-a', tenantId: 'tenant-a', workspaceId: 'ws-a', actorType: 'tenant_owner',
-  roles: ['tenant_owner'], scopes: [],
+  roles: ['workspace_owner'], scopes: [],
 };
 const READY_RUNTIME = {
   functionsEnabled: true,

@@ -13,7 +13,7 @@ const ACTION = {
 };
 const IDENTITY = {
   sub: 'developer-a', tenantId: 'tenant-a', workspaceId: 'ws-a', actorType: 'tenant_owner',
-  roles: ['tenant_owner'], scopes: [],
+  roles: ['workspace_owner'], scopes: [],
 };
 const UNAVAILABLE = {
   mode: 'managed', state: 'degraded', reason: 'CONTROL_PLANE_NOT_READY',
