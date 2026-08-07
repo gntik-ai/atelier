@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "falcone.knative-runtime/v1",
+  "mode": "external",
+  "owner": "external",
+  "version": "1.21.0",
+  "compatibility": "incompatible",
+  "readiness": {
+    "state": "unavailable",
+    "stage": "compatibility",
+    "reason": "KNATIVE_VERSION_INCOMPATIBLE",
+    "lastTransitionAt": "2026-08-07T12:05:00.000Z"
+  },
+  "externalCanary": {
+    "state": "verified"
+  }
+}

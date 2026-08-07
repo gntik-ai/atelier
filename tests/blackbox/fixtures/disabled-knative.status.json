@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "falcone.knative-runtime/v1",
+  "mode": "disabled",
+  "owner": "none",
+  "version": null,
+  "compatibility": "unverified",
+  "readiness": {
+    "state": "disabled",
+    "stage": "disabled",
+    "reason": "KNATIVE_RUNTIME_DISABLED",
+    "lastTransitionAt": "2026-08-07T12:10:00.000Z"
+  }
+}

@@ -20,6 +20,14 @@ const STATUS_FILE = path.join(
   REPO_ROOT,
   'tests/blackbox/fixtures/managed-knative-unavailable.status.json',
 );
+const EXTERNAL_STATUS_FILE = path.join(
+  REPO_ROOT,
+  'tests/blackbox/fixtures/external-knative-incompatible.status.json',
+);
+const DISABLED_STATUS_FILE = path.join(
+  REPO_ROOT,
+  'tests/blackbox/fixtures/disabled-knative.status.json',
+);
 const SERVER_ENTRYPOINT = path.join(
   REPO_ROOT,
   'apps/control-plane-executor/src/runtime/main.mjs',
@@ -152,12 +160,12 @@ async function json(response) {
   return JSON.parse(text);
 }
 
-function assertUnavailable(body) {
+function assertUnavailable(body, expected = {}) {
   assert.equal(body.code, 'KNATIVE_UNAVAILABLE');
   assert.equal(body.message, 'Knative runtime is unavailable.');
-  assert.equal(body.mode, 'managed');
-  assert.equal(body.state, 'unavailable');
-  assert.equal(body.reason, 'WEBHOOK_ENDPOINT_UNAVAILABLE');
+  assert.equal(body.mode, expected.mode ?? 'managed');
+  assert.equal(body.state, expected.state ?? 'unavailable');
+  assert.equal(body.reason, expected.reason ?? 'WEBHOOK_ENDPOINT_UNAVAILABLE');
   assert.equal(typeof body.correlationId, 'string');
   assert.match(body.correlationId, /\S/);
   assert.deepEqual(
@@ -261,10 +269,68 @@ test('bbx-933-functions-unavailable-03: Function deploy fails with the exact bou
 });
 
 /**
- * bbx-933-functions-disabled-04 | fn-function-runtime-availability-gate
+ * bbx-933-functions-external-04 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Invoke fails explicitly with an external incompatibility
+ *
+ * A deploy is used because no public seed seam exists for an already-created
+ * Function; the normative requirement applies the same gate and typed contract
+ * to every create, update, rollback, and invoke operation.
+ */
+test('bbx-933-functions-external-04: incompatible external Knative fails with the exact bounded 503 contract', async (t) => {
+  const runtime = await launchControlPlane({
+    KNATIVE_RUNTIME_MODE: 'external',
+    KNATIVE_RUNTIME_STATUS_FILE: EXTERNAL_STATUS_FILE,
+  });
+  t.after(() => stopControlPlane(runtime));
+
+  const response = await fetch(`${runtime.baseUrl}/v1/functions/actions`, {
+    method: 'POST',
+    headers: {
+      ...developerHeaders,
+      'idempotency-key': 'bbx-933-external-incompatible-deploy',
+    },
+    body: JSON.stringify(functionRequest),
+  });
+
+  assert.equal(response.status, 503, runtime.getOutput());
+  assertUnavailable(await json(response), {
+    mode: 'external',
+    reason: 'KNATIVE_VERSION_INCOMPATIBLE',
+  });
+});
+
+/**
+ * bbx-933-functions-disabled-05 | fn-function-runtime-availability-gate
  * OpenSpec #### Scenario: Disabled Functions preserve the existing error
  */
-test('bbx-933-functions-disabled-04: deliberately disabled Functions preserve 501 precedence', async (t) => {
+test('bbx-933-functions-disabled-05: disabled runtime mode preserves 501 instead of transient unavailability', async (t) => {
+  const runtime = await launchControlPlane({
+    KNATIVE_RUNTIME_MODE: 'disabled',
+    KNATIVE_RUNTIME_STATUS_FILE: DISABLED_STATUS_FILE,
+    FUNCTIONS_ENABLED: 'true',
+  });
+  t.after(() => stopControlPlane(runtime));
+
+  const response = await fetch(`${runtime.baseUrl}/v1/functions/actions`, {
+    method: 'POST',
+    headers: {
+      ...developerHeaders,
+      'idempotency-key': 'bbx-933-functions-disabled',
+    },
+    body: JSON.stringify(functionRequest),
+  });
+
+  assert.equal(response.status, 501, runtime.getOutput());
+  const body = await json(response);
+  assert.equal(body.code, 'FUNCTIONS_DISABLED');
+  assert.notEqual(body.code, 'KNATIVE_UNAVAILABLE');
+});
+
+/**
+ * bbx-933-functions-capability-disabled-06 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Disabled Functions preserve the existing error
+ */
+test('bbx-933-functions-capability-disabled-06: explicit Functions capability disable precedes runtime degradation', async (t) => {
   const runtime = await launchControlPlane({
     FUNCTIONS_ENABLED: 'false',
     FN_BACKEND: 'off',
@@ -275,7 +341,7 @@ test('bbx-933-functions-disabled-04: deliberately disabled Functions preserve 50
     method: 'POST',
     headers: {
       ...developerHeaders,
-      'idempotency-key': 'bbx-933-functions-disabled',
+      'idempotency-key': 'bbx-933-functions-capability-disabled',
     },
     body: JSON.stringify(functionRequest),
   });
