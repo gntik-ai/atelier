@@ -98,7 +98,11 @@ export function buildCustomServerDeployment({ tenantId, serverId, image, namespa
               'autoscaling.knative.dev/min-scale': '0',
               'autoscaling.knative.dev/max-scale': String(planLimits.maxScale ?? 3),
             },
-            labels: { 'in-falcone.io/component': 'mcp-server', 'in-falcone.io/tenant': tenantId },
+            labels: {
+              'in-falcone.io/component': 'mcp-server',
+              'in-falcone.io/tenant': tenantId,
+              'in-falcone.io/mcp-server': serverId,
+            },
           },
           spec: {
             containers: [{

@@ -63,7 +63,9 @@ export function createMcpPostgresStore({ pool, tableName = 'falcone_mcp_state' }
       );
       const { rows } = await client.query(`SELECT state FROM ${ident} WHERE id = $1 FOR UPDATE`, [STATE_ID]);
       const current = rows[0]?.state ?? {};
-      const outcome = await mutator(structuredClone(current));
+      // Expose the transaction client so callers can commit related durable obligations in the
+      // same transaction as the MCP JSON snapshot. Existing one-argument mutators are unchanged.
+      const outcome = await mutator(structuredClone(current), client);
       const nextState = outcome?.state ?? {};
       await client.query(
         `UPDATE ${ident}

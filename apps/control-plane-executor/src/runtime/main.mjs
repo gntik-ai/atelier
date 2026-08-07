@@ -26,6 +26,9 @@ import { createJwtVerifier, deriveRealmTopology } from './jwt-verify.mjs';
 import { createSaRevocationCheck } from './sa-revocation.mjs';
 import { createMcpEngine } from './mcp-engine.mjs';
 import { createMcpPostgresStore } from './mcp-pg-store.mjs';
+import { createMcpRuntimeCleaner } from './mcp-runtime-cleaner.mjs';
+import { createKnativeRuntimeSource } from '../../../../apps/control-plane/knative-runtime.mjs';
+import { createRuntimeCleanupRepository, recoverMcpCleanupObligations } from '../../../../apps/control-plane/runtime-cleanup-repository.mjs';
 import { withPostgresSsl, resolveKafkaSecurity } from '../../../../packages/internal-contracts/src/transport-security.mjs';
 // Temporal-FREE list of first-party task-type names (add-flows-activity-catalog / #360).
 // Feeds the flows validate/publish endpoints' FLW-E006 check so a flow definition that
@@ -346,6 +349,9 @@ const flowMonitoringExecutor = flowExecutor && process.env.FLOWS_ENABLED !== 'fa
 // store on the metadata pool and self-calls this runtime to mediate tool calls.
 // When unset, no /v1/mcp routes are registered and an MCP path falls through to 404 / upstream proxy.
 const mcpStateStore = createMcpPostgresStore({ pool: keyPool });
+const knativeRuntime = createKnativeRuntimeSource();
+const runtimeCleanupRepository = createRuntimeCleanupRepository(keyPool);
+const mcpRuntimeCleaner = createMcpRuntimeCleaner();
 const mcpEngine = process.env.MCP_ENABLED === 'true'
   ? createMcpEngine({
       selfBaseUrl: process.env.MCP_SELF_BASE_URL ?? `http://127.0.0.1:${PORT}`,
@@ -353,6 +359,7 @@ const mcpEngine = process.env.MCP_ENABLED === 'true'
       runtimeImage: process.env.MCP_RUNTIME_IMAGE,
       runtimeImageDigest: process.env.MCP_RUNTIME_IMAGE_DIGEST,
       store: mcpStateStore,
+      cleanupRepository: runtimeCleanupRepository,
     })
   : undefined;
 
@@ -377,7 +384,30 @@ const server = createControlPlaneServer({
   // routes + the control-plane fallthrough reach every management family (#642).
   mcpSelfBaseUrl: process.env.MCP_SELF_BASE_URL ?? `http://127.0.0.1:${PORT}`,
   gatewaySharedSecret: process.env.GATEWAY_SHARED_SECRET || undefined,
+  knativeRuntime,
+  mcpRuntimeCleaner,
 });
+
+const mcpCleanupIntervalMs = Math.max(5_000, Math.min(Number(process.env.MCP_CLEANUP_INTERVAL_MS) || 30_000, 300_000));
+let mcpCleanupTimer;
+async function recoverHostedMcpCleanup() {
+  if (!mcpEngine) return;
+  const result = await recoverMcpCleanupObligations({
+    runtime: knativeRuntime,
+    repository: runtimeCleanupRepository,
+    deleteOwnedRuntimeResources: (obligation) => mcpRuntimeCleaner.deleteOwnedRuntimeResources(obligation),
+    completeDeferredDeletion: (obligation) => mcpEngine.completeDeferredDeletion(obligation),
+    onRecovered: (obligation) => {
+      console.info('[control-plane] hosted MCP cleanup recovered', {
+        tenantId: obligation.tenantId,
+        workspaceId: obligation.workspaceId,
+        serverId: obligation.resourceId,
+        correlationId: obligation.correlationId,
+      });
+    },
+  });
+  if (result.recovered > 0) console.info('[control-plane] hosted MCP cleanup batch complete', result);
+}
 
 // Initialise all metadata schemas (they share keyPool) before listening.
 Promise.all([apiKeyStore.ensureSchema(), embeddingStore.ensureSchema(), mappingStore.ensureSchema(), llmExecutor.ensureSchema(), flowExecutor?.ensureSchema() ?? Promise.resolve(), flowExecutor ? triggerStore.ensureSchema() : Promise.resolve(), mcpEngine?.ensureSchema() ?? Promise.resolve()])
@@ -389,10 +419,16 @@ Promise.all([apiKeyStore.ensureSchema(), embeddingStore.ensureSchema(), mappingS
   .catch((error) => console.error('[control-plane] flow-trigger boot wiring failed:', error))
   .finally(() => {
     server.listen(PORT, () => console.log(`[control-plane] listening on :${PORT}`));
+    void recoverHostedMcpCleanup().catch((error) => console.error('[control-plane] hosted MCP cleanup failed:', error?.message ?? error));
+    mcpCleanupTimer = setInterval(() => {
+      void recoverHostedMcpCleanup().catch((error) => console.error('[control-plane] hosted MCP cleanup failed:', error?.message ?? error));
+    }, mcpCleanupIntervalMs);
+    mcpCleanupTimer.unref?.();
   });
 
 async function shutdown(signal) {
   console.log(`[control-plane] ${signal} received, shutting down`);
+  if (mcpCleanupTimer) clearInterval(mcpCleanupTimer);
   server.close(() => {});
   await registry.end().catch(() => {});
   // keyPool backs BOTH apiKeyStore and embeddingStore; ending it once covers both.

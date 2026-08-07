@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   createRuntimeCleanupRepository,
   recoverFunctionCleanupObligations,
+  recoverMcpCleanupObligations,
 } from '../../apps/control-plane/runtime-cleanup-repository.mjs';
 
 test('runtime-cleanup-01: defer is one atomic idempotent statement scoped by tenant and resource', async () => {
@@ -68,4 +69,61 @@ test('runtime-cleanup-02: recovery is readiness-gated, tenant-scoped, and idempo
   assert.deepEqual(recovered, { recovered: 1, failed: 0 });
   assert.deepEqual(deleted, ['ksvc-a']);
   assert.deepEqual(completed, [{ obligationId: 'cleanup-1', tenantId: 'tenant-a', resourceId: 'fn-a' }]);
+});
+
+test('runtime-cleanup-03: MCP defer uses the caller transaction and preserves the first correlation on retry', async () => {
+  const calls = [];
+  const transactionClient = {
+    async query(sql, params) {
+      calls.push({ sql, params });
+      return { rows: [{
+        obligation_id: 'mcp:tenant-a:srv-a:delete', tenant_id: 'tenant-a', workspace_id: 'ws-a',
+        resource_id: 'srv-a', runtime_resource_name: 'mcp-srv-a', correlation_id: 'corr-original', status: 'pending',
+      }] };
+    },
+  };
+  const repo = createRuntimeCleanupRepository({ query: async () => assert.fail('must use transaction client') });
+  const result = await repo.deferMcpDeletion({
+    tenantId: 'tenant-a', workspaceId: 'ws-a', resourceId: 'srv-a',
+    runtimeResourceName: 'mcp-srv-a', correlationId: 'corr-retry',
+  }, transactionClient);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].sql, /INSERT INTO runtime_cleanup_obligations/);
+  assert.match(calls[0].sql, /ON CONFLICT \(resource_type, tenant_id, resource_id, operation\)/);
+  assert.equal(result.correlationId, 'corr-original');
+});
+
+test('runtime-cleanup-04: MCP recovery deletes owned resources then atomically completes logical state', async () => {
+  const order = [];
+  const obligation = {
+    obligationId: 'mcp:tenant-a:srv-a:delete', tenantId: 'tenant-a', workspaceId: 'ws-a',
+    resourceId: 'srv-a', runtimeResourceName: 'mcp-srv-a', correlationId: 'corr-a', status: 'processing',
+  };
+  const result = await recoverMcpCleanupObligations({
+    runtime: { status: () => ({ state: 'ready' }), canServeWorkloads: () => true },
+    repository: {
+      claimPendingMcps: async () => [obligation],
+      releaseForRetry: async () => assert.fail('successful cleanup must not be released'),
+    },
+    deleteOwnedRuntimeResources: async (value) => { order.push(['runtime', value.resourceId]); },
+    completeDeferredDeletion: async (value) => { order.push(['state', value.resourceId]); },
+  });
+  assert.deepEqual(result, { recovered: 1, failed: 0 });
+  assert.deepEqual(order, [['runtime', 'srv-a'], ['state', 'srv-a']]);
+});
+
+test('runtime-cleanup-05: failed/retried MCP cleanup remains pending and never completes state', async () => {
+  const released = [];
+  const obligation = { obligationId: 'mcp:a:srv:delete', tenantId: 'a', resourceId: 'srv' };
+  const result = await recoverMcpCleanupObligations({
+    runtime: { status: () => ({ state: 'ready' }), canServeWorkloads: () => true },
+    repository: {
+      claimPendingMcps: async () => [obligation],
+      releaseForRetry: async (value) => released.push(value),
+    },
+    deleteOwnedRuntimeResources: async () => { throw new Error('temporary API outage'); },
+    completeDeferredDeletion: async () => assert.fail('state cannot complete while resources remain'),
+  });
+  assert.deepEqual(result, { recovered: 0, failed: 1 });
+  assert.deepEqual(released, [{ obligationId: obligation.obligationId, tenantId: 'a', errorCode: 'RUNTIME_DELETE_FAILED' }]);
 });

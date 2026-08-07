@@ -206,3 +206,42 @@ test('hosted JSON-RPC refuses mutating official tools without caller write scope
   assert.match(out.result.content[0].text, /mcp:falcone:workspaces:write/);
   assert.equal(fetchImpl.calls.length, before, 'missing write scope must not issue the upstream POST');
 });
+
+test('outage teardown: tenant and capability operations atomically retain idempotent MCP cleanup obligations', async () => {
+  const store = transactionalStateStore();
+  const obligations = new Map();
+  const cleanupRepository = {
+    async deferMcpDeletion(input) {
+      const k = `${input.tenantId}:${input.resourceId}`;
+      if (!obligations.has(k)) obligations.set(k, { obligationId: `mcp:${k}:delete`, ...input, status: 'pending' });
+      return obligations.get(k);
+    },
+    async completeMcpDeletion() {},
+  };
+  const e = createMcpEngine({ store, cleanupRepository, fetchImpl: fakeFetch(), runtimeImageDigest: TEST_DIGEST });
+  const a = await e.executeMcp({ operation: 'create_server', identity: A, workspaceId: A.workspaceId, body: { name: 'same-name', source: 'instant' } });
+  const b = await e.executeMcp({ operation: 'create_server', identity: B, workspaceId: B.workspaceId, body: { name: 'same-name', source: 'instant' } });
+
+  const tenantPending = await e.deferTenantTeardown({
+    tenantId: A.tenantId, workspaceId: A.workspaceId, correlationId: 'corr-tenant-original',
+    runtime: { mode: 'managed', state: 'degraded', reason: 'CONTROL_PLANE_NOT_READY' },
+  });
+  assert.equal(tenantPending.items.length, 1);
+  assert.equal(tenantPending.items[0].serverId, a.serverId);
+  assert.equal((await e.executeMcp({ operation: 'get_server', identity: A, workspaceId: A.workspaceId, serverId: a.serverId })).lifecycleStatus, 'deletion_pending');
+  assert.equal((await e.executeMcp({ operation: 'get_server', identity: B, workspaceId: B.workspaceId, serverId: b.serverId })).lifecycleStatus, 'active');
+
+  const tenantRetry = await e.deferTenantTeardown({
+    tenantId: A.tenantId, workspaceId: A.workspaceId, correlationId: 'corr-tenant-retry',
+    runtime: { mode: 'managed', state: 'degraded', reason: 'CONTROL_PLANE_NOT_READY' },
+  });
+  assert.equal(tenantRetry.items[0].correlationId, 'corr-tenant-original');
+  assert.equal(obligations.size, 1);
+
+  const capabilityPending = await e.deferCapabilityDisable({
+    correlationId: 'corr-disable', runtime: { mode: 'disabled', state: 'disabled', reason: 'RUNTIME_DISABLED' },
+  });
+  assert.equal(capabilityPending.items.length, 2);
+  assert.equal(obligations.size, 2);
+  assert.equal((await e.executeMcp({ operation: 'get_server', identity: B, workspaceId: B.workspaceId, serverId: b.serverId })).lifecycleStatus, 'deletion_pending');
+});

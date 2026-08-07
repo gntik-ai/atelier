@@ -10,13 +10,13 @@
 import http from 'node:http';
 import https from 'node:https';
 import { randomUUID } from 'node:crypto';
-import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
+import { recordHttp, recordMcpDependency, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
 import { executePostgresData } from './postgres-data-executor.mjs';
 import { executePostgresDdl } from './postgres-ddl-executor.mjs';
 import { handleMcpMessage } from '../mcp-official-server.mjs';
 import { BASE_SCOPE } from '../mcp-official-catalog.mjs';
 import { mcpConfigStore } from '../mcp-config.mjs';
-import { createKnativeRuntimeSource, knativeUnavailableResponse } from '../../../../apps/control-plane/knative-runtime.mjs';
+import { knativeUnavailableResponse } from '../../../../apps/control-plane/knative-runtime.mjs';
 import { main as workspaceDocsAction } from '../../../../packages/workspace-docs-service/actions/workspace-docs.mjs';
 // Shared write-capable admin role set — the single source of truth for both the API-key
 // management gate (here) and the flow-definition write gate (flow-executor.mjs, #760) so they
@@ -437,7 +437,7 @@ async function runWorkspaceDocs(workspaceDocsDb, c, capabilities, pathWorkspaceI
 
 // Route table: [method, RegExp(pathname) with capture groups, handler(groups, {url, identity, body, registry})].
 // Data routes are workspace/data-scoped; DDL routes are database-scoped (workspace via header).
-function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig, workspaceDocsDb) {
+function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig, workspaceDocsDb, knativeRuntime, mcpRuntimeCleaner) {
   const data = '^/v1/postgres/workspaces/([^/]+)/data/([^/]+)/schemas/([^/]+)/tables/([^/]+)';
   const ddl = '^/v1/postgres/databases/([^/]+)/schemas';
   const keys = '^/v1/workspaces/([^/]+)/api-keys';
@@ -730,30 +730,30 @@ function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, funct
     // identity.tenantId so a cross-tenant read/call/audit resolves to 404 / empty.
     ...(mcpEngine ? [
       ['GET', new RegExp(`${mcp}$`), ([w], c) =>
-        runMcp(mcpEngine, { operation: 'list_servers', identity: c.identity, workspaceId: c.identity.workspaceId }, 200)],
+        runMcp(mcpEngine, { operation: 'list_servers', identity: c.identity, workspaceId: c.identity.workspaceId }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}$`), ([w], c) =>
-        runMcp(mcpEngine, { operation: 'create_server', identity: c.identity, workspaceId: c.identity.workspaceId, body: c.body }, 201)],
+        runMcp(mcpEngine, { operation: 'create_server', identity: c.identity, workspaceId: c.identity.workspaceId, body: c.body }, 201, knativeRuntime, mcpRuntimeCleaner)],
       ['GET', new RegExp(`${mcp}/([^/]+)$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'get_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200)],
+        runMcp(mcpEngine, { operation: 'get_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['DELETE', new RegExp(`${mcp}/([^/]+)$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'delete_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200)],
+        runMcp(mcpEngine, { operation: 'delete_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/curations$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'curate_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body }, 200)],
+        runMcp(mcpEngine, { operation: 'curate_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/versions$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'publish_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: c.body.version, body: c.body }, 201)],
+        runMcp(mcpEngine, { operation: 'publish_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: c.body.version, body: c.body, correlationId: c.headers['x-correlation-id'] }, 201, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/versions/([^/]+)/approval$`), ([w, s, v], c) =>
-        runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: decodeURIComponent(v) }, 200)],
+        runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: decodeURIComponent(v), correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/tool-calls$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'call_tool', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body }, 200)],
+        runMcp(mcpEngine, { operation: 'call_tool', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       // Standard MCP wire protocol (JSON-RPC 2.0 over HTTP POST) for an external MCP client
       // (add-mcp-jsonrpc-protocol, #608). The request body is the JSON-RPC message; the server is
       // resolved from the credential-derived identity + the URL serverId (cross-tenant → 404 in the
       // engine). Distinct from the REST tool-calls route above; covered by the same gateway
       // /v1/mcp/* route, so no APISIX change is needed.
       ['POST', new RegExp(`${mcp}/([^/]+)/rpc$`), ([w, s], c) =>
-        runMcpRpc(mcpEngine, { identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, message: c.body })],
+        runMcpRpc(mcpEngine, { identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, message: c.body, correlationId: c.headers['x-correlation-id'] }, knativeRuntime)],
       ['GET', new RegExp(`${mcp}/([^/]+)/audit$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200)],
+        runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
     ] : []),
 
     // ---- Platform (first-party) MCP server — JSON-RPC over HTTP (add-platform-mcp-http-route;
@@ -887,18 +887,52 @@ async function runFlows(flowExecutor, params, successStatus) {
 // Dispatch an MCP management operation through the engine. Quota/rate-limit breaches throw with
 // { statusCode, code, dimension } — surfaced by the central error handler (which already echoes
 // err.dimension on the 429 envelope). Cross-tenant reads surface as 404 (MCP_SERVER_NOT_FOUND).
-async function runMcp(mcpEngine, params, successStatus) {
+const MCP_RUNTIME_OPERATION = Object.freeze({ publish_version: 'publish', approve_version: 'activate', call_tool: 'invoke', delete_server: 'delete' });
+
+function mcpRuntimeDependency(runtime) {
+  const status = runtime.status();
+  return { mode: status.mode, state: status.state, reason: status.reason, ready: runtime.canServeWorkloads(status) };
+}
+
+async function recordMcpUnavailable(mcpEngine, params, status, correlationId, operation, action = 'runtime_unavailable', outcome = 'failed') {
+  await mcpEngine.executeMcp({
+    operation: 'record_dependency_event',
+    identity: params.identity,
+    workspaceId: params.workspaceId,
+    serverId: params.serverId,
+    body: { action, outcome, operation, correlationId, runtime: status },
+  });
+  recordMcpDependency({ operation, outcome: action === 'cleanup_deferred' ? 'deferred' : 'unavailable', ...status });
+}
+
+async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
-  // Managed/external Knative modes fail closed before any hosted-runtime mutation. Disabled
-  // hosting retains the historical MCP_DISABLED behavior above.
-  const runtime = createKnativeRuntimeSource();
-  if (runtime.mode !== 'disabled' && !runtime.canServeWorkloads()) {
-    throw Object.assign(new Error('Knative runtime is unavailable.'), {
-      statusCode: 503,
-      code: 'KNATIVE_UNAVAILABLE',
-      details: knativeUnavailableResponse(runtime.status()),
-    });
+  const dependency = mcpRuntimeDependency(runtime);
+  const operation = MCP_RUNTIME_OPERATION[params.operation];
+  if (!operation) {
+    const result = await mcpEngine.executeMcp({ ...params, runtimeDependency: dependency });
+    return { status: successStatus, body: result };
   }
+
+  // Server ownership is resolved before dependency status so adjacent tenants cannot use an outage
+  // to discover that a foreign hosted server exists.
+  await mcpEngine.assertOwnedServer(params);
+  if (!dependency.ready) {
+    const correlationId = params.correlationId ?? randomUUID();
+    if (params.operation === 'delete_server') {
+      const pending = await mcpEngine.deferServerDeletion({ ...params, correlationId, runtime: dependency });
+      recordMcpDependency({ operation: 'delete', outcome: 'deferred', ...dependency });
+      return { status: 202, body: pending };
+    }
+    await recordMcpUnavailable(mcpEngine, params, dependency, correlationId, operation);
+    return { status: 503, body: knativeUnavailableResponse(dependency, correlationId) };
+  }
+  if (params.operation === 'delete_server') await runtimeCleaner?.deleteOwnedRuntimeResources?.({
+    tenantId: params.identity.tenantId,
+    workspaceId: params.workspaceId,
+    resourceId: params.serverId,
+    runtimeResourceName: `mcp-${params.serverId}`,
+  });
   const result = await mcpEngine.executeMcp(params);
   return { status: successStatus, body: result };
 }
@@ -907,20 +941,28 @@ async function runMcp(mcpEngine, params, successStatus) {
 // layer for a request (id present) — JSON-RPC carries success/errors in the envelope; a notification
 // (no id) is acknowledged with 202 and no body. Unauthenticated/cross-tenant access is rejected by
 // the dispatch identity gate (401) and the engine's per-tenant server lookup before reaching here.
-async function runMcpRpc(mcpEngine, params) {
+async function runMcpRpc(mcpEngine, params, runtime) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
-  const runtime = createKnativeRuntimeSource();
-  if (runtime.mode !== 'disabled' && !runtime.canServeWorkloads()) {
-    const id = params?.message?.id;
-    if (id === undefined || id === null) return { status: 202, body: {} };
-    return { status: 200, body: { jsonrpc: '2.0', id, error: {
-      code: -32005,
-      message: 'Hosted MCP runtime is unavailable.',
-      data: { code: 'KNATIVE_UNAVAILABLE', state: runtime.status().state, reason: runtime.status().reason, correlationId: randomUUID() },
-    } } };
-  }
-  const result = await mcpEngine.executeMcpRpc(params);
-  if (result === null || result === undefined) return { status: 202, body: {} };
+  const result = await mcpEngine.executeMcpRpc({
+    ...params,
+    beforeDispatch: async () => {
+      const dependency = mcpRuntimeDependency(runtime);
+      if (dependency.ready) return;
+      const correlationId = params.correlationId ?? randomUUID();
+      await recordMcpUnavailable(mcpEngine, params, dependency, correlationId, 'invoke');
+      throw Object.assign(new Error('Hosted MCP runtime is unavailable.'), {
+        rpcCode: -32005,
+        rpcMessage: 'Hosted MCP runtime is unavailable.',
+        rpcData: {
+          code: 'KNATIVE_UNAVAILABLE',
+          state: dependency.state,
+          reason: dependency.reason,
+          correlationId,
+        },
+      });
+    },
+  });
+  if (result === null || result === undefined) return { status: 202, body: null };
   return { status: 200, body: result };
 }
 
@@ -1157,7 +1199,7 @@ async function runEmbeddingMapping(mappingStore, action, params, successStatus) 
   return { status: successStatus, body: result };
 }
 
-export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig = mcpConfigStore, jwtVerifier, gatewaySharedSecret, resolveWorkspaceTenant, workspaceDocsDb, logger = console } = {}) {
+export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig = mcpConfigStore, jwtVerifier, gatewaySharedSecret, resolveWorkspaceTenant, workspaceDocsDb, knativeRuntime, mcpRuntimeCleaner, logger = console } = {}) {
   if (!registry) throw new TypeError('createControlPlaneServer requires a connection registry');
   // Parse + validate the upstream at startup (fail-fast). Host/port are fixed here so the
   // per-request proxy can never be steered to a different host (SSRF).
@@ -1165,7 +1207,13 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
   // The first-party MCP dispatches tool calls against this executor's own loopback base (so its
   // local routes + the control-plane fallthrough reach every family). Validate it once (SSRF).
   const mcpSelf = mcpSelfBaseUrl ? new URL(mcpSelfBaseUrl).toString() : undefined;
-  const routes = buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelf, mcpConfig, workspaceDocsDb);
+  // Production injects the chart-backed source. The ready fallback preserves direct/unit embedding
+  // of this server by callers that do not configure hosted-runtime lifecycle management.
+  const hostedRuntime = knativeRuntime ?? {
+    status: () => ({ mode: 'external', state: 'ready', reason: 'READY' }),
+    canServeWorkloads: () => true,
+  };
+  const routes = buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelf, mcpConfig, workspaceDocsDb, hostedRuntime, mcpRuntimeCleaner);
 
   return http.createServer(async (req, res) => {
     const method = (req.method ?? 'GET').toUpperCase();

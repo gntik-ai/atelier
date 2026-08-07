@@ -8,6 +8,7 @@
 
 const requestsTotal = new Map();   // "method|route|status|tenant" -> count
 const durationByRoute = new Map(); // "method|route" -> { buckets:number[], sum, count }
+const mcpDependencyEvents = new Map(); // "operation|outcome|mode|state|reason" -> count
 const LE = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 const startedAtMs = Date.now();
 
@@ -40,6 +41,25 @@ export function recordHttp({ method = 'GET', route = 'unmatched', status = 0, te
   for (let i = 0; i < LE.length; i++) if (durationSeconds <= LE[i]) h.buckets[i] += 1; // cumulative
 }
 
+const MCP_OPERATIONS = new Set(['publish', 'activate', 'invoke', 'delete', 'cleanup']);
+const MCP_OUTCOMES = new Set(['unavailable', 'deferred', 'recovered', 'failed']);
+const KNATIVE_MODES = new Set(['managed', 'external', 'disabled']);
+const KNATIVE_STATES = new Set(['ready', 'unverified', 'degraded', 'unavailable', 'disabled']);
+const SAFE_REASON = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+// Runtime dependency metrics deliberately exclude tenant/server/correlation identifiers and tool
+// inputs. Every label is selected from a fixed enum (reason is the already-bounded Knative reason),
+// so an outage cannot create an unbounded Prometheus series set.
+export function recordMcpDependency({ operation, outcome, mode, state, reason }) {
+  const op = MCP_OPERATIONS.has(operation) ? operation : 'invoke';
+  const result = MCP_OUTCOMES.has(outcome) ? outcome : 'failed';
+  const runtimeMode = KNATIVE_MODES.has(mode) ? mode : 'disabled';
+  const runtimeState = KNATIVE_STATES.has(state) ? state : 'unavailable';
+  const boundedReason = SAFE_REASON.test(reason ?? '') ? reason : 'STATUS_UNAVAILABLE';
+  const key = `${op}|${result}|${runtimeMode}|${runtimeState}|${boundedReason}`;
+  mcpDependencyEvents.set(key, (mcpDependencyEvents.get(key) ?? 0) + 1);
+}
+
 // Render the full registry in Prometheus text exposition format.
 export function renderMetrics() {
   const out = [];
@@ -58,6 +78,12 @@ export function renderMetrics() {
     out.push(`falcone_http_request_duration_seconds_bucket{${lbl},le="+Inf"} ${h.count}`);
     out.push(`falcone_http_request_duration_seconds_sum{${lbl}} ${h.sum}`);
     out.push(`falcone_http_request_duration_seconds_count{${lbl}} ${h.count}`);
+  }
+  out.push('# HELP falcone_mcp_knative_dependency_events_total Hosted MCP Knative dependency outcomes.');
+  out.push('# TYPE falcone_mcp_knative_dependency_events_total counter');
+  for (const [k, v] of mcpDependencyEvents) {
+    const [operation, outcome, mode, state, reason] = k.split('|');
+    out.push(`falcone_mcp_knative_dependency_events_total{operation="${esc(operation)}",outcome="${esc(outcome)}",mode="${esc(mode)}",state="${esc(state)}",reason="${esc(reason)}"} ${v}`);
   }
   out.push('# HELP falcone_process_uptime_seconds Process uptime in seconds.');
   out.push('# TYPE falcone_process_uptime_seconds gauge');
