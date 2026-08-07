@@ -419,7 +419,7 @@ export function createMcpEngine({
         const result = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {}, params.correlationId ?? randomUUID());
         const telemetry = mcpToolCallTelemetry({ tenantId: tid, workspaceId: entry.workspaceId, serverId, toolName: body.name, oauthClientId, latencyMs: clock() - started, status: result.isError ? 'error' : 'ok' });
         recordAudit({ ...mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() }), action: { category: 'tool_invocation', id: `mcp.tool_call.${body.name}` }, detail: telemetry.log });
-        return changed({ content: result.content ?? [], isError: result.isError === true });
+        return changed({ result, content: result.content, toolName: body.name });
       }
 
       case 'list_audit': {

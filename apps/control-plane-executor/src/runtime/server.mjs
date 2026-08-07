@@ -938,6 +938,7 @@ async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner)
     runtimeResourceName: `mcp-${params.serverId}`,
   });
   const result = await mcpEngine.executeMcp(params);
+  if (params.operation === 'call_tool') return { status: successStatus, body: { content: result.content ?? [], isError: result.result?.isError === true } };
   if (params.operation === 'create_server') {
     const correlationId = params.correlationId ?? randomUUID();
     return { status: 202, body: {
