@@ -23,18 +23,34 @@
  * OpenSpec #### Scenario: Teardown is deferred safely during an outage
  * bbx-933-aggregate-completed-response-35 | fn-managed-knative-owner-scoped-teardown |
  * OpenSpec #### Scenario: Tenant teardown leaves no function workloads
+ * bbx-933-mcp-external-canary-response-36 | fn-mcp-hosted-invoke |
+ * OpenSpec #### Scenario: Consumer receives honest unavailable status
+ * bbx-933-function-identity-contract-37 | fn-function-runtime-availability-gate |
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ * bbx-933-aggregate-obligation-contract-38 | fn-managed-knative-owner-scoped-teardown |
+ * OpenSpec #### Scenario: Runtime outage defers cleanup honestly
+ * bbx-933-mcp-runtime-errors-39 | fn-mcp-hosted-invoke |
+ * OpenSpec #### Scenario: Authentication and ownership precede dependency status
+ * bbx-933-aggregate-completion-residual-40 | fn-managed-knative-owner-scoped-teardown |
+ * OpenSpec #### Scenario: Tenant teardown leaves no function workloads
+ * bbx-933-aggregate-coordinator-error-41 | fn-managed-knative-owner-scoped-teardown |
+ * OpenSpec #### Scenario: Runtime outage defers cleanup honestly
+ * bbx-933-mcp-list-pagination-42 | fn-mcp-hosted-publish |
+ * OpenSpec #### Scenario: Degraded audit read remains available
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import test from 'node:test';
+import { isDeepStrictEqual } from 'node:util';
 
 import Ajv from 'ajv';
 
 import { FN_HANDLERS } from '../../../apps/control-plane/fn-handlers.mjs';
 import { METRICS_HANDLERS } from '../../../apps/control-plane/metrics-handlers.mjs';
 import { LOCAL_HANDLERS } from '../../../apps/control-plane/b-handlers.mjs';
+import { createRuntimeTeardownCoordinator } from '../../../apps/control-plane/runtime-teardown-coordinator.mjs';
 import { recordRouteAudit } from '../../../apps/control-plane/audit-writer.mjs';
 import { routes } from '../../../apps/control-plane/routes.mjs';
 import { BASE_SCOPE } from '../../../apps/control-plane-executor/src/mcp-official-catalog.mjs';
@@ -54,6 +70,9 @@ const routeCatalog = readJson('packages/internal-contracts/src/public-route-cata
 
 const ACTION_PATH = '/v1/functions/actions/{resourceId}';
 const ACTIONS_PATH = '/v1/functions/workspaces/{workspaceId}/actions';
+const FUNCTION_INVOCATIONS_PATH = '/v1/functions/actions/{resourceId}/invocations';
+const FUNCTION_VERSIONS_PATH = '/v1/functions/actions/{resourceId}/versions';
+const FUNCTION_ROLLBACK_PATH = '/v1/functions/actions/{resourceId}/rollback';
 const CURATIONS_PATH = '/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations';
 const MCP_SERVERS_PATH = '/v1/mcp/workspaces/{workspaceId}/servers';
 const MCP_RPC_PATH = '/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc';
@@ -277,6 +296,7 @@ test('bbx-933-mcp-curation-catalog-28: hosted MCP curation POST is published in 
 function lifecycleStore() {
   let action = null;
   let versions = [];
+  let activations = [];
   let versionNumber = 0;
 
   return {
@@ -291,8 +311,8 @@ function lifecycleStore() {
     async listFnActions(_pool, workspaceId) {
       return action?.workspace_id === workspaceId ? [structuredClone(action)] : [];
     },
-    async latestFnActivation() {
-      return null;
+    async latestFnActivation(_pool, resourceId) {
+      return structuredClone(activations.findLast((activation) => activation.resource_id === resourceId) ?? null);
     },
     async getFnActionVersionSummary() {
       const active = versions.find((version) => version.status === 'active');
@@ -352,8 +372,20 @@ function lifecycleStore() {
       action = { ...action, source_code: target.source_code, version: target.version_number };
       return structuredClone(action);
     },
-    async insertFnActivation() {
-      return undefined;
+    async insertFnActivation(_pool, input) {
+      activations.push({
+        activation_id: input.activationId,
+        resource_id: input.resourceId,
+        workspace_id: input.workspaceId,
+        status: input.status,
+        status_code: input.statusCode,
+        result: structuredClone(input.result),
+        logs: structuredClone(input.logs),
+        duration_ms: input.durationMs,
+        started_at: input.startedAt,
+        finished_at: input.finishedAt,
+      });
+      return structuredClone(activations.at(-1));
     },
     async deleteFnAction(_pool, row) {
       if (action?.resource_id !== row.resource_id) return null;
@@ -527,6 +559,115 @@ test('bbx-933-function-production-id-30: production-created Function detail and 
   );
 });
 
+/**
+ * bbx-933-function-identity-contract-37 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ */
+test('bbx-933-function-identity-contract-37: production Function IDs satisfy action paths and literal lifecycle response schemas', async () => {
+  const store = lifecycleStore();
+  const created = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-function-identity-create',
+    body: deployBody('export async function main() { return { version: 1 }; }'),
+  }));
+  assert.equal(created.statusCode, 202, JSON.stringify(created.body));
+  const resourceId = created.body.resourceId;
+  assert.match(resourceId, /^fn_[0-9a-f]{8}-[0-9a-f]{3}$/);
+
+  const updated = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-function-identity-update',
+    params: { actionId: resourceId },
+    body: deployBody('export async function main() { return { version: 2 }; }'),
+  }));
+  assert.equal(updated.statusCode, 202, JSON.stringify(updated.body));
+  assert.equal(updated.body.resourceId, resourceId);
+
+  const invoked = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-function-identity-invoke',
+    params: { actionId: resourceId },
+    body: { parameters: { orderId: 'order-contract-37' } },
+  }));
+  assert.equal(invoked.statusCode, 202, JSON.stringify(invoked.body));
+  assert.equal(invoked.body.resourceId, resourceId);
+  assert.match(invoked.body.invocationId, /^act_[0-9a-f]{8}-[0-9a-f]{3}$/);
+  assert.equal(invoked.body.status, 'completed');
+
+  const detail = await FN_HANDLERS.fnActionDetail(lifecycleContext(store, {
+    params: { actionId: resourceId },
+  }));
+  assert.equal(detail.statusCode, 200, JSON.stringify(detail.body));
+  const activation = detail.body.latestActivation;
+  assert.equal(activation.resourceId, resourceId);
+  assert.equal(activation.activationId, invoked.body.invocationId);
+  assert.equal(activation.status, 'succeeded');
+  assert.equal(activation.triggerKind, 'manual');
+
+  const rolledBack = await FN_HANDLERS.fnRollback(lifecycleContext(store, {
+    correlationId: 'corr-function-identity-rollback',
+    params: { actionId: resourceId },
+    body: { versionId: 'fnv_one' },
+  }));
+  assert.equal(rolledBack.statusCode, 202, JSON.stringify(rolledBack.body));
+  assert.equal(rolledBack.body.resourceId, resourceId);
+
+  const resolveParameter = (parameter) => {
+    if (!parameter?.$ref) return parameter;
+    const name = parameter.$ref.match(/^#\/components\/parameters\/([^/]+)$/)?.[1];
+    return name ? openapi.components?.parameters?.[name] : null;
+  };
+  const functionOperations = [
+    ['detail', 'get', ACTION_PATH],
+    ['update', 'patch', ACTION_PATH],
+    ['delete', 'delete', ACTION_PATH],
+    ['invoke', 'post', FUNCTION_INVOCATIONS_PATH],
+    ['versions', 'get', FUNCTION_VERSIONS_PATH],
+    ['rollback', 'post', FUNCTION_ROLLBACK_PATH],
+  ];
+  const pathFailures = [];
+  for (const [name, method, publicPath] of functionOperations) {
+    const operation = openapi.paths?.[publicPath]?.[method];
+    assert.ok(operation, `authoritative OpenAPI must contain Function ${name} operation`);
+    const raw = operation.parameters?.find((parameter) => resolveParameter(parameter)?.name === 'resourceId');
+    const resolved = resolveParameter(raw);
+    assert.ok(resolved?.schema, `Function ${name} must publish a resourceId path parameter schema`);
+    const acceptsProductionId = new Ajv({ strict: false }).compile(resolved.schema)(resourceId);
+    if (raw?.$ref === '#/components/parameters/ResourceId' || !acceptsProductionId) {
+      pathFailures.push({
+        operation: name,
+        reference: raw?.$ref ?? 'inline',
+        acceptsProductionId,
+      });
+    }
+  }
+
+  const globalResourceId = new Ajv({ strict: false })
+    .compile(openapi.components.parameters.ResourceId.schema);
+  assert.equal(
+    globalResourceId(resourceId),
+    false,
+    'the generic res_* ResourceId contract must stay narrow; Function paths need a Function-specific parameter',
+  );
+
+  const responseFailures = [
+    ...validationErrors(
+      validatorForResponse('post', FUNCTION_INVOCATIONS_PATH, 202),
+      invoked.body,
+    ).map((error) => ({ response: 'FunctionInvocationAccepted', error })),
+    ...validationErrors(
+      validatorFor('#/components/schemas/FunctionActivation'),
+      activation,
+    ).map((error) => ({ response: 'FunctionActivation', error })),
+    ...validationErrors(
+      validatorForResponse('post', FUNCTION_ROLLBACK_PATH, 202),
+      rolledBack.body,
+    ).map((error) => ({ response: 'FunctionRollbackAccepted', error })),
+  ];
+  assert.deepEqual(
+    { pathFailures, responseFailures },
+    { pathFailures: [], responseFailures: [] },
+    'Function-specific path and lifecycle response contracts must accept literal production fn_* identities and handler payloads',
+  );
+});
+
 const MCP_TENANT_ID = 'ten_mcp_contract';
 const MCP_WORKSPACE_ID = 'wrk_mcp_contract';
 
@@ -553,7 +694,12 @@ function mcpStateStore() {
   };
 }
 
-function mcpHeaders({ correlationId = 'corr-mcp-contract', authenticated = true } = {}) {
+function mcpHeaders({
+  correlationId = 'corr-mcp-contract',
+  authenticated = true,
+  roles = ['tenant_owner'],
+  workspaceIds,
+} = {}) {
   const base = {
     'content-type': 'application/json',
     'x-correlation-id': correlationId,
@@ -565,12 +711,15 @@ function mcpHeaders({ correlationId = 'corr-mcp-contract', authenticated = true 
     'x-workspace-id': MCP_WORKSPACE_ID,
     'x-auth-subject': 'mcp-contract-owner',
     'x-auth-scopes': BASE_SCOPE,
-    'x-actor-roles': 'tenant_owner',
+    'x-actor-roles': roles.join(','),
+    ...(workspaceIds ? { 'x-actor-workspace-ids': workspaceIds.join(',') } : {}),
   };
 }
 
-async function withMcpApi(run) {
-  let runtimeStatus = { mode: 'managed', state: 'ready', reason: 'READY' };
+async function withMcpApi(run, {
+  initialRuntimeStatus = { mode: 'managed', state: 'ready', reason: 'READY' },
+} = {}) {
+  let runtimeStatus = structuredClone(initialRuntimeStatus);
   const runtime = {
     status: () => structuredClone(runtimeStatus),
     canServeWorkloads: (status = runtimeStatus) => status.state === 'ready',
@@ -653,6 +802,45 @@ test('bbx-933-mcp-list-response-32: public hosted MCP list payload satisfies its
       validationErrors(validate, body),
       [],
       `hosted MCP list payload must validate against the published response schema:\n${JSON.stringify(validate.errors, null, 2)}`,
+    );
+  });
+});
+
+/**
+ * bbx-933-mcp-list-pagination-42 | fn-mcp-hosted-publish
+ * OpenSpec #### Scenario: Degraded audit read remains available
+ */
+test('bbx-933-mcp-list-pagination-42: hosted MCP list does not advertise pagination its public runtime ignores', async () => {
+  await withMcpApi(async ({ baseUrl }) => {
+    await createMcpServer(baseUrl, 'pagination-one');
+    await createMcpServer(baseUrl, 'pagination-two');
+    const listUrl = `${baseUrl}/v1/mcp/workspaces/${MCP_WORKSPACE_ID}/servers`;
+    const unpagedResponse = await fetch(listUrl, { headers: mcpHeaders() });
+    const pagedResponse = await fetch(
+      `${listUrl}?page%5Bsize%5D=1&page%5Bafter%5D=srv-cursor-that-runtime-does-not-read`,
+      { headers: mcpHeaders() },
+    );
+    const unpaged = await unpagedResponse.json();
+    const paged = await pagedResponse.json();
+    assert.equal(unpagedResponse.status, 200, JSON.stringify(unpaged));
+    assert.equal(pagedResponse.status, 200, JSON.stringify(paged));
+    assert.equal(unpaged.items.length, 2);
+    assert.deepEqual(paged, unpaged, 'the registered runtime currently ignores both advertised pagination inputs');
+    assert.equal(Object.hasOwn(paged, 'page'), false);
+
+    const operation = openapi.paths?.[MCP_SERVERS_PATH]?.get;
+    assert.ok(operation);
+    const parameterNames = (operation.parameters ?? []).map((parameter) => {
+      if (!parameter?.$ref) return parameter?.name;
+      const name = parameter.$ref.match(/^#\/components\/parameters\/([^/]+)$/)?.[1];
+      return openapi.components?.parameters?.[name]?.name;
+    });
+    const unsupportedAdvertisedPagination = parameterNames
+      .filter((name) => name === 'page[size]' || name === 'page[after]');
+    assert.deepEqual(
+      unsupportedAdvertisedPagination,
+      [],
+      'MCP list must not advertise page[size]/page[after] until the registered runtime implements page state and cursors',
     );
   });
 });
@@ -750,6 +938,83 @@ test('bbx-933-mcp-rpc-response-31: JSON-RPC schema accepts runtime responses and
 });
 
 /**
+ * bbx-933-mcp-external-canary-response-36 | fn-mcp-hosted-invoke
+ * OpenSpec #### Scenario: Consumer receives honest unavailable status
+ */
+test('bbx-933-mcp-external-canary-response-36: enabled-hosting external-unverified and runtime-disabled RPC responses satisfy the JSON-RPC schema', async () => {
+  await withMcpApi(async ({ baseUrl, setRuntimeStatus }) => {
+    const serverId = await createMcpServer(baseUrl, 'contract-external-canary');
+    const curation = await fetch(
+      `${baseUrl}/v1/mcp/workspaces/${MCP_WORKSPACE_ID}/servers/${serverId}/curations`,
+      { method: 'POST', headers: mcpHeaders(), body: JSON.stringify({ decisions: {} }) },
+    );
+    assert.equal(curation.status, 200, await curation.text());
+    const publish = await fetch(
+      `${baseUrl}/v1/mcp/workspaces/${MCP_WORKSPACE_ID}/servers/${serverId}/versions`,
+      { method: 'POST', headers: mcpHeaders(), body: JSON.stringify({ version: 'v1' }) },
+    );
+    assert.equal(publish.status, 201, await publish.text());
+
+    setRuntimeStatus({ mode: 'external', state: 'unverified', reason: 'EXTERNAL_CANARY_MISSING' });
+    const unavailable = await postMcpRpc(
+      baseUrl,
+      serverId,
+      { jsonrpc: '2.0', id: 36, method: 'tools/list', params: {} },
+      { correlationId: 'corr-external-canary-missing' },
+    );
+    assert.deepEqual(unavailable, {
+      jsonrpc: '2.0',
+      id: 36,
+      error: {
+        code: -32005,
+        message: 'Hosted MCP runtime is unavailable.',
+        data: {
+          code: 'KNATIVE_UNAVAILABLE',
+          state: 'unverified',
+          reason: 'EXTERNAL_CANARY_MISSING',
+          correlationId: 'corr-external-canary-missing',
+        },
+      },
+    });
+
+    setRuntimeStatus({ mode: 'disabled', state: 'disabled', reason: 'DISABLED' });
+    const runtimeDisabled = await postMcpRpc(
+      baseUrl,
+      serverId,
+      { jsonrpc: '2.0', id: 37, method: 'tools/list', params: {} },
+      { correlationId: 'corr-enabled-hosting-runtime-disabled' },
+    );
+    assert.deepEqual(runtimeDisabled, {
+      jsonrpc: '2.0',
+      id: 37,
+      error: {
+        code: -32005,
+        message: 'Hosted MCP runtime is unavailable.',
+        data: {
+          code: 'KNATIVE_UNAVAILABLE',
+          state: 'disabled',
+          reason: 'DISABLED',
+          correlationId: 'corr-enabled-hosting-runtime-disabled',
+        },
+      },
+    });
+
+    const validate = validatorForResponse('post', MCP_RPC_PATH, 200);
+    const failures = [
+      ...validationErrors(validate, unavailable).map((error) => ({ state: 'unverified', error })),
+      ...validationErrors(validate, runtimeDisabled).map((error) => ({ state: 'disabled', error })),
+    ];
+    assert.deepEqual(
+      failures,
+      [],
+      `enabled-hosting unavailable responses must validate for actual external-unverified and runtime-disabled states:\n${JSON.stringify(failures, null, 2)}`,
+    );
+  }, {
+    initialRuntimeStatus: { mode: 'external', state: 'ready', reason: 'READY' },
+  });
+});
+
+/**
  * bbx-933-mcp-route-errors-33 | fn-mcp-hosted-invoke
  * OpenSpec #### Scenario: Authentication and ownership precede dependency status
  */
@@ -792,6 +1057,80 @@ test('bbx-933-mcp-route-errors-33: curation not-found and RPC authentication err
       failures,
       [],
       `route error envelopes must validate against their published MCP response schemas:\n${JSON.stringify(failures, null, 2)}`,
+    );
+  });
+});
+
+/**
+ * bbx-933-mcp-runtime-errors-39 | fn-mcp-hosted-invoke
+ * OpenSpec #### Scenario: Authentication and ownership precede dependency status
+ */
+test('bbx-933-mcp-runtime-errors-39: runtime-originated MCP 400/403 envelopes have explicit bounded schemas', async () => {
+  await withMcpApi(async ({ baseUrl }) => {
+    const serverId = await createMcpServer(baseUrl, 'contract-runtime-errors');
+    const curationUrl = `${baseUrl}/v1/mcp/workspaces/${MCP_WORKSPACE_ID}/servers/${serverId}/curations`;
+    const rpcUrl = `${baseUrl}/v1/mcp/workspaces/${MCP_WORKSPACE_ID}/servers/${serverId}/rpc`;
+
+    const malformedCurationResponse = await fetch(curationUrl, {
+      method: 'POST', headers: mcpHeaders(), body: '{',
+    });
+    const malformedCuration = await malformedCurationResponse.json();
+    assert.equal(malformedCurationResponse.status, 400, JSON.stringify(malformedCuration));
+    assert.deepEqual(malformedCuration, { code: 'INVALID_JSON', message: 'Body is not valid JSON' });
+
+    const readonlyCurationResponse = await fetch(curationUrl, {
+      method: 'POST',
+      headers: mcpHeaders({ roles: ['workspace_viewer'], workspaceIds: [MCP_WORKSPACE_ID] }),
+      body: '{}',
+    });
+    const readonlyCuration = await readonlyCurationResponse.json();
+    assert.equal(readonlyCurationResponse.status, 403, JSON.stringify(readonlyCuration));
+    assert.deepEqual(readonlyCuration, {
+      code: 'FORBIDDEN', message: 'Caller role may not perform structural writes',
+    });
+
+    const malformedRpcResponse = await fetch(rpcUrl, {
+      method: 'POST', headers: mcpHeaders(), body: '{',
+    });
+    const malformedRpc = await malformedRpcResponse.json();
+    assert.equal(malformedRpcResponse.status, 400, JSON.stringify(malformedRpc));
+    assert.deepEqual(malformedRpc, { code: 'INVALID_JSON', message: 'Body is not valid JSON' });
+
+    const pluralDeniedResponse = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: mcpHeaders({ workspaceIds: ['wrk_other'] }),
+      body: JSON.stringify({ jsonrpc: '2.0', id: 39, method: 'tools/list', params: {} }),
+    });
+    const pluralDenied = await pluralDeniedResponse.json();
+    assert.equal(pluralDeniedResponse.status, 403, JSON.stringify(pluralDenied));
+    assert.deepEqual(pluralDenied, {
+      code: 'FORBIDDEN', message: 'Caller workspace scope does not include the requested workspace',
+    });
+
+    const cases = [
+      { name: 'curation malformed JSON', method: 'post', path: CURATIONS_PATH, status: 400, body: malformedCuration },
+      { name: 'curation readonly denial', method: 'post', path: CURATIONS_PATH, status: 403, body: readonlyCuration },
+      { name: 'RPC malformed JSON', method: 'post', path: MCP_RPC_PATH, status: 400, body: malformedRpc },
+      { name: 'RPC plural-workspace denial', method: 'post', path: MCP_RPC_PATH, status: 403, body: pluralDenied },
+    ];
+    const contractFailures = [];
+    for (const candidate of cases) {
+      const schema = openapi.paths?.[candidate.path]?.[candidate.method]
+        ?.responses?.[String(candidate.status)]?.content?.['application/json']?.schema;
+      if (!schema) {
+        contractFailures.push({ case: candidate.name, error: 'missing application/json response schema' });
+        continue;
+      }
+      const errors = validationErrors(
+        validatorForResponse(candidate.method, candidate.path, candidate.status),
+        candidate.body,
+      );
+      contractFailures.push(...errors.map((error) => ({ case: candidate.name, error })));
+    }
+    assert.deepEqual(
+      contractFailures,
+      [],
+      `runtime-originated MCP errors must use bounded executor schemas without changing gateway-only error contracts:\n${JSON.stringify(contractFailures, null, 2)}`,
     );
   });
 });
@@ -855,6 +1194,86 @@ test('bbx-933-aggregate-pending-response-34: tenant purge and workspace delete p
     failures,
     [],
     `pending aggregate teardown acknowledgements must validate against their published 202 schemas:\n${JSON.stringify(failures, null, 2)}`,
+  );
+});
+
+/**
+ * bbx-933-aggregate-obligation-contract-38 | fn-managed-knative-owner-scoped-teardown
+ * OpenSpec #### Scenario: Runtime outage defers cleanup honestly
+ */
+test('bbx-933-aggregate-obligation-contract-38: real coordinator pending obligations are projected to a secret-safe public shape', async () => {
+  const identity = { sub: 'platform-superadmin', actorType: 'superadmin', roles: ['superadmin'] };
+  const internalOwnership = {
+    tenantId: 'ten_obligation',
+    functions: [{
+      type: 'function', resourceId: 'fn_obligation', tenantId: 'ten_obligation',
+      workspaceId: 'wrk_obligation', ksvcName: 'function-orders-internal', name: 'orders',
+    }],
+    mcp: [{
+      type: 'mcp', resourceId: 'srv-obligation', tenantId: 'ten_obligation',
+      workspaceId: 'wrk_obligation', name: 'payments-internal',
+    }],
+  };
+  const coordinator = createRuntimeTeardownCoordinator({
+    store: {
+      async listRuntimeOwnership() { return structuredClone(internalOwnership); },
+      async deferAggregateCleanup() { return undefined; },
+    },
+    runtime: {
+      async cleanup({ functions, mcp }) {
+        return { ready: false, pending: [...functions, ...mcp] };
+      },
+    },
+  });
+  const scopedPool = ({ tenant, workspace }) => ({
+    async query(sql) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      if (statement.includes('FROM tenants WHERE id = $1 OR slug = $1')) return { rows: tenant ? [tenant] : [] };
+      if (statement.includes('FROM workspaces WHERE id = $1 OR slug = $1')) return { rows: workspace ? [workspace] : [] };
+      return { rows: [] };
+    },
+  });
+  const tenant = await LOCAL_HANDLERS.purgeTenant({
+    params: { tenantId: 'ten_obligation' }, identity,
+    pool: scopedPool({ tenant: { id: 'ten_obligation', iam_realm: null } }),
+    callerContext: { correlationId: 'corr-tenant-obligation' },
+    runtimeTeardownCoordinator: coordinator,
+  });
+  const workspace = await LOCAL_HANDLERS.deleteWorkspace({
+    params: { workspaceId: 'wrk_obligation' }, identity,
+    pool: scopedPool({ workspace: { id: 'wrk_obligation', tenant_id: 'ten_obligation' } }),
+    callerContext: { correlationId: 'corr-workspace-obligation' },
+    runtimeTeardownCoordinator: coordinator,
+  });
+  assert.equal(tenant.statusCode, 202, JSON.stringify(tenant.body));
+  assert.equal(workspace.statusCode, 202, JSON.stringify(workspace.body));
+
+  const canonical = [
+    { resourceType: 'function', resourceId: 'fn_obligation', status: 'pending' },
+    { resourceType: 'mcp', resourceId: 'srv-obligation', status: 'pending' },
+  ];
+  const failures = [];
+  for (const [operation, result, method, publicPath] of [
+    ['tenant purge', tenant, 'post', TENANT_PURGE_PATH],
+    ['workspace delete', workspace, 'delete', WORKSPACE_PATH],
+  ]) {
+    if (!isDeepStrictEqual(result.body.obligations, canonical)) {
+      failures.push({ operation, error: 'obligations are not normalized', obligations: result.body.obligations });
+    }
+    for (const obligation of result.body.obligations) {
+      const leakedFields = Object.keys(obligation)
+        .filter((key) => ['tenantId', 'workspaceId', 'ksvcName', 'name', 'type'].includes(key));
+      if (leakedFields.length) failures.push({ operation, resourceId: obligation.resourceId, leakedFields });
+    }
+    failures.push(...validationErrors(
+      validatorForResponse(method, publicPath, 202),
+      result.body,
+    ).map((error) => ({ operation, error })));
+  }
+  assert.deepEqual(
+    failures,
+    [],
+    `aggregate pending responses must expose only canonical secret-safe obligations:\n${JSON.stringify(failures, null, 2)}`,
   );
 });
 
@@ -971,6 +1390,129 @@ test('bbx-933-aggregate-completed-response-35: completed tenant purge and worksp
     { rejectedActual, acceptedDrift },
     { rejectedActual: [], acceptedDrift: [] },
     'completed teardown schemas must accept real bodies and reject completion or identity drift',
+  );
+});
+
+/**
+ * bbx-933-aggregate-completion-residual-40 | fn-managed-knative-owner-scoped-teardown
+ * OpenSpec #### Scenario: Tenant teardown leaves no function workloads
+ */
+test('bbx-933-aggregate-completion-residual-40: successfully cleaned Function ownership is not reported as residual', async () => {
+  const identity = { sub: 'platform-superadmin', actorType: 'superadmin', roles: ['superadmin'] };
+  const cleaned = [];
+  const coordinator = createRuntimeTeardownCoordinator({
+    store: {
+      async listRuntimeOwnership(_pool, scope) {
+        const workspaceId = scope.workspaceId ?? 'wrk_cleanup_success';
+        return {
+          tenantId: 'ten_cleanup_success',
+          functions: [{
+            type: 'function', resourceId: 'fn_cleanup_success', tenantId: 'ten_cleanup_success',
+            workspaceId, ksvcName: `ksvc-${workspaceId}`,
+          }],
+          mcp: [],
+        };
+      },
+      async deferAggregateCleanup() { throw new Error('successful cleanup must not be deferred'); },
+    },
+    runtime: {
+      async cleanup({ functions }) {
+        cleaned.push(...structuredClone(functions));
+        return { ready: true, pending: [] };
+      },
+    },
+  });
+  const completionPool = ({ tenant, workspace, ksvcName }) => ({
+    async query(sql) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      if (statement.includes('FROM tenants WHERE id = $1 OR slug = $1')) return { rows: tenant ? [tenant] : [] };
+      if (statement.includes('FROM workspaces WHERE id = $1 OR slug = $1')) return { rows: workspace ? [workspace] : [] };
+      if (statement.includes('SELECT ksvc_name FROM fn_actions')) return { rows: [{ ksvc_name: ksvcName }] };
+      return { rows: [] };
+    },
+  });
+  const tenant = await LOCAL_HANDLERS.purgeTenant({
+    params: { tenantId: 'ten_cleanup_success' }, identity,
+    pool: completionPool({
+      tenant: { id: 'ten_cleanup_success', iam_realm: null },
+      ksvcName: 'ksvc-wrk_cleanup_success',
+    }),
+    callerContext: { correlationId: 'corr-tenant-cleanup-success' },
+    runtimeTeardownCoordinator: coordinator,
+  });
+  const workspace = await LOCAL_HANDLERS.deleteWorkspace({
+    params: { workspaceId: 'wrk_cleanup_success' }, identity,
+    pool: completionPool({
+      workspace: { id: 'wrk_cleanup_success', tenant_id: 'ten_cleanup_success' },
+      ksvcName: 'ksvc-wrk_cleanup_success',
+    }),
+    callerContext: { correlationId: 'corr-workspace-cleanup-success' },
+    runtimeTeardownCoordinator: coordinator,
+    dropWorkspaceDatabase: async () => undefined,
+    deleteBucket: async () => undefined,
+    deleteTopics: async () => undefined,
+  });
+  assert.equal(tenant.statusCode, 200, JSON.stringify(tenant.body));
+  assert.equal(workspace.statusCode, 200, JSON.stringify(workspace.body));
+  assert.equal(cleaned.length, 2, 'the real coordinator must confirm both owner-scoped Function cleanups');
+  assert.deepEqual(
+    {
+      tenantResidual: tenant.body.residual?.knativeServices,
+      workspaceResidual: workspace.body.residual?.knativeServices,
+    },
+    { tenantResidual: [], workspaceResidual: [] },
+    'a completed aggregate response must not describe successfully deleted Knative Services as residual',
+  );
+});
+
+/**
+ * bbx-933-aggregate-coordinator-error-41 | fn-managed-knative-owner-scoped-teardown
+ * OpenSpec #### Scenario: Runtime outage defers cleanup honestly
+ */
+test('bbx-933-aggregate-coordinator-error-41: missing teardown coordinator 503 responses have explicit bounded schemas', async () => {
+  const identity = { sub: 'platform-superadmin', actorType: 'superadmin', roles: ['superadmin'] };
+  const poolFor = ({ tenant, workspace }) => ({
+    async query(sql) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      if (statement.includes('FROM tenants WHERE id = $1 OR slug = $1')) return { rows: tenant ? [tenant] : [] };
+      if (statement.includes('FROM workspaces WHERE id = $1 OR slug = $1')) return { rows: workspace ? [workspace] : [] };
+      return { rows: [] };
+    },
+  });
+  const tenant = await LOCAL_HANDLERS.purgeTenant({
+    params: { tenantId: 'ten_no_coordinator' }, identity,
+    pool: poolFor({ tenant: { id: 'ten_no_coordinator', iam_realm: null } }),
+  });
+  const workspace = await LOCAL_HANDLERS.deleteWorkspace({
+    params: { workspaceId: 'wrk_no_coordinator' }, identity,
+    pool: poolFor({ workspace: { id: 'wrk_no_coordinator', tenant_id: 'ten_no_coordinator' } }),
+  });
+  const expected = {
+    code: 'RUNTIME_TEARDOWN_UNAVAILABLE',
+    message: 'runtime teardown coordinator is required',
+  };
+  assert.deepEqual(tenant, { statusCode: 503, body: expected });
+  assert.deepEqual(workspace, { statusCode: 503, body: expected });
+
+  const failures = [];
+  for (const [operation, method, publicPath, body] of [
+    ['tenant purge', 'post', TENANT_PURGE_PATH, tenant.body],
+    ['workspace delete', 'delete', WORKSPACE_PATH, workspace.body],
+  ]) {
+    const schema = openapi.paths?.[publicPath]?.[method]?.responses?.['503']
+      ?.content?.['application/json']?.schema;
+    if (!schema) {
+      failures.push({ operation, error: 'missing application/json 503 schema' });
+      continue;
+    }
+    failures.push(...validationErrors(
+      validatorForResponse(method, publicPath, 503), body,
+    ).map((error) => ({ operation, error })));
+  }
+  assert.deepEqual(
+    failures,
+    [],
+    `aggregate coordinator-unavailable responses must validate against explicit bounded 503 contracts:\n${JSON.stringify(failures, null, 2)}`,
   );
 });
 
