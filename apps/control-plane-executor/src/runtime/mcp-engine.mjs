@@ -71,12 +71,15 @@ export function createMcpEngine({
   clock = () => Date.now(),
   store,
   cleanupRepository,
+  mcpRuntimeAdapter,
+  auditSink,
 } = {}) {
   const registry = createRegistry();
   const servers = new Map(); // `${tenantId}::${serverId}` -> { serverId, name, source, tenantId, workspaceId, draft, curated }
   const auditLog = []; // audit events (each carries scope.tenant_id)
   const rateWindows = new Map(); // rateKey -> { count, windowStart }
-  const pinnedImage = runtimeImageDigest ? `${runtimeImage}@${runtimeImageDigest}` : runtimeImage;
+  const pinnedImage = runtimeImageDigest ?? runtimeImage;
+  const registryImage = runtimeImageDigest ? `${runtimeImage}@${runtimeImageDigest}` : runtimeImage;
   const key = (tid, sid) => `${tid}::${sid}`;
   let loaded = false;
   let dirty = false;
@@ -136,9 +139,9 @@ export function createMcpEngine({
     return [...servers.values()].filter((s) => s.tenantId === identity.tenantId && (!workspaceId || s.workspaceId === workspaceId));
   }
 
-  function requireServer(identity, serverId) {
+  function requireServer(identity, serverId, workspaceId) {
     const entry = servers.get(key(identity.tenantId, serverId));
-    if (!entry || entry.tenantId !== identity.tenantId) throw httpError(404, 'MCP_SERVER_NOT_FOUND', 'No such MCP server for this tenant.');
+    if (!entry || entry.tenantId !== identity.tenantId || (workspaceId && entry.workspaceId !== workspaceId)) throw httpError(404, 'MCP_SERVER_NOT_FOUND', 'No such MCP server for this tenant/workspace.');
     return entry;
   }
 
@@ -146,7 +149,16 @@ export function createMcpEngine({
     return `${gatewayBaseUrl}/v1/mcp/workspaces/${encodeURIComponent(workspaceId)}/servers/${encodeURIComponent(serverId)}`;
   }
 
-  function recordAudit(event) { auditLog.push(event); }
+  function recordAudit(event) {
+    auditLog.push(event);
+    if (auditSink) {
+      const sinkEvent = { ...event,
+        tenantId: event.scope?.tenant_id, workspaceId: event.scope?.workspace_id,
+        correlationId: event.correlation_id, actionType: event.action?.id,
+      };
+      void auditSink(sinkEvent);
+    }
+  }
 
   function enforceRate(identity, serverId, scope, oauthClientId) {
     const k = rateLimitKey({ tenantId: identity.tenantId, serverId, oauthClientId, scope });
@@ -269,7 +281,7 @@ export function createMcpEngine({
   // self-call the runtime using the tool's REAL executor/control-plane route (workspace from the
   // credential context, NEVER from args). Returns an MCP-style result envelope (tool-level errors
   // live in content).
-  async function invokeTool(identity, entry, registered, toolName, args = {}) {
+  async function invokeTool(identity, entry, registered, toolName, args = {}, correlationId) {
     const activeRecord = registered.versions.find((v) => v.version === registered.activeVersion);
     const tool = (activeRecord?.tools ?? []).find((t) => t.name === toolName);
     if (!tool) return { content: [{ type: 'text', text: `unknown tool: ${toolName}` }], isError: true };
@@ -280,6 +292,12 @@ export function createMcpEngine({
     if (!granted.has(BASE_SCOPE)) return { content: [{ type: 'text', text: `missing required scope: ${BASE_SCOPE}` }], isError: true };
     if (tool.mutates && !toolScope) return { content: [{ type: 'text', text: 'mutating tool is missing an explicit required scope' }], isError: true };
     if (tool.mutates && toolScope && !granted.has(toolScope)) return { content: [{ type: 'text', text: `mutating tool requires scope: ${toolScope}` }], isError: true };
+
+    if (mcpRuntimeAdapter?.invoke) {
+      const hosted = await mcpRuntimeAdapter.invoke({ tenantId: entry.tenantId, workspaceId: entry.workspaceId, serverId: entry.serverId,
+        version: registered.activeVersion, tool: toolName, args, manifest: activeRecord, correlationId });
+      return { content: hosted?.content ?? [], isError: hosted?.isError === true, ...hosted };
+    }
 
     const call = resolveCall(entry, tool, args);
     if (call.error) return { content: [{ type: 'text', text: call.error }], isError: true };
@@ -352,33 +370,38 @@ export function createMcpEngine({
       }
 
       case 'get_server':
-        return viewServer(identity, requireServer(identity, serverId), runtimeDependency);
+        return viewServer(identity, requireServer(identity, serverId, workspaceId), runtimeDependency);
 
       case 'curate_server': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         entry.curated = applyCuration(entry.draft, body ?? {});
         return changed({ serverId, status: 'curated', tools: entry.curated.tools, violations: entry.curated.violations });
       }
 
       case 'publish_version': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         const curated = body.curation || !entry.curated ? applyCuration(entry.draft, body.curation ?? {}) : entry.curated;
         entry.curated = curated;
         const pub = publishManifest(curated);
         if (!pub.ok) throw httpError(422, 'MCP_PUBLISH_REJECTED', 'Manifest failed the curation gate.', { errors: pub.violations });
         const v = version ?? body.version ?? `v${(listVersions(registry, tid, serverId).length || 0) + 1}`;
-        const reg = registerVersion(registry, { tenantId: tid, serverId, version: v, image: pinnedImage, manifest: pub.manifest, source: entry.source === 'official' ? 'official' : entry.source === 'custom' ? 'custom' : 'instant', signatureVerified: true });
+        const reg = registerVersion(registry, { tenantId: tid, serverId, version: v, image: registryImage, manifest: pub.manifest, source: entry.source === 'official' ? 'official' : entry.source === 'custom' ? 'custom' : 'instant', signatureVerified: true });
         if (!reg.ok) throw httpError(reg.violations?.[0]?.code === 'duplicate_version' ? 409 : 422, 'MCP_VERSION_REJECTED', reg.violations?.[0]?.message ?? 'Version rejected.', { errors: reg.violations });
         const record = reg.version;
         let activated = false;
         if (!record.requiresReview) { activateVersion(registry, tid, serverId, v, { approved: false }); activated = true; }
+        if (mcpRuntimeAdapter?.apply) {
+          await mcpRuntimeAdapter.apply({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
+            operation: 'publish', version: v, runtimeImage: pinnedImage, manifest: pub.manifest,
+            correlationId: body.correlationId ?? randomUUID() });
+        }
         audit('server_published', { serverId });
         const active = getServer(registry, tid, serverId)?.activeVersion ?? null;
         return changed({ serverId, version: v, requiresReview: record.requiresReview, status: record.requiresReview ? 'requires_review' : 'active', activeVersion: active, activated });
       }
 
       case 'approve_version': {
-        requireServer(identity, serverId);
+        requireServer(identity, serverId, workspaceId);
         const result = activateVersion(registry, tid, serverId, version, { approved: true });
         if (!result.ok) throw httpError(404, 'MCP_VERSION_NOT_FOUND', result.violations?.[0]?.message ?? 'Version not found.', { errors: result.violations });
         audit('scopes_changed', { serverId });
@@ -386,28 +409,28 @@ export function createMcpEngine({
       }
 
       case 'call_tool': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         const registered = getServer(registry, tid, serverId);
         if (!registered?.activeVersion) throw httpError(409, 'MCP_SERVER_NOT_CONNECTABLE', 'Server has no active published version.');
         const oauthClientId = identity.actorId ?? 'mcp';
         enforceRate(identity, serverId, 'server', oauthClientId);
         enforceRate(identity, serverId, 'oauth_client', oauthClientId);
         const started = clock();
-        const result = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {});
+        const result = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {}, correlationId ?? randomUUID());
         const telemetry = mcpToolCallTelemetry({ tenantId: tid, workspaceId: entry.workspaceId, serverId, toolName: body.name, oauthClientId, latencyMs: clock() - started, status: result.isError ? 'error' : 'ok' });
         recordAudit({ ...mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() }), action: { category: 'tool_invocation', id: `mcp.tool_call.${body.name}` }, detail: telemetry.log });
         return changed({ result, content: result.content, toolName: body.name });
       }
 
       case 'list_audit': {
-        requireServer(identity, serverId);
+        requireServer(identity, serverId, workspaceId);
         const items = filterAuditRecordsForTenant(auditLog, tid)
           .filter((e) => (e.resource?.mcp_server_id ?? e.resource?.resource_id) === serverId || e.detail?.server === serverId);
         return { items, ...(runtimeDependency ? { runtimeDependency } : {}) };
       }
 
       case 'record_dependency_event': {
-        requireServer(identity, serverId);
+        requireServer(identity, serverId, workspaceId);
         runtimeAudit(
           identity,
           workspaceId,
@@ -422,7 +445,19 @@ export function createMcpEngine({
       }
 
       case 'delete_server': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
+        if (mcpRuntimeAdapter?.listOwned && mcpRuntimeAdapter?.deleteOwned) {
+          const observed = await mcpRuntimeAdapter.listOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId });
+          for (const resource of observed ?? []) {
+            const deleted = await mcpRuntimeAdapter.deleteOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
+              kind: resource.kind, namespace: resource.namespace, name: resource.name, uid: resource.uid, resourceVersion: resource.resourceVersion });
+            if (deleted?.status === 409 || deleted?.code === 'PRECONDITION_CONFLICT') {
+              entry.lifecycleStatus = 'deletion_pending';
+              entry.deletionRequestedAt ??= new Date(clock()).toISOString();
+              return changed({ serverId, status: 'deletion_pending', correlationId: randomUUID() });
+            }
+          }
+        }
         servers.delete(key(tid, serverId));
         const reg = registry.servers[key(tid, serverId)];
         if (reg) delete registry.servers[key(tid, serverId)];
@@ -435,10 +470,10 @@ export function createMcpEngine({
     }
   }
 
-  async function assertOwnedServer({ identity, serverId } = {}) {
+  async function assertOwnedServer({ identity, serverId, workspaceId } = {}) {
     await ensureLoaded();
     if (!identity?.tenantId) throw httpError(401, 'UNAUTHENTICATED', 'Missing tenant identity');
-    return requireServer(identity, serverId);
+    return requireServer(identity, serverId, workspaceId);
   }
 
   async function deferHostedServers({ identity, tenantId, workspaceId, serverId, correlationId, runtime = {}, reason = 'delete', allTenants = false } = {}) {
@@ -455,7 +490,7 @@ export function createMcpEngine({
       const targets = allTenants
         ? [...servers.values()].filter((entry) => !workspaceId || entry.workspaceId === workspaceId)
         : serverId
-          ? [requireServer(scopedIdentity, serverId)]
+          ? [requireServer(scopedIdentity, serverId, workspaceId)]
           : tenantServers(scopedIdentity, workspaceId);
       const pending = [];
       for (const entry of targets) {
@@ -532,7 +567,7 @@ export function createMcpEngine({
     try {
       // Resolve the credential-scoped server before invoking the dependency hook. This preserves
       // tenant-safe not-found behavior even when the shared Knative runtime is unavailable.
-      const entry = requireServer(identity, serverId);
+      const entry = requireServer(identity, serverId, workspaceId);
       if (beforeDispatch) await beforeDispatch({ entry, isNotification, method });
       switch (method) {
         case 'initialize': {
@@ -549,7 +584,7 @@ export function createMcpEngine({
         case 'ping':
           return rpc(id, {});
         case 'tools/list': {
-          requireServer(identity, serverId);
+          requireServer(identity, serverId, workspaceId);
           const registered = getServer(registry, tid, serverId);
           const active = registered?.versions?.find((v) => v.version === registered.activeVersion);
           const tools = (active?.tools ?? []).map((t) => ({

@@ -730,30 +730,30 @@ function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, funct
     // identity.tenantId so a cross-tenant read/call/audit resolves to 404 / empty.
     ...(mcpEngine ? [
       ['GET', new RegExp(`${mcp}$`), ([w], c) =>
-        runMcp(mcpEngine, { operation: 'list_servers', identity: c.identity, workspaceId: c.identity.workspaceId }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'list_servers', identity: c.identity, workspaceId: w }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}$`), ([w], c) =>
-        runMcp(mcpEngine, { operation: 'create_server', identity: c.identity, workspaceId: c.identity.workspaceId, body: c.body }, 201, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'create_server', identity: c.identity, workspaceId: w, body: c.body, correlationId: c.headers['x-correlation-id'] }, 202, knativeRuntime, mcpRuntimeCleaner)],
       ['GET', new RegExp(`${mcp}/([^/]+)$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'get_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'get_server', identity: c.identity, workspaceId: w, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['DELETE', new RegExp(`${mcp}/([^/]+)$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'delete_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'delete_server', identity: c.identity, workspaceId: w, serverId: s, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/curations$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'curate_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'curate_server', identity: c.identity, workspaceId: w, serverId: s, body: c.body }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/versions$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'publish_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: c.body.version, body: c.body, correlationId: c.headers['x-correlation-id'] }, 201, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'publish_version', identity: c.identity, workspaceId: w, serverId: s, version: c.body.version, body: { ...c.body, correlationId: c.headers['x-correlation-id'] }, correlationId: c.headers['x-correlation-id'] }, 201, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/versions/([^/]+)/approval$`), ([w, s, v], c) =>
-        runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: decodeURIComponent(v), correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: w, serverId: s, version: decodeURIComponent(v), correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/tool-calls$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'call_tool', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'call_tool', identity: c.identity, workspaceId: w, serverId: s, body: c.body, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       // Standard MCP wire protocol (JSON-RPC 2.0 over HTTP POST) for an external MCP client
       // (add-mcp-jsonrpc-protocol, #608). The request body is the JSON-RPC message; the server is
       // resolved from the credential-derived identity + the URL serverId (cross-tenant → 404 in the
       // engine). Distinct from the REST tool-calls route above; covered by the same gateway
       // /v1/mcp/* route, so no APISIX change is needed.
       ['POST', new RegExp(`${mcp}/([^/]+)/rpc$`), ([w, s], c) =>
-        runMcpRpc(mcpEngine, { identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, message: c.body, correlationId: c.headers['x-correlation-id'] }, knativeRuntime)],
+        runMcpRpc(mcpEngine, { identity: c.identity, workspaceId: w, serverId: s, message: c.body, correlationId: c.headers['x-correlation-id'] }, knativeRuntime)],
       ['GET', new RegExp(`${mcp}/([^/]+)/audit$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: w, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
     ] : []),
 
     // ---- Platform (first-party) MCP server — JSON-RPC over HTTP (add-platform-mcp-http-route;
@@ -907,16 +907,20 @@ async function recordMcpUnavailable(mcpEngine, params, status, correlationId, op
 
 async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
-  const dependency = mcpRuntimeDependency(runtime);
   const operation = MCP_RUNTIME_OPERATION[params.operation];
+  if (operation) await mcpEngine.assertOwnedServer(params);
+  const dependency = mcpRuntimeDependency(runtime);
   if (!operation) {
     const result = await mcpEngine.executeMcp({ ...params, runtimeDependency: dependency });
+    if (params.operation === 'create_server') {
+      const correlationId = params.correlationId ?? randomUUID();
+      return { status: 202, body: { acceptedAt: new Date().toISOString(), correlationId, family: 'mcp', requestId: correlationId, resourceId: result.serverId, resourceType: 'mcp_server', status: 'accepted' } };
+    }
     return { status: successStatus, body: result };
   }
 
   // Server ownership is resolved before dependency status so adjacent tenants cannot use an outage
   // to discover that a foreign hosted server exists.
-  await mcpEngine.assertOwnedServer(params);
   if (!dependency.ready) {
     const correlationId = params.correlationId ?? randomUUID();
     if (params.operation === 'delete_server') {
@@ -934,7 +938,15 @@ async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner)
     runtimeResourceName: `mcp-${params.serverId}`,
   });
   const result = await mcpEngine.executeMcp(params);
-  return { status: successStatus, body: result };
+  if (params.operation === 'create_server') {
+    const correlationId = params.correlationId ?? randomUUID();
+    return { status: 202, body: {
+      acceptedAt: new Date().toISOString(), correlationId,
+      family: 'mcp', requestId: correlationId, resourceId: result.serverId,
+      resourceType: 'mcp_server', status: 'accepted',
+    } };
+  }
+  return { status: result?.status === 'deletion_pending' ? 202 : successStatus, body: result };
 }
 
 // Hosted-server MCP JSON-RPC dispatcher (add-mcp-jsonrpc-protocol, #608). Always 200 at the HTTP
