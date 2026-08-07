@@ -294,14 +294,18 @@ test('bbx-933-mcp-hosted-invoke: tool call dispatches through the hosted runtime
       workspaceId: invokeCalls[0].workspaceId,
       serverId: invokeCalls[0].serverId,
       correlationId: invokeCalls[0].correlationId,
+      roles: invokeCalls[0].roles,
+      scopes: invokeCalls[0].scopes,
     }, {
       tenantId: TENANT,
       workspaceId: WORKSPACE,
       serverId: created.serverId,
       correlationId: 'corr-mcp-invoke-933',
+      roles: ['workspace_owner'],
+      scopes: [BASE_SCOPE],
     });
     assert.equal(invokeCalls[0].tool, 'query_orders');
-    assert.deepEqual(invokeCalls[0].args, { tenantId: ADJACENT_TENANT, workspaceId: ADJACENT_WORKSPACE });
+    assert.deepEqual(invokeCalls[0].args, {}, 'caller-smuggled tenant/workspace arguments must be stripped');
     assert.equal(fallbackCalls.length, 0, 'hosted invocation must not fall back to registry-only in-process execution');
     assert.deepEqual(await response.json(), { content: [{ type: 'text', text: '{"hosted":true}' }], isError: false });
   }, { mcpRuntimeAdapter: adapter });
