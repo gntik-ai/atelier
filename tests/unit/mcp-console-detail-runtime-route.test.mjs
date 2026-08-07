@@ -14,6 +14,9 @@ function fakeMcpEngine() {
   const calls = [];
   return {
     calls,
+    async assertOwnedServer(params) {
+      calls.push({ operation: 'assert_owned_server', ...params });
+    },
     async executeMcp(params) {
       calls.push(params);
       if (params.operation === 'get_server') {
@@ -70,6 +73,12 @@ test('MCP console detail route returns server detail on the workspace-scoped pat
       },
       workspaceId: 'ws-a',
       serverId: 'srv-a',
+      runtimeDependency: {
+        mode: 'external',
+        state: 'ready',
+        reason: 'READY',
+        ready: true,
+      },
     });
   });
 });
