@@ -5,7 +5,8 @@
  * P12 MCP consumer, P10 read-only auditor, and P13 adjacent-tenant adversary.
  * Capabilities: fn-managed-knative-runtime-status, fn-managed-knative-functions,
  * fn-managed-knative-hosted-mcp, fn-managed-knative-outage-recovery,
- * fn-managed-knative-tenant-isolation, and fn-managed-knative-observability.
+ * fn-managed-knative-tenant-isolation, fn-managed-knative-observability,
+ * fn-managed-knative-owner-scoped-teardown, and fn-managed-knative-console-readiness.
  *
  * This is a REAL-stack acceptance spec. It uses only the Falcone console/public APIs, the public
  * OpenShift/Kubernetes APIs that P18 operates, and the companion chart's installed lifecycle CLI.
@@ -32,7 +33,8 @@
  *
  * Lifecycle command variables are JSON argv arrays. They are rejected unless argv[0] equals
  * E2E_933_CHART_LIFECYCLE_EXECUTABLE (whose basename must be `falcone-knative`), argv[1] is
- * `acceptance`, argv[2] is the exact operation (`outage`, `restart`, or `recover`), and the only
+ * `acceptance`, argv[2] is the exact operation (`outage`, `restart`, `recover`, or the chart-owned
+ * `replacement-conflict` acceptance hook), and the only
  * remaining arguments are explicit --api-server/--cluster-uid/--infrastructure-name/
  * --infrastructure-id/--run-id/--release/--status-namespace/--status-configmap pairs that match
  * the already verified live target. They are executed without a shell. The companion chart owns
@@ -76,6 +78,14 @@ const ENV = {
   externalOperatorToken: process.env.E2E_933_EXTERNAL_OPERATOR_TOKEN ?? '',
   disabledOperatorToken: process.env.E2E_933_DISABLED_OPERATOR_TOKEN ?? '',
   disabledTenantToken: process.env.E2E_933_DISABLED_TENANT_TOKEN ?? '',
+  tenantRealmOperatorToken: process.env.E2E_933_TENANT_REALM_OPERATOR_TOKEN ?? '',
+  tenantRealmAuditorToken: process.env.E2E_933_TENANT_REALM_AUDITOR_TOKEN ?? '',
+  sameTenantWrongWorkspaceToken: process.env.E2E_933_SAME_TENANT_WRONG_WORKSPACE_TOKEN ?? '',
+  tenantOwnerOnlyToken: process.env.E2E_933_TENANT_OWNER_ONLY_TOKEN ?? '',
+  tenantAdminOnlyToken: process.env.E2E_933_TENANT_ADMIN_ONLY_TOKEN ?? '',
+  internalActorToken: process.env.E2E_933_INTERNAL_ACTOR_TOKEN ?? '',
+  actorSuperadminToken: process.env.E2E_933_ACTOR_SUPERADMIN_TOKEN ?? '',
+  teardownOwnerToken: process.env.E2E_933_TEARDOWN_OWNER_TOKEN ?? '',
   openshiftToken: process.env.E2E_933_OPENSHIFT_TOKEN ?? '',
   tenantA: process.env.E2E_933_TENANT_A ?? '',
   workspaceA: process.env.E2E_933_WORKSPACE_A ?? '',
@@ -85,9 +95,16 @@ const ENV = {
   operatorPassword: process.env.E2E_933_OPERATOR_PASSWORD ?? '',
   auditorUser: process.env.E2E_933_AUDITOR_USER ?? '',
   auditorPassword: process.env.E2E_933_AUDITOR_PASSWORD ?? '',
+  mcpOwnerUser: process.env.E2E_933_MCP_OWNER_USER ?? '',
+  mcpOwnerPassword: process.env.E2E_933_MCP_OWNER_PASSWORD ?? '',
   appNamespace: process.env.E2E_933_APP_NAMESPACE ?? '',
   mcpNamespaceA: process.env.E2E_933_MCP_NAMESPACE_A ?? '',
   mcpNamespaceB: process.env.E2E_933_MCP_NAMESPACE_B ?? '',
+  teardownTenant: process.env.E2E_933_TEARDOWN_TENANT ?? '',
+  teardownReadyWorkspace: process.env.E2E_933_TEARDOWN_READY_WORKSPACE ?? '',
+  teardownOutageWorkspace: process.env.E2E_933_TEARDOWN_OUTAGE_WORKSPACE ?? '',
+  teardownNamespace: process.env.E2E_933_TEARDOWN_NAMESPACE ?? '',
+  executorMetricsUrl: process.env.E2E_933_EXECUTOR_METRICS_URL ?? '',
   expectedInfrastructureName: process.env.E2E_933_EXPECTED_INFRASTRUCTURE_NAME ?? '',
   expectedInfrastructureId: process.env.E2E_933_EXPECTED_INFRASTRUCTURE_ID ?? '',
   expectedClusterUid: process.env.E2E_933_EXPECTED_CLUSTER_UID ?? '',
@@ -133,6 +150,14 @@ const REMOTE_ACCEPTANCE_ENV = [
   'E2E_933_EXTERNAL_OPERATOR_TOKEN',
   'E2E_933_DISABLED_OPERATOR_TOKEN',
   'E2E_933_DISABLED_TENANT_TOKEN',
+  'E2E_933_TENANT_REALM_OPERATOR_TOKEN',
+  'E2E_933_TENANT_REALM_AUDITOR_TOKEN',
+  'E2E_933_SAME_TENANT_WRONG_WORKSPACE_TOKEN',
+  'E2E_933_TENANT_OWNER_ONLY_TOKEN',
+  'E2E_933_TENANT_ADMIN_ONLY_TOKEN',
+  'E2E_933_INTERNAL_ACTOR_TOKEN',
+  'E2E_933_ACTOR_SUPERADMIN_TOKEN',
+  'E2E_933_TEARDOWN_OWNER_TOKEN',
   'E2E_933_TENANT_A',
   'E2E_933_WORKSPACE_A',
   'E2E_933_TENANT_B',
@@ -141,13 +166,21 @@ const REMOTE_ACCEPTANCE_ENV = [
   'E2E_933_OPERATOR_PASSWORD',
   'E2E_933_AUDITOR_USER',
   'E2E_933_AUDITOR_PASSWORD',
+  'E2E_933_MCP_OWNER_USER',
+  'E2E_933_MCP_OWNER_PASSWORD',
   'E2E_933_APP_NAMESPACE',
   'E2E_933_MCP_NAMESPACE_A',
   'E2E_933_MCP_NAMESPACE_B',
+  'E2E_933_TEARDOWN_TENANT',
+  'E2E_933_TEARDOWN_READY_WORKSPACE',
+  'E2E_933_TEARDOWN_OUTAGE_WORKSPACE',
+  'E2E_933_TEARDOWN_NAMESPACE',
   'E2E_933_METRICS_URL',
+  'E2E_933_EXECUTOR_METRICS_URL',
   'E2E_933_OUTAGE_COMMAND_JSON',
   'E2E_933_RESTART_COMMAND_JSON',
   'E2E_933_RECOVERY_COMMAND_JSON',
+  'E2E_933_MCP_REPLACEMENT_COMMAND_JSON',
 ] as const
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
@@ -327,6 +360,11 @@ function missingAcceptancePrerequisites(): string[] {
       missing.push(`${name}(strict chart-owned argv/verified-target contract)`)
     }
   }
+  try {
+    parseReplacementCommand(environmentTarget)
+  } catch {
+    missing.push('E2E_933_MCP_REPLACEMENT_COMMAND_JSON(strict chart-owned argv/verified-target contract)')
+  }
   return [...new Set(missing)]
 }
 
@@ -427,12 +465,23 @@ async function expectFunctionMutationAccepted(
   label: string,
   expectedResourceId?: string,
 ): Promise<JsonObject> {
+  const body = await expectGatewayMutationAccepted(response, label, 'functions', 'function_action')
+  if (expectedResourceId !== undefined) expect(body.resourceId).toBe(expectedResourceId)
+  return body
+}
+
+async function expectGatewayMutationAccepted(
+  response: APIResponse,
+  label: string,
+  family: 'functions' | 'mcp',
+  resourceType: 'function_action' | 'mcp_server',
+): Promise<JsonObject> {
   const body = await expectStatus(response, 202, label)
   expect(Object.keys(body).sort(), `${label} must return exactly GatewayMutationAccepted`).toEqual([...GATEWAY_MUTATION_ACCEPTED_KEYS])
   expect(body).toMatchObject({
     status: 'accepted',
-    family: 'functions',
-    resourceType: 'function_action',
+    family,
+    resourceType,
     correlationId: correlation(label),
   })
   expect(body.requestId).toEqual(expect.any(String))
@@ -442,7 +491,20 @@ async function expectFunctionMutationAccepted(
   expect(String(body.resourceId).length).toBeGreaterThan(0)
   expect(body.acceptedAt).toEqual(expect.any(String))
   expect(Number.isFinite(Date.parse(String(body.acceptedAt))), `${label} acceptedAt must be an RFC 3339 date-time`).toBeTruthy()
-  if (expectedResourceId !== undefined) expect(body.resourceId).toBe(expectedResourceId)
+  return body
+}
+
+async function expectDeniedBeforeDependency(response: APIResponse, label: string): Promise<JsonObject> {
+  const body = await jsonBody<JsonObject>(response)
+  expect([403, 404], `${label}: ${JSON.stringify(body).slice(0, 500)}`).toContain(response.status())
+  expect(JSON.stringify(body), `${label} must not disclose dependency state`).not.toMatch(/KNATIVE|READY|degraded|unavailable|runtimeDependency/i)
+  return body
+}
+
+async function expectRpcDeniedBeforeDependency(response: APIResponse, label: string): Promise<JsonObject> {
+  const body = await expectStatus(response, 200, label)
+  expect((body.error as JsonObject | undefined)?.code).toBe(-32001)
+  expect(JSON.stringify(body), `${label} must not disclose dependency state`).not.toMatch(/KNATIVE|READY|degraded|unavailable|runtimeDependency/i)
   return body
 }
 
@@ -504,6 +566,45 @@ function parseCommand(name: LifecycleCommandName, target: VerifiedTarget): Comma
     throw new Error(`${name} must use only the chart acceptance ${LIFECYCLE_OPERATION[name]} subcommand and exact verified target flags in the documented order`)
   }
   return { file, args }
+}
+
+function parseReplacementCommand(target: VerifiedTarget): CommandSpec {
+  const name = 'E2E_933_MCP_REPLACEMENT_COMMAND_JSON'
+  let value: unknown
+  try { value = JSON.parse(process.env[name] ?? '') } catch { throw new Error(`${name} must be a JSON argv array`) }
+  if (!Array.isArray(value) || !value.every((part) => typeof part === 'string' && part.length > 0)) {
+    throw new Error(`${name} must be a non-empty JSON argv array`)
+  }
+  const [file, ...args] = value as string[]
+  const expectedArgs = [
+    'acceptance', 'replacement-conflict',
+    '--api-server', target.apiUrl,
+    '--cluster-uid', target.clusterUid,
+    '--infrastructure-name', target.infrastructureName,
+    '--infrastructure-id', target.infrastructureId,
+    '--run-id', target.runId,
+    '--release', target.release,
+    '--status-namespace', target.statusNamespace,
+    '--status-configmap', target.statusConfigMap,
+  ]
+  if (file !== ENV.chartLifecycleExecutable || basename(file) !== 'falcone-knative'
+    || args.length !== expectedArgs.length || args.some((part, index) => part !== expectedArgs[index])) {
+    throw new Error(`${name} must invoke the chart-owned replacement-conflict hook for the verified target`)
+  }
+  return { file, args }
+}
+
+async function armMcpReplacementConflict(target: VerifiedTarget, namespace: string, serverId: string): Promise<void> {
+  const { file, args } = parseReplacementCommand(target)
+  await verifyLifecycleExecutable(target)
+  await execFileAsync(file, [
+    ...args,
+    '--namespace', namespace,
+    '--resource-name', `mcp-${serverId}`,
+    '--tenant-id', ENV.tenantA,
+    '--workspace-id', ENV.workspaceA,
+    '--server-id', serverId,
+  ], { timeout: 10 * 60_000, maxBuffer: 1024 * 1024, env: process.env })
 }
 
 async function runLifecycleCommand(name: LifecycleCommandName, target: VerifiedTarget): Promise<void> {
@@ -704,6 +805,17 @@ async function loginAs(page: Page, username: string, password: string, exactRole
   expect(roles, `${username} must be a constrained exact-role fixture`).toEqual([exactRole])
 }
 
+async function loginWithCredentials(page: Page, username: string, password: string): Promise<void> {
+  await page.goto(`${MANAGED_CONSOLE}/login`)
+  await page.locator('input[name="username"]').fill(username)
+  await page.locator('input[name="password"]').fill(password)
+  const [response] = await Promise.all([
+    page.waitForResponse((candidate) => candidate.url().includes('/v1/auth/login-sessions') && candidate.request().method() === 'POST'),
+    page.locator('button[type="submit"]').click(),
+  ])
+  expect(response.ok(), `console login for ${username}`).toBeTruthy()
+}
+
 function functionBody(tenantId: string, workspaceId: string, version: 'one' | 'two'): JsonObject {
   return {
     tenantId,
@@ -749,9 +861,8 @@ async function createMcp(request: APIRequestContext, token: string, workspaceId:
     source: 'instant',
     generator: 'postgres',
   })
-  const body = await expectStatus(response, 201, `MCP create ${suffix}`)
-  expect(body.serverId).toEqual(expect.any(String))
-  return String(body.serverId)
+  const body = await expectGatewayMutationAccepted(response, `mcp-create-${suffix}`, 'mcp', 'mcp_server')
+  return String(body.resourceId)
 }
 
 async function deleteBestEffort(request: APIRequestContext, token: string, path: string, label: string): Promise<void> {
@@ -785,6 +896,8 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   let functionB = ''
   let mcpA = ''
   let mcpB = ''
+  let mcpConflict = ''
+  let activationA = ''
   let rollbackVersionA = ''
   let activeVersionBeforeOutage = ''
   let functionDeleteCorrelation = ''
@@ -801,6 +914,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     if (functionB) await deleteBestEffort(request, ENV.tenantBToken, `/v1/functions/actions/${encodeURIComponent(functionB)}`, 'fallback-function-b')
     if (mcpA) await deleteBestEffort(request, ENV.mcpOwnerToken, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'fallback-mcp-a')
     if (mcpB) await deleteBestEffort(request, ENV.tenantBToken, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceB)}/servers/${encodeURIComponent(mcpB)}`, 'fallback-mcp-b')
+    if (mcpConflict) await deleteBestEffort(request, ENV.mcpOwnerToken, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpConflict)}`, 'fallback-mcp-conflict')
   })
 
   test('issue-933-01 | P18/P3: remote OpenShift 4.21 cluster-admin and chart #8 compatible managed status are real', async ({ request }) => {
@@ -865,6 +979,14 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     })
     expect(unauthenticated.status()).toBe(401)
 
+    for (const [label, token] of [
+      ['tenant-realm-copied-operator', ENV.tenantRealmOperatorToken],
+      ['tenant-realm-copied-auditor', ENV.tenantRealmAuditorToken],
+    ] as const) {
+      const copiedRole = await call(request, MANAGED_API, token, 'GET', '/v1/platform/runtime/knative', `status-${label}`)
+      await expectDeniedBeforeDependency(copiedRole, `status ${label}`)
+    }
+
     for (const persona of [
       { role: 'platform_operator', username: ENV.operatorUser, password: ENV.operatorPassword },
       { role: 'platform_auditor', username: ENV.auditorUser, password: ENV.auditorPassword },
@@ -872,11 +994,23 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
       const context = await browser.newContext()
       const page = await context.newPage()
       await loginAs(page, persona.username, persona.password, persona.role)
+      const statusRequest = page.waitForRequest((candidate) => candidate.url().endsWith('/v1/platform/runtime/knative'))
       await page.goto(`${MANAGED_CONSOLE}/console/runtime`)
+      expect((await statusRequest).headers().authorization).toMatch(/^Bearer\s+\S+/)
+      await expect(page).toHaveTitle(/Runtime de funciones/)
+      await expect(page.locator('main')).toHaveCount(1)
+      await expect(page.getByRole('link', { name: 'Runtime de funciones' })).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Runtime de funciones' })).toBeVisible()
       await expect(page.getByText('Plataforma · solo lectura')).toBeVisible()
       await expect(page.getByText('Gestionado por la plataforma')).toBeVisible()
       await expect(page.getByLabel('Estado del runtime: Listo')).toBeVisible()
+      const retry = page.getByRole('button', { name: 'Volver a comprobar' })
+      await retry.focus()
+      await retry.click()
+      await expect(page.getByText('Consultando runtime de plataforma')).toBeVisible()
+      await expect(retry).toBeVisible()
+      await expect(retry).toBeFocused()
+      await expect(page.getByRole('status')).toContainText('Estado actualizado: Listo.')
       await expect(page.getByRole('button', { name: /crear|instalar|cambiar|actualizar|eliminar|rollback|revertir/i })).toHaveCount(0)
       await context.close()
     }
@@ -927,8 +1061,25 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
         idempotencyScope: 'request',
       })
       const body = await expectStatus(invoke, 202, `Function invoke ${label}`)
-      expect(['accepted', 'queued', 'running', 'completed']).toContain(body.status)
+      expect(body.status).toBe('completed')
+      if (label === 'a') activationA = String(body.invocationId)
     }
+
+
+    expect(activationA).toMatch(/^act_/)
+    const activations = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations`, 'function-activations-a')
+    const activationItems = (await expectStatus(activations, 200, 'Function activations A')).items as JsonObject[]
+    expect(activationItems.some((item) => item.activationId === activationA)).toBe(true)
+    const activation = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(activationA)}`, 'function-activation-a')
+    expect((await expectStatus(activation, 200, 'Function activation A')).activationId).toBe(activationA)
+    const logs = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(activationA)}/logs`, 'function-logs-a')
+    expect((await expectStatus(logs, 200, 'Function logs A')).lines).toEqual(expect.any(Array))
+    const result = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(activationA)}/result`, 'function-result-a')
+    expect(await expectStatus(result, 200, 'Function result A')).toMatchObject({
+      activationId: activationA,
+      status: 'succeeded',
+      result: { version: 'one', tenantEcho: 'A' },
+    })
 
     const foreign = await call(request, MANAGED_API, ENV.tenantBToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'function-foreign-read')
     expect([403, 404]).toContain(foreign.status())
@@ -947,6 +1098,13 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     const updateLabel = 'function-update-a'
     const update = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'PATCH', `/v1/functions/actions/${encodeURIComponent(functionA)}`, updateLabel, functionBody(P8_FUNCTION_ACTOR.tenantId, P8_FUNCTION_ACTOR.workspaceId, 'two'))
     await expectFunctionMutationAccepted(update, updateLabel, functionA)
+
+    const invokeUpdated = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, 'function-invoke-updated-a', {
+      parameters: { tenantEcho: 'A-v2' }, responseMode: 'wait_for_result', idempotencyScope: 'request',
+    })
+    const updatedInvocation = await expectStatus(invokeUpdated, 202, 'updated Function invoke')
+    const updatedResult = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(String(updatedInvocation.invocationId))}/result`, 'function-result-updated-a')
+    expect(await expectStatus(updatedResult, 200, 'updated Function result')).toMatchObject({ result: { version: 'two', tenantEcho: 'A-v2' } })
 
     const versionsResponse = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/versions`, 'function-versions-a')
     const versionsBody = await expectStatus(versionsResponse, 200, 'Function versions')
@@ -969,6 +1127,13 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     const detail = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'function-detail-after-rollback')
     const detailBody = await expectStatus(detail, 200, 'Function detail after rollback')
     expect(detailBody.activeVersionId).toBe(rollbackVersionA)
+
+    const invokeRolledBack = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, 'function-invoke-rolled-back-a', {
+      parameters: { tenantEcho: 'A-rollback' }, responseMode: 'wait_for_result', idempotencyScope: 'request',
+    })
+    const rolledBackInvocation = await expectStatus(invokeRolledBack, 202, 'rolled-back Function invoke')
+    const rolledBackResult = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(String(rolledBackInvocation.invocationId))}/result`, 'function-result-rolled-back-a')
+    expect(await expectStatus(rolledBackResult, 200, 'rolled-back Function result')).toMatchObject({ result: { version: 'one', tenantEcho: 'A-rollback' } })
   })
 
   test('issue-933-06 | P7/P12/P13: same-name hosted MCP publish/activate/JSON-RPC and isolation work', async ({ request }) => {
@@ -994,7 +1159,17 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     })
     const listBody = await expectStatus(listTools, 200, 'MCP tools/list ready')
     expect(listBody).toMatchObject({ jsonrpc: '2.0', id: 93301 })
-    expect(((listBody.result as JsonObject).tools as JsonObject[]).length).toBeGreaterThan(0)
+    const tools = (listBody.result as JsonObject).tools as JsonObject[]
+    expect(tools.length).toBeGreaterThan(0)
+    const hostedToolName = String(tools[0].name)
+
+    const hostedCall = await call(request, MANAGED_API, ENV.mcpConsumerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/tool-calls`, 'mcp-hosted-tool-call-ready', {
+      name: hostedToolName,
+      arguments: { workspaceId: ENV.workspaceA },
+    })
+    const hostedCallBody = await expectStatus(hostedCall, 200, 'MCP hosted tool call ready')
+    expect(hostedCallBody.isError).toBe(false)
+    expect(hostedCallBody.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'text' })]))
 
     const foreign = await call(request, MANAGED_API, ENV.tenantBToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/rpc`, 'mcp-foreign-ready', {
       jsonrpc: '2.0', id: 93302, method: 'ping', params: {},
@@ -1004,9 +1179,13 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     if (foreign.status() === 200) expect((foreignBody.error as JsonObject).code).toBe(-32001)
     expect(JSON.stringify(foreignBody)).not.toMatch(/KNATIVE|READY|degraded|unavailable|tenant-a/i)
 
-    for (const [namespace, serverId] of [[ENV.mcpNamespaceA, mcpA], [ENV.mcpNamespaceB, mcpB]]) {
+    for (const [namespace, tenantId, serverId] of [[ENV.mcpNamespaceA, ENV.tenantA, mcpA], [ENV.mcpNamespaceB, ENV.tenantB, mcpB]]) {
       const ksvc = await openshiftFetch(request, 'GET', `/apis/serving.knative.dev/v1/namespaces/${encodeURIComponent(namespace)}/services/${encodeURIComponent(`mcp-${serverId}`)}`)
-      expect(ksvc.status(), `hosted MCP ${serverId} must own a real Knative Service`).toBe(200)
+      const ksvcBody = await expectStatus(ksvc, 200, `hosted MCP ${serverId} must own a real Knative Service`)
+      expect((ksvcBody.metadata as JsonObject).labels).toMatchObject({
+        'in-falcone.io/tenant': tenantId,
+        'in-falcone.io/mcp-server': serverId,
+      })
     }
   })
 
@@ -1025,7 +1204,25 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     expect(pingBody).toEqual({ jsonrpc: '2.0', id: 93303, result: {} })
   })
 
-  test('issue-933-08 | P3/P8/P7/P12/P13: outage contracts are exact and tenant-safe', async ({ request }) => {
+  test('issue-933-07b | P7/P18: replacement conflict retains MCP ownership and replay safely removes the replacement', async ({ request }) => {
+    expect(verifiedTarget, 'live target identity must be verified before the chart acceptance hook runs').not.toBeNull()
+    mcpConflict = await createMcp(request, ENV.mcpOwnerToken, ENV.workspaceA, 'replacement-conflict')
+    const publish = await call(request, MANAGED_API, ENV.mcpOwnerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpConflict)}/versions`, 'mcp-conflict-publish', { version: 'v1' })
+    await expectStatus(publish, 201, 'replacement-conflict MCP publish')
+    await armMcpReplacementConflict(verifiedTarget!, ENV.mcpNamespaceA, mcpConflict)
+
+    const firstDelete = await call(request, MANAGED_API, ENV.mcpOwnerToken, 'DELETE', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpConflict)}`, 'mcp-conflict-delete-first')
+    expect(await expectStatus(firstDelete, 202, 'replacement-conflict first delete')).toMatchObject({ status: 'deletion_pending' })
+    const retained = await call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpConflict)}`, 'mcp-conflict-retained')
+    expect(await expectStatus(retained, 200, 'replacement-conflict retained detail')).toMatchObject({ lifecycleStatus: 'deletion_pending' })
+
+    const replay = await call(request, MANAGED_API, ENV.mcpOwnerToken, 'DELETE', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpConflict)}`, 'mcp-conflict-delete-replay')
+    expect([200, 204]).toContain(replay.status())
+    await expect.poll(async () => (await call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpConflict)}`, 'mcp-conflict-gone')).status()).toBe(404)
+    mcpConflict = ''
+  })
+
+  test('issue-933-08 | P3/P8/P7/P12/P13: outage contracts are exact and tenant-safe', async ({ browser, request }) => {
     expectP8FunctionActorClaims(P8_FUNCTION_ACTOR)
     expect(verifiedTarget, 'live target identity must be verified before outage').not.toBeNull()
     await runLifecycleCommand('E2E_933_OUTAGE_COMMAND_JSON', verifiedTarget!)
@@ -1036,6 +1233,61 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
       timeout: 5 * 60_000,
       intervals: [500, 1_000, 2_000, 5_000],
     }).not.toBe('ready')
+
+    const wrongClaims = jwtPayload(ENV.sameTenantWrongWorkspaceToken)
+    if (typeof wrongClaims.tenant_id === 'string') expect(wrongClaims.tenant_id).toBe(ENV.tenantA)
+    else expect(String(wrongClaims.iss ?? '').split('/').filter(Boolean).at(-1)).toBe(ENV.tenantA)
+    expect([
+      ...(typeof wrongClaims.workspace_id === 'string' ? [wrongClaims.workspace_id] : []),
+      ...(Array.isArray(wrongClaims.workspace_ids) ? wrongClaims.workspace_ids.map(String) : []),
+    ]).not.toContain(ENV.workspaceA)
+
+    const wrongWorkspaceFunctionRequests: Array<[string, 'GET' | 'POST' | 'PATCH' | 'DELETE', string, JsonObject | undefined]> = [
+      ['detail', 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, undefined],
+      ['versions', 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/versions`, undefined],
+      ['activations', 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations`, undefined],
+      ['activation', 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(activationA)}`, undefined],
+      ['logs', 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(activationA)}/logs`, undefined],
+      ['result', 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}/activations/${encodeURIComponent(activationA)}/result`, undefined],
+      ['invoke', 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/invocations`, { parameters: {}, responseMode: 'accepted' }],
+      ['update', 'PATCH', `/v1/functions/actions/${encodeURIComponent(functionA)}`, functionBody(ENV.tenantA, ENV.workspaceA, 'two')],
+      ['rollback', 'POST', `/v1/functions/actions/${encodeURIComponent(functionA)}/rollback`, { versionId: rollbackVersionA }],
+      ['delete', 'DELETE', `/v1/functions/actions/${encodeURIComponent(functionA)}`, undefined],
+      ['create', 'POST', '/v1/functions/actions', { ...functionBody(ENV.tenantA, ENV.workspaceA, 'one'), actionName: `${SAME_NAME}-wrong-workspace` }],
+    ]
+    for (const [operation, method, path, data] of wrongWorkspaceFunctionRequests) {
+      const response = await call(request, MANAGED_API, ENV.sameTenantWrongWorkspaceToken, method, path, `wrong-workspace-function-${operation}`, data)
+      await expectDeniedBeforeDependency(response, `same-tenant wrong-workspace Function ${operation}`)
+    }
+
+    for (const [actor, token] of [
+      ['tenant-owner-only', ENV.tenantOwnerOnlyToken],
+      ['tenant-admin-only', ENV.tenantAdminOnlyToken],
+      ['platform-operator', ENV.operatorToken],
+      ['internal-actor', ENV.internalActorToken],
+      ['actor-superadmin', ENV.actorSuperadminToken],
+    ] as const) {
+      const response = await call(request, MANAGED_API, token, 'POST', '/v1/functions/actions', `function-bypass-${actor}`, {
+        ...functionBody(ENV.tenantA, ENV.workspaceA, 'one'), actionName: `${SAME_NAME}-${actor}`.slice(0, 63),
+      })
+      await expectDeniedBeforeDependency(response, `Function ${actor} bypass`)
+    }
+
+    for (const [operation, method, suffix, data] of [
+      ['detail', 'GET', '', undefined],
+      ['publish', 'POST', '/versions', { version: 'v2' }],
+      ['activate', 'POST', '/versions/v1/approval', undefined],
+      ['tool-call', 'POST', '/tool-calls', { name: 'query_items', arguments: {} }],
+      ['delete', 'DELETE', '', undefined],
+    ] as const) {
+      const response = await call(request, MANAGED_API, ENV.sameTenantWrongWorkspaceToken, method, `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}${suffix}`, `wrong-workspace-mcp-${operation}`, data)
+      await expectDeniedBeforeDependency(response, `same-tenant wrong-workspace MCP ${operation}`)
+    }
+    const wrongWorkspaceRpc = await call(request, MANAGED_API, ENV.sameTenantWrongWorkspaceToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/rpc`, 'wrong-workspace-mcp-rpc', {
+      jsonrpc: '2.0', id: 93308, method: 'tools/call', params: { name: 'query_items', arguments: {} },
+    })
+    if (wrongWorkspaceRpc.status() === 200) await expectRpcDeniedBeforeDependency(wrongWorkspaceRpc, 'same-tenant wrong-workspace MCP RPC')
+    else await expectDeniedBeforeDependency(wrongWorkspaceRpc, 'same-tenant wrong-workspace MCP RPC')
 
     const createLabel = 'outage-function-create'
     const create = await call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'POST', '/v1/functions/actions', createLabel, {
@@ -1102,6 +1354,18 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     expect([403, 404, 200]).toContain(foreign.status())
     if (foreign.status() === 200) expect((foreignBody.error as JsonObject).code).toBe(-32001)
     expect(JSON.stringify(foreignBody)).not.toContain('KNATIVE')
+
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await loginWithCredentials(page, ENV.mcpOwnerUser, ENV.mcpOwnerPassword)
+    await page.goto(`${MANAGED_CONSOLE}/console/mcp/servers/${encodeURIComponent(mcpA)}`)
+    const workspaceSelect = page.getByTestId('console-context-workspace-select')
+    if (await workspaceSelect.isVisible().catch(() => false)) await workspaceSelect.selectOption(ENV.workspaceA)
+    await expect(page.getByTestId('mcp-server-detail')).toBeVisible()
+    await page.getByRole('tab', { name: 'Área de pruebas' }).click()
+    await expect(page.getByRole('button', { name: 'Invocar' })).toBeDisabled()
+    await expect(page.getByRole('status')).toContainText(/runtime Hosted MCP no está disponible/i)
+    await context.close()
   })
 
   test('issue-933-09 | P8/P7: outage delete is 202 deletion_pending and replay keeps one correlation', async ({ request }) => {
@@ -1180,30 +1444,135 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     expect([404, 410]).toContain(mcpRuntimeB.status())
   })
 
+  test('issue-933-10b | P1/P7/P8/P13: ready workspace teardown removes only its owned logical and runtime state', async ({ request }) => {
+    const actor: FunctionActorFixture = {
+      persona: 'P8', token: ENV.teardownOwnerToken,
+      tenantId: ENV.teardownTenant, workspaceId: ENV.teardownReadyWorkspace,
+    }
+    const functionId = await createFunction(request, actor, 'teardown-ready')
+    const serverId = await createMcp(request, ENV.teardownOwnerToken, ENV.teardownReadyWorkspace, 'teardown-ready')
+    await expectStatus(await call(request, MANAGED_API, ENV.teardownOwnerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.teardownReadyWorkspace)}/servers/${encodeURIComponent(serverId)}/versions`, 'teardown-ready-mcp-publish', { version: 'v1' }), 201, 'ready teardown MCP publish')
+
+    const adjacentBefore = await Promise.all([
+      call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'ready-teardown-adjacent-function-before').then((response) => response.text()),
+      call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'ready-teardown-adjacent-mcp-before').then((response) => response.text()),
+    ])
+    const deleted = await call(request, MANAGED_API, ENV.teardownOwnerToken, 'DELETE', `/v1/workspaces/${encodeURIComponent(ENV.teardownReadyWorkspace)}`, 'teardown-ready-workspace')
+    const deletedBody = await expectStatus(deleted, 200, 'ready workspace teardown')
+    expect(deletedBody).toMatchObject({ workspaceId: ENV.teardownReadyWorkspace, tenantId: ENV.teardownTenant, deleted: true })
+    expect((deletedBody.residual as JsonObject | undefined)?.knativeServices ?? []).toEqual([])
+    expect((await call(request, MANAGED_API, ENV.teardownOwnerToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionId)}`, 'teardown-ready-function-gone')).status()).toBe(404)
+    expect((await call(request, MANAGED_API, ENV.teardownOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.teardownReadyWorkspace)}/servers/${encodeURIComponent(serverId)}`, 'teardown-ready-mcp-gone')).status()).toBe(404)
+
+    const functionSelector = encodeURIComponent(`in-falcone.io/tenant=${ENV.teardownTenant},in-falcone.io/function-resource=${functionId}`)
+    const mcpSelector = encodeURIComponent(`in-falcone.io/tenant=${ENV.teardownTenant},in-falcone.io/mcp-server=${serverId}`)
+    expect(await listClusterResources(request, `/apis/serving.knative.dev/v1/namespaces/${encodeURIComponent(ENV.appNamespace)}/services?labelSelector=${functionSelector}`)).toHaveLength(0)
+    expect(await listClusterResources(request, `/apis/serving.knative.dev/v1/namespaces/${encodeURIComponent(ENV.teardownNamespace)}/services?labelSelector=${mcpSelector}`)).toHaveLength(0)
+    const adjacentAfter = await Promise.all([
+      call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'ready-teardown-adjacent-function-after').then((response) => response.text()),
+      call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'ready-teardown-adjacent-mcp-after').then((response) => response.text()),
+    ])
+    expect(adjacentAfter).toEqual(adjacentBefore)
+  })
+
+  test('issue-933-10c | P1/P3/P7/P8/P13: outage tenant purge retains owner state, then recovery finalizes idempotently', async ({ request }) => {
+    expect(verifiedTarget, 'live target identity must be verified before outage teardown').not.toBeNull()
+    const actor: FunctionActorFixture = {
+      persona: 'P8', token: ENV.teardownOwnerToken,
+      tenantId: ENV.teardownTenant, workspaceId: ENV.teardownOutageWorkspace,
+    }
+    const functionId = await createFunction(request, actor, 'teardown-outage')
+    const serverId = await createMcp(request, ENV.teardownOwnerToken, ENV.teardownOutageWorkspace, 'teardown-outage')
+    await expectStatus(await call(request, MANAGED_API, ENV.teardownOwnerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.teardownOutageWorkspace)}/servers/${encodeURIComponent(serverId)}/versions`, 'teardown-outage-mcp-publish', { version: 'v1' }), 201, 'outage teardown MCP publish')
+    await expectStatus(await call(request, MANAGED_API, ENV.teardownOwnerToken, 'DELETE', `/v1/tenants/${encodeURIComponent(ENV.teardownTenant)}`, 'teardown-tenant-soft-delete'), 200, 'teardown tenant soft delete')
+
+    await runLifecycleCommand('E2E_933_OUTAGE_COMMAND_JSON', verifiedTarget!)
+    outageApplied = true
+    await expect.poll(async () => (await getRuntime(request, MANAGED_API, ENV.operatorToken, 'aggregate-outage-poll')).state).not.toBe('ready')
+    const adjacentDuringOutage = await Promise.all([
+      call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'aggregate-adjacent-function-outage-before').then((response) => response.text()),
+      call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'aggregate-adjacent-mcp-outage-before').then((response) => response.text()),
+    ])
+
+    const pending = await call(request, MANAGED_API, ENV.teardownOwnerToken, 'POST', `/v1/tenants/${encodeURIComponent(ENV.teardownTenant)}/purge`, 'teardown-tenant-purge-pending')
+    const pendingBody = await expectStatus(pending, 202, 'outage tenant purge pending')
+    expect(pendingBody).toMatchObject({ tenantId: ENV.teardownTenant, status: 'cleanup_pending' })
+    expect(pendingBody.obligations).toEqual(expect.any(Array))
+    expect((pendingBody.obligations as Json[]).length).toBeGreaterThanOrEqual(2)
+    expect(await expectStatus(await call(request, MANAGED_API, ENV.teardownOwnerToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionId)}`, 'aggregate-pending-function'), 200, 'aggregate pending Function')).toMatchObject({ status: 'deletion_pending' })
+    expect(await expectStatus(await call(request, MANAGED_API, ENV.teardownOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.teardownOutageWorkspace)}/servers/${encodeURIComponent(serverId)}`, 'aggregate-pending-mcp'), 200, 'aggregate pending MCP')).toMatchObject({ lifecycleStatus: 'deletion_pending' })
+    const replayPending = await call(request, MANAGED_API, ENV.teardownOwnerToken, 'POST', `/v1/tenants/${encodeURIComponent(ENV.teardownTenant)}/purge`, 'teardown-tenant-purge-pending-replay')
+    expect(await expectStatus(replayPending, 202, 'outage tenant purge replay')).toMatchObject({ status: 'cleanup_pending' })
+    const adjacentAfterPending = await Promise.all([
+      call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'aggregate-adjacent-function-outage-after').then((response) => response.text()),
+      call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'aggregate-adjacent-mcp-outage-after').then((response) => response.text()),
+    ])
+    expect(adjacentAfterPending).toEqual(adjacentDuringOutage)
+
+    await runLifecycleCommand('E2E_933_RECOVERY_COMMAND_JSON', verifiedTarget!)
+    outageApplied = false
+    await expect.poll(async () => (await getRuntime(request, MANAGED_API, ENV.operatorToken, 'aggregate-recovery-poll')).state).toBe('ready')
+    const adjacentBeforeFinal = await Promise.all([
+      call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'aggregate-adjacent-function-ready-before').then((response) => response.text()),
+      call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'aggregate-adjacent-mcp-ready-before').then((response) => response.text()),
+    ])
+    const finalized = await call(request, MANAGED_API, ENV.teardownOwnerToken, 'POST', `/v1/tenants/${encodeURIComponent(ENV.teardownTenant)}/purge`, 'teardown-tenant-purge-final')
+    expect(await expectStatus(finalized, 200, 'recovered tenant purge')).toMatchObject({ tenantId: ENV.teardownTenant, purged: true })
+    expect((await call(request, MANAGED_API, ENV.teardownOwnerToken, 'GET', `/v1/functions/actions/${encodeURIComponent(functionId)}`, 'aggregate-final-function-gone')).status()).toBe(404)
+    expect((await call(request, MANAGED_API, ENV.teardownOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.teardownOutageWorkspace)}/servers/${encodeURIComponent(serverId)}`, 'aggregate-final-mcp-gone')).status()).toBe(404)
+    const terminalReplay = await call(request, MANAGED_API, ENV.teardownOwnerToken, 'POST', `/v1/tenants/${encodeURIComponent(ENV.teardownTenant)}/purge`, 'teardown-tenant-purge-terminal-replay')
+    expect(terminalReplay.status()).toBe(404)
+    const adjacentAfterFinal = await Promise.all([
+      call(request, MANAGED_API, P8_FUNCTION_ACTOR.token, 'GET', `/v1/functions/actions/${encodeURIComponent(functionA)}`, 'aggregate-adjacent-function-ready-after').then((response) => response.text()),
+      call(request, MANAGED_API, ENV.mcpOwnerToken, 'GET', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}`, 'aggregate-adjacent-mcp-ready-after').then((response) => response.text()),
+    ])
+    expect(adjacentAfterFinal).toEqual(adjacentBeforeFinal)
+  })
+
   test('issue-933-11 | P10/P3: outage, pending, and recovery share correlation-safe audit/metrics', async ({ request }) => {
+    for (const [label, token] of [
+      ['copied-operator', ENV.tenantRealmOperatorToken],
+      ['copied-auditor', ENV.tenantRealmAuditorToken],
+    ] as const) {
+      const denied = await call(request, MANAGED_API, token, 'GET', `/v1/metrics/workspaces/${encodeURIComponent(ENV.workspaceB)}/audit-records?page[size]=1`, `metrics-${label}`)
+      await expectDeniedBeforeDependency(denied, `tenant-realm ${label} audit`)
+    }
     for (const [token, workspaceId, correlationId, label] of [
-      [ENV.tenantBToken, ENV.workspaceB, functionDeleteCorrelation, 'function'],
-      [ENV.tenantBToken, ENV.workspaceB, mcpDeleteCorrelation, 'mcp'],
+      [ENV.auditorToken, ENV.workspaceB, functionDeleteCorrelation, 'function-auditor'],
+      [ENV.operatorToken, ENV.workspaceB, mcpDeleteCorrelation, 'mcp-operator'],
     ]) {
       const audit = await call(request, MANAGED_API, token, 'GET', `/v1/metrics/workspaces/${encodeURIComponent(workspaceId)}/audit-records?filter[correlationId]=${encodeURIComponent(correlationId)}&page[size]=100`, `audit-${label}`)
       const auditBody = await expectStatus(audit, 200, `${label} correlated audit`)
-      expect(JSON.stringify(auditBody)).toContain(correlationId)
+      const items = auditBody.items as JsonObject[]
+      expect(items.length).toBeGreaterThan(0)
+      expect(items.every((item) => item.correlationId === correlationId)).toBe(true)
+      expect(items.every((item) => (item.scope as JsonObject)?.tenantId === ENV.tenantB && (item.scope as JsonObject)?.workspaceId === ENV.workspaceB)).toBe(true)
       expect(JSON.stringify(auditBody)).not.toMatch(/authorization|bearer|password|secret|status\.json|inlineCode/i)
     }
 
-    const metrics = await request.get(METRICS_URL, { failOnStatusCode: false })
-    expect(metrics.status()).toBe(200)
-    const text = await metrics.text()
-    expect(text).toContain('falcone_knative_dependency_events_total')
-    expect(text).toMatch(/capability="function"[^\n]*operation="delete"[^\n]*result="deferred"/)
-    expect(text).toMatch(/capability="mcp"[^\n]*operation="delete"[^\n]*result="deferred"/)
-    expect(text).toMatch(/operation="cleanup"[^\n]*result="recovered"/)
-    expect(text).not.toContain(ENV.tenantA)
-    expect(text).not.toContain(ENV.tenantB)
-    expect(text).not.toContain(ENV.workspaceA)
-    expect(text).not.toContain(ENV.workspaceB)
-    expect(text).not.toContain(functionA)
-    expect(text).not.toContain(mcpA)
+    const scrapes: string[] = []
+    for (const [persona, token, url] of [
+      ['P10 platform auditor', ENV.auditorToken, METRICS_URL],
+      ['P3 platform operator', ENV.operatorToken, ENV.executorMetricsUrl],
+    ] as const) {
+      const metrics = await request.get(url, { headers: { authorization: `Bearer ${token}` }, failOnStatusCode: false })
+      expect(metrics.status(), `${persona} metrics scrape`).toBe(200)
+      const text = await metrics.text()
+      scrapes.push(text)
+      expect(text).toMatch(/falcone_(?:mcp_)?knative_dependency_events_total/)
+      expect(text).not.toMatch(/(?:tenant|workspace|function|server|correlation|actor|resource)_id\s*=/i)
+      for (const identifier of [
+        ENV.tenantA, ENV.tenantB, ENV.workspaceA, ENV.workspaceB,
+        functionA, mcpA, functionDeleteCorrelation, mcpDeleteCorrelation,
+        String(jwtPayload(ENV.operatorToken).sub ?? ''), String(jwtPayload(ENV.auditorToken).sub ?? ''),
+      ].filter(Boolean)) expect(text, `${persona} scrape leaked ${identifier}`).not.toContain(identifier)
+      for (const route of [...text.matchAll(/route="([^"]+)"/g)].map((match) => match[1])) {
+        expect(route).not.toMatch(/corr-933|srv-|act_|res_fn_|\/[^/]*(?:tenant|workspace)[^/]*/i)
+      }
+    }
+    const combined = scrapes.join('\n')
+    expect(combined).toMatch(/operation="delete"[^\n]*(?:result|outcome)="deferred"/)
+    expect(combined).toMatch(/operation="cleanup"[^\n]*(?:result|outcome)="recovered"/)
   })
 
   test('issue-933-12 | P8/P7/P18: public deletion removes all issue resources, compute, RBAC, and networking', async ({ request }) => {
