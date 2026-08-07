@@ -17,6 +17,35 @@ revision, endpoint, logs, source, owner, or cleanup queue.
 
 There is no HTTP mode mutation route. Mode and readiness come from installer/chart configuration.
 
+## Supported prerequisite and evidence provenance
+
+The [current installation guide](../../../docs-site/guide/installation.md#chart-shape) remains the
+supported prerequisite: OpenShift uses the OpenShift Serverless Operator and an administrator-owned
+`KnativeServing`; the repository's kind manifests are development-only. The
+[managed integration page](../../installation/managed-knative-proposed.md) is a proposal, not a
+replacement installation procedure.
+
+Coordinated managed delivery is tracked by
+[`gntik-ai/falcone#933`](https://github.com/gntik-ai/falcone/issues/933) and
+[`gntik-ai/falcone-charts#8`](https://github.com/gntik-ai/falcone-charts/issues/8). Chart issue #8 is
+open and unimplemented. There is no authorized disposable remote OpenShift 4.21 or Kubernetes 1.34
+cluster-admin target, so clean-install, upgrade, rollback, `restricted-v2`, and cleanup acceptance
+have not run and release availability remains blocked.
+
+This reference is grounded in the
+[OpenSpec proposal](../../../openspec/changes/add-managed-knative-serving/proposal.md), the
+[hosted MCP requirements](../../../openspec/changes/add-managed-knative-serving/specs/mcp/spec.md),
+and the source-level
+[managed Knative black-box tests](../../../tests/blackbox/managed-knative/). In particular, the
+stable test IDs used for this review include `bbx-933-mcp-rpc-response-31`,
+`bbx-933-mcp-external-canary-response-36`, `bbx-933-mcp-route-errors-33`,
+`bbx-933-mcp-central-audit`, `bbx-933-mcp-plural-workspace-binding-27`,
+`bbx-933-mcp-cleaner-production-list-28` through `bbx-933-mcp-cleanup-api-retention-31`,
+`bbx-933-mcp-runtime-wire-context-32`, and `bbx-933-mcp-review-reconcile-33`. Source revision
+`d27065f0` was the documentation review point; it is evidence provenance, not a release, chart,
+support, or compatibility version. The real-stack `issue-933-*` Playwright scenarios remain
+acceptance specifications rather than live proof while the external prerequisites are blocked.
+
 ## Read-only platform route
 
 ```http
@@ -165,6 +194,8 @@ POST /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc
 The curation operation is a workspace-scoped, bearer-authenticated public API. It applies tool
 enablement, description overrides, and per-tool scopes to the generated draft, then returns the
 curated tools and bounded publish-gate violations; it does not itself publish or activate a version.
+Because curation is a product mutation, callers must also send an `Idempotency-Key` together with
+`X-API-Version` and `X-Correlation-Id`.
 Its authoritative OpenAPI operation, generated MCP family, route catalog, and
 [public API surface](./public-api-surface.md#mcp) are generated from the same contract.
 
@@ -186,6 +217,62 @@ verified caller context. It removes top-level `tenantId`, `tenant_id`, `workspac
 ownership boundary. The remaining arguments, tool name, and request ID are preserved. Runtime
 errors remain bounded MCP/HTTP errors; they do not replace the server-derived authorization
 context with caller input.
+
+Hosted tool invocation requires the caller's granted `mcp:invoke` scope. A mutating published tool
+also requires its curated tool-specific scope. Curation or server ownership cannot synthesize either
+scope for a later caller.
+
+### JSON-RPC unavailable contract
+
+When `MCP_ENABLED=true`, the hosted routes exist independently of Knative readiness. An
+authenticated, owner-scoped JSON-RPC request whose selected runtime is `unverified`, `degraded`,
+`unavailable`, or `disabled` receives HTTP `200` with this exact error shape:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 93304,
+  "error": {
+    "code": -32005,
+    "message": "Hosted MCP runtime is unavailable.",
+    "data": {
+      "code": "KNATIVE_UNAVAILABLE",
+      "state": "degraded",
+      "reason": "CONTROL_PLANE_NOT_READY",
+      "correlationId": "corr-outage-mcp-rpc"
+    }
+  }
+}
+```
+
+`state`, `reason`, and `correlationId` reflect the normalized dependency and request, but the error
+code and message are fixed. The response contains no fabricated `result`. Knative `state: disabled`
+in this contract means hosting is enabled but the selected runtime mode is disabled; it is distinct
+from `MCP_ENABLED=false`. With MCP hosting disabled, the engine is not registered and `/v1/mcp/*`
+falls through as an absent route rather than returning `KNATIVE_UNAVAILABLE`.
+
+Authentication, structural role/workspace binding, and tenant-safe server ownership run before the
+dependency gate. Missing authentication remains HTTP `401`; a wrong workspace or foreign/missing
+server preserves its `403`, `404`, or JSON-RPC `-32001` tenant-safe outcome and discloses no Knative
+state. Only after these checks does runtime unavailability produce `-32005`.
+
+For an authenticated notification without an `id` sent while the server is unavailable, Falcone
+records the correlated unavailable audit event, invokes no tool, and returns HTTP `202` with an
+empty body. JSON-RPC notifications never receive an error object.
+
+Operators and authorized auditors can follow an event through either the server-local audit read
+or the unified workspace/correlation surfaces:
+
+```http
+GET /v1/mcp/workspaces/{workspaceId}/servers/{serverId}/audit
+GET /v1/metrics/workspaces/{workspaceId}/audit-records?filter[correlationId]={correlationId}
+GET /v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}
+```
+
+The unified tenant variants are available at `/v1/metrics/tenants/{tenantId}/audit-records` and
+`/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}`. Each query remains scoped by
+the verified platform/tenant/workspace authorization; a copied tenant-realm operator/auditor role
+does not grant platform audit access.
 
 ## Outage deletion and recovery
 
@@ -246,6 +333,30 @@ observability access; tenant-realm copied roles do not. Audit queries support th
 filter so cleanup and dependency transitions can be followed without exposing secrets.
 
 ## Troubleshooting
+
+### Distinguish hosting disabled from runtime unavailable
+
+- If `MCP_ENABLED=false`, `/v1/mcp/*` is not registered. An absent-route response is intentional
+  hosting disablement; do not diagnose it as a Knative outage.
+- If MCP hosting is enabled and `KNATIVE_RUNTIME_MODE=disabled`, stored metadata/audit routes remain
+  addressable, while a hosted JSON-RPC request returns `-32005` with `state: disabled`.
+- In external mode, `state: unverified` plus an `EXTERNAL_CANARY_*` reason means hosting exists but
+  the administrator-supplied canary has not proved the runtime. In managed mode, `unavailable` or
+  `degraded` reports a closed source-of-truth gate. An authorized platform operator can confirm the
+  normalized mode/state/reason with `GET /v1/platform/runtime/knative`; tenant developers receive
+  only the bounded `runtimeDependency` on their own resource.
+
+### Distinguish cleanup pending from complete
+
+HTTP `202` with `deletion_pending` is acceptance of a durable obligation, not proof that Kubernetes
+resources are gone. While pending, Function detail continues to return
+`status: deletion_pending`; hosted MCP detail returns `lifecycleStatus: deletion_pending`; and
+aggregate tenant/capability teardown remains incomplete. Reuse the returned correlation ID with the
+workspace audit endpoints above. Cleanup is complete only after owner-scoped absence verification,
+the logical record is no longer readable, and the correlated recovery/completion audit is present.
+Do not manually delete the logical owner or obligation to silence a pending state.
+
+### Runtime status errors
 
 For `STATUS_FILE_UNAVAILABLE`, verify that the chart mounted the configured absolute path and uses
 an atomic file replacement. Do not paste file contents into tickets if they contain fields outside
