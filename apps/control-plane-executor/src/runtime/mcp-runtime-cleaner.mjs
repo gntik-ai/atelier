@@ -27,7 +27,7 @@ export function createMcpRuntimeCleaner({
   readFile = (path) => readFileSync(path),
   apiBase = defaultApiBase(env),
 } = {}) {
-  const requestDelete = fetchImpl ?? ((url, init) => new Promise((resolve, reject) => {
+  const request = fetchImpl ?? ((url, init) => new Promise((resolve, reject) => {
     const request = https.request(new URL(url), {
       method: init.method,
       headers: init.headers,
@@ -57,17 +57,24 @@ export function createMcpRuntimeCleaner({
       `/apis/networking.k8s.io/v1/namespaces/${namespace}/networkpolicies`,
     ];
     for (const path of resources) {
-      const response = await requestDelete(`${apiBase}${path}?labelSelector=${selector}`, {
-        method: 'DELETE',
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background' }),
-        ca,
-      });
-      if (![200, 202, 404].includes(response.status)) {
+      const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+      const listed = await request(`${apiBase}${path}?labelSelector=${selector}`, { method: 'GET', headers, ca });
+      if (listed.status === 404) continue;
+      const items = listed.body?.items ?? listed.items ?? [];
+      for (const item of items) {
+        const labels = item.metadata?.labels ?? {};
+        if (labels['in-falcone.io/tenant'] !== namespace || labels['in-falcone.io/mcp-server'] !== serverId) continue;
+        const name = encodeURIComponent(item.metadata?.name ?? '');
+        const response = await request(`${apiBase}${path}/${name}`, {
+          method: 'DELETE', headers, ca,
+          body: JSON.stringify({ apiVersion: 'v1', kind: 'DeleteOptions', propagationPolicy: 'Background', preconditions: { uid: item.metadata.uid, resourceVersion: item.metadata.resourceVersion } }),
+        });
+        if (![200, 202, 404, 409].includes(response.status)) {
         throw Object.assign(new Error(`Kubernetes hosted MCP cleanup failed with ${response.status}`), {
           code: 'MCP_RUNTIME_DELETE_FAILED',
           statusCode: response.status,
         });
+        }
       }
     }
     return { deleted: true, tenantId: namespace, serverId };

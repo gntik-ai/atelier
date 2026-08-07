@@ -27,6 +27,7 @@ import { createSaRevocationCheck } from './sa-revocation.mjs';
 import { createMcpEngine } from './mcp-engine.mjs';
 import { createMcpPostgresStore } from './mcp-pg-store.mjs';
 import { createMcpRuntimeCleaner } from './mcp-runtime-cleaner.mjs';
+import { createMcpRuntimeAdapter } from './mcp-runtime-adapter.mjs';
 import { createKnativeRuntimeSource } from '../../../../apps/control-plane/knative-runtime.mjs';
 import { createRuntimeCleanupRepository, recoverMcpCleanupObligations } from '../../../../apps/control-plane/runtime-cleanup-repository.mjs';
 import { withPostgresSsl, resolveKafkaSecurity } from '../../../../packages/internal-contracts/src/transport-security.mjs';
@@ -352,6 +353,7 @@ const mcpStateStore = createMcpPostgresStore({ pool: keyPool });
 const knativeRuntime = createKnativeRuntimeSource();
 const runtimeCleanupRepository = createRuntimeCleanupRepository(keyPool);
 const mcpRuntimeCleaner = createMcpRuntimeCleaner();
+const mcpRuntimeAdapter = createMcpRuntimeAdapter();
 const mcpEngine = process.env.MCP_ENABLED === 'true'
   ? createMcpEngine({
       selfBaseUrl: process.env.MCP_SELF_BASE_URL ?? `http://127.0.0.1:${PORT}`,
@@ -360,6 +362,8 @@ const mcpEngine = process.env.MCP_ENABLED === 'true'
       runtimeImageDigest: process.env.MCP_RUNTIME_IMAGE_DIGEST,
       store: mcpStateStore,
       cleanupRepository: runtimeCleanupRepository,
+      mcpRuntimeAdapter,
+      auditSink: async (event) => { console.info(JSON.stringify({ type: 'audit', ...event })); },
     })
   : undefined;
 
