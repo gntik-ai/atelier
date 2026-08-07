@@ -167,6 +167,7 @@ function ctx(pool, { identity = OWNER, actionId = 'res_fn_1', deleteKnativeServi
     params: { actionId },
     identity,
     callerContext: { correlationId: 'corr_787' },
+    knativeRuntime: { functionsEnabled: true, status: () => ({ mode: 'managed', state: 'ready', reason: 'READY' }), canServeWorkloads: () => true },
     deleteKnativeService
   };
 }

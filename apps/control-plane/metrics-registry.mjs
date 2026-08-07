@@ -8,6 +8,7 @@
 
 const requestsTotal = new Map();   // "method|route|status|tenant" -> count
 const durationByRoute = new Map(); // "method|route" -> { buckets:number[], sum, count }
+const knativeDependencyTotal = new Map(); // bounded capability|operation|mode|state|reason|result
 const LE = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10];
 const startedAtMs = Date.now();
 
@@ -40,6 +41,26 @@ export function recordHttp({ method = 'GET', route = 'unmatched', status = 0, te
   for (let i = 0; i < LE.length; i++) if (durationSeconds <= LE[i]) h.buckets[i] += 1; // cumulative
 }
 
+const KNATIVE_CAPABILITIES = new Set(['function', 'mcp']);
+const KNATIVE_OPERATIONS = new Set(['deploy', 'update', 'invoke', 'rollback', 'delete', 'cleanup']);
+const KNATIVE_MODES = new Set(['managed', 'external', 'disabled']);
+const KNATIVE_STATES = new Set(['ready', 'unverified', 'degraded', 'unavailable', 'disabled']);
+const KNATIVE_RESULTS = new Set(['unavailable', 'deferred', 'recovered', 'retry_failed']);
+const KNATIVE_REASON = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+// Record a dependency transition without tenant- or resource-controlled labels. Tenant/workspace
+// correlation belongs in the audit record; keeping it out of Prometheus bounds cardinality.
+export function recordKnativeDependencyEvent(event = {}) {
+  const capability = KNATIVE_CAPABILITIES.has(event.capability) ? event.capability : 'function';
+  const operation = KNATIVE_OPERATIONS.has(event.operation) ? event.operation : 'cleanup';
+  const mode = KNATIVE_MODES.has(event.mode) ? event.mode : 'disabled';
+  const state = KNATIVE_STATES.has(event.state) ? event.state : 'unavailable';
+  const reason = KNATIVE_REASON.test(event.reason ?? '') ? event.reason : 'STATUS_UNAVAILABLE';
+  const result = KNATIVE_RESULTS.has(event.result) ? event.result : 'unavailable';
+  const key = `${capability}|${operation}|${mode}|${state}|${reason}|${result}`;
+  knativeDependencyTotal.set(key, (knativeDependencyTotal.get(key) ?? 0) + 1);
+}
+
 // Render the full registry in Prometheus text exposition format.
 export function renderMetrics() {
   const out = [];
@@ -62,6 +83,14 @@ export function renderMetrics() {
   out.push('# HELP falcone_process_uptime_seconds Process uptime in seconds.');
   out.push('# TYPE falcone_process_uptime_seconds gauge');
   out.push(`falcone_process_uptime_seconds ${Math.floor((Date.now() - startedAtMs) / 1000)}`);
+  out.push('# HELP falcone_knative_dependency_events_total Knative availability, deferred cleanup, and recovery events.');
+  out.push('# TYPE falcone_knative_dependency_events_total counter');
+  for (const [key, value] of knativeDependencyTotal) {
+    const [capability, operation, mode, state, reason, result] = key.split('|');
+    out.push('falcone_knative_dependency_events_total{'
+      + `capability="${esc(capability)}",operation="${esc(operation)}",mode="${esc(mode)}",`
+      + `state="${esc(state)}",reason="${esc(reason)}",result="${esc(result)}"} ${value}`);
+  }
   return out.join('\n') + '\n';
 }
 

@@ -38,7 +38,11 @@ const AUDITABLE_LOCAL_HANDLERS = {
   // Secret-access (#644): writes AND reads are security-relevant and audited (the
   // handlers are authenticated and carry ctx.identity + ctx.params.workspaceId).
   secretSet: 'workspace.secret.set', secretGet: 'workspace.secret.get',
-  secretList: 'workspace.secret.list', secretDelete: 'workspace.secret.delete'
+  secretList: 'workspace.secret.list', secretDelete: 'workspace.secret.delete',
+  fnDeploy: 'workspace.function.deploy',
+  fnDelete: 'workspace.function.delete',
+  fnInvoke: 'workspace.function.invoke',
+  fnRollback: 'workspace.function.rollback'
 };
 
 // Map an HTTP status to the audited outcome (#644): the TRUE result of the action,
@@ -60,10 +64,11 @@ function resolveScope(route, ctx, result) {
   const params = ctx.params ?? {};
   const identity = ctx.identity ?? {};
   const body = result?.body ?? {};
-  const tenantId = params.tenantId
+  const trustedScope = result?.auditScope ?? {};
+  const tenantId = trustedScope.tenantId ?? params.tenantId
     ?? body.tenantId ?? body.tenant?.tenantId ?? body.tenant?.id
     ?? identity.tenantId ?? null;
-  const workspaceId = params.workspaceId
+  const workspaceId = trustedScope.workspaceId ?? params.workspaceId
     ?? body.workspaceId ?? body.workspace?.workspaceId ?? body.workspace?.id
     ?? null;
   return { tenantId, workspaceId };
@@ -81,10 +86,28 @@ export function auditEventForRoute(route, ctx, result) {
   const status = result?.statusCode ?? 200;
   const { tenantId, workspaceId } = resolveScope(route, ctx, result);
   if (!tenantId) return null; // never record an action we cannot attribute to a tenant
+  const evidence = result?.knativeEvidence;
+  const safeEvidence = evidence && typeof evidence === 'object' ? {
+    capability: evidence.capability === 'mcp' ? 'mcp' : 'function',
+    operation: ['deploy', 'update', 'invoke', 'rollback', 'delete', 'cleanup'].includes(evidence.operation)
+      ? evidence.operation : 'cleanup',
+    mode: ['managed', 'external', 'disabled'].includes(evidence.mode) ? evidence.mode : 'disabled',
+    state: ['ready', 'unverified', 'degraded', 'unavailable', 'disabled'].includes(evidence.state)
+      ? evidence.state : 'unavailable',
+    reason: /^[A-Z][A-Z0-9_]{0,63}$/.test(evidence.reason ?? '')
+      ? evidence.reason : 'STATUS_UNAVAILABLE',
+    result: ['unavailable', 'deferred', 'recovered', 'retry_failed'].includes(evidence.result)
+      ? evidence.result : 'unavailable',
+  } : null;
   return {
     actionType, actorId: ctx.identity?.sub ?? 'unknown', tenantId, workspaceId,
     outcome: outcomeFromStatus(status),
-    newState: { method: route.method, path: route.path, status }
+    newState: {
+      method: route.method,
+      path: route.path,
+      status,
+      ...(safeEvidence ? { knative: safeEvidence } : {}),
+    }
   };
 }
 

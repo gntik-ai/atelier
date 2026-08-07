@@ -137,6 +137,7 @@ function ctx(identity, params = {}, body = {}, poolOpts = {}) {
     body,
     identity,
     callerContext: { actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
+    knativeRuntime: { functionsEnabled: true, status: () => ({ mode: 'managed', state: 'ready', reason: 'READY' }), canServeWorkloads: () => true },
   };
 }
 

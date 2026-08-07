@@ -19,6 +19,7 @@ import { FN_HANDLERS } from './fn-handlers.mjs';
 import { WEBHOOK_HANDLERS } from './webhook-handlers.mjs';
 import { REALTIME_HANDLERS } from './realtime-handlers.mjs';
 import { APPLICATION_HANDLERS } from './application-handlers.mjs';
+import { KNATIVE_RUNTIME_HANDLERS } from './knative-runtime-handlers.mjs';
 import { checkWorkspaceQuota } from './workspace-quota.mjs';
 import { recordScopeDenial, recordQuotaEnforcement } from './audit-writer.mjs';
 import { buildTenantConfigExport } from './tenant-config-export.mjs';
@@ -1618,6 +1619,7 @@ export const LOCAL_HANDLERS = {
   ...WEBHOOK_HANDLERS,
   ...REALTIME_HANDLERS,
   ...APPLICATION_HANDLERS,
+  ...KNATIVE_RUNTIME_HANDLERS,
   ...AUTH_HANDLERS
 };
 

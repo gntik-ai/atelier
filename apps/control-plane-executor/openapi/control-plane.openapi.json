@@ -967,17 +967,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function action deployment request accepted.",
+      "202": {
+        "description": "Function action deployment request accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GatewayMutationAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -1246,17 +1260,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function action update accepted.",
+      "202": {
+        "description": "Function action update accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GatewayMutationAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -1404,10 +1432,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                  "$ref": "#/components/schemas/FunctionDeletionAccepted"
                 }
               }
             }
+          },
+          "501": {
+            "description": "The Functions capability is intentionally disabled.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
           },
           "400": {
             "description": "The request is malformed or contextually inconsistent.",
@@ -8656,6 +8688,110 @@
         ],
         "x-visibility": "public",
         "x-rate-limit-class": "control-write",
+        "x-owning-service": "control_api"
+      }
+    },
+    "/v1/platform/runtime/knative": {
+      "get": {
+        "operationId": "getKnativeRuntimeStatus",
+        "summary": "Read the installation-wide Knative runtime mode and sanitized readiness status",
+        "tags": [
+          "Platform"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sanitized Knative runtime status returned to an authorized platform operator or auditor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeRuntimeStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The caller is not authenticated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The caller lacks a platform operator, platform auditor, or platform administrator role.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "431": {
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway timed out while waiting for the control-plane response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Unexpected runtime-status error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-family": "platform",
+        "x-scope": "platform",
+        "x-resource-type": "knative_runtime_status",
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-visibility": "public",
+        "x-rate-limit-class": "catalog",
         "x-owning-service": "control_api"
       }
     },
@@ -47016,17 +47152,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function invocation accepted.",
+      "202": {
+        "description": "Function invocation accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FunctionInvocationAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no invocation or successful activation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -49291,17 +49441,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function rollback accepted.",
+      "202": {
+        "description": "Function rollback accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FunctionRollbackAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no rollback mutation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -61086,6 +61250,100 @@
       }
     },
     "schemas": {
+      "KnativeRuntimeStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "owner",
+          "version",
+          "compatibility",
+          "state",
+          "stage",
+          "reason",
+          "lastTransitionAt"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": ["managed", "external", "disabled"]
+          },
+          "owner": {
+            "type": "string",
+            "maxLength": 127
+          },
+          "version": {
+            "type": ["string", "null"],
+            "maxLength": 127
+          },
+          "compatibility": {
+            "type": "string",
+            "enum": ["compatible", "incompatible", "unverified"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["ready", "unverified", "degraded", "unavailable", "disabled"]
+          },
+          "stage": {
+            "type": "string",
+            "enum": ["configured", "preflight", "crds", "webhook", "serving", "kourier", "smoke", "ready", "disabled", "external_validation", "unknown"]
+          },
+          "reason": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
+          },
+          "lastTransitionAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        }
+      },
+      "KnativeUnavailableError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "mode", "state", "reason", "correlationId"],
+        "properties": {
+          "code": { "type": "string", "const": "KNATIVE_UNAVAILABLE" },
+          "message": { "type": "string", "const": "Knative runtime is unavailable." },
+          "mode": { "type": "string", "enum": ["managed", "external", "disabled"] },
+          "state": { "type": "string", "enum": ["unverified", "degraded", "unavailable", "disabled"] },
+          "reason": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      },
+      "FunctionDeletionAccepted": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requestId", "correlationId", "resourceId", "status", "acceptedAt"],
+        "properties": {
+          "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "resourceId": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "status": { "type": "string", "enum": ["accepted", "deletion_pending"] },
+          "acceptedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "FunctionsDisabledError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "correlationId"],
+        "properties": {
+          "code": { "type": "string", "const": "FUNCTIONS_DISABLED" },
+          "message": { "type": "string", "const": "Functions capability is disabled." },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      },
+      "FunctionRuntimeDependency": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mode", "state", "reason", "ready"],
+        "properties": {
+          "mode": { "type": "string", "enum": ["managed", "external", "disabled"] },
+          "state": { "type": "string", "enum": ["ready", "unverified", "degraded", "unavailable", "disabled"] },
+          "reason": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
+          "ready": { "type": "boolean" }
+        }
+      },
       "HealthStatus": {
         "type": "object",
         "additionalProperties": false,
@@ -65045,8 +65303,13 @@
               "active",
               "suspended",
               "failed",
-              "deleting"
+              "deleting",
+              "deletion_pending",
+              "unavailable"
             ]
+          },
+          "runtimeDependency": {
+            "$ref": "#/components/schemas/FunctionRuntimeDependency"
           },
           "timestamps": {
             "$ref": "#/components/schemas/LifecycleTimestamps"

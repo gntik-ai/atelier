@@ -10,6 +10,9 @@ import * as store from './tenant-store.mjs';
 import { deployKnativeService, deleteKnativeService, invokeKnative, waitKsvcReady, ksvcNameForWorkspace, ksvcHost } from './function-executor.mjs';
 import { vaultStoreFromEnv } from './vault-secrets.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
+import { functionsDisabledResponse, knativeUnavailableResponse } from './knative-runtime.mjs';
+import { createRuntimeCleanupRepository } from './runtime-cleanup-repository.mjs';
+import { recordKnativeDependencyEvent } from './metrics-registry.mjs';
 
 // Scope-validation builder for function definition import (#683). It lives in apps/control-plane-executor
 // (vendored into the CP image at /repo/apps/control-plane-executor, alongside packages/internal-contracts
@@ -128,6 +131,42 @@ function callerTenantId(identity) {
   return identity.tenantId ?? null;
 }
 
+// Public dispatch always injects this source. Requiring it at the handler boundary prevents a
+// direct call from silently bypassing the dependency gate; focused tests inject a deterministic
+// ready/unavailable source explicitly.
+function runtimeFor(ctx) {
+  if (!ctx.knativeRuntime || typeof ctx.knativeRuntime.status !== 'function'
+      || typeof ctx.knativeRuntime.canServeWorkloads !== 'function') {
+    throw new Error('knativeRuntime dependency is required');
+  }
+  return ctx.knativeRuntime;
+}
+
+function functionDependencyGate(ctx, operation, scope) {
+  const runtime = runtimeFor(ctx);
+  const correlationId = ctx.callerContext?.correlationId ?? randomUUID();
+  if (!runtime.functionsEnabled) {
+    return { statusCode: 501, body: functionsDisabledResponse(correlationId) };
+  }
+  const status = runtime.status();
+  if (!runtime.canServeWorkloads(status)) {
+    (ctx.recordKnativeDependencyEvent ?? recordKnativeDependencyEvent)({
+      capability: 'function', operation, mode: status.mode, state: status.state,
+      reason: status.reason, result: 'unavailable',
+    });
+    return {
+      statusCode: 503,
+      body: knativeUnavailableResponse(status, correlationId),
+      auditScope: scope,
+      knativeEvidence: {
+        capability: 'function', operation, mode: status.mode, state: status.state,
+        reason: status.reason, result: 'unavailable',
+      },
+    };
+  }
+  return null;
+}
+
 function activationOut(r) {
   return {
     activationId: r.activation_id, resourceId: r.resource_id,
@@ -227,15 +266,19 @@ function activeVersionNumber(versions, action) {
   return Number(active?.version_number ?? action?.version ?? 1) || 1;
 }
 
-function actionOut(r, latest, versionState = null) {
+function actionOut(r, latest, versionState = null, runtimeStatus = null) {
   const effectiveVersionState = versionState ?? {
     activeVersionId: store.syntheticFnVersionId(r),
     versionCount: 1,
     rollbackAvailable: false
   };
+  const deletionPending = r.lifecycle_status === 'deletion_pending';
+  const runtimeReady = runtimeStatus?.state === 'ready';
+  const publicState = deletionPending ? 'deletion_pending'
+    : (runtimeStatus && !runtimeReady ? 'unavailable' : 'active');
   return {
     resourceId: r.resource_id, tenantId: r.tenant_id, workspaceId: r.workspace_id,
-    actionName: r.action_name, namespaceName: r.workspace_id, status: 'active',
+    actionName: r.action_name, namespaceName: r.workspace_id, status: publicState,
     activeVersionId: effectiveVersionState.activeVersionId,
     rollbackAvailable: Boolean(effectiveVersionState.rollbackAvailable),
     versionCount: Number(effectiveVersionState.versionCount ?? 1),
@@ -244,7 +287,17 @@ function actionOut(r, latest, versionState = null) {
     activationPolicy: activationPolicyOut(),
     secretReferences: [],
     unresolvedSecretRefs: 0,
-    provisioning: { state: 'active' },
+    provisioning: { state: publicState },
+    ...(runtimeStatus ? {
+      // Deliberately omit owner/version/cluster identity from tenant-scoped metadata. Developers
+      // need an honest dependency state, while operator-only detail remains on the platform route.
+      runtimeDependency: {
+        mode: runtimeStatus.mode,
+        state: runtimeStatus.state,
+        reason: runtimeStatus.reason,
+        ready: runtimeReady,
+      },
+    } : {}),
     timestamps: { createdAt: r.created_at, updatedAt: r.updated_at },
     latestActivation: latest ? activationOut(latest) : undefined
   };
@@ -254,6 +307,7 @@ function actionOut(r, latest, versionState = null) {
 // PATCH matches the published `updateFunctions` contract (public-route-catalog.json,
 // control-plane.openapi.json); the console's "Actualizar función" submits PATCH (#785).
 async function fnDeploy(ctx) {
+  const st = ctx.store ?? store;
   const b = ctx.body ?? {};
   const workspaceId = b.workspaceId ?? ctx.params.workspaceId;
   const actionName = b.actionName ?? b.name;
@@ -266,7 +320,13 @@ async function fnDeploy(ctx) {
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
   const code = b.source?.inlineCode ?? b.source?.code;
   if (!code) return err(400, 'VALIDATION_ERROR', 'source.inlineCode is required');
-  const existing = ctx.params.actionId ? await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity)) : null;
+  // Ownership and validation precede dependency status, but the gate precedes secret resolution,
+  // registry writes, and every Kubernetes call. An adjacent tenant therefore gets no status oracle.
+  const dependencyError = functionDependencyGate(ctx, ctx.params.actionId ? 'update' : 'deploy', {
+    tenantId: ws.tenant_id, workspaceId: ws.id,
+  });
+  if (dependencyError) return dependencyError;
+  const existing = ctx.params.actionId ? await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity)) : null;
   const resourceId = existing?.resource_id ?? ctx.params.actionId ?? `fn_${randomUUID().slice(0, 12)}`;
   const limits = b.execution?.limits ?? {};
   const memoryMb = Number(limits.memoryMb) || 256;
@@ -290,7 +350,7 @@ async function fnDeploy(ctx) {
   } catch (e) {
     return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DEPLOY_FAILED', String(e.message ?? e));
   }
-  const rec = await store.upsertFnAction(ctx.pool, {
+  const rec = await st.upsertFnAction(ctx.pool, {
     resourceId, workspaceId: ws.id, tenantId: ws.tenant_id, actionName,
     runtime: b.execution?.runtime ?? 'nodejs:22', entrypoint: b.execution?.entrypoint ?? 'main',
     sourceCode: code, parameters: b.execution?.parameters ?? null, memoryMb, timeoutMs,
@@ -304,6 +364,7 @@ async function fnDeploy(ctx) {
 
 // GET /v1/functions/workspaces/{workspaceId}/inventory
 async function fnInventory(ctx) {
+  const st = ctx.store ?? store;
   // Tenant isolation (#784): resolve + own-check the workspace before listing. ownedWorkspace returns
   // null for a foreign or unknown workspace (the caller's tenant does not own it) → 403, with no body
   // that distinguishes "not yours" from "does not exist" (no existence oracle). For superadmin/internal
@@ -311,43 +372,87 @@ async function fnInventory(ctx) {
   // preserving the cross-tenant read. The tenant predicate on listFnActions is defense-in-depth.
   const ws = await ownedWorkspace(ctx, ctx.params.workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
-  const rows = await store.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const rows = await st.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const runtimeStatus = runtimeFor(ctx).status();
   const actions = [];
   for (const r of rows) {
     actions.push(actionOut(
       r,
-      await store.latestFnActivation(ctx.pool, r.resource_id),
-      await store.getFnActionVersionSummary(ctx.pool, r)
+      await st.latestFnActivation(ctx.pool, r.resource_id),
+      await st.getFnActionVersionSummary(ctx.pool, r),
+      runtimeStatus
     ));
   }
   return ok(200, { workspaceId: ws.id, actions, counts: { actions: actions.length, packages: 0, rules: 0, triggers: 0, httpExposures: 0 } });
 }
 // GET /v1/functions/workspaces/{workspaceId}/actions
 async function fnListActions(ctx) {
+  const st = ctx.store ?? store;
   const ws = await ownedWorkspace(ctx, ctx.params.workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
-  const rows = await store.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const rows = await st.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const runtimeStatus = runtimeFor(ctx).status();
   const items = [];
-  for (const r of rows) items.push(actionOut(r, null, await store.getFnActionVersionSummary(ctx.pool, r)));
+  for (const r of rows) items.push(actionOut(r, null, await st.getFnActionVersionSummary(ctx.pool, r), runtimeStatus));
   return ok(200, { items, page: { total: rows.length } });
 }
 // GET /v1/functions/actions/{actionId}
 async function fnActionDetail(ctx) {
-  const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  const st = ctx.store ?? store;
+  const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
   return ok(200, actionOut(
     r,
-    await store.latestFnActivation(ctx.pool, r.resource_id),
-    await store.getFnActionVersionSummary(ctx.pool, r)
+    await st.latestFnActivation(ctx.pool, r.resource_id),
+    await st.getFnActionVersionSummary(ctx.pool, r),
+    runtimeFor(ctx).status()
   ));
 }
 // DELETE /v1/functions/actions/{actionId}
 async function fnDelete(ctx) {
+  const st = ctx.store ?? store;
   const actionId = ctx.params.actionId ?? ctx.params.resourceId;
-  const r = await store.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
+  const r = await st.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
   if (!canManageTenant(ctx.identity, r.tenant_id)) {
     return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  }
+
+  const runtime = runtimeFor(ctx);
+  const correlationId = ctx.callerContext?.correlationId ?? randomUUID();
+  if (!runtime.functionsEnabled) {
+    return { statusCode: 501, body: functionsDisabledResponse(correlationId) };
+  }
+  const runtimeStatus = runtime.status();
+  if (!runtime.canServeWorkloads(runtimeStatus)) {
+    // One SQL statement marks the logical Function and inserts/reuses its durable cleanup
+    // obligation. No Kubernetes request is attempted while the source-of-truth gate is closed.
+    const repository = ctx.runtimeCleanupRepository ?? createRuntimeCleanupRepository(ctx.pool);
+    const obligation = await repository.deferFunctionDeletion({
+      tenantId: r.tenant_id,
+      workspaceId: r.workspace_id,
+      resourceId: r.resource_id,
+      runtimeResourceName: r.ksvc_name ?? null,
+      correlationId,
+    });
+    (ctx.recordKnativeDependencyEvent ?? recordKnativeDependencyEvent)({
+      capability: 'function', operation: 'delete', mode: runtimeStatus.mode,
+      state: runtimeStatus.state, reason: runtimeStatus.reason, result: 'deferred',
+    });
+    return {
+      ...ok(202, {
+        requestId: randomUUID(),
+        correlationId: obligation.correlationId,
+        resourceId: r.resource_id,
+        status: 'deletion_pending',
+        acceptedAt: obligation.createdAt ?? new Date().toISOString(),
+      }),
+      auditScope: { tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id },
+      knativeEvidence: {
+        capability: 'function', operation: 'delete', mode: runtimeStatus.mode,
+        state: runtimeStatus.state, reason: runtimeStatus.reason, result: 'deferred',
+      },
+    };
   }
 
   if (r.ksvc_name) {
@@ -358,12 +463,12 @@ async function fnDelete(ctx) {
     }
   }
 
-  const deleted = await store.deleteFnAction(ctx.pool, r);
+  const deleted = await st.deleteFnAction(ctx.pool, r);
   if (!deleted) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
 
   return ok(202, {
     requestId: randomUUID(),
-    correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
+    correlationId,
     resourceId: deleted.resource_id,
     status: 'accepted',
     acceptedAt: new Date().toISOString()
@@ -371,8 +476,13 @@ async function fnDelete(ctx) {
 }
 // POST /v1/functions/actions/{actionId}/invocations  — REAL execution
 async function fnInvoke(ctx) {
-  const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  const st = ctx.store ?? store;
+  const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  const dependencyError = functionDependencyGate(ctx, 'invoke', {
+    tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id,
+  });
+  if (dependencyError) return dependencyError;
   const params = invocationInput(ctx.body);
   const startedAt = new Date().toISOString();
   let run;
@@ -391,13 +501,13 @@ async function fnInvoke(ctx) {
       roles: ctx.identity?.roles ?? [],
     };
     // Cold start: the cluster-local DNS only resolves once the ksvc is Ready.
-    const ready = await waitKsvcReady(r.ksvc_name, 90000);
+    const ready = await (ctx.waitKsvcReady ?? waitKsvcReady)(r.ksvc_name, 90000);
     run = ready
-      ? await invokeKnative(ksvcHost(r.ksvc_name), params, { timeoutMs: (r.timeout_ms || 60000) + 30000, caller })
+      ? await (ctx.invokeKnative ?? invokeKnative)(ksvcHost(r.ksvc_name), params, { timeoutMs: (r.timeout_ms || 60000) + 30000, caller })
       : { status: 'failure', result: { error: 'function (Knative service) is not ready' }, logs: [], durationMs: 0, statusCode: 503 };
   }
   const activationId = `act_${randomUUID().slice(0, 12)}`;
-  await store.insertFnActivation(ctx.pool, {
+  await st.insertFnActivation(ctx.pool, {
     activationId, resourceId: r.resource_id, workspaceId: r.workspace_id,
     status: run.status, statusCode: run.statusCode, result: run.result, logs: run.logs,
     durationMs: run.durationMs, startedAt, finishedAt: new Date().toISOString()
@@ -452,17 +562,22 @@ async function fnVersions(ctx) {
 }
 // POST /v1/functions/actions/{actionId}/rollback
 async function fnRollback(ctx) {
-  const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  const st = ctx.store ?? store;
+  const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', 'action not found');
   if (!canManageTenant(ctx.identity, r.tenant_id)) {
     return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
   }
+  const dependencyError = functionDependencyGate(ctx, 'rollback', {
+    tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id,
+  });
+  if (dependencyError) return dependencyError;
   const versionId = ctx.body?.versionId;
   if (typeof versionId !== 'string' || !/^fnv_[0-9a-z]+$/.test(versionId)) {
     return err(400, 'VALIDATION_ERROR', 'versionId is required and must match fnv_[0-9a-z]+');
   }
 
-  const rows = await store.listFnActionVersions(ctx.pool, r.resource_id);
+  const rows = await st.listFnActionVersions(ctx.pool, r.resource_id);
   const target = rows.find((row) => row.version_id === versionId && row.tenant_id === r.tenant_id && row.workspace_id === r.workspace_id);
   if (!target) return err(404, 'VERSION_NOT_FOUND', 'function version not found');
 
@@ -485,7 +600,7 @@ async function fnRollback(ctx) {
     }
   }
 
-  const updated = await store.activateFnActionVersion(ctx.pool, r, target);
+  const updated = await st.activateFnActionVersion(ctx.pool, r, target);
   if (!updated) return err(409, 'ROLLBACK_STATE_CONFLICT', 'function version could not be activated');
   return ok(202, {
     requestId: randomUUID(),

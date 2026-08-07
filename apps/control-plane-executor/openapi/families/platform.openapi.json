@@ -721,6 +721,86 @@
         ],
         "type": "object"
       },
+      "KnativeRuntimeStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "compatibility": {
+            "enum": [
+              "compatible",
+              "incompatible",
+              "unverified"
+            ],
+            "type": "string"
+          },
+          "lastTransitionAt": {
+            "format": "date-time",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mode": {
+            "enum": [
+              "managed",
+              "external",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "owner": {
+            "maxLength": 127,
+            "type": "string"
+          },
+          "reason": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "stage": {
+            "enum": [
+              "configured",
+              "preflight",
+              "crds",
+              "webhook",
+              "serving",
+              "kourier",
+              "smoke",
+              "ready",
+              "disabled",
+              "external_validation",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "unverified",
+              "degraded",
+              "unavailable",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 127,
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "mode",
+          "owner",
+          "version",
+          "compatibility",
+          "state",
+          "stage",
+          "reason",
+          "lastTransitionAt"
+        ],
+        "type": "object"
+      },
       "LifecycleTimestamps": {
         "additionalProperties": false,
         "properties": {
@@ -3707,6 +3787,110 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "catalog",
         "x-resource-type": "route_catalog",
+        "x-scope": "platform",
+        "x-visibility": "public"
+      }
+    },
+    "/v1/platform/runtime/knative": {
+      "get": {
+        "operationId": "getKnativeRuntimeStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XApiVersion"
+          },
+          {
+            "$ref": "#/components/parameters/XCorrelationId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeRuntimeStatus"
+                }
+              }
+            },
+            "description": "Sanitized Knative runtime status returned to an authorized platform operator or auditor."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller is not authenticated."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "The caller lacks a platform operator, platform auditor, or platform administrator role."
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway QoS policy rejected the request rate for this route family."
+          },
+          "431": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "504": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Gateway timed out while waiting for the control-plane response."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected runtime-status error."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the installation-wide Knative runtime mode and sanitized readiness status",
+        "tags": [
+          "Platform"
+        ],
+        "x-audiences": [
+          "platform_team",
+          "superadmin"
+        ],
+        "x-family": "platform",
+        "x-owning-service": "control_api",
+        "x-rate-limit-class": "catalog",
+        "x-resource-type": "knative_runtime_status",
         "x-scope": "platform",
         "x-visibility": "public"
       }

@@ -307,6 +307,7 @@ function ctx(pool, { params = {}, body = {}, identity = OWNER, deployKnativeServ
     body,
     identity,
     callerContext: { correlationId: 'corr_786_rollback', actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
+    knativeRuntime: { functionsEnabled: true, status: () => ({ mode: 'managed', state: 'ready', reason: 'READY' }), canServeWorkloads: () => true },
     deployKnativeService
   };
 }

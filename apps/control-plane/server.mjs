@@ -27,13 +27,17 @@ import { resolveWebhookKeyBeforeServing, sanitizedWebhookBootstrapError } from '
 import { setWebhookKeyContext } from './webhook-handlers.mjs';
 import { tenantIdentitiesEnabled } from './storage-handlers.mjs';
 import { cleanupLegacyWorkspaceIdentities } from './seaweedfs-identity.mjs';
-import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
+import { recordHttp, recordKnativeDependencyEvent, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
 import { recordRouteAudit, recordRouteDenial } from './audit-writer.mjs';
+import { recordAuditEvent } from './audit-store.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
 import { listenAfterRequiredGates } from './control-plane-startup.mjs';
 import { resolveWebhookDatabasePrincipalNames } from './webhook-database-principals.mjs';
 import { prepareControlPlaneDatabases } from './control-plane-database-startup.mjs';
+import { createKnativeRuntimeSource } from './knative-runtime.mjs';
+import { createRuntimeCleanupRepository, recoverFunctionCleanupObligations } from './runtime-cleanup-repository.mjs';
+import { deleteKnativeService } from './function-executor.mjs';
 
 const { Pool } = pg;
 
@@ -52,6 +56,7 @@ const JWKS_URL = process.env.KEYCLOAK_JWKS_URL
 const ISSUER = process.env.KEYCLOAK_ISSUER || null;   // optional exact-match check
 const AUDIENCE = process.env.KEYCLOAK_AUDIENCE || null;
 const ROUTE_MAP_FILE = process.env.ROUTE_MAP_FILE || null; // optional JSON merged over seedRoutes
+const knativeRuntime = createKnativeRuntimeSource({ env: process.env });
 
 const pool = DB_URL
   ? new Pool(withPostgresSsl({ connectionString: DB_URL, max: 12 }))
@@ -247,6 +252,9 @@ function authzOk(route, identity) {
     || identity.roles.includes('superadmin') || identity.roles.includes('platform_admin');
   if (need === 'tenant_owner') return ['tenant_owner', 'tenant_admin', 'superadmin', 'internal'].includes(identity.actorType)
     || identity.roles.some((r) => ['tenant_owner', 'tenant_admin', 'superadmin', 'platform_admin'].includes(r));
+  if (need === 'knative_status') return identity.roles.some((role) => [
+    'superadmin', 'platform_admin', 'platform_operator', 'platform_auditor',
+  ].includes(role)) || identity.actorType === 'superadmin';
   return true; // unknown -> defer to the action's own check
 }
 
@@ -395,6 +403,8 @@ const server = http.createServer(async (req, res) => {
         webhookRuntimePool,
         webhookWritePool,
         callerContext: identity ? callerContextFrom(identity, correlationId) : null,
+        knativeRuntime,
+        runtimeCleanupRepository: createRuntimeCleanupRepository(pool),
         req,
         res,
         cors: CORS,
@@ -475,6 +485,10 @@ const server = http.createServer(async (req, res) => {
 
 export async function bootstrapControlPlane() {
   try {
+    // Parse strict mode/capability configuration before binding the HTTP port. Runtime readiness is
+    // read from the chart-owned file and may legitimately be unavailable; malformed env itself is
+    // a startup error because silently selecting another ownership mode is unsafe.
+    knativeRuntime.status();
     loadRoutes();
     if (ROUTE_MAP_FILE) {
       const extra = JSON.parse(await readFile(ROUTE_MAP_FILE, 'utf8'));
@@ -542,6 +556,49 @@ export async function bootstrapControlPlane() {
       })
       .catch(() => console.warn('[control-plane] #673 legacy identity cleanup failed (non-fatal)'));
   }
+
+  // Durable Function cleanup recovery. The worker is readiness-gated and claims a bounded batch;
+  // concurrent ticks/processes are safe through FOR UPDATE SKIP LOCKED in the repository.
+  const cleanupRepository = createRuntimeCleanupRepository(pool);
+  const recoverCleanup = () => recoverFunctionCleanupObligations({
+    runtime: knativeRuntime,
+    repository: cleanupRepository,
+    deleteRuntimeResource: deleteKnativeService,
+    onRecovered: async (obligation) => {
+      const status = knativeRuntime.status();
+      recordKnativeDependencyEvent({
+        capability: 'function', operation: 'cleanup', mode: status.mode, state: status.state,
+        reason: status.reason, result: 'recovered',
+      });
+      await recordAuditEvent(pool, {
+        actionType: 'workspace.function.cleanup.recovered',
+        actorId: 'system:knative-cleanup',
+        tenantId: obligation.tenantId,
+        workspaceId: obligation.workspaceId,
+        outcome: 'succeeded',
+        correlationId: obligation.correlationId,
+        newState: { operation: 'cleanup', mode: status.mode, state: status.state, reason: status.reason, result: 'recovered' },
+      });
+    },
+    onFailed: async (obligation) => {
+      const status = knativeRuntime.status();
+      recordKnativeDependencyEvent({
+        capability: 'function', operation: 'cleanup', mode: status.mode, state: status.state,
+        reason: status.reason, result: 'retry_failed',
+      });
+      await recordAuditEvent(pool, {
+        actionType: 'workspace.function.cleanup.retry-failed',
+        actorId: 'system:knative-cleanup',
+        tenantId: obligation.tenantId,
+        workspaceId: obligation.workspaceId,
+        outcome: 'error',
+        correlationId: obligation.correlationId,
+        newState: { operation: 'cleanup', mode: status.mode, state: status.state, reason: status.reason, result: 'retry_failed' },
+      });
+    },
+  }).catch(() => undefined);
+  void recoverCleanup();
+  setInterval(recoverCleanup, 30_000).unref();
 }
 
 await bootstrapControlPlane();

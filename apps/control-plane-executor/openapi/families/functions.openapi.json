@@ -592,6 +592,9 @@
           "rollbackAvailable": {
             "type": "boolean"
           },
+          "runtimeDependency": {
+            "$ref": "#/components/schemas/FunctionRuntimeDependency"
+          },
           "secretReferences": {
             "items": {
               "$ref": "#/components/schemas/FunctionSecretReference"
@@ -608,7 +611,9 @@
               "active",
               "suspended",
               "failed",
-              "deleting"
+              "deleting",
+              "deletion_pending",
+              "unavailable"
             ],
             "type": "string"
           },
@@ -1267,6 +1272,45 @@
         },
         "required": [
           "resourceType"
+        ],
+        "type": "object"
+      },
+      "FunctionDeletionAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "resourceId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "deletion_pending"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "correlationId",
+          "resourceId",
+          "status",
+          "acceptedAt"
         ],
         "type": "object"
       },
@@ -2562,6 +2606,43 @@
         ],
         "type": "object"
       },
+      "FunctionRuntimeDependency": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "managed",
+              "external",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "reason": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "unverified",
+              "degraded",
+              "unavailable",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "state",
+          "reason",
+          "ready"
+        ],
+        "type": "object"
+      },
       "FunctionSecretReference": {
         "additionalProperties": false,
         "properties": {
@@ -3324,6 +3405,30 @@
         ],
         "type": "object"
       },
+      "FunctionsDisabledError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "FUNCTIONS_DISABLED",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "message": {
+            "const": "Functions capability is disabled.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "correlationId"
+        ],
+        "type": "object"
+      },
       "GatewayMutationAccepted": {
         "additionalProperties": false,
         "properties": {
@@ -3366,6 +3471,54 @@
           "resourceId",
           "correlationId",
           "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "KnativeUnavailableError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "KNATIVE_UNAVAILABLE",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "message": {
+            "const": "Knative runtime is unavailable.",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "managed",
+              "external",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "unverified",
+              "degraded",
+              "unavailable",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "mode",
+          "state",
+          "reason",
+          "correlationId"
         ],
         "type": "object"
       },
@@ -4003,6 +4156,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -4073,7 +4246,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                  "$ref": "#/components/schemas/FunctionDeletionAccepted"
                 }
               }
             },
@@ -4158,6 +4331,16 @@
               }
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
           },
           "504": {
             "content": {
@@ -4444,6 +4627,26 @@
               }
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted."
           },
           "504": {
             "content": {
@@ -6294,6 +6497,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no invocation or successful activation was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -6714,6 +6937,26 @@
               }
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
+          },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no rollback mutation was attempted."
           },
           "504": {
             "content": {
