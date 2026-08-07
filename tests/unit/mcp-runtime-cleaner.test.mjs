@@ -9,15 +9,15 @@ test('mcp-runtime-cleaner-01: cleanup targets only tenant/server-owned ksvc, rev
     apiBase: 'https://kubernetes.default.svc',
     env: {},
     readFile: (path) => path.endsWith('token') ? 'secret-token' : Buffer.from('ca'),
-    fetchImpl: async (url, init) => { calls.push({ url, init }); return { status: 200 }; },
+    fetchImpl: async (url, init) => { calls.push({ url, init }); return init.method === 'GET' ? { status: 200, body: { items: [{ metadata: { name: 'mcp-srv-shared', uid: 'u1', resourceVersion: '7', labels: { 'in-falcone.io/tenant': 'tenant-a', 'in-falcone.io/mcp-server': 'srv-shared' } } }] } } : { status: 200 }; },
   });
   await cleaner.deleteOwnedRuntimeResources({ tenantId: 'tenant-a', resourceId: 'srv-shared' });
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, 12);
   for (const call of calls) {
     assert.match(call.url, /\/namespaces\/tenant-a\//);
     const parsed = new URL(call.url);
-    assert.equal(parsed.searchParams.get('labelSelector'), 'in-falcone.io/tenant=tenant-a,in-falcone.io/mcp-server=srv-shared');
-    assert.equal(call.init.method, 'DELETE');
+    if (call.init.method === 'GET') assert.equal(parsed.searchParams.get('labelSelector'), 'in-falcone.io/tenant=tenant-a,in-falcone.io/mcp-server=srv-shared');
+    assert.ok(['GET', 'DELETE'].includes(call.init.method));
     assert.ok(!call.url.includes('secret-token'));
   }
   assert.ok(calls.some((call) => call.url.includes('/services?')));
