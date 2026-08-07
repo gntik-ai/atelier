@@ -39,6 +39,8 @@
  * OpenSpec #### Scenario: Degraded audit read remains available
  * bbx-933-function-activation-identity-43 | fn-function-runtime-availability-gate |
  * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ * bbx-933-function-activation-response-44 | fn-function-runtime-availability-gate |
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -794,6 +796,129 @@ test('bbx-933-function-activation-identity-43: production activation IDs satisfy
     { pathFailures, responseFailures },
     { pathFailures: [], responseFailures: [] },
     'activation identity contracts must accept real hyphenated act_* IDs and preserve legacy compact IDs',
+  );
+});
+
+/**
+ * bbx-933-function-activation-response-44 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ */
+test('bbx-933-function-activation-response-44: literal activation logs, result, and dispatchable rerun satisfy complete response contracts', async () => {
+  const store = lifecycleStore();
+  const created = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-function-activation-response-create',
+    body: deployBody('export async function main() { return { responseContract: true }; }'),
+  }));
+  assert.equal(created.statusCode, 202, JSON.stringify(created.body));
+  const resourceId = created.body.resourceId;
+  const invoked = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-function-activation-response-invoke',
+    params: { actionId: resourceId },
+    body: { parameters: { execution: 'response-contract' } },
+  }));
+  assert.equal(invoked.statusCode, 202, JSON.stringify(invoked.body));
+  const activationId = invoked.body.invocationId;
+  assert.match(activationId, /^act_[0-9a-f]{8}-[0-9a-f]{3}$/);
+
+  const action = await store.getFnAction({}, resourceId);
+  const activation = await store.getFnActivation({}, activationId);
+  assert.ok(action);
+  assert.ok(activation);
+  const activationPool = {
+    async query(sql, params = []) {
+      const statement = String(sql).replace(/\s+/g, ' ').trim();
+      if (statement.includes('FROM fn_activations WHERE activation_id=$1')) {
+        return { rows: params[0] === activationId ? [structuredClone(activation)] : [] };
+      }
+      if (statement.includes('FROM fn_actions WHERE resource_id=$1')) {
+        return { rows: params[0] === resourceId ? [structuredClone(action)] : [] };
+      }
+      throw new Error(`Unexpected activation response public-fixture query: ${statement}`);
+    },
+  };
+  const handlerContext = (params, body = {}) => ({
+    ...lifecycleContext(store, {
+      correlationId: 'corr-function-activation-response-rerun',
+      params,
+      body,
+    }),
+    pool: activationPool,
+  });
+  const logs = await FN_HANDLERS.fnActivationLogs(handlerContext({ actionId: resourceId, activationId }));
+  const result = await FN_HANDLERS.fnActivationResult(handlerContext({ actionId: resourceId, activationId }));
+  assert.deepEqual(logs, {
+    statusCode: 200,
+    body: { activationId, lines: [], truncated: false },
+  });
+  assert.deepEqual(result, {
+    statusCode: 200,
+    body: {
+      activationId,
+      status: 'succeeded',
+      result: { ok: true },
+      contentType: 'application/json',
+    },
+  });
+
+  const responseFailures = [
+    ...validationErrors(
+      validatorForResponse('get', FUNCTION_ACTIVATION_LOGS_PATH, 200),
+      logs.body,
+    ).map((error) => ({ response: 'FunctionActivationLog', error })),
+    ...validationErrors(
+      validatorForResponse('get', FUNCTION_ACTIVATION_RESULT_PATH, 200),
+      result.body,
+    ).map((error) => ({ response: 'FunctionActivationResult', error })),
+  ];
+
+  const normalizePath = (value) => String(value).replace(/\{[^}]+\}/g, '{}');
+  const rerunRoutes = routes.filter((route) => (
+    route.method === 'POST'
+    && normalizePath(route.path) === normalizePath(FUNCTION_ACTIVATION_RERUN_PATH)
+  ));
+  const dispatchFailures = [];
+  let rerun = null;
+  if (rerunRoutes.length !== 1) {
+    dispatchFailures.push({
+      error: 'advertised activation rerun operation must have exactly one production route',
+      routeCount: rerunRoutes.length,
+    });
+  } else {
+    const route = rerunRoutes[0];
+    const rerunHandler = FN_HANDLERS[route.localHandler];
+    if (typeof rerunHandler !== 'function') {
+      dispatchFailures.push({
+        error: 'production route localHandler is not registered in FN_HANDLERS',
+        localHandler: route.localHandler,
+      });
+    } else {
+      rerun = await rerunHandler(handlerContext({
+        actionId: resourceId,
+        resourceId,
+        activationId,
+      }));
+      if (rerun.statusCode !== 202) {
+        dispatchFailures.push({ error: 'rerun did not return HTTP 202', response: rerun });
+      } else {
+        responseFailures.push(...validationErrors(
+          validatorForResponse('post', FUNCTION_ACTIVATION_RERUN_PATH, 202),
+          rerun.body,
+        ).map((error) => ({ response: 'FunctionActivationRerunAccepted', error })));
+        if (rerun.body.activationId !== activationId) {
+          dispatchFailures.push({
+            error: 'rerun response activationId must identify the source activation',
+            expected: activationId,
+            actual: rerun.body.activationId,
+          });
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(
+    { dispatchFailures, responseFailures },
+    { dispatchFailures: [], responseFailures: [] },
+    `activation public handlers and route dispatch must satisfy complete published responses:\n${JSON.stringify({ dispatchFailures, responseFailures, rerun }, null, 2)}`,
   );
 });
 
