@@ -33,6 +33,17 @@ const ACTION_PATH = '/v1/functions/actions/{resourceId}';
 const INVOCATIONS_PATH = '/v1/functions/actions/{resourceId}/invocations';
 const ROLLBACK_PATH = '/v1/functions/actions/{resourceId}/rollback';
 const WORKSPACE_ACTIONS_PATH = '/v1/functions/workspaces/{workspaceId}/actions';
+const RUNTIME_STATUS_ROLE_CLAIMS = [
+  'platform_operator',
+  'platform_auditor',
+  'platform_admin',
+  'superadmin',
+];
+const FUNCTION_CLEANUP_OWNERSHIP = {
+  requiredIdentity: ['tenantId', 'functionResourceId'],
+  appliesTo: ['immediate', 'deferred'],
+  onMismatch: 'retain',
+};
 
 function operation(method, publicPath) {
   const value = openapi.paths?.[publicPath]?.[method.toLowerCase()];
@@ -152,6 +163,40 @@ test('bbx-933-runtime-auth-02: published runtime status requires platform authen
 });
 
 /**
+ * bbx-933-runtime-role-claims-07 | fn-managed-knative-runtime-status
+ * OpenSpec #### Scenario: Read-only status does not grant mutation
+ *
+ * This pins the public authorization contract only. Proving that tokens with each
+ * allowed role succeed, every other role fails, and actor_type=superadmin cannot
+ * bypass the role claim requires the real Keycloak/control-plane stack.
+ */
+test('bbx-933-runtime-role-claims-07: status authorization publishes the exact role-claim allowlist with no actor-type fallback', () => {
+  const statusOperation = operation('get', STATUS_PATH);
+  const statusRoute = catalogRoute('get', STATUS_PATH);
+
+  assert.deepEqual(
+    statusOperation['x-authorized-role-claims'],
+    RUNTIME_STATUS_ROLE_CLAIMS,
+    'OpenAPI must publish the exact documented platform role-claim allowlist',
+  );
+  assert.equal(
+    statusOperation['x-actor-type-authorization'],
+    false,
+    'actor_type alone must not authorize the platform runtime-status route',
+  );
+  assert.deepEqual(
+    statusRoute.authorizedRoleClaims,
+    RUNTIME_STATUS_ROLE_CLAIMS,
+    'the public route catalog must preserve the exact OpenAPI role-claim allowlist',
+  );
+  assert.equal(
+    statusRoute.actorTypeAuthorization,
+    false,
+    'the public route catalog must not advertise an actor_type authorization fallback',
+  );
+});
+
+/**
  * bbx-933-functions-unavailable-03 | fn-function-runtime-availability-gate
  * OpenSpec #### Scenario: Deploy fails explicitly while managed runtime is degraded
  */
@@ -266,4 +311,33 @@ test('bbx-933-functions-capability-disabled-06: every public Function workload m
   assert.equal(disabledSchema.properties.mode, undefined);
   assert.equal(disabledSchema.properties.state, undefined);
   assert.equal(disabledSchema.properties.reason, undefined);
+});
+
+/**
+ * bbx-933-function-delete-ownership-08 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Teardown is deferred safely during an outage
+ *
+ * This pins the public cleanup contract only. Observing an immediate or recovered
+ * cleanup retain a live mismatched Knative Service requires a disposable real stack
+ * with two independently owned workloads; this contract test does not claim that.
+ */
+test('bbx-933-function-delete-ownership-08: Function cleanup requires matching tenant and function ownership', () => {
+  const deleteOperation = operation('delete', ACTION_PATH);
+  const deleteRoute = catalogRoute('delete', ACTION_PATH);
+
+  assert.deepEqual(
+    deleteOperation['x-runtime-cleanup-ownership'],
+    FUNCTION_CLEANUP_OWNERSHIP,
+    'OpenAPI must require tenant+function ownership for immediate and deferred cleanup',
+  );
+  assert.deepEqual(
+    deleteRoute.runtimeCleanupOwnership,
+    FUNCTION_CLEANUP_OWNERSHIP,
+    'the public route catalog must retain an unowned or ownership-mismatched Knative resource',
+  );
+  assert.equal(responseSchemaRef('delete', ACTION_PATH, 202), 'FunctionDeletionAccepted');
+  assert.ok(
+    schema('FunctionDeletionAccepted').properties.status.enum.includes('deletion_pending'),
+    'the deferred cleanup ownership rule must cover the public deletion_pending outcome',
+  );
 });
