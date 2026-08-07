@@ -2154,6 +2154,17 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "function_action",
+      "runtimeCleanupOwnership": {
+        "appliesTo": [
+          "immediate",
+          "deferred"
+        ],
+        "onMismatch": "retain",
+        "requiredIdentity": [
+          "tenantId",
+          "functionResourceId"
+        ]
+      },
       "scope": "workspace",
       "summary": "Delete one governed function action and its managed exposure bindings from the workspace serverless context",
       "supportsIdempotencyKey": true,
@@ -17367,6 +17378,7 @@
       "workspaceBinding": "none"
     },
     {
+      "actorTypeAuthorization": false,
       "adminChannel": null,
       "allowAnonymousOptions": true,
       "allowedContentTypes": [
@@ -17377,6 +17389,12 @@
         "superadmin"
       ],
       "authRequired": true,
+      "authorizedRoleClaims": [
+        "platform_operator",
+        "platform_auditor",
+        "platform_admin",
+        "superadmin"
+      ],
       "consoleDelegationMode": null,
       "consoleDiscoverySurface": false,
       "consoleStatusOperationIds": [],

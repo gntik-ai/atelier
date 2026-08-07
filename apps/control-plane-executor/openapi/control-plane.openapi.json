@@ -1556,7 +1556,18 @@
         "x-owning-service": "control_api",
         "x-downstream-adapters": [
           "openwhisk"
-        ]
+        ],
+        "x-runtime-cleanup-ownership": {
+          "requiredIdentity": [
+            "tenantId",
+            "functionResourceId"
+          ],
+          "appliesTo": [
+            "immediate",
+            "deferred"
+          ],
+          "onMismatch": "retain"
+        }
       }
     },
     "/v1/iam/tenant-roles": {
@@ -8792,7 +8803,14 @@
         ],
         "x-visibility": "public",
         "x-rate-limit-class": "catalog",
-        "x-owning-service": "control_api"
+        "x-owning-service": "control_api",
+        "x-authorized-role-claims": [
+          "platform_operator",
+          "platform_auditor",
+          "platform_admin",
+          "superadmin"
+        ],
+        "x-actor-type-authorization": false
       }
     },
     "/v1/platform/route-catalog": {

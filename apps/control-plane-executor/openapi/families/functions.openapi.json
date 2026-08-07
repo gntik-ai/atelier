@@ -4385,6 +4385,17 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_action",
+        "x-runtime-cleanup-ownership": {
+          "appliesTo": [
+            "immediate",
+            "deferred"
+          ],
+          "onMismatch": "retain",
+          "requiredIdentity": [
+            "tenantId",
+            "functionResourceId"
+          ]
+        },
         "x-scope": "workspace",
         "x-visibility": "public"
       },

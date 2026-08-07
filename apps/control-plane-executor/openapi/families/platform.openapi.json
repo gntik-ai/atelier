@@ -3883,8 +3883,15 @@
         "tags": [
           "Platform"
         ],
+        "x-actor-type-authorization": false,
         "x-audiences": [
           "platform_team",
+          "superadmin"
+        ],
+        "x-authorized-role-claims": [
+          "platform_operator",
+          "platform_auditor",
+          "platform_admin",
           "superadmin"
         ],
         "x-family": "platform",

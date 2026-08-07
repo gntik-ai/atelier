@@ -346,7 +346,13 @@ async function fnDeploy(ctx) {
   }
   // Deploy/update the function's Knative Service (new revision on code change).
   try {
-    await (ctx.deployKnativeService ?? deployKnativeService)(name, code, { memoryMb, timeoutMs, secretEnv });
+    await (ctx.deployKnativeService ?? deployKnativeService)(name, code, {
+      tenantId: ws.tenant_id,
+      functionResourceId: resourceId,
+      memoryMb,
+      timeoutMs,
+      secretEnv,
+    });
   } catch (e) {
     return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DEPLOY_FAILED', String(e.message ?? e));
   }
@@ -457,7 +463,10 @@ async function fnDelete(ctx) {
 
   if (r.ksvc_name) {
     try {
-      await (ctx.deleteKnativeService ?? deleteKnativeService)(r.ksvc_name);
+      await (ctx.deleteKnativeService ?? deleteKnativeService)(r.ksvc_name, {
+        tenantId: r.tenant_id,
+        functionResourceId: r.resource_id,
+      });
     } catch (e) {
       return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DELETE_FAILED', String(e.message ?? e));
     }
@@ -591,6 +600,8 @@ async function fnRollback(ctx) {
   if (deployName) {
     try {
       await (ctx.deployKnativeService ?? deployKnativeService)(deployName, target.source_code, {
+        tenantId: r.tenant_id,
+        functionResourceId: r.resource_id,
         memoryMb: target.memory_mb,
         timeoutMs: target.timeout_ms,
         secretEnv: []

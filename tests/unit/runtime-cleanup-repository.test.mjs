@@ -64,11 +64,44 @@ test('runtime-cleanup-02: recovery is readiness-gated, tenant-scoped, and idempo
 
   const recovered = await recoverFunctionCleanupObligations({
     runtime: { status: () => ({ state: 'ready' }), canServeWorkloads: () => true }, repository,
-    deleteRuntimeResource: async (name) => { deleted.push(name); },
+    deleteRuntimeResource: async (name, ownership) => { deleted.push({ name, ownership }); },
   });
   assert.deepEqual(recovered, { recovered: 1, failed: 0 });
-  assert.deepEqual(deleted, ['ksvc-a']);
+  assert.deepEqual(deleted, [{
+    name: 'ksvc-a',
+    ownership: { tenantId: 'tenant-a', functionResourceId: 'fn-a' },
+  }]);
   assert.deepEqual(completed, [{ obligationId: 'cleanup-1', tenantId: 'tenant-a', resourceId: 'fn-a' }]);
+});
+
+test('runtime-cleanup-02b: ownership mismatch retains logical state and the durable retry', async () => {
+  const released = [];
+  let completions = 0;
+  const obligation = {
+    obligationId: 'cleanup-1', tenantId: 'tenant-a', workspaceId: 'ws-a',
+    resourceId: 'fn-a', runtimeResourceName: 'ksvc-a', correlationId: 'corr-a',
+  };
+  const result = await recoverFunctionCleanupObligations({
+    runtime: { status: () => ({ state: 'ready' }), canServeWorkloads: () => true },
+    repository: {
+      claimPendingFunctions: async () => [obligation],
+      completeFunctionDeletion: async () => { completions += 1; },
+      releaseForRetry: async (value) => released.push(value),
+    },
+    deleteRuntimeResource: async (_name, ownership) => {
+      assert.deepEqual(ownership, { tenantId: 'tenant-a', functionResourceId: 'fn-a' });
+      throw Object.assign(new Error('retained'), {
+        code: 'FN_RUNTIME_OWNERSHIP_MISMATCH', statusCode: 409, retained: true,
+      });
+    },
+  });
+  assert.deepEqual(result, { recovered: 0, failed: 1 });
+  assert.equal(completions, 0);
+  assert.deepEqual(released, [{
+    obligationId: obligation.obligationId,
+    tenantId: obligation.tenantId,
+    errorCode: 'RUNTIME_DELETE_FAILED',
+  }]);
 });
 
 test('runtime-cleanup-03: MCP defer uses the caller transaction and preserves the first correlation on retry', async () => {

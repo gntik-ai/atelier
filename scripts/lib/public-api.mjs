@@ -249,6 +249,15 @@ export function buildRouteCatalog(
         correlationIdGeneratedWhenMissing: gatewayRouting?.spec?.correlationHeader?.generateWhenMissing === true,
         tenantBinding: operation['x-tenant-binding'] ?? routing.tenantBinding ?? null,
         workspaceBinding: operation['x-workspace-binding'] ?? routing.workspaceBinding ?? null,
+        ...(operation['x-authorized-role-claims'] !== undefined
+          ? { authorizedRoleClaims: operation['x-authorized-role-claims'] }
+          : {}),
+        ...(operation['x-actor-type-authorization'] !== undefined
+          ? { actorTypeAuthorization: operation['x-actor-type-authorization'] }
+          : {}),
+        ...(operation['x-runtime-cleanup-ownership'] !== undefined
+          ? { runtimeCleanupOwnership: operation['x-runtime-cleanup-ownership'] }
+          : {}),
         planCapabilityAnyOf: routing.planCapabilityAnyOf ?? [],
         requiredPlanFlags: operation['x-plan-flags'] ?? [],
         adminChannel: operation['x-admin-channel'] ?? null,
