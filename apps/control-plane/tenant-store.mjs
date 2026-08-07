@@ -1092,13 +1092,22 @@ export async function listRuntimeOwnership(pool, { tenantId, workspaceId }) {
   const where = tenantId ? 'tenant_id=$1' : 'workspace_id=$1';
   const { rows: functions } = await pool.query(`SELECT tenant_id AS "tenantId", workspace_id AS "workspaceId", resource_id AS "resourceId", ksvc_name AS "ksvcName" FROM fn_actions WHERE ${where} AND ksvc_name IS NOT NULL`, [tenantId ?? workspaceId]);
   let mcpState = null;
-  try { const r = await pool.query('SELECT state FROM falcone_mcp_state WHERE id=$1', [tenantId ?? 'global']); mcpState = r.rows[0]?.state ?? null; } catch { mcpState = null; }
-  return { tenantId: tenantId ?? functions[0]?.tenantId, workspaceId, functions, mcpState };
+  try { const r = await pool.query("SELECT state FROM falcone_mcp_state WHERE id='default'"); mcpState = r.rows[0]?.state ?? null; } catch { mcpState = null; }
+  const servers = Array.isArray(mcpState?.servers) ? mcpState.servers : [];
+  const mcp = servers.filter((s) => s && (!tenantId || s.tenantId === tenantId) && (!workspaceId || s.workspaceId === workspaceId))
+    .map((s) => ({ type: 'mcp', tenantId: s.tenantId, workspaceId: s.workspaceId, resourceId: s.id ?? s.serverId, name: s.name ?? s.id ?? s.serverId }));
+  return { tenantId: tenantId ?? functions[0]?.tenantId ?? mcp[0]?.tenantId, workspaceId, functions, mcp, mcpState };
 }
 
 export async function deferAggregateCleanup(pool, { tenantId, workspaceId, resources = [], correlationId }) {
+  if (!tenantId || !correlationId) throw Object.assign(new Error('tenant and correlation are required'), { code: 'INVALID_CLEANUP_SCOPE' });
   for (const resource of resources) {
-    await pool.query(`INSERT INTO runtime_cleanup_obligations (obligation_id,resource_type,operation,tenant_id,workspace_id,resource_id,runtime_resource_name,correlation_id,status) VALUES ($1,$2,'delete',$3,$4,$5,$6,$7,'pending') ON CONFLICT (obligation_id) DO UPDATE SET updated_at=NOW()`, [`aggregate:${resource.resourceId ?? resource.name ?? resource}`, resource.type ?? 'aggregate', tenantId, workspaceId, resource.resourceId ?? String(resource), resource.ksvcName ?? resource.name ?? String(resource), correlationId ?? null]);
+    const type = resource.type === 'mcp' ? 'mcp' : 'function';
+    const resourceId = resource.resourceId ?? resource.id;
+    if (!resourceId) continue;
+    const obligationId = `${type}:${tenantId}:${resourceId}:delete`;
+    await pool.query(`INSERT INTO runtime_cleanup_obligations (obligation_id,resource_type,operation,tenant_id,workspace_id,resource_id,runtime_resource_name,correlation_id,status) VALUES ($1,$2,'delete',$3,$4,$5,$6,$7,'pending') ON CONFLICT (resource_type,tenant_id,resource_id,operation) DO UPDATE SET updated_at=NOW()`, [obligationId, type, tenantId, workspaceId ?? resource.workspaceId ?? null, resourceId, resource.ksvcName ?? resource.name ?? resourceId, correlationId]);
+    if (type === 'function') await pool.query("UPDATE fn_actions SET lifecycle_status='deletion_pending', deletion_requested_at=COALESCE(deletion_requested_at,NOW()), updated_at=NOW() WHERE tenant_id=$1 AND resource_id=$2", [tenantId, resourceId]);
   }
 }
 
