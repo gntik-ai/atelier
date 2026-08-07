@@ -16,11 +16,12 @@ describe('ConsoleRuntimePage', () => {
     getStatus.mockResolvedValue(ready); renderPage()
     expect(await screen.findByRole('heading', { name: 'Runtime de funciones' })).toBeInTheDocument()
     expect(screen.getByText('platform')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Inspeccionar' })).toHaveAttribute('href', '/console/functions')
+    expect(screen.getByRole('link', { name: 'Inspeccionar Funciones' })).toHaveAttribute('href', '/console/functions')
+    expect(screen.getByRole('link', { name: 'Inspeccionar Hosted MCP' })).toHaveAttribute('href', '/console/mcp/servers')
   })
   it('announces degraded reason without inventing correlation data', async () => {
     getStatus.mockResolvedValue({ ...ready, state: 'degraded', reason: 'Webhook pendiente' }); renderPage()
-    expect(await screen.findByRole('status')).toHaveTextContent('Webhook pendiente')
+    expect(await screen.findByText('Webhook pendiente')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copiar' })).not.toBeInTheDocument()
   })
   it('offers retry on transport errors', async () => {

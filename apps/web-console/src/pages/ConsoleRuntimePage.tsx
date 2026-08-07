@@ -34,7 +34,7 @@ export function ConsoleRuntimePage() {
       {actionable ? <div role="status" className="mt-4 rounded-xl border border-amber-600/40 bg-background/50 p-3 text-sm"><p>Las invocaciones pueden estar temporalmente limitadas.</p><p className="mt-1 text-muted-foreground">Motivo: <span className="break-words">{status.reason || 'No especificado'}</span></p></div> : null}
     </section>
     <section className="grid gap-4 md:grid-cols-2" aria-label="Capacidades dependientes del runtime">
-      {[['Funciones', '/console/functions', status.state === 'ready' ? 'Disponible' : 'Pendiente'], ['Hosted MCP', '/console/mcp/servers', status.state === 'ready' ? 'Disponible' : 'Degradado']].map(([label, href, availability]) => <article key={label} className="rounded-3xl border border-border bg-card p-5"><h2 className="font-semibold">{label}</h2><p className="mt-2 text-sm text-muted-foreground">{availability}. No hay acciones de mutación desde esta vista.</p><Button asChild variant="outline" className="mt-4"><Link to={href}>Inspeccionar</Link></Button></article>)}
+      {[['Funciones', '/console/functions', status.state === 'ready' ? 'Disponible' : 'Pendiente'], ['Hosted MCP', '/console/mcp/servers', status.state === 'ready' ? 'Disponible' : 'Degradado']].map(([label, href, availability]) => <article key={label} className="rounded-3xl border border-border bg-card p-5"><h2 className="font-semibold">{label}</h2><p className="mt-2 text-sm text-muted-foreground">{availability}. No hay acciones de mutación desde esta vista.</p><Button asChild variant="outline" className="mt-4"><Link to={href}>Inspeccionar {label}</Link></Button></article>)}
     </section>
   </main>
 }
