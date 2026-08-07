@@ -43,6 +43,12 @@
  * OpenSpec #### Scenario: Version and rollback preserve Function semantics
  * bbx-933-function-rerun-authorization-45 | fn-function-runtime-availability-gate |
  * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
+ * bbx-933-function-rerun-runtime-contract-46 | fn-function-runtime-availability-gate |
+ * OpenSpec #### Scenario: Disabled Functions preserve the existing error
+ * bbx-933-function-rerun-audit-47 | fn-function-runtime-audit |
+ * OpenSpec #### Scenario: Lifecycle mutation is audited without secrets
+ * bbx-933-function-disabled-audit-scope-48 | fn-function-runtime-audit |
+ * OpenSpec #### Scenario: Disabled Functions preserve the existing error
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -1118,6 +1124,449 @@ test('bbx-933-function-rerun-authorization-45: activation rerun enforces parent,
     [],
     `activation rerun authorization and parent binding must precede dependency status and runtime effects:\n${JSON.stringify(failures, null, 2)}`,
   );
+});
+
+/**
+ * bbx-933-function-rerun-runtime-contract-46 | fn-function-runtime-availability-gate
+ * OpenSpec #### Scenario: Disabled Functions preserve the existing error
+ * OpenSpec #### Scenario: Invoke fails explicitly with an external incompatibility
+ */
+test('bbx-933-function-rerun-runtime-contract-46: rerun disabled/unavailable responses and Knative adapter metadata match production', async () => {
+  const store = lifecycleStore();
+  let activationWrites = 0;
+  const insertFnActivation = store.insertFnActivation.bind(store);
+  store.insertFnActivation = async (...args) => {
+    activationWrites += 1;
+    return insertFnActivation(...args);
+  };
+  const created = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-rerun-runtime-create',
+    body: deployBody('export async function main() { return { runtimeContract: true }; }'),
+  }));
+  assert.equal(created.statusCode, 202, JSON.stringify(created.body));
+  const resourceId = created.body.resourceId;
+  const invoked = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-rerun-runtime-source',
+    params: { actionId: resourceId },
+    body: { parameters: { source: true } },
+  }));
+  assert.equal(invoked.statusCode, 202, JSON.stringify(invoked.body));
+  const activationId = invoked.body.invocationId;
+  activationWrites = 0;
+
+  const normalizePath = (value) => String(value).replace(/\{[^}]+\}/g, '{}');
+  const rerunRoutes = routes.filter((route) => (
+    route.method === 'POST'
+    && normalizePath(route.path) === normalizePath(FUNCTION_ACTIVATION_RERUN_PATH)
+  ));
+  assert.equal(rerunRoutes.length, 1, 'production rerun route must be registered exactly once');
+  const rerunHandler = FN_HANDLERS[rerunRoutes[0].localHandler];
+  assert.equal(typeof rerunHandler, 'function', 'production rerun localHandler must be callable');
+
+  const counters = { waits: 0, invokes: 0 };
+  const rerunContext = (runtime, correlationId) => {
+    const context = lifecycleContext(store, {
+      correlationId,
+      params: { actionId: resourceId, resourceId, activationId },
+      body: {},
+    });
+    return {
+      ...context,
+      knativeRuntime: runtime,
+      waitKsvcReady: async () => { counters.waits += 1; return true; },
+      invokeKnative: async () => {
+        counters.invokes += 1;
+        return { status: 'success', statusCode: 200, result: { rerun: true }, logs: [], durationMs: 1 };
+      },
+    };
+  };
+  const disabledRuntime = {
+    functionsEnabled: false,
+    status: () => ({ mode: 'disabled', state: 'disabled', reason: 'DISABLED' }),
+    canServeWorkloads: () => false,
+  };
+  const disabledBefore = { ...counters, activationWrites };
+  const disabled = await rerunHandler(rerunContext(disabledRuntime, 'corr-rerun-functions-disabled'));
+  assert.deepEqual(disabled, {
+    statusCode: 501,
+    body: {
+      code: 'FUNCTIONS_DISABLED',
+      message: 'Functions capability is disabled.',
+      correlationId: 'corr-rerun-functions-disabled',
+    },
+  });
+  assert.deepEqual(
+    { ...counters, activationWrites },
+    disabledBefore,
+    'disabled rerun must not check readiness, invoke Knative, or write an activation',
+  );
+
+  const unavailableBefore = { ...counters, activationWrites };
+  const unavailable = await rerunHandler(rerunContext(UNAVAILABLE_RUNTIME, 'corr-rerun-knative-unavailable'));
+  assert.deepEqual(unavailable, {
+    statusCode: 503,
+    body: {
+      code: 'KNATIVE_UNAVAILABLE',
+      message: 'Knative runtime is unavailable.',
+      mode: 'managed',
+      state: 'unavailable',
+      reason: 'SERVING_UNAVAILABLE',
+      correlationId: 'corr-rerun-knative-unavailable',
+    },
+    auditScope: { tenantId: TENANT_ID, workspaceId: WORKSPACE_ID, resourceId },
+    knativeEvidence: {
+      capability: 'function', operation: 'invoke', mode: 'managed',
+      state: 'unavailable', reason: 'SERVING_UNAVAILABLE', result: 'unavailable',
+    },
+  });
+  assert.deepEqual(
+    { ...counters, activationWrites },
+    unavailableBefore,
+    'unavailable rerun must not wait, invoke Knative, or write an activation',
+  );
+
+  const operation = openapi.paths?.[FUNCTION_ACTIVATION_RERUN_PATH]?.post;
+  assert.ok(operation, 'authoritative OpenAPI must publish the activation rerun operation');
+  const failures = [];
+  for (const [status, body] of [[501, disabled.body], [503, unavailable.body]]) {
+    const schema = operation.responses?.[String(status)]?.content?.['application/json']?.schema;
+    if (!schema) {
+      failures.push({ status, error: 'missing application/json response schema' });
+      continue;
+    }
+    failures.push(...validationErrors(
+      validatorForResponse('post', FUNCTION_ACTIVATION_RERUN_PATH, status),
+      body,
+    ).map((error) => ({ status, error })));
+  }
+
+  const expectedAdapters = ['knative', 'local-control-plane'];
+  const operationAdapters = [...(operation['x-downstream-adapters'] ?? [])].sort();
+  const catalogMatches = routeCatalog.filter((entry) => entry.operationId === 'rerunFunctionActivation');
+  if (!isDeepStrictEqual(operationAdapters, expectedAdapters)) {
+    failures.push({ surface: 'OpenAPI', expectedAdapters, actualAdapters: operationAdapters });
+  }
+  if (catalogMatches.length !== 1) {
+    failures.push({ surface: 'route catalog', error: 'expected exactly one rerun operation', count: catalogMatches.length });
+  } else {
+    const catalogAdapters = [...(catalogMatches[0].downstreamAdapters ?? [])].sort();
+    if (!isDeepStrictEqual(catalogAdapters, expectedAdapters)) {
+      failures.push({ surface: 'route catalog', expectedAdapters, actualAdapters: catalogAdapters });
+    }
+    if (!isDeepStrictEqual(catalogAdapters, operationAdapters)) {
+      failures.push({ surface: 'generated metadata', error: 'OpenAPI and route catalog downstream adapters disagree' });
+    }
+  }
+  if (operationAdapters.includes('openwhisk')) {
+    failures.push({ surface: 'OpenAPI', error: 'rerun must not advertise the unused OpenWhisk adapter' });
+  }
+  assert.deepEqual(
+    failures,
+    [],
+    `rerun runtime responses and generated Knative adapter metadata must match production:\n${JSON.stringify(failures, null, 2)}`,
+  );
+});
+
+/**
+ * bbx-933-function-rerun-audit-47 | fn-function-runtime-audit
+ * OpenSpec #### Scenario: Lifecycle mutation is audited without secrets
+ * OpenSpec #### Scenario: Adjacent tenant cannot observe or mutate the runtime
+ */
+test('bbx-933-function-rerun-audit-47: an authorized rerun emits one trusted secret-safe audit event while denied probes stay opaque', async () => {
+  const store = lifecycleStore();
+  const pool = auditPool();
+  const deployed = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-rerun-audit-deploy',
+    body: deployBody('export async function main(input) { return { orderId: input.orderId }; }'),
+  }));
+  assert.equal(deployed.statusCode, 202, JSON.stringify(deployed.body));
+  const resourceId = deployed.body.resourceId;
+  const source = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-rerun-audit-source',
+    params: { actionId: resourceId },
+    body: { parameters: { orderId: 'secret-order-47' } },
+  }));
+  assert.equal(source.statusCode, 202, JSON.stringify(source.body));
+  const activationId = source.body.invocationId;
+
+  const normalizePath = (value) => String(value).replace(/\{[^}]+\}/g, '{}');
+  const rerunRoutes = routes.filter((route) => (
+    route.method === 'POST'
+    && normalizePath(route.path) === normalizePath(FUNCTION_ACTIVATION_RERUN_PATH)
+  ));
+  assert.equal(rerunRoutes.length, 1, 'production rerun route must be registered exactly once');
+  const route = rerunRoutes[0];
+  const rerunHandler = FN_HANDLERS[route.localHandler];
+  assert.equal(typeof rerunHandler, 'function', 'production rerun localHandler must be callable');
+
+  const requestContext = (identity, correlationId) => {
+    const context = lifecycleContext(store, {
+      correlationId,
+      params: { actionId: resourceId, resourceId, activationId },
+      body: {},
+    });
+    return {
+      ...context,
+      identity,
+      callerContext: {
+        correlationId,
+        actor: { id: identity.sub, type: identity.actorType },
+        tenantId: identity.tenantId,
+        workspaceId: identity.workspaceId,
+      },
+      invokeKnative: async () => ({
+        status: 'success', statusCode: 200,
+        result: { rerun: true, sensitiveResult: 'must-not-be-audited' },
+        logs: ['secret-log-must-not-be-audited'], durationMs: 1,
+      }),
+    };
+  };
+  const authorizedIdentity = {
+    sub: 'rerun-audit-owner', tenantId: TENANT_ID, workspaceId: ADJACENT_WORKSPACE_ID,
+    workspaceIds: [ADJACENT_WORKSPACE_ID, WORKSPACE_ID],
+    actorType: 'workspace_owner', roles: ['workspace_owner'],
+  };
+  const authorizedContext = requestContext(authorizedIdentity, 'corr-rerun-audit-authorized');
+  const authorized = await rerunHandler(authorizedContext);
+  assert.equal(authorized.statusCode, 202, JSON.stringify(authorized.body));
+  assert.deepEqual(authorized.auditScope, { tenantId: TENANT_ID, workspaceId: WORKSPACE_ID, resourceId });
+
+  const opaqueNotFound = { statusCode: 404, body: { code: 'ACTIVATION_NOT_FOUND', message: 'activation not found' } };
+  for (const [scenario, identity] of [
+    ['adjacent workspace', {
+      sub: 'rerun-audit-adjacent', tenantId: TENANT_ID, workspaceId: ADJACENT_WORKSPACE_ID,
+      workspaceIds: [ADJACENT_WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+    }],
+    ['foreign tenant', {
+      sub: 'rerun-audit-foreign', tenantId: 'ten_foreign', workspaceId: WORKSPACE_ID,
+      workspaceIds: [WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+    }],
+  ]) {
+    const denied = await rerunHandler(requestContext(identity, `corr-rerun-audit-${scenario.replace(' ', '-')}`));
+    assert.deepEqual(denied, opaqueNotFound, `${scenario} rerun must remain an opaque not-found response`);
+    assert.equal(denied.auditScope, undefined, `${scenario} rerun must not acquire trusted target scope`);
+    assert.equal(denied.knativeEvidence, undefined, `${scenario} rerun must not disclose runtime evidence`);
+    const publicDenial = JSON.stringify(denied);
+    for (const protectedValue of [resourceId, activationId, TENANT_ID, WORKSPACE_ID]) {
+      assert.equal(publicDenial.includes(protectedValue), false, `${scenario} rerun disclosed ${protectedValue}`);
+    }
+  }
+
+  const recorded = await recordRouteAudit(
+    pool,
+    route,
+    authorizedContext,
+    authorized,
+    'corr-rerun-audit-authorized',
+  );
+  assert.ok(recorded, 'authorized rerun must be registered at the production audit-writer boundary');
+  assert.equal(recorded.action_type, 'workspace.function.activation.rerun');
+  assert.equal(recorded.actor_id, authorizedIdentity.sub);
+  assert.equal(recorded.tenant_id, TENANT_ID);
+  assert.equal(recorded.outcome, 'succeeded');
+  assert.equal(recorded.correlation_id, 'corr-rerun-audit-authorized');
+  assert.deepEqual(recorded.new_state, {
+    method: 'POST',
+    path: FUNCTION_ACTIVATION_RERUN_PATH,
+    status: 202,
+    workspaceId: WORKSPACE_ID,
+    resourceId,
+  });
+
+  const audit = await METRICS_HANDLERS.metricsWorkspaceAudit(metricsContext(pool, WORKSPACE_ID));
+  assert.equal(audit.statusCode, 200, JSON.stringify(audit.body));
+  assert.equal(audit.body.items.length, 1, JSON.stringify(audit.body.items));
+  const [event] = audit.body.items;
+  assert.deepEqual(event.scope, { tenantId: TENANT_ID, workspaceId: WORKSPACE_ID });
+  assert.equal(event.actor.actorId, authorizedIdentity.sub);
+  assert.equal(event.action.actionId, 'workspace.function.activation.rerun');
+  assert.equal(event.correlationId, 'corr-rerun-audit-authorized');
+  assert.equal(event.detail.resourceId, resourceId);
+  assert.equal(event.result.outcome, 'succeeded');
+  const serializedEvent = JSON.stringify(event);
+  for (const sensitiveValue of [
+    'secret-order-47', 'secret-log-must-not-be-audited', 'must-not-be-audited',
+  ]) {
+    assert.equal(serializedEvent.includes(sensitiveValue), false, `audit event disclosed ${sensitiveValue}`);
+  }
+
+  const adjacentAudit = await METRICS_HANDLERS.metricsWorkspaceAudit(metricsContext(pool, ADJACENT_WORKSPACE_ID));
+  assert.equal(adjacentAudit.statusCode, 200, JSON.stringify(adjacentAudit.body));
+  assert.deepEqual(adjacentAudit.body.items, [], 'adjacent workspace must not observe the rerun audit event');
+});
+
+/**
+ * bbx-933-function-disabled-audit-scope-48 | fn-function-runtime-audit
+ * OpenSpec #### Scenario: Disabled Functions preserve the existing error
+ * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
+ */
+test('bbx-933-function-disabled-audit-scope-48: disabled invoke and rerun retain trusted persisted audit scope after authorization', async () => {
+  const store = lifecycleStore();
+  const pool = auditPool();
+  let activationWrites = 0;
+  const insertFnActivation = store.insertFnActivation.bind(store);
+  store.insertFnActivation = async (...args) => {
+    activationWrites += 1;
+    return insertFnActivation(...args);
+  };
+  const deployed = await FN_HANDLERS.fnDeploy(lifecycleContext(store, {
+    correlationId: 'corr-disabled-audit-deploy',
+    body: deployBody('export async function main() { return { disabledAudit: true }; }'),
+  }));
+  assert.equal(deployed.statusCode, 202, JSON.stringify(deployed.body));
+  const resourceId = deployed.body.resourceId;
+  const source = await FN_HANDLERS.fnInvoke(lifecycleContext(store, {
+    correlationId: 'corr-disabled-audit-source',
+    params: { actionId: resourceId },
+    body: { parameters: { establish: 'activation' } },
+  }));
+  assert.equal(source.statusCode, 202, JSON.stringify(source.body));
+  const activationId = source.body.invocationId;
+  activationWrites = 0;
+
+  const normalizePath = (value) => String(value).replace(/\{[^}]+\}/g, '{}');
+  const rerunRoutes = routes.filter((route) => (
+    route.method === 'POST'
+    && normalizePath(route.path) === normalizePath(FUNCTION_ACTIVATION_RERUN_PATH)
+  ));
+  assert.equal(rerunRoutes.length, 1, 'production rerun route must be registered exactly once');
+  const rerunRoute = rerunRoutes[0];
+  const rerunHandler = FN_HANDLERS[rerunRoute.localHandler];
+  assert.equal(typeof rerunHandler, 'function', 'production rerun localHandler must be callable');
+
+  const ownerIdentity = {
+    sub: 'disabled-audit-owner', tenantId: TENANT_ID, workspaceId: ADJACENT_WORKSPACE_ID,
+    workspaceIds: [ADJACENT_WORKSPACE_ID, WORKSPACE_ID],
+    actorType: 'workspace_owner', roles: ['workspace_owner'],
+  };
+  const counters = { waits: 0, invokes: 0 };
+  const requestContext = (identity, correlationId, rerun = false) => {
+    const context = lifecycleContext(store, {
+      correlationId,
+      params: {
+        actionId: resourceId,
+        resourceId,
+        ...(rerun ? { activationId } : {}),
+      },
+      body: rerun ? {} : { parameters: { shouldNotRun: true } },
+    });
+    return {
+      ...context,
+      identity,
+      callerContext: {
+        correlationId,
+        actor: { id: identity.sub, type: identity.actorType },
+        tenantId: identity.tenantId,
+        workspaceId: identity.workspaceId,
+      },
+      knativeRuntime: {
+        functionsEnabled: false,
+        status: () => ({ mode: 'disabled', state: 'disabled', reason: 'DISABLED' }),
+        canServeWorkloads: () => false,
+      },
+      waitKsvcReady: async () => { counters.waits += 1; return true; },
+      invokeKnative: async () => {
+        counters.invokes += 1;
+        return { status: 'success', statusCode: 200, result: { unexpected: true }, logs: [], durationMs: 1 };
+      },
+    };
+  };
+  const expectedScope = { tenantId: TENANT_ID, workspaceId: WORKSPACE_ID, resourceId };
+  const expectedDisabledBody = {
+    code: 'FUNCTIONS_DISABLED',
+    message: 'Functions capability is disabled.',
+  };
+  const beforeAuthorized = { ...counters, activationWrites };
+  const invokeContext = requestContext(ownerIdentity, 'corr-disabled-audit-invoke');
+  const disabledInvoke = await FN_HANDLERS.fnInvoke(invokeContext);
+  assert.equal(disabledInvoke.statusCode, 501, JSON.stringify(disabledInvoke));
+  assert.deepEqual(disabledInvoke.body, {
+    ...expectedDisabledBody,
+    correlationId: 'corr-disabled-audit-invoke',
+  });
+  assert.deepEqual(
+    disabledInvoke.auditScope,
+    expectedScope,
+    'authorized disabled invoke must retain trusted persisted Function scope',
+  );
+
+  const rerunContext = requestContext(ownerIdentity, 'corr-disabled-audit-rerun', true);
+  const disabledRerun = await rerunHandler(rerunContext);
+  assert.equal(disabledRerun.statusCode, 501, JSON.stringify(disabledRerun));
+  assert.deepEqual(disabledRerun.body, {
+    ...expectedDisabledBody,
+    correlationId: 'corr-disabled-audit-rerun',
+  });
+  assert.deepEqual(
+    disabledRerun.auditScope,
+    expectedScope,
+    'authorized disabled rerun must retain trusted persisted Function scope',
+  );
+  assert.deepEqual(
+    { ...counters, activationWrites },
+    beforeAuthorized,
+    'disabled invoke and rerun must not check readiness, invoke Knative, or write activations',
+  );
+
+  const deniedIdentities = [
+    ['adjacent workspace', {
+      sub: 'disabled-audit-adjacent', tenantId: TENANT_ID, workspaceId: ADJACENT_WORKSPACE_ID,
+      workspaceIds: [ADJACENT_WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+    }],
+    ['foreign tenant', {
+      sub: 'disabled-audit-foreign', tenantId: 'ten_foreign', workspaceId: WORKSPACE_ID,
+      workspaceIds: [WORKSPACE_ID], actorType: 'workspace_owner', roles: ['workspace_owner'],
+    }],
+  ];
+  const beforeDenied = { ...counters, activationWrites };
+  for (const [scenario, identity] of deniedIdentities) {
+    for (const [operation, handler, rerun] of [
+      ['invoke', FN_HANDLERS.fnInvoke, false],
+      ['rerun', rerunHandler, true],
+    ]) {
+      const denied = await handler(requestContext(
+        identity,
+        `corr-disabled-audit-${scenario.replace(' ', '-')}-${operation}`,
+        rerun,
+      ));
+      assert.equal(denied.statusCode, 404, `${scenario} ${operation} must be concealed before the disabled gate`);
+      assert.equal(denied.auditScope, undefined, `${scenario} ${operation} must not acquire trusted target scope`);
+      assert.equal(denied.knativeEvidence, undefined, `${scenario} ${operation} must not disclose runtime evidence`);
+      const publicDenial = JSON.stringify(denied);
+      for (const protectedValue of [resourceId, activationId, TENANT_ID, WORKSPACE_ID, 'FUNCTIONS_DISABLED']) {
+        assert.equal(publicDenial.includes(protectedValue), false, `${scenario} ${operation} disclosed ${protectedValue}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    { ...counters, activationWrites },
+    beforeDenied,
+    'concealed disabled probes must not check readiness, invoke Knative, or write activations',
+  );
+
+  const recorded = await recordRouteAudit(
+    pool,
+    rerunRoute,
+    rerunContext,
+    disabledRerun,
+    'corr-disabled-audit-rerun',
+  );
+  assert.ok(recorded, 'disabled rerun must be registered at the production audit-writer boundary');
+  assert.equal(recorded.tenant_id, TENANT_ID);
+  assert.equal(recorded.new_state.workspaceId, WORKSPACE_ID);
+  assert.equal(recorded.new_state.resourceId, resourceId);
+  assert.equal(recorded.correlation_id, 'corr-disabled-audit-rerun');
+  assert.equal(recorded.action_type, 'workspace.function.activation.rerun');
+
+  const targetAudit = await METRICS_HANDLERS.metricsWorkspaceAudit(metricsContext(pool, WORKSPACE_ID));
+  assert.equal(targetAudit.statusCode, 200, JSON.stringify(targetAudit.body));
+  assert.equal(targetAudit.body.items.length, 1, JSON.stringify(targetAudit.body.items));
+  assert.deepEqual(targetAudit.body.items[0].scope, { tenantId: TENANT_ID, workspaceId: WORKSPACE_ID });
+  assert.equal(targetAudit.body.items[0].detail.resourceId, resourceId);
+
+  const adjacentAudit = await METRICS_HANDLERS.metricsWorkspaceAudit(metricsContext(pool, ADJACENT_WORKSPACE_ID));
+  assert.equal(adjacentAudit.statusCode, 200, JSON.stringify(adjacentAudit.body));
+  assert.deepEqual(adjacentAudit.body.items, [], 'adjacent workspace must not observe the disabled rerun event');
 });
 
 const MCP_TENANT_ID = 'ten_mcp_contract';
