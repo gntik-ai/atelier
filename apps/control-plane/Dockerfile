@@ -23,6 +23,7 @@ RUN npm install --omit=dev --no-audit --no-fund \
 
 # Server source + domain-B modules + the verified runtime route table.
 COPY apps/control-plane/server.mjs apps/control-plane/routes.mjs \
+     apps/control-plane/runtime-teardown-coordinator.mjs \
      apps/control-plane/jwt-verify.mjs apps/control-plane/sa-revocation.mjs \
      apps/control-plane/kc-admin.mjs apps/control-plane/tenant-store.mjs \
      apps/control-plane/b-handlers.mjs apps/control-plane/auth-handlers.mjs \
@@ -87,6 +88,7 @@ RUN node -e "const fs=require('fs');const list=JSON.parse(fs.readFileSync('./rou
 # boot. This makes an incomplete explicit COPY list fail during image build,
 # before the published image can crash-loop with ERR_MODULE_NOT_FOUND.
 RUN node -e "import('./control-plane-database-startup.mjs').then(()=>console.log('[build] control-plane database-startup import resolves')).catch((error)=>{console.error('[build] control-plane database-startup import failed:',error.code||error.name);process.exit(1)})"
+RUN node -e "import('./runtime-teardown-coordinator.mjs').then(()=>console.log('[build] runtime teardown import resolves')).catch((error)=>{console.error('[build] runtime teardown import failed:',error.code||error.name);process.exit(1)})"
 
 ENV NODE_ENV=production \
     KNATIVE_RUNTIME_MODE=disabled \

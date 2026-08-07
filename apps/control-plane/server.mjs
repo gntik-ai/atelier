@@ -21,7 +21,7 @@ import { createMultiRealmVerifier, deriveRealmTopology } from './jwt-verify.mjs'
 import { routes as seedRoutes } from './routes.mjs';
 import { LOCAL_HANDLERS } from './b-handlers.mjs';
 import * as tenantStore from './tenant-store.mjs';
-import { createRuntimeTeardownCoordinator } from './runtime-teardown-coordinator.mjs';
+import { createRuntimeTeardownCoordinator, createProductionRuntimeAdapter } from './runtime-teardown-coordinator.mjs';
 import { createSaRevocationCheck } from './sa-revocation.mjs';
 import { runWithRetry, migrationRetryConfig } from './schema-retry.mjs';
 import { resolveWebhookKeyBeforeServing, sanitizedWebhookBootstrapError } from './webhook-key-runtime.mjs';
@@ -73,7 +73,7 @@ const pool = DB_URL
   : new Pool(withPostgresSsl({ max: 12 }));
 // Always provide the aggregate teardown boundary. Without a live runtime adapter it fails closed
 // and returns 202, preventing destructive registry purges during an outage.
-const runtimeTeardownCoordinator = createRuntimeTeardownCoordinator({ store: tenantStore });
+const runtimeTeardownCoordinator = createRuntimeTeardownCoordinator({ store: tenantStore, runtime: createProductionRuntimeAdapter() });
 const webhookSchemaPool = WEBHOOK_SCHEMA_DATABASE_URL
   ? new Pool(withPostgresSsl({ connectionString: WEBHOOK_SCHEMA_DATABASE_URL, max: 1 }))
   : null;
