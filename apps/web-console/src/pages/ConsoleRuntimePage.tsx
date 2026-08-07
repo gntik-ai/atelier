@@ -16,7 +16,7 @@ export function ConsoleRuntimePage() {
   const [loading, setLoading] = useState(true)
   const retryRef = useRef<HTMLButtonElement>(null)
   const [announcement, setAnnouncement] = useState('')
-  const load = () => { setLoading(true); setError(false); getKnativeRuntimeStatus().then((next) => { setStatus(next); setAnnouncement('Estado del runtime actualizado.') }).catch(() => { setError(true); setAnnouncement('No se pudo consultar el runtime.') }).finally(() => { setLoading(false); requestAnimationFrame(() => retryRef.current?.focus()) }) }
+  const load = () => { setLoading(true); setError(false); getKnativeRuntimeStatus().then((next) => { setStatus(next); setAnnouncement(`Estado actualizado: ${stateLabels[next.state] ?? 'disponible'}.`) }).catch(() => { setError(true); setAnnouncement('No se pudo consultar el runtime.') }).finally(() => { setLoading(false); requestAnimationFrame(() => retryRef.current?.focus()) }) }
   useEffect(() => { load() }, [])
   useEffect(() => { document.title = 'Runtime de funciones · Consola In Falcone'; return () => { document.title = 'Consola In Falcone' } }, [])
   if (loading) return <div><ConsolePageState kind="loading" title="Consultando runtime de plataforma" description="Estamos verificando el estado de Knative. Esta operación es de solo lectura." /></div>
@@ -25,7 +25,7 @@ export function ConsoleRuntimePage() {
   const actionable = status.state === 'degraded' || status.state === 'unavailable'
   const statusTone = status.state === 'ready' ? 'border-emerald-500/50 bg-emerald-500/10' : actionable ? 'border-amber-500/60 bg-amber-500/10' : 'border-border bg-muted/30'
   const dependencyLabel = status.state === 'ready' ? 'Disponible' : stateLabels[status.state] ?? 'Estado no disponible'
-  return <div className="space-y-6" aria-labelledby="runtime-title">
+  return <div className="space-y-6" aria-labelledby="runtime-title"><div role="status" className="sr-only">{announcement}</div>
     <header className="rounded-3xl border border-border bg-card/70 p-5 shadow-sm sm:p-6">
       <p className="text-sm text-muted-foreground">Plataforma · solo lectura</p><h1 id="runtime-title" className="text-2xl font-semibold">Runtime de funciones</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Consulta el estado del runtime sin iniciar cambios ni despliegues.</p>
@@ -37,7 +37,7 @@ export function ConsoleRuntimePage() {
       {status.state === 'unverified' ? <p className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-sm text-muted-foreground">El runtime aún no está verificado; las operaciones dependientes permanecen no disponibles hasta completar la validación.</p> : null}
       {status.state === 'unavailable' || status.state === 'degraded' ? <p className="mt-4 rounded-xl border border-border bg-muted/30 p-3 text-sm text-muted-foreground">Las operaciones dependientes no están disponibles temporalmente.</p> : null}
       {actionable ? <div className="mt-4 rounded-xl border border-amber-600/40 bg-background/50 p-3 text-sm"><p>Las invocaciones pueden estar temporalmente limitadas.</p><p className="mt-1 text-muted-foreground">El equipo de plataforma está revisando la disponibilidad.</p></div> : null}
-      {status.state !== 'ready' ? <Button type="button" variant="outline" className="mt-4" onClick={load} ref={retryRef}>Volver a comprobar</Button> : null}
+      <Button type="button" variant="outline" className="mt-4" onClick={load} ref={retryRef}>Volver a comprobar</Button>
     </section>
     <section className="grid gap-4 md:grid-cols-2" aria-label="Capacidades dependientes del runtime">
       {[['Funciones', '/console/functions'], ['Hosted MCP', '/console/mcp/servers/srv_1']].map(([label, href]) => <article key={label} className="rounded-3xl border border-border bg-card p-5"><h2 className="font-semibold">{label}</h2><p className="mt-2 text-sm text-muted-foreground">{dependencyLabel}. No hay acciones de mutación desde esta vista.</p><Button asChild variant="outline" className="mt-4"><Link to={href}>Inspeccionar {label}</Link></Button></article>)}

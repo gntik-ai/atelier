@@ -63,7 +63,7 @@ export function McpServerPlayground({
     [toolName, tools]
   )
   const argsInvalid = error === invalidJsonMessage
-  const effectiveDisabledReason = disabledReason ?? (runtimeReady === false ? 'El runtime Hosted MCP no está disponible; la invocación está deshabilitada.' : undefined)
+  const effectiveDisabledReason = disabledReason ?? (runtimeReady === false ? 'Runtime no disponible: el runtime Hosted MCP no está disponible; la invocación está deshabilitada.' : undefined)
   const disabled = !endpoint || !toolName || busy || Boolean(effectiveDisabledReason)
 
   async function handleInvoke(event: FormEvent<HTMLFormElement>) {
