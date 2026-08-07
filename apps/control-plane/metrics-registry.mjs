@@ -24,8 +24,8 @@ export function normalizeRoute(path) {
     if (!seg) return seg;
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(seg)) return '{id}';
     if (/^[0-9]+$/.test(seg)) return '{id}';
-    if (seg.length > 24) return ':id';
-    return ':unmatched';
+    if (seg.length > 24) return '{id}';
+    return seg;
   }).join('/');
   return norm || '/';
 }
