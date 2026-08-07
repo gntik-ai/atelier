@@ -967,17 +967,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function action deployment request accepted.",
+      "202": {
+        "description": "Function action deployment request accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GatewayMutationAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -1043,26 +1057,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "The Functions capability is intentionally disabled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FunctionsDisabledError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
                 }
               }
             }
@@ -1288,17 +1282,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function action update accepted.",
+      "202": {
+        "description": "Function action update accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GatewayMutationAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -1374,26 +1382,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "The Functions capability is intentionally disabled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FunctionsDisabledError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
                 }
               }
             }
@@ -1493,6 +1481,10 @@
               }
             }
           },
+          "501": {
+            "description": "The Functions capability is intentionally disabled.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+          },
           "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
@@ -1569,16 +1561,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "The Functions capability is intentionally disabled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FunctionsDisabledError"
                 }
               }
             }
@@ -12346,17 +12328,7 @@
       "delete": {
         "operationId": "deleteWorkspace",
         "x-runtime-aggregate-teardown": {
-          "ownedCapabilities": [
-            "functions",
-            "hosted_mcp"
-          ],
-          "ownershipVerification": "required_before_delete",
-          "readyCompletion": "only_after_owned_resources_absent",
-          "unavailableStatus": "cleanup_pending",
-          "retainOwnershipMetadata": true,
-          "durableObligations": "owner_scoped",
-          "retry": "idempotent_after_readiness",
-          "adjacentTenantEffect": "none"
+          "ownedCapabilities": ["functions", "hosted_mcp"], "ownershipVerification": "required_before_delete", "readyCompletion": "only_after_owned_resources_absent", "unavailableStatus": "cleanup_pending", "retainOwnershipMetadata": true, "durableObligations": "owner_scoped", "retry": "idempotent_after_readiness", "adjacentTenantEffect": "none"
         },
         "summary": "Soft-delete one canonical workspace while preserving audit and clone lineage metadata",
         "tags": [
@@ -12382,16 +12354,6 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Workspace deletion completed.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WorkspaceDeleteCompleted"
-                }
-              }
-            }
-          },
           "202": {
             "description": "Workspace deletion accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
@@ -12462,16 +12424,6 @@
               }
             }
           },
-          "503": {
-            "description": "Runtime teardown coordinator unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
-                }
-              }
-            }
-          },
           "504": {
             "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
@@ -12488,6 +12440,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Workspace deletion completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDeleteCompleted"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Runtime teardown coordinator unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
                 }
               }
             }
@@ -19106,17 +19078,7 @@
       "post": {
         "operationId": "purgeTenant",
         "x-runtime-aggregate-teardown": {
-          "ownedCapabilities": [
-            "functions",
-            "hosted_mcp"
-          ],
-          "ownershipVerification": "required_before_delete",
-          "readyCompletion": "only_after_owned_resources_absent",
-          "unavailableStatus": "cleanup_pending",
-          "retainOwnershipMetadata": true,
-          "durableObligations": "owner_scoped",
-          "retry": "idempotent_after_readiness",
-          "adjacentTenantEffect": "none"
+          "ownedCapabilities": ["functions", "hosted_mcp"], "ownershipVerification": "required_before_delete", "readyCompletion": "only_after_owned_resources_absent", "unavailableStatus": "cleanup_pending", "retainOwnershipMetadata": true, "durableObligations": "owner_scoped", "retry": "idempotent_after_readiness", "adjacentTenantEffect": "none"
         },
         "summary": "Definitively purge one logically deleted tenant after retention and elevated confirmation checks",
         "tags": [
@@ -19152,16 +19114,6 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Tenant purge completed.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantPurgeCompleted"
-                }
-              }
-            }
-          },
           "202": {
             "description": "Tenant mutation accepted; cleanup.pending is returned while owner-verified runtime resources remain.",
             "content": {
@@ -19232,16 +19184,6 @@
               }
             }
           },
-          "503": {
-            "description": "Runtime teardown coordinator unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
-                }
-              }
-            }
-          },
           "504": {
             "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
             "content": {
@@ -19258,6 +19200,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Tenant purge completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantPurgeCompleted"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Runtime teardown coordinator unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
                 }
               }
             }
@@ -47312,17 +47274,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function invocation accepted.",
+      "202": {
+        "description": "Function invocation accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FunctionInvocationAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no invocation or successful activation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -47398,26 +47374,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "The Functions capability is intentionally disabled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FunctionsDisabledError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "The selected Knative runtime cannot serve workloads; no invocation or successful activation was attempted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
                 }
               }
             }
@@ -49608,17 +49564,31 @@
           }
         },
         "responses": {
-          "202": {
-            "description": "Function rollback accepted.",
+      "202": {
+        "description": "Function rollback accepted.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FunctionRollbackAccepted"
                 }
               }
+        }
+      },
+      "501": {
+        "description": "The Functions capability is intentionally disabled.",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FunctionsDisabledError" } } }
+      },
+      "503": {
+        "description": "The selected Knative runtime cannot serve workloads; no rollback mutation was attempted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/KnativeUnavailableError"
             }
-          },
-          "400": {
+          }
+        }
+      },
+      "400": {
             "description": "The request is malformed or contextually inconsistent.",
             "content": {
               "application/json": {
@@ -49694,26 +49664,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "501": {
-            "description": "The Functions capability is intentionally disabled.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FunctionsDisabledError"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "The selected Knative runtime cannot serve workloads; no rollback mutation was attempted.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
                 }
               }
             }
@@ -60171,340 +60121,77 @@
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}": {
       "parameters": [
-        {
-          "$ref": "#/components/parameters/XApiVersion"
-        },
-        {
-          "$ref": "#/components/parameters/XCorrelationId"
-        },
-        {
-          "$ref": "#/components/parameters/WorkspaceId"
-        },
-        {
-          "name": "serverId",
-          "in": "path",
-          "required": true,
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          }
-        }
+        { "$ref": "#/components/parameters/XApiVersion" },
+        { "$ref": "#/components/parameters/XCorrelationId" },
+        { "$ref": "#/components/parameters/WorkspaceId" },
+        { "name": "serverId", "in": "path", "required": true, "schema": { "type": "string", "minLength": 1, "maxLength": 255 } }
       ],
       "get": {
         "operationId": "getMcpServer",
         "summary": "Read one tenant-scoped hosted MCP server and its runtime dependency state",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          }
-        ],
+        "tags": ["MCP"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }],
         "responses": {
-          "200": {
-            "description": "Stored server metadata returned even while Knative is degraded.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpServerDetail"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is not authorized for this workspace.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No server exists for the credential-derived tenant.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP metadata error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "Stored server metadata returned even while Knative is degraded.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpServerDetail" } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized for this workspace.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "No server exists for the credential-derived tenant.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP metadata error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_server",
-        "x-audiences": [
-          "developer_external",
-          "workspace_owner",
-          "workspace_admin",
-          "workspace_developer",
-          "workspace_service_account",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-read",
-        "x-owning-service": "control_api"
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_server",
+        "x-audiences": ["developer_external", "workspace_owner", "workspace_admin", "workspace_developer", "workspace_service_account", "platform_team"],
+        "x-visibility": "public", "x-rate-limit-class": "data-read", "x-owning-service": "control_api"
       },
       "delete": {
         "operationId": "deleteMcpServer",
         "summary": "Delete a hosted MCP server or durably defer cleanup during a Knative outage",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
+        "tags": ["MCP"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
         "responses": {
-          "200": {
-            "description": "The hosted server and owned runtime resources were removed.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "serverId",
-                    "deleted"
-                  ],
-                  "properties": {
-                    "serverId": {
-                      "type": "string"
-                    },
-                    "deleted": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "Knative is unavailable; logical state and a durable cleanup obligation are deletion_pending.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpDeletionPending"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is not authorized for this workspace.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No server exists for the credential-derived tenant.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP deletion error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "The hosted server and owned runtime resources were removed.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["serverId", "deleted"], "properties": { "serverId": { "type": "string" }, "deleted": { "type": "boolean", "const": true } } } } } },
+          "202": { "description": "Knative is unavailable; logical state and a durable cleanup obligation are deletion_pending.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpDeletionPending" } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized for this workspace.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "No server exists for the credential-derived tenant.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP deletion error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_server",
-        "x-audiences": [
-          "workspace_owner",
-          "workspace_admin",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "postgresql",
-          "mcp-runtime"
-        ]
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_server",
+        "x-audiences": ["workspace_owner", "workspace_admin", "platform_team"],
+        "x-visibility": "public", "x-rate-limit-class": "data-write", "x-owning-service": "control_api", "x-downstream-adapters": ["postgresql", "mcp-runtime"]
       }
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations": {
       "post": {
         "operationId": "curateMcpServer",
         "summary": "Curate the generated tools for one hosted MCP server",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
+        "tags": ["MCP"],
+        "security": [{ "bearerAuth": [] }],
         "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
+          { "$ref": "#/components/parameters/XApiVersion" },
+          { "$ref": "#/components/parameters/XCorrelationId" },
+          { "$ref": "#/components/parameters/WorkspaceId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" },
           {
             "name": "serverId",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 255
-            }
+            "schema": { "type": "string", "minLength": 1, "maxLength": 255 }
           }
         ],
         "requestBody": {
           "required": false,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/McpCurationRequest"
-              }
+              "schema": { "$ref": "#/components/schemas/McpCurationRequest" }
             }
           }
         },
@@ -60513,709 +60200,96 @@
             "description": "The server draft was curated without publishing or activating it.",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpCurationResponse"
-                }
+                "schema": { "$ref": "#/components/schemas/McpCurationResponse" }
               }
             }
           },
-          "400": {
-            "description": "Runtime MCP error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpExecutorError"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpExecutorError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Runtime MCP error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpExecutorError"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The workspace or tenant-scoped hosted MCP server was not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpExecutorError"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP curation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "400": { "description": "Runtime MCP error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpExecutorError" } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpExecutorError" } } } },
+          "403": { "description": "Runtime MCP error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpExecutorError" } } } },
+          "404": { "description": "The workspace or tenant-scoped hosted MCP server was not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpExecutorError" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP curation error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
         "x-family": "mcp",
         "x-scope": "workspace",
         "x-resource-type": "mcp_server_curation",
-        "x-audiences": [
-          "tenant_owner",
-          "tenant_admin",
-          "workspace_owner",
-          "workspace_admin",
-          "platform_team"
-        ],
-        "x-authorized-role-claims": [
-          "tenant_owner",
-          "tenant_admin",
-          "workspace_owner",
-          "workspace_admin",
-          "platform_admin",
-          "superadmin"
-        ],
+        "x-audiences": ["tenant_owner", "tenant_admin", "workspace_owner", "workspace_admin", "platform_team"],
+        "x-authorized-role-claims": ["tenant_owner", "tenant_admin", "workspace_owner", "workspace_admin", "platform_admin", "superadmin"],
         "x-visibility": "public",
         "x-rate-limit-class": "data-write",
         "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "postgresql"
-        ]
+        "x-downstream-adapters": ["postgresql"]
       }
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions": {
       "post": {
-        "operationId": "publishMcpServerVersion",
-        "summary": "Publish and deploy a hosted MCP server version",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
-          {
-            "name": "serverId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
+        "operationId": "publishMcpServerVersion", "summary": "Publish and deploy a hosted MCP server version", "tags": ["MCP"], "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }, { "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "serverId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
         "responses": {
-          "201": {
-            "description": "Version published and, when review is not required, activated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Tenant-safe server not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "The version failed curation or publication validation.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Knative is unavailable and no version/runtime mutation occurred.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP publication error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "201": { "description": "Version published and, when review is not required, activated.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Tenant-safe server not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "422": { "description": "The version failed curation or publication validation.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "503": { "description": "Knative is unavailable and no version/runtime mutation occurred.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnativeUnavailableError" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP publication error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_server_version",
-        "x-audiences": [
-          "workspace_owner",
-          "workspace_admin",
-          "workspace_developer",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "postgresql",
-          "mcp-runtime"
-        ]
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_server_version", "x-audiences": ["workspace_owner", "workspace_admin", "workspace_developer", "platform_team"], "x-visibility": "public", "x-rate-limit-class": "data-write", "x-owning-service": "control_api", "x-downstream-adapters": ["postgresql", "mcp-runtime"]
       }
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions/{version}/approval": {
       "post": {
-        "operationId": "approveMcpServerVersion",
-        "summary": "Approve and activate a hosted MCP server version",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
-          {
-            "name": "serverId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "approveMcpServerVersion", "summary": "Approve and activate a hosted MCP server version", "tags": ["MCP"], "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }, { "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "serverId", "in": "path", "required": true, "schema": { "type": "string" } }, { "name": "version", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
-          "200": {
-            "description": "Version approved and activated.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Tenant-safe server/version not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Knative is unavailable and no activation occurred.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP approval error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "Version approved and activated.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Tenant-safe server/version not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "503": { "description": "Knative is unavailable and no activation occurred.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnativeUnavailableError" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP approval error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_server_version",
-        "x-audiences": [
-          "workspace_owner",
-          "workspace_admin",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "postgresql",
-          "mcp-runtime"
-        ]
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_server_version", "x-audiences": ["workspace_owner", "workspace_admin", "platform_team"], "x-visibility": "public", "x-rate-limit-class": "data-write", "x-owning-service": "control_api", "x-downstream-adapters": ["postgresql", "mcp-runtime"]
       }
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/tool-calls": {
       "post": {
-        "operationId": "invokeMcpServerTool",
-        "summary": "Invoke a published hosted MCP tool",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
-          {
-            "name": "serverId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "required": [
-                  "name"
-                ],
-                "properties": {
-                  "name": {
-                    "type": "string"
-                  },
-                  "arguments": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          }
-        },
+        "operationId": "invokeMcpServerTool", "summary": "Invoke a published hosted MCP tool", "tags": ["MCP"], "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }, { "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "serverId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true, "required": ["name"], "properties": { "name": { "type": "string" }, "arguments": { "type": "object", "additionalProperties": true } } } } } },
         "responses": {
-          "200": {
-            "description": "Tool invocation result.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Tenant-safe server not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS or MCP quota rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Knative is unavailable and no tool was invoked.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/KnativeUnavailableError"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP invocation error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "Tool invocation result.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Tenant-safe server not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS or MCP quota rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "503": { "description": "Knative is unavailable and no tool was invoked.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/KnativeUnavailableError" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP invocation error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_tool_call",
-        "x-audiences": [
-          "developer_external",
-          "workspace_owner",
-          "workspace_admin",
-          "workspace_developer",
-          "workspace_service_account",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "mcp-runtime"
-        ]
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_tool_call", "x-audiences": ["developer_external", "workspace_owner", "workspace_admin", "workspace_developer", "workspace_service_account", "platform_team"], "x-visibility": "public", "x-rate-limit-class": "data-write", "x-owning-service": "control_api", "x-downstream-adapters": ["mcp-runtime"]
       }
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc": {
       "post": {
-        "operationId": "dispatchHostedMcpJsonRpc",
-        "summary": "Dispatch one JSON-RPC request or notification to a hosted MCP server",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          },
-          {
-            "name": "serverId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "additionalProperties": true,
-                "required": [
-                  "jsonrpc",
-                  "method"
-                ],
-                "properties": {
-                  "jsonrpc": {
-                    "type": "string",
-                    "const": "2.0"
-                  },
-                  "id": {},
-                  "method": {
-                    "type": "string"
-                  },
-                  "params": {
-                    "type": "object",
-                    "additionalProperties": true
-                  }
-                }
-              }
-            }
-          }
-        },
+        "operationId": "dispatchHostedMcpJsonRpc", "summary": "Dispatch one JSON-RPC request or notification to a hosted MCP server", "tags": ["MCP"], "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }, { "$ref": "#/components/parameters/WorkspaceId" }, { "$ref": "#/components/parameters/IdempotencyKey" }, { "name": "serverId", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true, "required": ["jsonrpc", "method"], "properties": { "jsonrpc": { "type": "string", "const": "2.0" }, "id": {}, "method": { "type": "string" }, "params": { "type": "object", "additionalProperties": true } } } } } },
         "responses": {
           "200": {
             "description": "JSON-RPC result or error; runtime unavailability uses error -32005 and McpJsonRpcUnavailableData.",
@@ -61227,8 +60301,22 @@
               }
             }
           },
-          "202": {
-            "description": "Notification accepted with an intentionally empty HTTP body."
+          "202": { "description": "Notification accepted with an intentionally empty HTTP body." },
+          "401": { "description": "Authentication precedes hosted dependency status.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpExecutorError" } } } },
+          "403": { "description": "Runtime MCP error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/McpExecutorError" } } } },
+          "413": { "description": "Gateway rejected an oversized body.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": {
+            "description": "Unexpected hosted MCP transport error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Runtime MCP error.",
@@ -61239,241 +60327,26 @@
                 }
               }
             }
-          },
-          "401": {
-            "description": "Authentication precedes hosted dependency status.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpExecutorError"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Runtime MCP error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/McpExecutorError"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Gateway rejected an oversized body.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected hosted MCP transport error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
           }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_jsonrpc",
-        "x-audiences": [
-          "developer_external",
-          "workspace_owner",
-          "workspace_admin",
-          "workspace_developer",
-          "workspace_service_account",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-write",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "mcp-runtime"
-        ]
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_jsonrpc", "x-audiences": ["developer_external", "workspace_owner", "workspace_admin", "workspace_developer", "workspace_service_account", "platform_team"], "x-visibility": "public", "x-rate-limit-class": "data-write", "x-owning-service": "control_api", "x-downstream-adapters": ["mcp-runtime"]
       }
     },
     "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/audit": {
       "get": {
-        "operationId": "listMcpServerAudit",
-        "summary": "Read tenant-scoped hosted MCP audit events and dependency readiness",
-        "tags": [
-          "MCP"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/XApiVersion"
-          },
-          {
-            "$ref": "#/components/parameters/XCorrelationId"
-          },
-          {
-            "$ref": "#/components/parameters/WorkspaceId"
-          },
-          {
-            "name": "serverId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "listMcpServerAudit", "summary": "Read tenant-scoped hosted MCP audit events and dependency readiness", "tags": ["MCP"], "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/XApiVersion" }, { "$ref": "#/components/parameters/XCorrelationId" }, { "$ref": "#/components/parameters/WorkspaceId" }, { "name": "serverId", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
-          "200": {
-            "description": "Tenant-scoped audit records and honest runtime dependency state.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "items",
-                    "runtimeDependency"
-                  ],
-                  "properties": {
-                    "items": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    "runtimeDependency": {
-                      "$ref": "#/components/schemas/McpRuntimeDependency"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Authentication is required.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "The caller is not authorized.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Tenant-safe server not found.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Gateway QoS rejected the request.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "431": {
-            "description": "Gateway rejected invalid request headers.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "504": {
-            "description": "Gateway timed out waiting for the control plane.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected MCP audit error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
+          "200": { "description": "Tenant-scoped audit records and honest runtime dependency state.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": false, "required": ["items", "runtimeDependency"], "properties": { "items": { "type": "array", "items": { "type": "object", "additionalProperties": true } }, "runtimeDependency": { "$ref": "#/components/schemas/McpRuntimeDependency" } } } } } },
+          "401": { "description": "Authentication is required.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "The caller is not authorized.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Tenant-safe server not found.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Gateway QoS rejected the request.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "431": { "description": "Gateway rejected invalid request headers.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "504": { "description": "Gateway timed out waiting for the control plane.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "default": { "description": "Unexpected MCP audit error.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         },
-        "x-family": "mcp",
-        "x-scope": "workspace",
-        "x-resource-type": "mcp_audit_event",
-        "x-audiences": [
-          "workspace_owner",
-          "workspace_admin",
-          "platform_team"
-        ],
-        "x-visibility": "public",
-        "x-rate-limit-class": "data-read",
-        "x-owning-service": "control_api",
-        "x-downstream-adapters": [
-          "postgresql"
-        ]
+        "x-family": "mcp", "x-scope": "workspace", "x-resource-type": "mcp_audit_event", "x-audiences": ["workspace_owner", "workspace_admin", "platform_team"], "x-visibility": "public", "x-rate-limit-class": "data-read", "x-owning-service": "control_api", "x-downstream-adapters": ["postgresql"]
       }
     }
   },
@@ -62704,158 +61577,50 @@
       "McpRuntimeDependency": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "mode",
-          "state",
-          "reason",
-          "ready"
-        ],
+        "required": ["mode", "state", "reason", "ready"],
         "properties": {
-          "mode": {
-            "type": "string",
-            "enum": [
-              "managed",
-              "external",
-              "disabled"
-            ]
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "ready",
-              "unverified",
-              "degraded",
-              "unavailable",
-              "disabled"
-            ]
-          },
-          "reason": {
-            "type": "string",
-            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
-          },
-          "ready": {
-            "type": "boolean"
-          }
+          "mode": { "type": "string", "enum": ["managed", "external", "disabled"] },
+          "state": { "type": "string", "enum": ["ready", "unverified", "degraded", "unavailable", "disabled"] },
+          "reason": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
+          "ready": { "type": "boolean" }
         }
       },
       "McpServerDetail": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "serverId",
-          "name",
-          "source",
-          "status",
-          "lifecycleStatus",
-          "endpoint",
-          "version",
-          "activeVersion",
-          "tools",
-          "runtimeDependency",
-          "runtimeReady"
-        ],
+        "required": ["serverId", "name", "source", "status", "lifecycleStatus", "endpoint", "version", "activeVersion", "tools", "runtimeDependency", "runtimeReady"],
         "properties": {
-          "serverId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "source": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "draft",
-              "curated",
-              "published"
-            ]
-          },
-          "lifecycleStatus": {
-            "type": "string",
-            "enum": [
-              "active",
-              "deletion_pending"
-            ]
-          },
-          "endpoint": {
-            "type": "string",
-            "format": "uri"
-          },
-          "version": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "activeVersion": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "tools": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": true
-            }
-          },
-          "runtimeDependency": {
-            "$ref": "#/components/schemas/McpRuntimeDependency"
-          },
-          "runtimeReady": {
-            "type": "boolean"
-          }
+          "serverId": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "source": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "curated", "published"] },
+          "lifecycleStatus": { "type": "string", "enum": ["active", "deletion_pending"] },
+          "endpoint": { "type": "string", "format": "uri" },
+          "version": { "type": ["string", "null"] },
+          "activeVersion": { "type": ["string", "null"] },
+          "tools": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+          "runtimeDependency": { "$ref": "#/components/schemas/McpRuntimeDependency" },
+          "runtimeReady": { "type": "boolean" }
         }
       },
       "McpDeletionPending": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "serverId",
-          "status",
-          "correlationId",
-          "obligationId"
-        ],
+        "required": ["serverId", "status", "correlationId", "obligationId"],
         "properties": {
-          "serverId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "status": {
-            "type": "string",
-            "const": "deletion_pending"
-          },
-          "correlationId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "obligationId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 512
-          }
+          "serverId": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "const": "deletion_pending" },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "obligationId": { "type": "string", "minLength": 1, "maxLength": 512 }
         }
       },
       "McpCurationDecision": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "description": {
-            "type": "string"
-          },
-          "scope": {
-            "type": "string",
-            "minLength": 1
-          }
+          "enabled": { "type": "boolean" },
+          "description": { "type": "string" },
+          "scope": { "type": "string", "minLength": 1 }
         }
       },
       "McpCurationRequest": {
@@ -62864,131 +61629,46 @@
         "properties": {
           "decisions": {
             "type": "object",
-            "additionalProperties": {
-              "$ref": "#/components/schemas/McpCurationDecision"
-            }
+            "additionalProperties": { "$ref": "#/components/schemas/McpCurationDecision" }
           }
         }
       },
       "McpCuratedTool": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "name",
-          "description",
-          "inputSchema",
-          "mutates",
-          "suggestedScope",
-          "method",
-          "path",
-          "scope"
-        ],
+        "required": ["name", "description", "inputSchema", "mutates", "suggestedScope", "method", "path", "scope"],
         "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1
-          },
-          "inputSchema": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "mutates": {
-            "type": "boolean"
-          },
-          "suggestedScope": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "scope": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "source": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "method": {
-            "type": "string",
-            "enum": [
-              "GET",
-              "POST",
-              "PUT",
-              "PATCH",
-              "DELETE"
-            ]
-          },
-          "path": {
-            "type": "string",
-            "minLength": 1
-          },
-          "longRunning": {
-            "type": "boolean"
-          }
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "inputSchema": { "type": "object", "additionalProperties": true },
+          "mutates": { "type": "boolean" },
+          "suggestedScope": { "type": ["string", "null"] },
+          "scope": { "type": ["string", "null"] },
+          "source": { "type": "object", "additionalProperties": true },
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+          "path": { "type": "string", "minLength": 1 },
+          "longRunning": { "type": "boolean" }
         }
       },
       "McpCurationViolation": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "code",
-          "message"
-        ],
+        "required": ["code", "message"],
         "properties": {
-          "code": {
-            "type": "string",
-            "enum": [
-              "no_enabled_tools",
-              "mutating_tool_without_scope"
-            ]
-          },
-          "message": {
-            "type": "string",
-            "minLength": 1
-          },
-          "tool": {
-            "type": "string",
-            "minLength": 1
-          }
+          "code": { "type": "string", "enum": ["no_enabled_tools", "mutating_tool_without_scope"] },
+          "message": { "type": "string", "minLength": 1 },
+          "tool": { "type": "string", "minLength": 1 }
         }
       },
       "McpCurationResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "serverId",
-          "status",
-          "tools",
-          "violations"
-        ],
+        "required": ["serverId", "status", "tools", "violations"],
         "properties": {
-          "serverId": {
-            "type": "string",
-            "minLength": 1
-          },
-          "status": {
-            "type": "string",
-            "const": "curated"
-          },
-          "tools": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/McpCuratedTool"
-            }
-          },
-          "violations": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/McpCurationViolation"
-            }
-          }
+          "serverId": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "const": "curated" },
+          "tools": { "type": "array", "items": { "$ref": "#/components/schemas/McpCuratedTool" } },
+          "violations": { "type": "array", "items": { "$ref": "#/components/schemas/McpCurationViolation" } }
         }
       },
       "KnativeRuntimeStatus": {
@@ -63007,66 +61687,34 @@
         "properties": {
           "mode": {
             "type": "string",
-            "enum": [
-              "managed",
-              "external",
-              "disabled"
-            ]
+            "enum": ["managed", "external", "disabled"]
           },
           "owner": {
             "type": "string",
             "maxLength": 127
           },
           "version": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 127
           },
           "compatibility": {
             "type": "string",
-            "enum": [
-              "compatible",
-              "incompatible",
-              "unverified"
-            ]
+            "enum": ["compatible", "incompatible", "unverified"]
           },
           "state": {
             "type": "string",
-            "enum": [
-              "ready",
-              "unverified",
-              "degraded",
-              "unavailable",
-              "disabled"
-            ]
+            "enum": ["ready", "unverified", "degraded", "unavailable", "disabled"]
           },
           "stage": {
             "type": "string",
-            "enum": [
-              "configured",
-              "preflight",
-              "crds",
-              "webhook",
-              "serving",
-              "kourier",
-              "smoke",
-              "ready",
-              "disabled",
-              "external_validation",
-              "unknown"
-            ]
+            "enum": ["configured", "preflight", "crds", "webhook", "serving", "kourier", "smoke", "ready", "disabled", "external_validation", "unknown"]
           },
           "reason": {
             "type": "string",
             "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
           },
           "lastTransitionAt": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           }
         }
@@ -63129,241 +61777,92 @@
       "KnativeUnavailableError": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "code",
-          "message",
-          "mode",
-          "state",
-          "reason",
-          "correlationId"
-        ],
+        "required": ["code", "message", "mode", "state", "reason", "correlationId"],
         "properties": {
-          "code": {
-            "type": "string",
-            "const": "KNATIVE_UNAVAILABLE"
-          },
-          "message": {
-            "type": "string",
-            "const": "Knative runtime is unavailable."
-          },
-          "mode": {
-            "type": "string",
-            "enum": [
-              "managed",
-              "external",
-              "disabled"
-            ]
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "unverified",
-              "degraded",
-              "unavailable",
-              "disabled"
-            ]
-          },
-          "reason": {
-            "type": "string",
-            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
-          },
-          "correlationId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          }
+          "code": { "type": "string", "const": "KNATIVE_UNAVAILABLE" },
+          "message": { "type": "string", "const": "Knative runtime is unavailable." },
+          "mode": { "type": "string", "enum": ["managed", "external", "disabled"] },
+          "state": { "type": "string", "enum": ["unverified", "degraded", "unavailable", "disabled"] },
+          "reason": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 }
         }
       },
       "FunctionDeletionAccepted": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "requestId",
-          "correlationId",
-          "resourceId",
-          "status",
-          "acceptedAt"
-        ],
+        "required": ["requestId", "correlationId", "resourceId", "status", "acceptedAt"],
         "properties": {
-          "requestId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "correlationId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          },
-          "resourceId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "accepted",
-              "deletion_pending"
-            ]
-          },
-          "acceptedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
+          "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "resourceId": { "type": "string", "minLength": 1, "maxLength": 255 },
+          "status": { "type": "string", "enum": ["accepted", "deletion_pending"] },
+          "acceptedAt": { "type": "string", "format": "date-time" }
         }
       },
       "FunctionsDisabledError": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "code",
-          "message",
-          "correlationId"
-        ],
+        "required": ["code", "message", "correlationId"],
         "properties": {
-          "code": {
-            "type": "string",
-            "const": "FUNCTIONS_DISABLED"
-          },
-          "message": {
-            "type": "string",
-            "const": "Functions capability is disabled."
-          },
-          "correlationId": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
-          }
+          "code": { "type": "string", "const": "FUNCTIONS_DISABLED" },
+          "message": { "type": "string", "const": "Functions capability is disabled." },
+          "correlationId": { "type": "string", "minLength": 1, "maxLength": 128 }
         }
       },
       "FunctionRuntimeDependency": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "mode",
-          "state",
-          "reason",
-          "ready"
-        ],
+        "required": ["mode", "state", "reason", "ready"],
         "properties": {
-          "mode": {
-            "type": "string",
-            "enum": [
-              "managed",
-              "external",
-              "disabled"
-            ]
-          },
-          "state": {
-            "type": "string",
-            "enum": [
-              "ready",
-              "unverified",
-              "degraded",
-              "unavailable",
-              "disabled"
-            ]
-          },
-          "reason": {
-            "type": "string",
-            "pattern": "^[A-Z][A-Z0-9_]{0,63}$"
-          },
-          "ready": {
-            "type": "boolean"
-          }
+          "mode": { "type": "string", "enum": ["managed", "external", "disabled"] },
+          "state": { "type": "string", "enum": ["ready", "unverified", "degraded", "unavailable", "disabled"] },
+          "reason": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$" },
+          "ready": { "type": "boolean" }
         }
       },
       "FunctionLifecycleState": {
         "type": "string",
-        "enum": [
-          "active",
-          "unavailable",
-          "deletion_pending"
-        ]
+        "enum": ["active", "unavailable", "deletion_pending"]
       },
       "FunctionProvisioningState": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "state"
-        ],
+        "required": ["state"],
         "properties": {
-          "state": {
-            "$ref": "#/components/schemas/FunctionLifecycleState"
-          }
+          "state": { "$ref": "#/components/schemas/FunctionLifecycleState" }
         }
       },
       "FunctionActionExecutionLimits": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "timeoutMs",
-          "memoryMb"
-        ],
+        "required": ["timeoutMs", "memoryMb"],
         "properties": {
-          "timeoutMs": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 900000
-          },
-          "memoryMb": {
-            "type": "integer",
-            "minimum": 128,
-            "maximum": 2048
-          }
+          "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 900000 },
+          "memoryMb": { "type": "integer", "minimum": 128, "maximum": 2048 }
         }
       },
       "FunctionActionExecutionConfiguration": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "runtime",
-          "entrypoint",
-          "parameters",
-          "limits"
-        ],
+        "required": ["runtime", "entrypoint", "parameters", "limits"],
         "properties": {
-          "runtime": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 40
-          },
-          "entrypoint": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 120
-          },
+          "runtime": { "type": "string", "minLength": 3, "maxLength": 40 },
+          "entrypoint": { "type": "string", "minLength": 1, "maxLength": 120 },
           "parameters": {
             "type": "object",
             "additionalProperties": {
-              "type": [
-                "string",
-                "number",
-                "integer",
-                "boolean",
-                "object",
-                "array",
-                "null"
-              ]
+              "type": ["string", "number", "integer", "boolean", "object", "array", "null"]
             }
           },
-          "limits": {
-            "$ref": "#/components/schemas/FunctionActionExecutionLimits"
-          }
+          "limits": { "$ref": "#/components/schemas/FunctionActionExecutionLimits" }
         }
       },
       "FunctionActionPage": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "total"
-        ],
+        "required": ["total"],
         "properties": {
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          }
+          "total": { "type": "integer", "minimum": 0 }
         }
       },
       "HealthStatus": {
@@ -67395,11 +65894,7 @@
           },
           "status": {
             "type": "string",
-            "enum": [
-              "active",
-              "unavailable",
-              "deletion_pending"
-            ]
+            "enum": ["active", "unavailable", "deletion_pending"]
           },
           "runtimeDependency": {
             "$ref": "#/components/schemas/FunctionRuntimeDependency"
