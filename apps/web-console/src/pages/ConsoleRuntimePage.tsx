@@ -51,7 +51,7 @@ export function ConsoleRuntimePage() {
       <Button type="button" variant="outline" className="mt-4" onClick={load} ref={retryRef}>Volver a comprobar</Button>
     </section>
     <section className="grid gap-4 md:grid-cols-2" aria-label="Capacidades dependientes del runtime">
-      {[['Funciones', '/console/functions'], ['Hosted MCP', '/console/mcp/servers/srv_1']].map(([label, href]) => <article key={label} className="rounded-3xl border border-border bg-card p-5"><h2 className="font-semibold">{label}</h2><p className="mt-2 text-sm text-muted-foreground">{dependencyLabel}. No hay acciones de mutación desde esta vista.</p><Button asChild variant="outline" className="mt-4"><Link to={href}>Inspeccionar {label}</Link></Button></article>)}
+      {[['Funciones', '/console/functions'], ['Hosted MCP', '/console']].map(([label, href]) => <article key={label} className="rounded-3xl border border-border bg-card p-5"><h2 className="font-semibold">{label}</h2><p className="mt-2 text-sm text-muted-foreground">{dependencyLabel}. No hay acciones de mutación desde esta vista.</p><Button asChild variant="outline" className="mt-4"><Link to={href}>Inspeccionar {label}</Link></Button></article>)}
     </section>
   </div>
 }

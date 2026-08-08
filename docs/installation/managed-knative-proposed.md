@@ -7,9 +7,10 @@
 > Knative. The existing Knative prerequisite remains authoritative until both repositories pass the
 > coordinated acceptance described below.
 
-As of 2026-08-08, `gntik-ai/falcone-charts#8` is merged (PR #9) and the `falcone-knative` runtime
-chart 0.1.0 is published, so the chart-side bundle and cluster-administrator lifecycle command
-exist. There is still no authorized disposable remote OpenShift 4.21 or Kubernetes 1.34
+As of 2026-08-08, `gntik-ai/falcone-charts#8` is merged (PR #9), the `falcone-knative` runtime
+chart 0.1.0 is published, and the umbrella `in-falcone` chart/CLI contract is published as 0.4.1,
+so the chart-side bundle and cluster-administrator lifecycle command exist. There is still no
+authorized disposable remote OpenShift 4.21 or Kubernetes 1.34
 cluster-admin target on which the required managed acceptance has run. Consequently, the
 application-side and chart-side contracts described here are source-level behavior, not release,
 deployment, or support availability; live managed acceptance remains blocked and managed mode stays
@@ -40,6 +41,13 @@ The companion chart owns the future cluster-administrator lifecycle command, sep
 Serving controllers, Kourier, compatibility/ownership preflight, upgrades, rollback, uninstall,
 and handoff. This repository does not install or reconcile those resources.
 
+Version 0.4.1 does **not** yet provision the per-tenant runtime namespace mapping, namespaced RBAC,
+or hosted-MCP `NetworkPolicy` permissions consumed by the application-side contract. In source,
+the executor requires an authoritative tenant-to-namespace resolver and rejects an unmapped tenant;
+tenant identifiers are never treated as Kubernetes namespace names. Publishing 0.4.1 therefore
+does not satisfy the application/chart acceptance gate and must not be represented as a working
+managed deployment procedure.
+
 ## Proposed modes
 
 | Mode | Intended owner | Falcone behavior before chart acceptance |
@@ -60,6 +68,12 @@ The control plane accepts these settings:
 KNATIVE_RUNTIME_MODE=disabled
 KNATIVE_RUNTIME_STATUS_FILE=/var/run/falcone/knative/status.json
 FUNCTIONS_ENABLED=true
+# Proposed source contract only; chart 0.4.1 does not render these values.
+MCP_RUNTIME_NAMESPACE_MAP={"tenant-id":"tenant-runtime-namespace"}
+MCP_RUNTIME_PLATFORM_NAMESPACES=falcone
+MCP_RUNTIME_INGRESS_NAMESPACES=knative-serving,kourier-system,falcone
+MCP_RUNTIME_EGRESS_NAMESPACES=falcone
+MCP_RUNTIME_DNS_NAMESPACES=kube-system,openshift-dns
 ```
 
 `KNATIVE_RUNTIME_MODE` accepts exactly `managed`, `external`, or `disabled`. An unset mode defaults
@@ -67,6 +81,14 @@ to `disabled` so this proposed integration cannot advertise itself as ready befo
 acceptance. Any other value is a startup configuration error. `KNATIVE_RUNTIME_STATUS_FILE` must be
 an absolute path. `FUNCTIONS_ENABLED` accepts only `true`, `false`, `1`, or `0`; when false, the
 existing `501 FUNCTIONS_DISABLED` behavior takes precedence over runtime availability.
+
+`MCP_RUNTIME_NAMESPACE_MAP` is a JSON object whose keys are application tenant identifiers and
+whose values are validated Kubernetes DNS-label namespaces. There is no identity fallback.
+Apply, internal invocation, and cleanup consult the same resolver. The ingress allow-list must name
+the platform and Knative data-path namespaces; egress is limited to DNS on port 53 plus the named
+platform destinations. Invalid or missing mappings and namespace entries fail closed before a
+Kubernetes write. These variables describe application source behavior only: chart 0.4.1 does not
+create the mapped namespaces, bind the executor service account there, or configure these values.
 
 For `managed` and `external`, the chart mounts an atomically replaced, non-secret JSON file. Falcone
 does not accept runtime status from a tenant request, and it does not write this file. The v1 input

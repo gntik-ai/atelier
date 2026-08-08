@@ -4,10 +4,11 @@
  *
  * Pure function: turn a tenant-provided container image into the Knative Service (ksvc) that hosts
  * it as an internal-only, scale-to-zero, OpenShift-safe MCP server in the tenant's namespace. The
- * ksvc carries `in-falcone.io/component: mcp-server` so the #388 NetworkPolicy makes it reachable
- * only via the gateway. Supply-chain validation rejects disallowed registries and unpinned/`latest`
- * images. No I/O here — the apply rides the #388 runtime RBAC + Knative.
+ * ksvc carries stable workload labels so its exact, namespaced NetworkPolicy can be reconciled
+ * before the workload. Supply-chain validation rejects disallowed registries and unpinned/`latest`
+ * images. No I/O here — the apply rides the runtime RBAC + Knative.
  */
+import { runtimeTenantOwnership } from './runtime/mcp-runtime-namespace.mjs';
 
 /** Parse an image ref into { registry, name, tag, digest }. */
 export function parseImageRef(ref = '') {
@@ -51,7 +52,9 @@ function violation(code, message, field) {
  * @param {string} input.tenantId
  * @param {string} input.serverId
  * @param {string} input.image
- * @param {string} [input.namespace]   tenant namespace (defaults to tenantId)
+ * @param {string} [input.namespace] tenant namespace. The direct-builder compatibility default is
+ *   tenantId; production reconciliation MUST pass the namespace returned by its authoritative
+ *   tenant-to-runtime-namespace resolver.
  * @param {number} [input.port]
  * @param {Array<{name:string,value:string}>} [input.env]
  * @param {{maxScale?:number}} [input.planLimits]
@@ -80,11 +83,13 @@ export function buildCustomServerDeployment({ tenantId, serverId, image, namespa
   if (violations.length > 0) return { manifest: null, violations };
 
   const ns = namespace ?? tenantId;
+  const tenantOwner = runtimeTenantOwnership(tenantId);
   const labels = {
     'in-falcone.io/component': 'mcp-server',
-    'in-falcone.io/tenant': tenantId,
+    'in-falcone.io/tenant': tenantOwner,
     'in-falcone.io/mcp-server': serverId,
     'app.kubernetes.io/part-of': 'mcp-hosting',
+    'networking.knative.dev/visibility': 'cluster-local',
   };
   return {
     manifest: {
@@ -100,11 +105,12 @@ export function buildCustomServerDeployment({ tenantId, serverId, image, namespa
             },
             labels: {
               'in-falcone.io/component': 'mcp-server',
-              'in-falcone.io/tenant': tenantId,
+              'in-falcone.io/tenant': tenantOwner,
               'in-falcone.io/mcp-server': serverId,
             },
           },
           spec: {
+            automountServiceAccountToken: false,
             containers: [{
               image,
               ports: [{ containerPort: port }],
@@ -123,5 +129,56 @@ export function buildCustomServerDeployment({ tenantId, serverId, image, namespa
       },
     },
     violations: [],
+  };
+}
+
+export function buildCustomServerNetworkPolicy({
+  tenantId,
+  serverId,
+  namespace,
+  ingressNamespaces = [],
+  egressNamespaces = [],
+  dnsNamespaces = [],
+} = {}) {
+  const tenantOwner = runtimeTenantOwnership(tenantId);
+  const workloadLabels = {
+    'in-falcone.io/component': 'mcp-server',
+    'in-falcone.io/tenant': tenantOwner,
+    'in-falcone.io/mcp-server': serverId,
+  };
+  return {
+    apiVersion: 'networking.k8s.io/v1',
+    kind: 'NetworkPolicy',
+    metadata: {
+      name: `mcp-${serverId}-ingress`,
+      namespace,
+      labels: {
+        ...workloadLabels,
+        'app.kubernetes.io/part-of': 'mcp-hosting',
+      },
+    },
+    spec: {
+      podSelector: { matchLabels: workloadLabels },
+      policyTypes: ['Ingress', 'Egress'],
+      ingress: [{
+        from: ingressNamespaces.map((allowedNamespace) => ({
+          namespaceSelector: { matchLabels: { 'kubernetes.io/metadata.name': allowedNamespace } },
+        })),
+        ports: [{ protocol: 'TCP', port: 8080 }],
+      }],
+      egress: [
+        {
+          to: dnsNamespaces.map((allowedNamespace) => ({
+            namespaceSelector: { matchLabels: { 'kubernetes.io/metadata.name': allowedNamespace } },
+          })),
+          ports: [{ protocol: 'UDP', port: 53 }, { protocol: 'TCP', port: 53 }],
+        },
+        {
+          to: egressNamespaces.map((allowedNamespace) => ({
+            namespaceSelector: { matchLabels: { 'kubernetes.io/metadata.name': allowedNamespace } },
+          })),
+        },
+      ],
+    },
   };
 }

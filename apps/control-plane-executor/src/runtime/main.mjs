@@ -28,6 +28,7 @@ import { createMcpEngine } from './mcp-engine.mjs';
 import { createMcpPostgresStore } from './mcp-pg-store.mjs';
 import { createMcpRuntimeCleaner } from './mcp-runtime-cleaner.mjs';
 import { createMcpRuntimeAdapter } from './mcp-runtime-adapter.mjs';
+import { createRuntimeNamespaceResolver } from './mcp-runtime-namespace.mjs';
 import { recordAuditEvent } from '../../../../apps/control-plane/audit-store.mjs';
 import { createKnativeRuntimeSource } from '../../../../apps/control-plane/knative-runtime.mjs';
 import { createRuntimeCleanupRepository, recoverMcpCleanupObligations } from '../../../../apps/control-plane/runtime-cleanup-repository.mjs';
@@ -353,8 +354,9 @@ const flowMonitoringExecutor = flowExecutor && process.env.FLOWS_ENABLED !== 'fa
 const mcpStateStore = createMcpPostgresStore({ pool: keyPool });
 const knativeRuntime = createKnativeRuntimeSource();
 const runtimeCleanupRepository = createRuntimeCleanupRepository(keyPool);
-const mcpRuntimeCleaner = createMcpRuntimeCleaner();
-const mcpRuntimeAdapter = createMcpRuntimeAdapter();
+const resolveMcpRuntimeNamespace = createRuntimeNamespaceResolver();
+const mcpRuntimeCleaner = createMcpRuntimeCleaner({ resolveRuntimeNamespace: resolveMcpRuntimeNamespace });
+const mcpRuntimeAdapter = createMcpRuntimeAdapter({ resolveRuntimeNamespace: resolveMcpRuntimeNamespace });
 const mcpEngine = process.env.MCP_ENABLED === 'true'
   ? createMcpEngine({
       selfBaseUrl: process.env.MCP_SELF_BASE_URL ?? `http://127.0.0.1:${PORT}`,
