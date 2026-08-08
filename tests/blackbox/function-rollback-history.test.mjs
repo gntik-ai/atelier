@@ -307,7 +307,12 @@ function ctx(pool, { params = {}, body = {}, identity = OWNER, deployKnativeServ
     body,
     identity,
     callerContext: { correlationId: 'corr_786_rollback', actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
-    deployKnativeService
+    deployKnativeService,
+    checkFunctionQuota: async () => ({
+      allowed: true, decision: 'allowed', dimensionKey: 'max_functions', currentUsage: 0,
+      effectiveLimit: 50, effectiveCeiling: 50, quotaType: 'hard', graceMargin: 0, source: 'default'
+    }),
+    recordFunctionQuotaEnforcement: async () => ({ id: 'quota-test' })
   };
 }
 

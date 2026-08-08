@@ -309,9 +309,14 @@
         "additionalProperties": false,
         "properties": {
           "pagination": {
+            "additionalProperties": false,
             "properties": {
               "limit": {
                 "type": "integer"
+              },
+              "nextCursor": {
+                "description": "Opaque continuation cursor to pass as page[after]; omitted on the final page.",
+                "type": "string"
               },
               "offset": {
                 "type": "integer"

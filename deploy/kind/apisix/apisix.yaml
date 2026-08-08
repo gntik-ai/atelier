@@ -148,6 +148,20 @@ routes:
       scheme: http
       nodes:
         "falcone-control-plane.falcone.svc.cluster.local:8080": 1
+  # C-08 platform-scoped Function audit coverage lives outside the ordinary
+  # /v1/functions prefix. Keep an exact bearer route ahead of the SPA catch-all;
+  # API-key clients intentionally do not receive this platform audit surface.
+  - id: "2008-admin-function-audit"
+    uri: "/v1/admin/functions/audit/coverage"
+    priority: 432
+    methods: ["GET", "OPTIONS"]
+    plugins:
+      cors: {}
+    upstream:
+      type: roundrobin
+      scheme: http
+      nodes:
+        "falcone-control-plane.falcone.svc.cluster.local:8080": 1
   - id: "2008"
     uri: "/v1/functions/*"
     priority: 232

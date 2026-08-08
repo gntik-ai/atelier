@@ -22,6 +22,12 @@ import { APPLICATION_HANDLERS } from './application-handlers.mjs';
 import { checkWorkspaceQuota } from './workspace-quota.mjs';
 import { recordScopeDenial, recordQuotaEnforcement } from './audit-writer.mjs';
 import { buildTenantConfigExport } from './tenant-config-export.mjs';
+// C-08 route registration: the platform-governance CQRS entity handlers (deployment
+// profiles / plans / quota policies / provider capabilities / platform users) and the
+// observability / Function-audit / billing / discovery / tenant-dashboard read handlers
+// the public API advertised but the deployable control-plane could not dispatch.
+import { C08_GOVERNANCE_HANDLERS } from './c08-governance-handlers.mjs';
+import { C08_HANDLERS } from './c08-handlers.mjs';
 
 function slugify(s) {
   return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
@@ -1618,7 +1624,9 @@ export const LOCAL_HANDLERS = {
   ...WEBHOOK_HANDLERS,
   ...REALTIME_HANDLERS,
   ...APPLICATION_HANDLERS,
-  ...AUTH_HANDLERS
+  ...AUTH_HANDLERS,
+  ...C08_GOVERNANCE_HANDLERS,
+  ...C08_HANDLERS
 };
 
 // Exported for unit testing the plan-resolution / best-effort assignment contract.

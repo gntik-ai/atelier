@@ -1,3 +1,25 @@
+- id: admin-function-audit-coverage-get
+  uri: /v1/admin/functions/audit/coverage
+  methods: [GET]
+  upstream_id: control-api
+  plugins:
+    openid-connect:
+      discovery: "${KEYCLOAK_DISCOVERY_URL}"
+      required_scopes: ["platform:audit:read"]
+    scope-enforcement:
+      required_scope: "platform:audit:read"
+      required_roles: ["superadmin", "platform_admin", "platform_auditor"]
+    limit-req:
+      rate: 30
+      burst: 60
+      key: consumer_name
+    kafka-logger:
+      topic: console.audit.gateway
+    response-rewrite:
+      headers:
+        Cache-Control: "no-store, no-cache"
+        X-Content-Type-Options: "nosniff"
+
 - id: admin-backup-scope-get
   uri: /v1/admin/backup/scope
   methods: [GET]

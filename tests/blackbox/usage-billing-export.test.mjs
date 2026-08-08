@@ -61,7 +61,7 @@ function makeFakeDb() {
           return { rows: [], rowCount: 0 };
         }
         const row = {
-          id: `rec_${++idSeq}`,
+          id: `00000000-0000-0000-0000-${String(++idSeq).padStart(12, '0')}`,
           cycle_id: cycleId,
           tenant_id: tenantId,
           snapshot_at: snapshotAt,
@@ -79,13 +79,16 @@ function makeFakeDb() {
           const tenantId = params[0];
           rows = rows.filter((r) => r.tenant_id === tenantId);
         }
-        // Deterministic ordering for pagination
-        rows = rows.sort((a, b) => a.id.localeCompare(b.id));
-        // limit/offset are the trailing params
-        const limit = params.find((p) => typeof p === 'number' && p > 0) ?? rows.length;
-        const offsetParam = params.filter((p) => typeof p === 'number');
-        const offset = offsetParam.length >= 2 ? offsetParam[offsetParam.length - 1] : 0;
-        return { rows: rows.slice(offset, offset + limit), rowCount: rows.length };
+        // Deterministic keyset ordering equivalent to ORDER BY created_at DESC, id DESC.
+        rows = rows.sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id.localeCompare(a.id));
+        if (/\(created_at, id\)\s*</i.test(sql)) {
+          const tenantScoped = /tenant_id\s*=\s*\$1/i.test(sql);
+          const cursorAt = params[tenantScoped ? 1 : 0];
+          const cursorId = params[tenantScoped ? 2 : 1];
+          rows = rows.filter((row) => row.created_at < cursorAt || (row.created_at === cursorAt && row.id < cursorId));
+        }
+        const limit = [...params].reverse().find((p) => typeof p === 'number' && p > 0) ?? rows.length;
+        return { rows: rows.slice(0, limit), rowCount: rows.length };
       }
       return { rows: [], rowCount: 0 };
     }
@@ -347,13 +350,43 @@ test('bbx-billing-query-platform-admin: platform-admin GET /v1/platform/billing/
   const db = makeFakeDb();
   await seedRecords(db);
   const res = await queryUsageRecords(
-    { callerContext: { actor: { id: 'op1', type: 'superadmin', roles: ['superadmin'] } }, limit: 2, offset: 0 },
+    { callerContext: { actor: { id: 'op1', type: 'superadmin', roles: ['superadmin'] } }, pageSize: 2 },
     { db }
   );
   assert.equal(res.statusCode, 200);
   assert.ok(Array.isArray(res.body.records));
   assert.equal(res.body.records.length, 2, 'limit respected');
   assert.equal(res.body.pagination?.limit ?? res.body.limit, 2);
+  assert.ok(res.body.pagination.nextCursor, 'a full page exposes an opaque next cursor');
+
+  const next = await queryUsageRecords(
+    {
+      callerContext: { actor: { id: 'op1', type: 'superadmin', roles: ['superadmin'] } },
+      pageSize: 2,
+      pageAfter: res.body.pagination.nextCursor
+    },
+    { db }
+  );
+  assert.equal(next.body.records.length, 1);
+  assert.equal(next.body.records.some((row) => res.body.records.some((prior) => prior.id === row.id)), false);
+  assert.ok(!db.calls.some((call) => /\bOFFSET\b/i.test(call.text)), 'cursor paging never uses SQL OFFSET');
+});
+
+test('bbx-billing-query-cursor-scope: malformed and cross-tenant cursors fail before SQL', async () => {
+  const db = makeFakeDb();
+  await seedRecords(db);
+  const callerContext = { actor: { id: 'op1', type: 'superadmin', roles: ['superadmin'] } };
+  await assert.rejects(
+    () => queryUsageRecords({ callerContext, tenantId: 'tenant-a', pageAfter: 'not-a-cursor' }, { db }),
+    (error) => error.statusCode === 400 && error.code === 'INVALID_PAGE_CURSOR'
+  );
+  const platform = await queryUsageRecords({ callerContext, pageSize: 1 }, { db });
+  const callsBefore = db.calls.length;
+  await assert.rejects(
+    () => queryUsageRecords({ callerContext, tenantId: 'tenant-a', pageAfter: platform.body.pagination.nextCursor }, { db }),
+    (error) => error.statusCode === 400 && error.code === 'INVALID_PAGE_CURSOR'
+  );
+  assert.equal(db.calls.length, callsBefore, 'cross-scope cursor is rejected before a query');
 });
 
 test('bbx-billing-query-unauthorized: non-platform-admin actor → 403 with no record data', async () => {

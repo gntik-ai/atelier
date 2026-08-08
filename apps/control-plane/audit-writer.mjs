@@ -11,7 +11,11 @@
 // path scope (never from the request body), and the denial writer carries tenant_id +
 // workspace_id + actor_id, so a record can never land under another tenant.
 import { randomUUID } from 'node:crypto';
-import { recordAuditEvent } from './audit-store.mjs';
+import {
+  beginFunctionAuditIntent,
+  finalizeFunctionAuditIntent,
+  recordAuditEvent
+} from './audit-store.mjs';
 
 // Local handlers whose effect is a STATE MUTATION worth auditing, mapped to a stable
 // action_type. Read handlers (list*/get*/iam list*/metrics*) are intentionally absent,
@@ -31,6 +35,9 @@ const AUDITABLE_LOCAL_HANDLERS = {
   provisionDatabaseGeneric: 'workspace.database.provision',
   rotateDatabaseCredential: 'workspace.database.credential.rotate',
   registerFunction: 'workspace.function.register',
+  fnDeploy: 'function.deployed',
+  fnDelete: 'function.admin_action',
+  fnRollback: 'function.rolled_back',
   iamCreateUser: 'iam.user.create', iamDeleteUser: 'iam.user.delete', iamSetUserStatus: 'iam.user.status',
   iamCreateRole: 'iam.role.create', iamCreateGroup: 'iam.group.create',
   iamAssignUserRoles: 'iam.user.role-assign', iamRemoveUserRoles: 'iam.user.role-remove',
@@ -40,6 +47,7 @@ const AUDITABLE_LOCAL_HANDLERS = {
   secretSet: 'workspace.secret.set', secretGet: 'workspace.secret.get',
   secretList: 'workspace.secret.list', secretDelete: 'workspace.secret.delete'
 };
+export const SYNCHRONOUS_FUNCTION_AUDIT_HANDLERS = new Set(['fnDeploy', 'fnDelete', 'fnRollback']);
 
 // Map an HTTP status to the audited outcome (#644): the TRUE result of the action,
 // recorded at write time (was hardcoded 'succeeded' at read time).
@@ -60,10 +68,10 @@ function resolveScope(route, ctx, result) {
   const params = ctx.params ?? {};
   const identity = ctx.identity ?? {};
   const body = result?.body ?? {};
-  const tenantId = params.tenantId
+  const tenantId = ctx.resolvedScope?.tenantId ?? params.tenantId
     ?? body.tenantId ?? body.tenant?.tenantId ?? body.tenant?.id
     ?? identity.tenantId ?? null;
-  const workspaceId = params.workspaceId
+  const workspaceId = ctx.resolvedScope?.workspaceId ?? params.workspaceId
     ?? body.workspaceId ?? body.workspace?.workspaceId ?? body.workspace?.id
     ?? null;
   return { tenantId, workspaceId };
@@ -84,21 +92,87 @@ export function auditEventForRoute(route, ctx, result) {
   return {
     actionType, actorId: ctx.identity?.sub ?? 'unknown', tenantId, workspaceId,
     outcome: outcomeFromStatus(status),
-    newState: { method: route.method, path: route.path, status }
+    newState: { method: route.method, path: route.path, status, ...(ctx.auditDetail ?? {}) }
   };
 }
 
 // Record the audit event for a dispatched local action (best-effort). Swallows any
 // error so auditing never breaks the action; logs at warn for diagnosability.
-export async function recordRouteAudit(db, route, ctx, result, correlationId, log = console) {
+export async function recordRouteAudit(db, route, ctx, result, correlationId, log = console, { strict = false } = {}) {
   try {
     const desc = auditEventForRoute(route, ctx, result);
     if (!desc) return null;
-    return await recordAuditEvent(db, { ...desc, correlationId: correlationId ?? null });
+    return await recordAuditEvent(db, {
+      ...desc,
+      correlationId: correlationId ?? null,
+      kafkaTopic: SYNCHRONOUS_FUNCTION_AUDIT_HANDLERS.has(route.localHandler)
+        ? 'function.audit.events' : null
+    });
   } catch (e) {
+    if (strict) {
+      e.statusCode ??= 503;
+      e.code ??= 'FUNCTION_AUDIT_UNAVAILABLE';
+      throw e;
+    }
     log.warn?.(`[control-plane] audit write skipped: ${e?.message ?? e}`);
     return null;
   }
+}
+
+export async function beginFunctionRouteAudit(db, route, ctx, correlationId) {
+  const desc = auditEventForRoute(route, ctx, { statusCode: 503 });
+  if (!desc?.workspaceId) {
+    throw Object.assign(new Error('function audit intent requires a resolved tenant/workspace'), {
+      statusCode: 503,
+      code: 'FUNCTION_AUDIT_UNAVAILABLE'
+    });
+  }
+  try {
+    return await beginFunctionAuditIntent(db, {
+      actionType: desc.actionType,
+      actorId: desc.actorId,
+      tenantId: desc.tenantId,
+      workspaceId: desc.workspaceId,
+      correlationId: correlationId ?? null,
+      detail: desc.newState
+    });
+  } catch (error) {
+    error.statusCode ??= 503;
+    error.code ??= 'FUNCTION_AUDIT_UNAVAILABLE';
+    throw error;
+  }
+}
+
+export async function finalizeFunctionRouteAudit(db, intent, ctx, result) {
+  try {
+    const status = Number(result?.statusCode ?? 500);
+    const event = await finalizeFunctionAuditIntent(db, intent, {
+      outcome: outcomeFromStatus(status),
+      status,
+      detail: ctx.auditDetail ?? {}
+    });
+    ctx.functionAuditHandled = true;
+    return event;
+  } catch (error) {
+    // The pre-effect intent remains durable and the outbox worker will recover it.
+    // Mark this request handled so dispatch does not create an unrelated duplicate.
+    ctx.functionAuditHandled = true;
+    error.statusCode ??= 503;
+    error.code ??= 'FUNCTION_AUDIT_FINALIZE_DEFERRED';
+    throw error;
+  }
+}
+
+// Single dispatch gate: a Function handler that finalized (or durably deferred) its
+// pre-effect intent owns the audit lifecycle and must never receive a second random-ID
+// audit/outbox event from the generic post-handler hook.
+export async function recordDispatchedRouteAudit(db, route, ctx, result, correlationId, log = console) {
+  if (ctx.functionAuditHandled) return null;
+  if (SYNCHRONOUS_FUNCTION_AUDIT_HANDLERS.has(route.localHandler) && ctx.resolvedScope?.workspaceId) {
+    return recordRouteAudit(db, route, ctx, result, correlationId, log, { strict: true });
+  }
+  void recordRouteAudit(db, route, ctx, result, correlationId, log);
+  return null;
 }
 
 // Record a scope-enforcement denial into scope_enforcement_denials (the store the
@@ -137,25 +211,33 @@ export async function recordScopeDenial(db, {
 // correlated row. Best-effort: a logging failure must not change the (already-decided)
 // response. dimension_key must exist in quota_dimension_catalog (it does whenever a real
 // decision was made — a missing dimension fails open, so no denial reaches here).
-export async function recordQuotaEnforcement(db, {
+async function insertQuotaEnforcement(db, {
   tenantId, workspaceId = null, dimensionKey, attemptedAction = null, currentUsage = null,
   effectiveLimit, quotaType = 'hard', graceMargin = 0, effectiveCeiling,
   source = 'default', decision, actorId = null, correlationId = null, warning = null
-} = {}, log = console) {
+} = {}) {
+  if (!tenantId || !dimensionKey || effectiveLimit == null || effectiveCeiling == null || !decision) return null;
+  const res = await db.query(
+    `INSERT INTO quota_enforcement_log (
+      id, tenant_id, workspace_id, dimension_key, attempted_action, current_usage,
+      effective_limit, quota_type, grace_margin, effective_ceiling, source, decision,
+      actor_id, correlation_id, warning
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+    RETURNING *`,
+    [randomUUID(), tenantId, workspaceId, dimensionKey, attemptedAction, currentUsage,
+      effectiveLimit, quotaType, graceMargin ?? 0, effectiveCeiling, source ?? 'default', decision,
+      actorId, correlationId, warning]
+  );
+  return res.rows[0] ?? null;
+}
+
+export async function recordQuotaEnforcementStrict(db, descriptor = {}) {
+  return insertQuotaEnforcement(db, descriptor);
+}
+
+export async function recordQuotaEnforcement(db, descriptor = {}, log = console) {
   try {
-    if (!tenantId || !dimensionKey || effectiveLimit == null || effectiveCeiling == null || !decision) return null;
-    const res = await db.query(
-      `INSERT INTO quota_enforcement_log (
-        id, tenant_id, workspace_id, dimension_key, attempted_action, current_usage,
-        effective_limit, quota_type, grace_margin, effective_ceiling, source, decision,
-        actor_id, correlation_id, warning
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-      RETURNING *`,
-      [randomUUID(), tenantId, workspaceId, dimensionKey, attemptedAction, currentUsage,
-        effectiveLimit, quotaType, graceMargin ?? 0, effectiveCeiling, source ?? 'default', decision,
-        actorId, correlationId, warning]
-    );
-    return res.rows[0] ?? null;
+    return await insertQuotaEnforcement(db, descriptor);
   } catch (e) {
     log.warn?.(`[control-plane] quota enforcement write skipped: ${e?.message ?? e}`);
     return null;

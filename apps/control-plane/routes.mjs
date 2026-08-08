@@ -363,5 +363,51 @@ export const routes = [
   { method: 'POST',   path: '/v1/auth/login-sessions/{sessionId}/refresh', localHandler: 'refresh', auth: 'public' },
   { method: 'DELETE', path: '/v1/auth/login-sessions/{sessionId}', localHandler: 'logout', auth: 'authenticated' },
   { method: 'GET',    path: '/v1/auth/status-views/{statusViewId}', localHandler: 'getConsoleAccountStatusView', auth: 'public' },
-  { method: 'GET',    path: '/v1/auth/signups/policy', localHandler: 'signupPolicy', auth: 'public' }
+  { method: 'GET',    path: '/v1/auth/signups/policy', localHandler: 'signupPolicy', auth: 'public' },
+
+  // ---- C-08: previously-orphaned public operations (route registration) ------
+  // These 25 operations were published in the unified OpenAPI, the generated family
+  // contracts and the public route catalog, but neither this seed nor the runtime
+  // overlay registered them, so real requests fell through to 404 GW_NO_ROUTE before
+  // any authorization/scope/backend/audit could run. Each dispatches to a production
+  // local handler (c08-governance-handlers.mjs / c08-handlers.mjs). Auth mirrors
+  // the published audiences: authentication happens at dispatch and each handler then
+  // enforces the precise platform permission or tenant/workspace membership.
+
+  // metrics: audit correlation + workspace observability dashboards (5 GET)
+  { method: 'GET',  path: '/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}', localHandler: 'getTenantAuditCorrelation', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}', localHandler: 'getWorkspaceAuditCorrelation', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/metrics/workspaces/{workspaceId}/event-dashboards', localHandler: 'getWorkspaceEventDashboards', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/metrics/workspaces/{workspaceId}/gateway-streams', localHandler: 'getWorkspaceGatewayStreamMetrics', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/metrics/workspaces/{workspaceId}/kafka-topics', localHandler: 'getWorkspaceKafkaTopicMetrics', auth: 'authenticated' },
+
+  // functions: deployment / quota-enforcement / rollback audit (workspace) + coverage (platform)
+  { method: 'GET',  path: '/v1/functions/workspaces/{workspaceId}/audit', localHandler: 'listFunctionDeploymentAudit', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement', localHandler: 'listFunctionQuotaEnforcement', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence', localHandler: 'listFunctionRollbackEvidence', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/admin/functions/audit/coverage', localHandler: 'getFunctionAuditCoverage', auth: 'authenticated' },
+
+  // platform: billing usage reads (2 GET)
+  { method: 'GET',  path: '/v1/platform/billing/usage', localHandler: 'listBillingUsageRecords', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/billing/usage/{tenantId}', localHandler: 'listTenantBillingUsageRecords', auth: 'authenticated' },
+
+  // platform-governance: canonical entity write (POST -> 202 accepted) + projection read (GET)
+  { method: 'POST', path: '/v1/platform/deployment-profiles', localHandler: 'createDeploymentProfileRecord', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/deployment-profiles/{deploymentProfileId}', localHandler: 'getDeploymentProfileRecord', auth: 'authenticated' },
+  { method: 'POST', path: '/v1/platform/plans', localHandler: 'createCommercialPlan', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/plans/{planId}', localHandler: 'getCommercialPlan', auth: 'authenticated' },
+  { method: 'POST', path: '/v1/platform/plans/{planId}/quota-policies', localHandler: 'createQuotaPolicy', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}', localHandler: 'getQuotaPolicy', auth: 'authenticated' },
+  { method: 'POST', path: '/v1/platform/provider-capabilities', localHandler: 'createProviderCapabilityRecord', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/provider-capabilities/{providerCapabilityId}', localHandler: 'getProviderCapabilityRecord', auth: 'authenticated' },
+  { method: 'POST', path: '/v1/platform/users', localHandler: 'createPlatformUser', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/users/{userId}', localHandler: 'getPlatformUser', auth: 'authenticated' },
+
+  // platform: discovery reads (3 GET)
+  { method: 'GET',  path: '/v1/platform/route-catalog', localHandler: 'getRouteCatalog', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/storage/provider', localHandler: 'getStorageProviderIntrospection', auth: 'authenticated' },
+  { method: 'GET',  path: '/v1/platform/topology/regions', localHandler: 'listTopologyRegions', auth: 'authenticated' },
+
+  // tenant governance dashboard (1 GET)
+  { method: 'GET',  path: '/v1/tenants/{tenantId}/dashboard', localHandler: 'getTenantGovernanceDashboard', auth: 'authenticated' }
 ];
