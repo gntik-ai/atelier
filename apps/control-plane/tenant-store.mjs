@@ -370,6 +370,36 @@ export async function ensureSchema(pool) {
     ON plan_audit_events (tenant_id, created_at DESC)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_plan_audit_events_action_created
     ON plan_audit_events (action_type, created_at DESC)`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS function_audit_outbox (
+      event_id UUID PRIMARY KEY,
+      topic TEXT NOT NULL CHECK (topic = 'function.audit.events'),
+      event_key TEXT NOT NULL,
+      payload JSONB NOT NULL CHECK (jsonb_typeof(payload) = 'object'),
+      attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+      next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      published_at TIMESTAMPTZ,
+      last_error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_function_audit_outbox_pending
+    ON function_audit_outbox (next_attempt_at, created_at) WHERE published_at IS NULL`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS function_audit_intents (
+      intent_id UUID PRIMARY KEY,
+      action_type VARCHAR(64) NOT NULL,
+      actor_id VARCHAR(255) NOT NULL,
+      tenant_id VARCHAR(255) NOT NULL,
+      workspace_id VARCHAR(255) NOT NULL,
+      correlation_id VARCHAR(255),
+      detail JSONB NOT NULL CHECK (jsonb_typeof(detail) = 'object'),
+      recovery_due_at TIMESTAMPTZ NOT NULL,
+      finalized_at TIMESTAMPTZ,
+      audit_event_id UUID,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_function_audit_intents_recovery
+    ON function_audit_intents (recovery_due_at, created_at) WHERE finalized_at IS NULL`);
 
   // ---- product schema: quota dimension catalog + overrides (finding F4) -----
   // The console Quotas page (/v1/metrics/tenants/{id}/quotas) resolves real limits via the
@@ -521,6 +551,16 @@ export async function upsertFnAction(pool, a) {
   if (row) await snapshotFnActionVersion(pool, row, { createdBy: a.createdBy, originType: 'publish' });
   return row;
 }
+export async function getFnActionByWorkspaceAndName(pool, workspaceId, actionName, tenantId = null) {
+  const params = [workspaceId, actionName];
+  const tenantPredicate = tenantId == null ? '' : ' AND tenant_id=$3';
+  if (tenantId != null) params.push(tenantId);
+  const { rows } = await pool.query(
+    `SELECT * FROM fn_actions WHERE workspace_id=$1 AND action_name=$2${tenantPredicate} LIMIT 1`,
+    params
+  );
+  return rows[0] ?? null;
+}
 export async function getFnAction(pool, resourceId, tenantId = null) {
   if (tenantId != null) {
     const { rows } = await pool.query(
@@ -540,6 +580,13 @@ export async function listFnActions(pool, workspaceId, tenantId = null) {
   }
   const { rows } = await pool.query('SELECT * FROM fn_actions WHERE workspace_id=$1 ORDER BY created_at DESC', [workspaceId]);
   return rows;
+}
+export async function countTenantFnActions(pool, tenantId) {
+  const { rows } = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM fn_actions WHERE tenant_id=$1',
+    [tenantId]
+  );
+  return Number(rows[0]?.count ?? 0);
 }
 export async function listFnActionVersions(pool, resourceId) {
   const { rows } = await pool.query(

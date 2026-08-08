@@ -92261,6 +92261,7 @@
           },
           "pagination": {
             "type": "object",
+            "additionalProperties": false,
             "required": [
               "limit",
               "offset"
@@ -92274,6 +92275,10 @@
               },
               "total": {
                 "type": "integer"
+              },
+              "nextCursor": {
+                "type": "string",
+                "description": "Opaque continuation cursor to pass as page[after]; omitted on the final page."
               }
             }
           }

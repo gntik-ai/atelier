@@ -30,15 +30,22 @@ import { runWithRetry, migrationRetryConfig } from './schema-retry.mjs';
 import { createSchemaReadiness } from './schema-readiness.mjs';
 import { applyGovernanceSchema } from './governance-schema.mjs';
 import { applyWebhookSchema } from './webhook-schema.mjs';
+import { seedC08CanonicalEntities } from './c08-schema.mjs';
 import { tenantIdentitiesEnabled } from './storage-handlers.mjs';
 import { cleanupLegacyWorkspaceIdentities } from './seaweedfs-identity.mjs';
 import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
-import { recordRouteAudit, recordRouteDenial } from './audit-writer.mjs';
+import {
+  beginFunctionRouteAudit,
+  finalizeFunctionRouteAudit,
+  recordDispatchedRouteAudit,
+  recordRouteDenial
+} from './audit-writer.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
 import { buildActionParams } from './action-params.mjs';
 import { createControlPlaneMetricAttribution } from './request-metric-scope.mjs';
 import { normalizeErrorResponse } from '../shared/error-envelope.mjs';
+import { startFunctionAuditOutboxPublisher } from './function-audit-outbox.mjs';
 
 const { Pool } = pg;
 
@@ -459,15 +466,19 @@ export function createControlPlaneHttpServer({
         cors: CORS,
         sendJson: (statusCode, payload, extraHeaders = {}) => sendJson(res, statusCode, payload, extraHeaders)
       };
+      ctx.beginFunctionRouteAudit = (auditRoute, auditCtx) =>
+        beginFunctionRouteAudit(pool, auditRoute, auditCtx, correlationId);
+      ctx.finalizeFunctionRouteAudit = (intent, auditCtx, auditResult) =>
+        finalizeFunctionRouteAudit(pool, intent, auditCtx, auditResult);
       // Streaming routes (e.g. SSE consume) own the response: the handler writes
       // to `res` directly and ends it; we don't sendJson() after.
       if (route.stream) { await fn(ctx, res); return; }
       const result = await fn(ctx);
       await metricAttribution.complete(result?.statusCode ?? 200, ctx.resolvedScope);
-      // Audit WRITER (#557): record a mutating action into the audit store WITH the
-      // request correlation id, scoped to the action's owning tenant. Best-effort and
-      // non-blocking — auditing must never fail or slow the action it describes.
-      void recordRouteAudit(pool, route, ctx, result, correlationId);
+      // Function governance invariants require the durable record + Kafka outbox to
+      // commit before the HTTP response. Other legacy mutations keep their existing
+      // best-effort writer until they migrate independently.
+      await recordDispatchedRouteAudit(pool, route, ctx, result, correlationId, logger);
       // Enforcement audit (#594): a 403 from a local handler (e.g. cross-tenant access) is
       // recorded as a scope-enforcement denial so the table is not silently empty.
       void recordRouteDenial(pool, route, ctx, result, correlationId);
@@ -585,6 +596,7 @@ function startProductionControlPlane() {
   // `tenants` table uncreated and every tenant op 500'd until a manual pod restart. If the DB
   // is still unreachable after the timeout, exit non-zero so Kubernetes restarts the pod and
   // retries — never serve indefinitely against a missing schema.
+  let stopFunctionAuditPublisher = async () => {};
   runWithRetry(async (attempt) => {
     await ensureSchema(pool);
     await ensureSagaSchema(pool);
@@ -597,11 +609,17 @@ function startProductionControlPlane() {
     // _deliveries/_delivery_attempts (migrations 001+002) so /v1/webhooks/* has durable
     // tenant-scoped storage. Idempotent; RLS (003) deferred — see webhook-schema.mjs.
     await applyWebhookSchema(pool);
+    // C-08 fresh-install provisioning: migration 123 above creates the canonical
+    // entity/idempotency/audit tables; project the release domain-model catalogs into
+    // durable rows. Canonical defaults update across releases, operator rows are preserved.
+    await seedC08CanonicalEntities(pool);
     const n = await recoverSagas(pool);
     schemaReadiness.markReady();
     console.log(`[control-plane] schema ready; recovered ${n} orphaned saga(s) (attempt ${attempt})`);
     return n;
-  }, migrationRetryConfig()).catch((e) => {
+  }, migrationRetryConfig()).then(() => {
+    stopFunctionAuditPublisher = startFunctionAuditOutboxPublisher(pool, { logger: console });
+  }).catch((e) => {
     console.error('[control-plane] schema/recovery permanently failed; exiting for restart:', e?.message ?? e);
     process.exit(1);
   });
@@ -638,7 +656,11 @@ function startProductionControlPlane() {
   }
   server.listen(PORT, () => console.log(`[control-plane] listening on :${PORT}; routes=${routeTable.size()}; jwks=${JWKS_URL}`));
   for (const sig of ['SIGINT', 'SIGTERM']) {
-    process.on(sig, () => server.close(() => pool.end().finally(() => process.exit(0))));
+    process.on(sig, () => server.close(() => {
+      stopFunctionAuditPublisher()
+        .finally(() => pool.end())
+        .finally(() => process.exit(0));
+    }));
   }
 }
 

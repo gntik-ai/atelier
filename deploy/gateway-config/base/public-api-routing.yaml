@@ -345,6 +345,8 @@ spec:
       requestValidationProfile: event_gateway
     - id: functions
       pathPrefix: /v1/functions
+      additionalPathPrefixes:
+        - /v1/admin/functions
       upstreamService: control_api
       routeClass: functions
       authMode: bearer_oidc

@@ -67,6 +67,39 @@ async function admin() {
   if (!adminP) { const a = getKafka().admin(); adminP = a.connect().then(() => a).catch((e) => { adminP = null; throw e; }); }
   return adminP;
 }
+
+// Strict configuration adapter for the C-08 Kafka metrics projection.  Unlike the
+// console detail endpoint's best-effort metadata, callers of this adapter need real
+// retention/compaction values to satisfy the public metrics contract; dependency errors
+// therefore propagate and are rendered as an explicit 503 by the C-08 handler.
+export async function describeTopicConfigsStrict(physicalTopicNames, { adminClient = null } = {}) {
+  const names = [...new Set((physicalTopicNames ?? []).filter(Boolean).map(String))];
+  if (names.length === 0) return new Map();
+  const client = adminClient ?? await admin();
+  const described = await client.describeConfigs({
+    resources: names.map((name) => ({ type: 2, name })),
+    includeSynonyms: false
+  });
+  const byName = new Map();
+  for (const resource of described?.resources ?? []) {
+    const entries = new Map((resource.configEntries ?? []).map((entry) => [entry.configName, entry.configValue]));
+    const retentionMs = Number(entries.get('retention.ms'));
+    const cleanupPolicy = String(entries.get('cleanup.policy') ?? '');
+    if (!Number.isFinite(retentionMs) || retentionMs < 0 || !cleanupPolicy) {
+      throw Object.assign(new Error(`Kafka config incomplete for ${resource.resourceName}`), {
+        code: 'KAFKA_TOPIC_CONFIG_INCOMPLETE'
+      });
+    }
+    byName.set(resource.resourceName, {
+      retentionHours: Math.floor(retentionMs / 3_600_000),
+      compactionEnabled: cleanupPolicy.split(',').map((value) => value.trim()).includes('compact')
+    });
+  }
+  for (const name of names) {
+    if (!byName.has(name)) throw Object.assign(new Error(`Kafka config missing for ${name}`), { code: 'KAFKA_TOPIC_CONFIG_MISSING' });
+  }
+  return byName;
+}
 async function producer() {
   if (!producerP) { const p = getKafka().producer(); producerP = p.connect().then(() => p).catch((e) => { producerP = null; throw e; }); }
   return producerP;

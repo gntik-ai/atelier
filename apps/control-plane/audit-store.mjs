@@ -40,6 +40,10 @@ const ACTION_CATEGORY_BY_TYPE = Object.freeze({
   'workspace.database.provision': 'resource_creation',
   'workspace.database.credential.rotate': 'configuration_change',
   'workspace.function.register': 'resource_creation',
+  'function.deployed': 'resource_creation',
+  'function.admin_action': 'configuration_change',
+  'function.rolled_back': 'configuration_change',
+  'function.quota_enforced': 'quota_adjustment',
   'workspace.secret.set': 'configuration_change',
   'workspace.secret.get': 'configuration_change',
   'workspace.secret.list': 'configuration_change',
@@ -409,11 +413,12 @@ export function auditActionCategoryForType(actionType, explicitCategory = null) 
 // they are covered by the hash, compute row_hash, and INSERT atomically.
 export async function recordAuditEvent(db, {
   actionType, actorId, tenantId = null, workspaceId = null, outcome = 'succeeded',
-  previousState = null, newState = {}, correlationId = null
+  previousState = null, newState = {}, correlationId = null, kafkaTopic = null,
+  eventId = null, eventCreatedAt = null
 } = {}) {
   const merged = workspaceId ? { ...(newState ?? {}), workspaceId } : (newState ?? {});
-  const id = randomUUID();
-  const createdAt = new Date().toISOString();
+  const id = eventId ?? randomUUID();
+  const createdAt = eventCreatedAt ?? new Date().toISOString();
   const at = String(actionType ?? 'action').slice(0, 64);
   const actor = String(actorId ?? 'unknown');
   const tid = tenantId ?? null;
@@ -433,9 +438,34 @@ export async function recordAuditEvent(db, {
     const res = await client.query(
       `INSERT INTO plan_audit_events (id, action_type, actor_id, tenant_id, plan_id, previous_state, new_state, outcome, correlation_id, created_at, prev_hash, row_hash)
        VALUES ($1,$2,$3,$4,NULL,$5::jsonb,$6::jsonb,$7,$8,$9,$10,$11)
+       ON CONFLICT (id) DO NOTHING
        RETURNING id, action_type, actor_id, tenant_id, previous_state, new_state, outcome, correlation_id, created_at, prev_hash, row_hash`,
       [id, at, actor, tid, previousState == null ? null : JSON.stringify(previousState), JSON.stringify(merged ?? {}), outcome, correlationId ?? null, createdAt, prevHash, rowHash]
     );
+    if (kafkaTopic != null) {
+      if (kafkaTopic !== 'function.audit.events' || !tid || !workspaceId) {
+        throw Object.assign(new Error('function audit outbox requires canonical topic, tenant and workspace'), {
+          code: 'FUNCTION_AUDIT_OUTBOX_INVALID'
+        });
+      }
+      const payload = {
+        auditRecordId: id,
+        actionType: at,
+        actorId: actor,
+        tenantId: tid,
+        workspaceId,
+        outcome,
+        correlationId: correlationId ?? null,
+        occurredAt: createdAt,
+        detail: merged ?? {}
+      };
+      await client.query(
+        `INSERT INTO function_audit_outbox (event_id, topic, event_key, payload)
+         VALUES ($1,$2,$3,$4::jsonb)
+         ON CONFLICT (event_id) DO NOTHING`,
+        [id, kafkaTopic, `${tid}:${workspaceId}`, JSON.stringify(payload)]
+      );
+    }
     await client.query('COMMIT');
     return res.rows[0] ?? null;
   } catch (e) {
@@ -444,6 +474,73 @@ export async function recordAuditEvent(db, {
   } finally {
     if (usePooled) client.release?.();
   }
+}
+
+// Persisted before the first non-transactional Function effect. The intent is deliberately
+// separate from the append-only audit hash chain: it is mutable coordination state that is
+// finalized into one immutable audit/outbox event, or recovered as an error after its deadline.
+export async function beginFunctionAuditIntent(db, {
+  actionType, actorId, tenantId, workspaceId, correlationId = null, detail = {},
+  recoveryDueAt = new Date(Date.now() + 5 * 60_000).toISOString(),
+  intentId = randomUUID()
+} = {}) {
+  if (!actionType || !actorId || !tenantId || !workspaceId) {
+    throw Object.assign(new Error('function audit intent requires action, actor, tenant and workspace'), {
+      code: 'FUNCTION_AUDIT_INTENT_INVALID'
+    });
+  }
+  const { rows } = await db.query(
+    `INSERT INTO function_audit_intents (
+       intent_id, action_type, actor_id, tenant_id, workspace_id, correlation_id, detail, recovery_due_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
+     RETURNING *`,
+    [intentId, actionType, actorId, tenantId, workspaceId, correlationId,
+      JSON.stringify(detail ?? {}), recoveryDueAt]
+  );
+  return rows[0];
+}
+
+export async function finalizeFunctionAuditIntent(db, intent, {
+  outcome = 'error', detail = {}, status = 503, recovered = false
+} = {}) {
+  if (!intent?.intent_id) throw new TypeError('durable function audit intent is required');
+  const event = await recordAuditEvent(db, {
+    eventId: intent.intent_id,
+    actionType: intent.action_type,
+    actorId: intent.actor_id,
+    tenantId: intent.tenant_id,
+    workspaceId: intent.workspace_id,
+    outcome,
+    correlationId: intent.correlation_id,
+    kafkaTopic: 'function.audit.events',
+    newState: { ...(intent.detail ?? {}), ...(detail ?? {}), status, ...(recovered ? { recovered: true } : {}) }
+  });
+  await db.query(
+    `UPDATE function_audit_intents
+        SET finalized_at = COALESCE(finalized_at, NOW()), audit_event_id = COALESCE(audit_event_id, $2)
+      WHERE intent_id = $1`,
+    [intent.intent_id, intent.intent_id]
+  );
+  return event ?? { id: intent.intent_id, recovered: true };
+}
+
+export async function recoverFunctionAuditIntents(db, {
+  now = new Date(), limit = 50
+} = {}) {
+  const { rows } = await db.query(
+    `SELECT * FROM function_audit_intents
+      WHERE finalized_at IS NULL AND recovery_due_at <= $1
+      ORDER BY recovery_due_at, intent_id
+      LIMIT $2`,
+    [now.toISOString(), limit]
+  );
+  for (const intent of rows) {
+    await finalizeFunctionAuditIntent(db, intent, {
+      outcome: 'error', status: 503, recovered: true,
+      detail: { recoveryReason: 'effect outcome was not finalized before the audit recovery deadline' }
+    });
+  }
+  return rows.length;
 }
 
 // Read action-audit events for a scope, NEWEST first. Always filtered by tenant_id;

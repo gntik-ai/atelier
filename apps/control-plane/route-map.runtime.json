@@ -683,5 +683,180 @@
     "deps": ["db"],
     "auth": "authenticated",
     "notes": "Wildcard (mirrors tests/env /v1/scheduling(/.*)? GET|POST|PATCH|DELETE) so the action's internal sub-router off params.method+params.path works (jobs, jobs/{id}, jobs/{id}/pause, config, summary). Reads params.pg + params.query/params.body objects (NO flatten). parseIdentity needs x-tenant-id AND x-workspace-id (401 otherwise)."
+  },
+  {
+    "operationId": "getFunctionAuditCoverage",
+    "method": "GET",
+    "path": "/v1/admin/functions/audit/coverage",
+    "localHandler": "getFunctionAuditCoverage",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "listFunctionDeploymentAudit",
+    "method": "GET",
+    "path": "/v1/functions/workspaces/{workspaceId}/audit",
+    "localHandler": "listFunctionDeploymentAudit",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "listFunctionQuotaEnforcement",
+    "method": "GET",
+    "path": "/v1/functions/workspaces/{workspaceId}/audit/quota-enforcement",
+    "localHandler": "listFunctionQuotaEnforcement",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "listFunctionRollbackEvidence",
+    "method": "GET",
+    "path": "/v1/functions/workspaces/{workspaceId}/audit/rollback-evidence",
+    "localHandler": "listFunctionRollbackEvidence",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getTenantAuditCorrelation",
+    "method": "GET",
+    "path": "/v1/metrics/tenants/{tenantId}/audit-correlations/{correlationId}",
+    "localHandler": "getTenantAuditCorrelation",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getWorkspaceAuditCorrelation",
+    "method": "GET",
+    "path": "/v1/metrics/workspaces/{workspaceId}/audit-correlations/{correlationId}",
+    "localHandler": "getWorkspaceAuditCorrelation",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getWorkspaceEventDashboards",
+    "method": "GET",
+    "path": "/v1/metrics/workspaces/{workspaceId}/event-dashboards",
+    "localHandler": "getWorkspaceEventDashboards",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getWorkspaceGatewayStreamMetrics",
+    "method": "GET",
+    "path": "/v1/metrics/workspaces/{workspaceId}/gateway-streams",
+    "localHandler": "getWorkspaceGatewayStreamMetrics",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getWorkspaceKafkaTopicMetrics",
+    "method": "GET",
+    "path": "/v1/metrics/workspaces/{workspaceId}/kafka-topics",
+    "localHandler": "getWorkspaceKafkaTopicMetrics",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "listBillingUsageRecords",
+    "method": "GET",
+    "path": "/v1/platform/billing/usage",
+    "localHandler": "listBillingUsageRecords",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "listTenantBillingUsageRecords",
+    "method": "GET",
+    "path": "/v1/platform/billing/usage/{tenantId}",
+    "localHandler": "listTenantBillingUsageRecords",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "createDeploymentProfileRecord",
+    "method": "POST",
+    "path": "/v1/platform/deployment-profiles",
+    "localHandler": "createDeploymentProfileRecord",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getDeploymentProfileRecord",
+    "method": "GET",
+    "path": "/v1/platform/deployment-profiles/{deploymentProfileId}",
+    "localHandler": "getDeploymentProfileRecord",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "createCommercialPlan",
+    "method": "POST",
+    "path": "/v1/platform/plans",
+    "localHandler": "createCommercialPlan",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getCommercialPlan",
+    "method": "GET",
+    "path": "/v1/platform/plans/{planId}",
+    "localHandler": "getCommercialPlan",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "createQuotaPolicy",
+    "method": "POST",
+    "path": "/v1/platform/plans/{planId}/quota-policies",
+    "localHandler": "createQuotaPolicy",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getQuotaPolicy",
+    "method": "GET",
+    "path": "/v1/platform/plans/{planId}/quota-policies/{quotaPolicyId}",
+    "localHandler": "getQuotaPolicy",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "createProviderCapabilityRecord",
+    "method": "POST",
+    "path": "/v1/platform/provider-capabilities",
+    "localHandler": "createProviderCapabilityRecord",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getProviderCapabilityRecord",
+    "method": "GET",
+    "path": "/v1/platform/provider-capabilities/{providerCapabilityId}",
+    "localHandler": "getProviderCapabilityRecord",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getRouteCatalog",
+    "method": "GET",
+    "path": "/v1/platform/route-catalog",
+    "localHandler": "getRouteCatalog",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getStorageProviderIntrospection",
+    "method": "GET",
+    "path": "/v1/platform/storage/provider",
+    "localHandler": "getStorageProviderIntrospection",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "listTopologyRegions",
+    "method": "GET",
+    "path": "/v1/platform/topology/regions",
+    "localHandler": "listTopologyRegions",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "createPlatformUser",
+    "method": "POST",
+    "path": "/v1/platform/users",
+    "localHandler": "createPlatformUser",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getPlatformUser",
+    "method": "GET",
+    "path": "/v1/platform/users/{userId}",
+    "localHandler": "getPlatformUser",
+    "auth": "authenticated"
+  },
+  {
+    "operationId": "getTenantGovernanceDashboard",
+    "method": "GET",
+    "path": "/v1/tenants/{tenantId}/dashboard",
+    "localHandler": "getTenantGovernanceDashboard",
+    "auth": "authenticated"
   }
 ]

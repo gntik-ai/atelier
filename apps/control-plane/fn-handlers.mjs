@@ -10,6 +10,8 @@ import * as store from './tenant-store.mjs';
 import { deployKnativeService, deleteKnativeService, invokeKnative, waitKsvcReady, ksvcNameForWorkspace, ksvcHost } from './function-executor.mjs';
 import { vaultStoreFromEnv } from './vault-secrets.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
+import { checkFunctionQuota } from './function-quota.mjs';
+import { recordQuotaEnforcementStrict } from './audit-writer.mjs';
 
 // Scope-validation builder for function definition import (#683). It lives in apps/control-plane-executor
 // (vendored into the CP image at /repo/apps/control-plane-executor, alongside packages/internal-contracts
@@ -48,6 +50,30 @@ async function loadValidateImportBundle() {
 
 const ok = (statusCode, body) => ({ statusCode, body });
 const err = (statusCode, code, message) => ({ statusCode, body: { code, message } });
+
+const FUNCTION_AUDIT_ROUTES = Object.freeze({
+  fnDeploy: { method: 'POST', path: '/v1/functions/actions', localHandler: 'fnDeploy' },
+  fnDelete: { method: 'DELETE', path: '/v1/functions/actions/{actionId}', localHandler: 'fnDelete' },
+  fnRollback: { method: 'POST', path: '/v1/functions/actions/{actionId}/rollback', localHandler: 'fnRollback' }
+});
+
+async function beginEffectAudit(ctx, localHandler) {
+  if (typeof ctx.beginFunctionRouteAudit !== 'function') return null;
+  const route = localHandler === 'fnDeploy' && ctx.params?.actionId
+    ? { method: 'PATCH', path: '/v1/functions/actions/{actionId}', localHandler: 'fnDeploy' }
+    : FUNCTION_AUDIT_ROUTES[localHandler];
+  return ctx.beginFunctionRouteAudit(route, ctx);
+}
+
+async function finishEffectAudit(ctx, intent, result) {
+  if (!intent || typeof ctx.finalizeFunctionRouteAudit !== 'function') return result;
+  try {
+    await ctx.finalizeFunctionRouteAudit(intent, ctx, result);
+    return result;
+  } catch (error) {
+    return err(error.statusCode ?? 503, error.code ?? 'FUNCTION_AUDIT_FINALIZE_DEFERRED', error.message);
+  }
+}
 
 // OpenBao-backed workspace-secret store (add-vault-secret-consumption, #612). Null when OpenBao is not
 // configured (BAO_ADDR/BAO_TOKEN or compatible VAULT_* env unset) — the secrets API reports the backend disabled and
@@ -264,10 +290,52 @@ async function fnDeploy(ctx) {
   // (callerTenantId → null), preserving the cross-tenant deploy bypass.
   const ws = await ownedWorkspace(ctx, workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  ctx.resolvedScope = { tenantId: ws.tenant_id, workspaceId: ws.id };
+  ctx.auditDetail = {
+    subsystem: 'openwhisk', resourceType: 'function',
+    resourceId: ctx.params.actionId ?? actionName, functionId: ctx.params.actionId ?? actionName,
+    deploymentNature: ctx.params.actionId ? 'update' : 'create', originSurface: 'control_api'
+  };
   const code = b.source?.inlineCode ?? b.source?.code;
   if (!code) return err(400, 'VALIDATION_ERROR', 'source.inlineCode is required');
-  const existing = ctx.params.actionId ? await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity)) : null;
+  const existing = ctx.params.actionId
+    ? await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity))
+    : await store.getFnActionByWorkspaceAndName(ctx.pool, ws.id, actionName, ws.tenant_id);
   const resourceId = existing?.resource_id ?? ctx.params.actionId ?? `fn_${randomUUID().slice(0, 12)}`;
+  ctx.auditDetail.resourceId = resourceId;
+  ctx.auditDetail.functionId = resourceId;
+  ctx.auditDetail.deploymentNature = existing ? 'update' : 'create';
+  const currentUsage = await store.countTenantFnActions(ctx.pool, ws.tenant_id);
+  let quota;
+  try {
+    quota = await (ctx.checkFunctionQuota ?? checkFunctionQuota)(ctx.pool, ws.tenant_id, existing ? Math.max(0, currentUsage - 1) : currentUsage, {
+      ...(ctx.loadFunctionQuota ? { load: ctx.loadFunctionQuota } : {})
+    });
+    await (ctx.recordFunctionQuotaEnforcement ?? recordQuotaEnforcementStrict)(ctx.pool, {
+      tenantId: ws.tenant_id,
+      workspaceId: ws.id,
+      dimensionKey: quota.dimensionKey,
+      attemptedAction: `function:${resourceId}`,
+      currentUsage,
+      effectiveLimit: quota.effectiveLimit,
+      quotaType: quota.quotaType,
+      graceMargin: quota.graceMargin,
+      effectiveCeiling: quota.effectiveCeiling,
+      source: quota.source,
+      decision: quota.decision,
+      actorId: ctx.identity?.sub,
+      correlationId: ctx.callerContext?.correlationId,
+      warning: quota.warning ?? null
+    });
+  } catch (error) {
+    return err(error.statusCode ?? 503, error.code ?? 'FUNCTION_QUOTA_AUDIT_UNAVAILABLE', error.message);
+  }
+  ctx.auditDetail.quotaDecision = quota.decision;
+  ctx.auditDetail.quotaDimension = quota.dimensionKey;
+  if (!quota.allowed) {
+    return err(402, 'QUOTA_EXCEEDED',
+      `function quota reached (${quota.dimensionKey}): ${currentUsage}/${quota.effectiveLimit ?? '?'}`);
+  }
   const limits = b.execution?.limits ?? {};
   const memoryMb = Number(limits.memoryMb) || 256;
   const timeoutMs = Number(limits.timeoutMs) || 60000;
@@ -284,22 +352,37 @@ async function fnDeploy(ctx) {
     try { secretEnv = await vaultStore.resolveEnv(ws.tenant_id, ws.id, secretRefs); }
     catch (e) { return err(502, 'SECRET_RESOLVE_FAILED', String(e.message ?? e)); }
   }
+  let auditIntent;
+  try {
+    auditIntent = await beginEffectAudit(ctx, 'fnDeploy');
+  } catch (error) {
+    return err(error.statusCode ?? 503, error.code ?? 'FUNCTION_AUDIT_UNAVAILABLE', error.message);
+  }
   // Deploy/update the function's Knative Service (new revision on code change).
   try {
     await (ctx.deployKnativeService ?? deployKnativeService)(name, code, { memoryMb, timeoutMs, secretEnv });
   } catch (e) {
-    return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DEPLOY_FAILED', String(e.message ?? e));
+    return finishEffectAudit(ctx, auditIntent,
+      err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DEPLOY_FAILED', String(e.message ?? e)));
   }
-  const rec = await store.upsertFnAction(ctx.pool, {
-    resourceId, workspaceId: ws.id, tenantId: ws.tenant_id, actionName,
-    runtime: b.execution?.runtime ?? 'nodejs:22', entrypoint: b.execution?.entrypoint ?? 'main',
-    sourceCode: code, parameters: b.execution?.parameters ?? null, memoryMb, timeoutMs,
-    ksvcName: name, createdBy: ctx.identity?.sub
-  });
-  return ok(existing ? 200 : 201, {
+  let rec;
+  try {
+    rec = await store.upsertFnAction(ctx.pool, {
+      resourceId, workspaceId: ws.id, tenantId: ws.tenant_id, actionName,
+      runtime: b.execution?.runtime ?? 'nodejs:22', entrypoint: b.execution?.entrypoint ?? 'main',
+      sourceCode: code, parameters: b.execution?.parameters ?? null, memoryMb, timeoutMs,
+      ksvcName: name, createdBy: ctx.identity?.sub
+    });
+  } catch (error) {
+    return finishEffectAudit(ctx, auditIntent,
+      err(503, 'FN_DEPLOY_STATE_FAILED', String(error.message ?? error)));
+  }
+  ctx.auditDetail.resourceId = rec.resource_id;
+  ctx.auditDetail.functionId = rec.resource_id;
+  return finishEffectAudit(ctx, auditIntent, ok(existing ? 200 : 201, {
     requestId: randomUUID(), correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
     resourceId: rec.resource_id, status: 'accepted', acceptedAt: new Date().toISOString()
-  });
+  }));
 }
 
 // GET /v1/functions/workspaces/{workspaceId}/inventory
@@ -346,28 +429,50 @@ async function fnDelete(ctx) {
   const actionId = ctx.params.actionId ?? ctx.params.resourceId;
   const r = await store.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
+  ctx.resolvedScope = { tenantId: r.tenant_id, workspaceId: r.workspace_id };
+  ctx.auditDetail = {
+    subsystem: 'openwhisk', resourceType: 'function', resourceId: r.resource_id,
+    functionId: r.resource_id, adminAction: 'delete', originSurface: 'control_api'
+  };
   if (!canManageTenant(ctx.identity, r.tenant_id)) {
     return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  }
+
+  let auditIntent;
+  try {
+    auditIntent = await beginEffectAudit(ctx, 'fnDelete');
+  } catch (error) {
+    return err(error.statusCode ?? 503, error.code ?? 'FUNCTION_AUDIT_UNAVAILABLE', error.message);
   }
 
   if (r.ksvc_name) {
     try {
       await (ctx.deleteKnativeService ?? deleteKnativeService)(r.ksvc_name);
     } catch (e) {
-      return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DELETE_FAILED', String(e.message ?? e));
+      return finishEffectAudit(ctx, auditIntent,
+        err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DELETE_FAILED', String(e.message ?? e)));
     }
   }
 
-  const deleted = await store.deleteFnAction(ctx.pool, r);
-  if (!deleted) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
+  let deleted;
+  try {
+    deleted = await store.deleteFnAction(ctx.pool, r);
+  } catch (error) {
+    return finishEffectAudit(ctx, auditIntent,
+      err(503, 'FN_DELETE_STATE_FAILED', String(error.message ?? error)));
+  }
+  if (!deleted) return finishEffectAudit(ctx, auditIntent,
+    err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`));
 
-  return ok(202, {
+  ctx.auditDetail.resourceId = deleted.resource_id;
+  ctx.auditDetail.functionId = deleted.resource_id;
+  return finishEffectAudit(ctx, auditIntent, ok(202, {
     requestId: randomUUID(),
     correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
     resourceId: deleted.resource_id,
     status: 'accepted',
     acceptedAt: new Date().toISOString()
-  });
+  }));
 }
 // POST /v1/functions/actions/{actionId}/invocations  — REAL execution
 async function fnInvoke(ctx) {
@@ -454,6 +559,12 @@ async function fnVersions(ctx) {
 async function fnRollback(ctx) {
   const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', 'action not found');
+  ctx.resolvedScope = { tenantId: r.tenant_id, workspaceId: r.workspace_id };
+  ctx.auditDetail = {
+    subsystem: 'openwhisk', resourceType: 'function', resourceId: r.resource_id,
+    functionId: r.resource_id, targetVersionId: ctx.body?.versionId ?? null,
+    originSurface: 'control_api'
+  };
   if (!canManageTenant(ctx.identity, r.tenant_id)) {
     return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
   }
@@ -472,6 +583,13 @@ async function fnRollback(ctx) {
     return err(409, 'VERSION_NOT_ELIGIBLE', 'rollback target must be a retained prior version');
   }
 
+  let auditIntent;
+  try {
+    auditIntent = await beginEffectAudit(ctx, 'fnRollback');
+  } catch (error) {
+    return err(error.statusCode ?? 503, error.code ?? 'FUNCTION_AUDIT_UNAVAILABLE', error.message);
+  }
+
   const deployName = r.ksvc_name ?? target.ksvc_name;
   if (deployName) {
     try {
@@ -481,20 +599,31 @@ async function fnRollback(ctx) {
         secretEnv: []
       });
     } catch (e) {
-      return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_ROLLBACK_DEPLOY_FAILED', String(e.message ?? e));
+      return finishEffectAudit(ctx, auditIntent,
+        err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_ROLLBACK_DEPLOY_FAILED', String(e.message ?? e)));
     }
   }
 
-  const updated = await store.activateFnActionVersion(ctx.pool, r, target);
-  if (!updated) return err(409, 'ROLLBACK_STATE_CONFLICT', 'function version could not be activated');
-  return ok(202, {
+  let updated;
+  try {
+    updated = await store.activateFnActionVersion(ctx.pool, r, target);
+  } catch (error) {
+    return finishEffectAudit(ctx, auditIntent,
+      err(503, 'ROLLBACK_STATE_FAILED', String(error.message ?? error)));
+  }
+  if (!updated) return finishEffectAudit(ctx, auditIntent,
+    err(409, 'ROLLBACK_STATE_CONFLICT', 'function version could not be activated'));
+  const sourceVersionId = rows.find((row) => row.status === 'active')?.version_id ?? store.syntheticFnVersionId(r);
+  ctx.auditDetail.sourceVersionId = sourceVersionId;
+  ctx.auditDetail.targetVersionId = target.version_id;
+  return finishEffectAudit(ctx, auditIntent, ok(202, {
     requestId: randomUUID(),
     resourceId: r.resource_id,
     requestedVersionId: versionId,
     status: 'accepted',
     correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
     acceptedAt: new Date().toISOString()
-  });
+  }));
 }
 
 // ---- Workspace secrets (add-vault-secret-consumption, #612; console convergence,

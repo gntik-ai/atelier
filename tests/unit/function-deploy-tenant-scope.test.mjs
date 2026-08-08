@@ -137,7 +137,14 @@ const IDENTITY_SA = {
 /** Builds a ctx for fnDeploy: `inserts` is the array the fake pool records writes into, `deploys`
  *  records (name, code) tuples via the injected deployKnativeService stub, `params` sets
  *  ctx.params (e.g. { actionId } for the PATCH update path). */
-function ctx(identity, body, { inserts = [], deploys = [], params = {} } = {}) {
+function ctx(identity, body, {
+  inserts = [], deploys = [], params = {}, quotaRecords = [],
+  auditSteps = [],
+  quotaDecision = {
+    allowed: true, decision: 'allowed', dimensionKey: 'max_functions', currentUsage: 0,
+    effectiveLimit: 50, effectiveCeiling: 50, quotaType: 'hard', graceMargin: 0, source: 'default'
+  }
+} = {}) {
   return {
     pool: fakePool(inserts),
     params,
@@ -145,7 +152,21 @@ function ctx(identity, body, { inserts = [], deploys = [], params = {} } = {}) {
     body,
     identity,
     callerContext: { actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
-    deployKnativeService: async (name, code) => { deploys.push({ name, code }); return { revision: 'rev-1' }; },
+    deployKnativeService: async (name, code) => {
+      auditSteps.push('external-effect');
+      deploys.push({ name, code });
+      return { revision: 'rev-1' };
+    },
+    beginFunctionRouteAudit: async () => {
+      auditSteps.push('durable-intent');
+      return { intent_id: '11111111-1111-1111-1111-111111111111' };
+    },
+    finalizeFunctionRouteAudit: async (_intent, auditCtx) => {
+      auditSteps.push('audit-outbox-finalized');
+      auditCtx.functionAuditHandled = true;
+    },
+    checkFunctionQuota: async () => quotaDecision,
+    recordFunctionQuotaEnforcement: async (_pool, record) => { quotaRecords.push(record); return { id: 'quota-test' }; }
   };
 }
 
@@ -189,14 +210,17 @@ test('bbx-fn-deploy-scope-02: fnDeploy cross-tenant UPDATE (PATCH) returns 403 w
 test('bbx-fn-deploy-scope-03: fnDeploy own-tenant CREATE succeeds (not vacuous) and deploys', async () => {
   const inserts = [];
   const deploys = [];
+  const auditSteps = [];
   const body = { workspaceId: 'ws-a', actionName: 'good', source: { inlineCode: 'function main(){/*MARKER-GOOD*/}' } };
-  const result = await FN_HANDLERS.fnDeploy(ctx(IDENTITY_A, body, { inserts, deploys }));
+  const result = await FN_HANDLERS.fnDeploy(ctx(IDENTITY_A, body, { inserts, deploys, auditSteps }));
   assert.equal(result.statusCode, 201,
     `expected 201 for own-tenant create, got ${result.statusCode} (body: ${JSON.stringify(result.body)})`);
   assert.equal(inserts.length, 1, 'must write exactly one fn_actions row for the owning tenant');
   assert.equal(inserts[0].tenantId, 'tenant-a', 'the written row must be tagged with the caller tenant');
   assert.equal(inserts[0].workspaceId, 'ws-a');
   assert.equal(deploys.length, 1, 'must deploy the Knative service for the owning tenant');
+  assert.deepEqual(auditSteps, ['durable-intent', 'external-effect', 'audit-outbox-finalized'],
+    'the retryable audit intent must be durable before Knative and finalized before returning');
 });
 
 // ===========================================================================
@@ -226,4 +250,28 @@ test('bbx-fn-deploy-scope-05: fnDeploy targeting an unknown workspace returns th
     `expected uniform 403 for an unknown workspace, got ${result.statusCode} (body: ${JSON.stringify(result.body)})`);
   assert.equal(inserts.length, 0, 'must not write an fn_actions row for an unknown workspace');
   assert.equal(deploys.length, 0, 'must not deploy a Knative service for an unknown workspace');
+});
+
+test('bbx-c08-function-quota: deploy persists its scoped decision and blocks before Knative at the limit', async () => {
+  const inserts = [];
+  const deploys = [];
+  const quotaRecords = [];
+  const body = { workspaceId: 'ws-a', actionName: 'quota-blocked', source: { inlineCode: 'return 1' } };
+  const result = await FN_HANDLERS.fnDeploy(ctx(IDENTITY_A, body, {
+    inserts,
+    deploys,
+    quotaRecords,
+    quotaDecision: {
+      allowed: false, decision: 'hard_blocked', dimensionKey: 'max_functions', currentUsage: 50,
+      effectiveLimit: 50, effectiveCeiling: 50, quotaType: 'hard', graceMargin: 0, source: 'default'
+    }
+  }));
+  assert.equal(result.statusCode, 402);
+  assert.equal(deploys.length, 0, 'quota denial precedes the external Knative effect');
+  assert.equal(inserts.length, 0, 'quota denial precedes the fn_actions write');
+  assert.equal(quotaRecords.length, 1);
+  assert.equal(quotaRecords[0].tenantId, 'tenant-a');
+  assert.equal(quotaRecords[0].workspaceId, 'ws-a');
+  assert.match(quotaRecords[0].attemptedAction, /^function:fn_/);
+  assert.equal(quotaRecords[0].decision, 'hard_blocked');
 });

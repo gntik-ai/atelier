@@ -48,12 +48,16 @@ export const GOVERNANCE_MIGRATIONS = [
   'packages/provisioning-orchestrator/src/migrations/105-effective-limit-resolution.sql',
   'packages/workspace-docs-service/migrations/087-workspace-doc-notes.sql',
   'packages/provisioning-orchestrator/src/migrations/114-backup-scope-deployment-profiles.sql',
+  // C-08: durable billing reads plus the canonical platform-governance entity,
+  // actor/operation-scoped idempotency, and append-only platform audit registry.
+  'packages/provisioning-orchestrator/src/migrations/119-billing-usage-records.sql',
   'packages/provisioning-orchestrator/src/migrations/121-flow-quota-dimensions.sql',
   // C-14: denial-history table only. The denial-audit read action reads privilege_domain_denials,
   // which is otherwise only defined by the broad, unregistered migration 094. This dedicated,
   // idempotent, data-preserving migration bootstraps ONLY that table + its three indexes so the
   // audit GET boots; it never runs 094 or 094's assignment/history/view/api_keys/endpoint changes.
   'packages/provisioning-orchestrator/src/migrations/122-privilege-domain-denial-history.sql',
+  'packages/provisioning-orchestrator/src/migrations/123-c08-platform-governance-registry.sql',
 ];
 
 // The control-plane action modules resolve under /repo in the image; allow override

@@ -1,0 +1,23 @@
+- [x] 1. Add a machine-readable exact C-08 inventory for the 25 operation IDs/methods/paths and a failing production-route parity test.
+- [x] 2. Add failing black-box HTTP reproductions for representative metrics/correlation, Function audit, billing, platform discovery/control, and tenant-dashboard routes, proving the base returns `GW_NO_ROUTE`.
+- [x] 3. Implement real scoped audit-correlation and Function-audit repository/adapter handlers with masking, pagination, capability, audience, and tenant/workspace isolation enforcement.
+- [x] 4. Implement real workspace event-dashboard, gateway-stream, and Kafka-topic metric handlers backed by the existing event/Kafka/metrics sources; represent unavailable dependencies honestly.
+- [x] 5. Wire both billing reads to the durable billing repository with platform authorization, bounded pagination, tenant filtering, and schema-valid projections.
+- [x] 6. Implement/wire durable deployment-profile, commercial-plan, quota-policy, provider-capability, and platform-user repositories plus their 5 GET and 5 POST handlers, adding only backward-compatible migrations where required.
+- [x] 7. Preserve full validation, platform authorization, transactions, published idempotency/replay/conflict behavior, and existing operation/audit linkage for the five POST operations.
+- [x] 8. Wire route-catalog, storage-provider introspection, and topology-region reads to their canonical generated/runtime configuration sources.
+- [x] 9. Implement the tenant-governance dashboard as an authorized composition of real tenant/governance sources without stale console context or fabricated health/quota state.
+- [x] 10. Register all 25 routes in the production assembly, retain canonical methods/paths/operation IDs, and keep C-14/C-15 and every unrelated route untouched.
+- [x] 11. Align/regenerate unified family artifacts, public catalog/reference, gateway assets where required, and existing SDK/console consumers; prove a second generation is clean.
+- [x] 12. Package every handler, repository, migration, and contract asset in the control-plane image and make build/startup validation fail for unresolved modules/exports.
+- [x] 13. Add focused handler/repository tests for validation, real empty results, domain not-found, dependency/capability outcomes, no fixed success stubs, and all 20 GETs remaining side-effect-free.
+- [x] 14. Add authorization and isolation regression tests for unauthenticated calls, constrained P4/P10, authorized P1/P3/P7/P9/P14 controls, P12 scope, and P13 foreign-versus-unknown equivalence without forged-header trust.
+- [x] 15. Add transaction/idempotency/audit tests for each of the five POST operations, including replay, conflicting reuse, invalid input, denial, single effect, and single correlated audit/operation chain.
+- [x] 16. Add production-shaped HTTP and packaging regression coverage that exercises every in-scope operation and proves 25/25 registered, 0/25 `GW_NO_ROUTE`, 20 GETs read-only, and no missing/test-only handler.
+- [x] 17. Verify route-template metrics and bounded audit behavior without new C-07 metric families or raw identifiers in labels/evidence.
+- [x] 18. Update detailed operator/integrator/API documentation for personas, permissions, scopes, capabilities, pagination/idempotency, empty/error outcomes, audit/correlation, troubleshooting, rollback, and no-cluster verification status.
+- [x] 19. Run focused unit, black-box, contract, authorization/isolation, integration, generated-artifact, Docker/package, lint, OpenSpec strict, and diff hygiene gates; record exact results in the draft PR.
+- [x] 20. Confirm the final diff contains only C-08 product/spec/test/docs changes and excludes loop-state, audit evidence, credentials, kubeconfigs, Playwright artifacts, cluster manifests/state, and agent/runtime assets.
+- [x] 21. Publish Billing keyset continuation as `pagination.nextCursor`, reject malformed cursor UUIDs before SQL, and regenerate the family contract.
+- [x] 22. Persist a recoverable Function audit intent before Knative effects and finalize it into the audit/outbox chain, with regression coverage for post-effect audit-storage failure and recovery.
+- [x] 23. Idempotently bootstrap `function.audit.events` with explicit Kafka topic settings before producer startup and test both fresh and existing-topic paths.
