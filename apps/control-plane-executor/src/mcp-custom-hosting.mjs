@@ -8,7 +8,7 @@
  * before the workload. Supply-chain validation rejects disallowed registries and unpinned/`latest`
  * images. No I/O here — the apply rides the runtime RBAC + Knative.
  */
-import { runtimeTenantOwnership } from './runtime/mcp-runtime-namespace.mjs';
+import { runtimeTenantOwnership, validateRuntimeNamespace } from './runtime/mcp-runtime-namespace.mjs';
 
 /** Parse an image ref into { registry, name, tag, digest }. */
 export function parseImageRef(ref = '') {
@@ -52,9 +52,9 @@ function violation(code, message, field) {
  * @param {string} input.tenantId
  * @param {string} input.serverId
  * @param {string} input.image
- * @param {string} [input.namespace] tenant namespace. The direct-builder compatibility default is
- *   tenantId; production reconciliation MUST pass the namespace returned by its authoritative
- *   tenant-to-runtime-namespace resolver.
+ * @param {string} input.namespace tenant namespace returned by the authoritative
+ *   tenant-to-runtime-namespace resolver. Application tenant identifiers are never namespace
+ *   defaults.
  * @param {number} [input.port]
  * @param {Array<{name:string,value:string}>} [input.env]
  * @param {{maxScale?:number}} [input.planLimits]
@@ -63,9 +63,19 @@ function violation(code, message, field) {
  */
 export function buildCustomServerDeployment({ tenantId, serverId, image, namespace, port = 8080, env = [], planLimits = {}, allowedRegistries = [] } = {}) {
   const violations = [];
+  let resolvedNamespace;
   if (!tenantId) violations.push(violation('missing_tenant', 'tenantId is required.', 'tenantId'));
   if (!serverId) violations.push(violation('missing_server_id', 'serverId is required.', 'serverId'));
   if (!image) violations.push(violation('missing_image', 'A container image is required.', 'image'));
+  if (!namespace) {
+    violations.push(violation('missing_namespace', 'An authoritative runtime namespace is required.', 'namespace'));
+  } else {
+    try {
+      resolvedNamespace = validateRuntimeNamespace(namespace);
+    } catch {
+      violations.push(violation('invalid_namespace', 'Runtime namespace must be a valid Kubernetes DNS label.', 'namespace'));
+    }
+  }
 
   if (image) {
     const { registry } = parseImageRef(image);
@@ -82,7 +92,6 @@ export function buildCustomServerDeployment({ tenantId, serverId, image, namespa
 
   if (violations.length > 0) return { manifest: null, violations };
 
-  const ns = namespace ?? tenantId;
   const tenantOwner = runtimeTenantOwnership(tenantId);
   const labels = {
     'in-falcone.io/component': 'mcp-server',
@@ -95,7 +104,7 @@ export function buildCustomServerDeployment({ tenantId, serverId, image, namespa
     manifest: {
       apiVersion: 'serving.knative.dev/v1',
       kind: 'Service',
-      metadata: { name: `mcp-${serverId}`, namespace: ns, labels },
+      metadata: { name: `mcp-${serverId}`, namespace: resolvedNamespace, labels },
       spec: {
         template: {
           metadata: {
