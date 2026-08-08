@@ -17,7 +17,7 @@ describe('ConsoleRuntimePage', () => {
     expect(await screen.findByRole('heading', { name: 'Runtime de funciones' })).toBeInTheDocument()
     expect(screen.getByText('platform')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Inspeccionar Funciones' })).toHaveAttribute('href', '/console/functions')
-    expect(screen.getByRole('link', { name: 'Inspeccionar Hosted MCP' })).toHaveAttribute('href', '/console/mcp/servers/srv_1')
+    expect(screen.getByRole('link', { name: 'Inspeccionar Hosted MCP' })).toHaveAttribute('href', '/console')
   })
   it('announces degraded reason without inventing correlation data', async () => {
     getStatus.mockResolvedValue({ ...ready, state: 'degraded', reason: 'WEBHOOK_NOT_READY' }); renderPage()
