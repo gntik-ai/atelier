@@ -33,6 +33,37 @@ case "$command_name" in
       *" config current-context "*) printf '%s\n' 'kind-falcone-bbx'; exit 0 ;;
       *" port-forward "*) trap 'exit 0' TERM INT; while sleep 1; do :; done ;;
     esac
+    if [[ " $* " == *" api-resources "* ]]; then
+      # The preserve preflight must discover the scope of every rendered GVK. Keep the
+      # existing adjacent-resource snapshot response distinct from GVK-specific discovery.
+      if [[ " $* " == *" --verbs=list "* && " $* " == *" --namespaced=true "* && " $* " == *" -o name "* ]]; then
+        printf '%s\n' 'configmaps' 'deployments.apps'
+        [[ "$BBX_SCENARIO" == "discovery-resolves-gvks" ]] && printf '%s\n' 'widgets.example.io'
+        exit 0
+      fi
+      case "$BBX_SCENARIO" in
+        discovery-resolves-gvks)
+          if [[ "$kubectl_args_lower" == *"example.io"* || "$kubectl_args_lower" == *"widget"* ]]; then
+            [[ " $* " == *" -o name "* ]] && printf '%s\n' 'widgets.example.io' || printf '%s\n' 'widgets wd example.io/v1 true Widget get,list'
+          else
+            [[ " $* " == *" -o name "* ]] && printf '%s\n' 'configmaps' || printf '%s\n' 'configmaps cm v1 true ConfigMap get,list'
+          fi
+          ;;
+        rendered-cluster-cr)
+          [[ " $* " == *" -o name "* ]] && printf '%s\n' 'clusterwidgets.example.io' || printf '%s\n' 'clusterwidgets cw example.io/v1 false ClusterWidget get,list'
+          ;;
+        rendered-csr)
+          [[ " $* " == *" -o name "* ]] && printf '%s\n' 'certificatesigningrequests.certificates.k8s.io' || printf '%s\n' 'certificatesigningrequests csr certificates.k8s.io/v1 false CertificateSigningRequest get,list'
+          ;;
+        rendered-unknown-gvk)
+          # Discovery cannot resolve this rendered GVK at all: fail-closed is required.
+          ;;
+        *)
+          [[ " $* " == *" -o name "* ]] && printf '%s\n' 'configmaps' || printf '%s\n' 'configmaps cm v1 true ConfigMap get,list'
+          ;;
+      esac
+      exit 0
+    fi
     if [[ " $* " == *" get namespace "* || " $* " == *" get namespaces "* || " $* " == *" get ns "* ]]; then
       [[ "$BBX_SCENARIO" == "missing-namespace" ]] && exit 1
       if [[ "$*" == *"jsonpath"* ]]; then printf '%s' "$BBX_NAMESPACE_UID"; exit 0; fi
@@ -55,6 +86,21 @@ case "$command_name" in
       else
         printf '%s\n' 'bbx-release-owned'
       fi
+      exit 0
+    fi
+    if [[ "$kubectl_args_lower" == *"sh.helm.release.v1.falcone.v1"* && " $kubectl_args_lower " == *" get "* ]]; then
+      [[ -s "$BBX_RELEASE_STATE" ]] || exit 0
+      if [[ "$*" == *"jsonpath"* ]]; then printf '%s' '00000000-0000-4000-8000-000000002933'; exit 0; fi
+      exit 0
+    fi
+    if [[ "$BBX_SCENARIO" == "discovery-resolves-gvks" && "$kubectl_args_lower" == *"bbx-namespaced-cr"* && " $kubectl_args_lower " == *" get "* ]]; then
+      [[ -s "$BBX_RELEASE_STATE" ]] || exit 0
+      if [[ "$*" == *"jsonpath"* ]]; then printf '%s' '00000000-0000-4000-8000-000000003933'; fi
+      exit 0
+    fi
+    if [[ "$BBX_SCENARIO" =~ ^(rendered-unknown-gvk|rendered-cluster-cr|rendered-csr|hook-job|hook-pod)$ && "$*" == *"jsonpath"* ]]; then
+      # The current static-kind preflight sees a free namespaced name and proceeds. A
+      # discovery-driven implementation must reject the unresolved/cluster/hook object first.
       exit 0
     fi
     if [[ "$*" == *"bbx-release-owned"* && " $* " == *" wait "* && "$*" == *"--for=delete"* ]]; then
@@ -94,11 +140,37 @@ case "$command_name" in
       exit 0
     fi
     if [[ " $* " == *" template "* ]]; then
-      if [[ "$BBX_SCENARIO" == "rendered-namespace-conflict" ]]; then
-        printf '%s\n' 'apiVersion: v1' 'kind: Namespace' 'metadata:' "  name: $E2E_NAMESPACE" '  labels:' '    unsafe-bbx-change: rejected'
-      else
-        printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '  labels:' '    app.kubernetes.io/instance: falcone' 'data:' '  contract: owned'
-      fi
+      case "$BBX_SCENARIO" in
+        rendered-namespace-conflict)
+          printf '%s\n' 'apiVersion: v1' 'kind: Namespace' 'metadata:' "  name: $E2E_NAMESPACE" '  labels:' '    unsafe-bbx-change: rejected'
+          ;;
+        discovery-resolves-gvks)
+          printf '%s\n' \
+            'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '---' \
+            'apiVersion: example.io/v1' 'kind: Widget' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-namespaced-cr'
+          ;;
+        rendered-unknown-gvk)
+          printf '%s\n' 'apiVersion: mystery.example.io/v1' 'kind: VanishingClusterThing' 'metadata:' '  name: bbx-unknown-cluster-object'
+          ;;
+        rendered-cluster-cr)
+          printf '%s\n' 'apiVersion: example.io/v1' 'kind: ClusterWidget' 'metadata:' '  name: bbx-cluster-cr'
+          ;;
+        rendered-csr)
+          printf '%s\n' 'apiVersion: certificates.k8s.io/v1' 'kind: CertificateSigningRequest' 'metadata:' '  name: bbx-csr'
+          ;;
+        hook-job)
+          printf '%s\n' 'apiVersion: batch/v1' 'kind: Job' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-benign-hook-job' '  annotations:' '    helm.sh/hook: pre-install' 'spec:' '  template:' '    spec:' '      restartPolicy: Never' '      containers:' '        - name: harmless' '          image: busybox:1.36' '          command: ["sh", "-c", "echo harmless"]'
+          ;;
+        hook-pod)
+          printf '%s\n' 'apiVersion: v1' 'kind: Pod' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-benign-hook-pod' '  annotations:' '    helm.sh/hook: test' 'spec:' '  restartPolicy: Never' '  containers:' '    - name: harmless' '      image: busybox:1.36' '      command: ["sleep", "1"]'
+          ;;
+        helm-status-transport-error)
+          printf '%s\n' '# deliberately empty release: helm status remains the ownership authority'
+          ;;
+        *)
+          printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '  labels:' '    app.kubernetes.io/instance: falcone' 'data:' '  contract: owned'
+          ;;
+      esac
       exit 0
     fi
     if [[ " $* " == *" list "* ]]; then
@@ -117,6 +189,10 @@ case "$command_name" in
       exit 0
     fi
     if [[ " $* " == *" status "* ]]; then
+      if [[ "$BBX_SCENARIO" == "helm-status-transport-error" ]]; then
+        printf '%s\n' 'Error: Kubernetes cluster unreachable: injected TLS transport failure' >&2
+        exit 75
+      fi
       if [[ "$BBX_SCENARIO" == "conflicting-release" || -s "$BBX_RELEASE_STATE" ]]; then printf '%s\n' 'STATUS: deployed'; exit 0; fi
       exit 1
     fi
@@ -499,5 +575,127 @@ test('an unresolved adjacent-resource UID proof remains fail-closed and retryabl
       'adjacent-UID proof retry uninstalled an already-removed release again',
     )
     assert.doesNotMatch(`${invocation.output}\n${retry.output}`, new RegExp(secretSentinel), 'adjacent-UID retry evidence disclosed secret output')
+  } finally { invocation.cleanup() }
+})
+
+// bbx-933-005 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('preserve preflight resolves every rendered GVK through discovery and rejects unresolved or cluster-scoped objects', async (t) => {
+  const preserveEnv = {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  }
+
+  await t.test('discovers rendered core and custom-resource GVKs before checking their object names', () => {
+    const invocation = invokeHarness('discovery-resolves-gvks', preserveEnv)
+    try {
+      assert.equal(invocation.result.status, 0, invocation.output)
+      const templateIndex = invocation.calls.findIndex(({ command, args }) => command === 'helm' && /(?:^|\s)template(?:\s|$)/.test(args))
+      const discoveryIndexes = invocation.calls
+        .map((call, index) => ({ ...call, index }))
+        .filter(({ command, args }) => command === 'kubectl' && /(?:^|\s)api-resources(?:\s|$)/.test(args))
+        .map(({ index }) => index)
+      const preflightObjectReads = invocation.calls
+        .map((call, index) => ({ ...call, index }))
+        .filter(({ command, args }) => command === 'kubectl'
+          && /(?:^|\s)get(?:\s|$)/.test(args)
+          && /bbx-release-owned|bbx-namespaced-cr/.test(args))
+      assert.ok(templateIndex >= 0, 'fixture did not render the Helm chart')
+      assert.equal(preflightObjectReads.length >= 2, true, 'fixture did not exercise both rendered GVKs')
+      assert.ok(
+        discoveryIndexes.some((index) => index > templateIndex && index < Math.min(...preflightObjectReads.map(({ index: readIndex }) => readIndex))),
+        'rendered object names were queried before API discovery resolved their GVK scope',
+      )
+    } finally { invocation.cleanup() }
+  })
+
+  for (const [label, scenario] of [
+    ['unresolved GVK', 'rendered-unknown-gvk'],
+    ['cluster-scoped custom resource', 'rendered-cluster-cr'],
+    ['CertificateSigningRequest', 'rendered-csr'],
+  ]) {
+    await t.test(`${label} is rejected before Helm install`, () => {
+      const invocation = invokeHarness(scenario, preserveEnv)
+      try {
+        assertRejectedBeforeMutation(invocation, label)
+        assert.ok(
+          invocation.calls.some(({ command, args }) => command === 'kubectl' && /(?:^|\s)api-resources(?:\s|$)/.test(args)),
+          `${label} was rejected without a discovery attempt`,
+        )
+        assert.match(invocation.output, /discover|scope|cluster|GVK|resource|refus|resolve/i, `${label} rejection omitted actionable discovery evidence`)
+      } finally { invocation.cleanup() }
+    })
+  }
+})
+
+// bbx-933-006 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('preserve preflight rejects every workload hook independently of command or image heuristics', async (t) => {
+  const preserveEnv = {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  }
+  for (const [label, scenario] of [['pre-install Job', 'hook-job'], ['test Pod', 'hook-pod']]) {
+    await t.test(`${label} is rejected before Helm install`, () => {
+      const invocation = invokeHarness(scenario, preserveEnv)
+      try {
+        assertRejectedBeforeMutation(invocation, label)
+        assert.match(invocation.output, /hook|workload|job|pod|refus|reject/i, `${label} rejection omitted actionable hook evidence`)
+      } finally { invocation.cleanup() }
+    })
+  }
+})
+
+// bbx-933-007 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('a Helm status transport/auth/server error never means release absent and keeps retryable evidence', () => {
+  const invocation = invokeHarness('helm-status-transport-error', {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  })
+  try {
+    const statusReads = invocation.calls.filter(({ command, args }) => command === 'helm' && /(?:^|\s)status\s+falcone(?:\s|$)/.test(args))
+    const retained = invocation.retainedStateDirectories()
+    let retry = null
+    if (retained.length === 1) retry = invocation.retryCleanup()
+    assert.deepEqual({
+      failedClosed: invocation.result.status !== 0,
+      statusRead: statusReads.length > 0,
+      uninstallCount: invocation.calls.filter(({ command, args }) => command === 'helm' && /(?:^|\s)uninstall\s+falcone(?:\s|$)/.test(args)).length,
+      retainedCount: retained.length,
+      retryFailedClosed: retry ? retry.result.status !== 0 : false,
+      retainedAfterRetry: retry ? retry.retainedStateDirectoriesAfter.length : 0,
+    }, {
+      failedClosed: true,
+      statusRead: true,
+      uninstallCount: 0,
+      retainedCount: 1,
+      retryFailedClosed: true,
+      retainedAfterRetry: 1,
+    }, 'ambiguous Helm status was treated as release absence or its ownership evidence was discarded')
+    assert.match(`${invocation.output}\n${retry?.output ?? ''}`, /status|transport|auth|server|uncertain|retry|evidence/i, 'status failure omitted actionable secret-safe retry evidence')
+  } finally { invocation.cleanup() }
+})
+
+// bbx-933-008 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('preserve health cannot declare an empty release workload selector healthy', () => {
+  const invocation = invokeHarness('empty-health-selector', {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  })
+  try {
+    const healthReads = invocation.calls.filter(({ command, args }) => command === 'kubectl'
+      && /(?:^|\s)get\s+(?:deployment|statefulset|pod|pods)(?:\s|$)/.test(args)
+      && /app\.kubernetes\.io\/instance=falcone/.test(args))
+    const issueRuns = invocation.calls.filter(({ command, args }) => command === 'npx' && /(?:^|\s)playwright\s+test(?:\s|$)/.test(args))
+    assert.deepEqual({
+      failedClosed: invocation.result.status !== 0,
+      releaseScopedHealthRead: healthReads.length > 0,
+      issueRuns: issueRuns.length,
+      installed: releaseInstalls(invocation).length,
+    }, {
+      failedClosed: true,
+      releaseScopedHealthRead: true,
+      issueRuns: 0,
+      installed: 1,
+    }, 'zero selected release workloads were accepted as a healthy deployment')
+    assert.match(invocation.output, /health|workload|selector|target|empty|zero|release/i, 'empty health selection omitted actionable evidence')
   } finally { invocation.cleanup() }
 })
