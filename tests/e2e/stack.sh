@@ -368,7 +368,7 @@ preserve_verify_owned_absent() {
 
 preserve_remove_state() {
   rm -f \
-    "$STATE_DIR/active" "$STATE_DIR/namespace" "$STATE_DIR/release" "$STATE_DIR/namespace-uid" \
+    "$STATE_DIR/namespace" "$STATE_DIR/release" "$STATE_DIR/namespace-uid" \
     "$STATE_DIR/release-storage-kind" "$STATE_DIR/release-storage-uid" \
     "$STATE_DIR/rendered-identities" "$STATE_DIR/owned-uids" \
     "$STATE_DIR/adjacent-before" "$STATE_DIR/adjacent-before.dynamic" \
@@ -377,8 +377,14 @@ preserve_remove_state() {
     "$STATE_DIR/status.log" \
     "$STATE_DIR/uninstall-complete" "$STATE_DIR/port-forward.pids"
   if [ -d "$STATE_DIR" ]; then
-    if ! rmdir "$STATE_DIR" 2>/dev/null; then
+    if find "$STATE_DIR" -mindepth 1 ! -name active -print -quit | grep -q .; then
       echo "Preserve-existing cleanup retained unexpected harness evidence; refusing to report completion." >&2
+      return 1
+    fi
+    rm -f "$ACTIVE_FILE"
+    if ! rmdir "$STATE_DIR" 2>/dev/null; then
+      : >"$ACTIVE_FILE"
+      echo "Preserve-existing cleanup retained its ownership marker after a state-directory race." >&2
       return 1
     fi
   fi
