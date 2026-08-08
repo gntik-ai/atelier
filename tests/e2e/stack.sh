@@ -411,7 +411,7 @@ preserve_cleanup() {
     status_result=0
   else
     status_result=$?
-    if ! grep -Eiq 'not[[:space:]-]*found|release:.*not found' "$status_output"; then
+    if [ -s "$status_output" ] && ! grep -Eiq '(^|[[:space:]])release([:"[:space:]]|$).*not[[:space:]-]*found|release[[:space:]].*not[[:space:]-]*found' "$status_output"; then
       preserve_release_storage || true
       echo "Preserve-existing cleanup could not establish Helm release absence; status failed with an ambiguous transport/auth/server error. Evidence remains for retry." >&2
       return 1
