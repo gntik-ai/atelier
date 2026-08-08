@@ -271,6 +271,10 @@ case "$command_name" in
         printf '%s\n' 'Error: Kubernetes cluster unreachable: injected TLS transport failure' >&2
         exit 75
       fi
+      if [[ "$BBX_SCENARIO" == "helm-status-ambiguous-404" ]]; then
+        printf '%s\n' 'Error: Kubernetes API transport failed: upstream discovery endpoint returned 404 Not Found' >&2
+        exit 75
+      fi
       if [[ "$BBX_SCENARIO" == "conflicting-release" || -s "$BBX_RELEASE_STATE" ]]; then printf '%s\n' 'STATUS: deployed'; exit 0; fi
       exit 1
     fi
@@ -770,6 +774,60 @@ test('a Helm status transport/auth/server error never means release absent and k
       retainedAfterRetry: 1,
     }, 'ambiguous Helm status was treated as release absence or its ownership evidence was discarded')
     assert.match(`${invocation.output}\n${retry?.output ?? ''}`, /status|transport|auth|server|uncertain|retry|evidence/i, 'status failure omitted actionable secret-safe retry evidence')
+  } finally { invocation.cleanup() }
+})
+
+// bbx-933-009 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('an ambiguous Kubernetes API 404 from Helm status is not authoritative release absence', () => {
+  const invocation = invokeHarness('helm-status-ambiguous-404', {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  })
+  try {
+    const retained = invocation.retainedStateDirectories()
+    const retry = retained.length === 1 ? invocation.retryCleanup() : null
+    const releaseStorageReadsAfterStatus = (calls) => {
+      const statusIndex = calls.findIndex(({ command, args }) => command === 'helm'
+        && /(?:^|\s)status\s+falcone(?:\s|$)/.test(args))
+      return calls.filter(({ command, args }, index) => index > statusIndex
+        && command === 'kubectl'
+        && /(?:^|\s)get\s+(?:secret|configmap)(?:\s|$)/.test(args)
+        && /sh\.helm\.release\.v1\.falcone\.v1/.test(args)
+        && /jsonpath/.test(args))
+    }
+    const initialUninstalls = invocation.calls.filter(({ command, args }) => command === 'helm'
+      && /(?:^|\s)uninstall\s+falcone(?:\s|$)/.test(args))
+    const retryUninstalls = retry?.calls.filter(({ command, args }) => command === 'helm'
+      && /(?:^|\s)uninstall\s+falcone(?:\s|$)/.test(args)) ?? []
+
+    assert.deepEqual({
+      failedClosed: invocation.result.status !== 0,
+      retainedCount: retained.length,
+      releaseStorageProofAfterAmbiguousStatus: releaseStorageReadsAfterStatus(invocation.calls).length > 0,
+      uninstallCount: initialUninstalls.length,
+      retryFailedClosed: retry ? retry.result.status !== 0 : false,
+      sameEvidenceRetainedForRetry: retry
+        ? JSON.stringify(retry.retainedStateDirectoriesAfter) === JSON.stringify(retained)
+        : false,
+      retryReleaseStorageProofAfterAmbiguousStatus: retry
+        ? releaseStorageReadsAfterStatus(retry.calls).length > 0
+        : false,
+      retryUninstallCount: retryUninstalls.length,
+    }, {
+      failedClosed: true,
+      retainedCount: 1,
+      releaseStorageProofAfterAmbiguousStatus: true,
+      uninstallCount: 0,
+      retryFailedClosed: true,
+      sameEvidenceRetainedForRetry: true,
+      retryReleaseStorageProofAfterAmbiguousStatus: true,
+      retryUninstallCount: 0,
+    }, 'a generic 404 substring was accepted as release absence without a verifiable Helm storage UID/API check')
+    assert.match(
+      `${invocation.output}\n${retry?.output ?? ''}`,
+      /could not establish Helm release absence|ambiguous (?:Helm )?status|transport\/auth\/server/i,
+      'ambiguous Helm 404 cleanup omitted an actionable fail-closed status diagnostic',
+    )
   } finally { invocation.cleanup() }
 })
 
