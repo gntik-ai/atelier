@@ -374,8 +374,14 @@ preserve_remove_state() {
     "$STATE_DIR/adjacent-before" "$STATE_DIR/adjacent-before.dynamic" \
     "$STATE_DIR/adjacent-after" "$STATE_DIR/adjacent-after.dynamic" \
     "$STATE_DIR/template.log" "$STATE_DIR/install.log" "$STATE_DIR/uninstall.log" \
+    "$STATE_DIR/status.log" \
     "$STATE_DIR/uninstall-complete" "$STATE_DIR/port-forward.pids"
-  rmdir "$STATE_DIR" 2>/dev/null || true
+  if [ -d "$STATE_DIR" ]; then
+    if ! rmdir "$STATE_DIR" 2>/dev/null; then
+      echo "Preserve-existing cleanup retained unexpected harness evidence; refusing to report completion." >&2
+      return 1
+    fi
+  fi
 }
 
 preserve_cleanup() {
@@ -423,7 +429,7 @@ preserve_cleanup() {
       echo "Preserve-existing cleanup found changed adjacent resource UIDs." >&2
       return 1
     }
-    preserve_remove_state
+    preserve_remove_state || return 1
     return 0
   fi
 
@@ -459,7 +465,7 @@ preserve_cleanup() {
     return 1
   }
   rm -f "$ACTIVE_FILE"
-  preserve_remove_state
+  preserve_remove_state || return 1
   echo ">> Removed the exact E2E Helm release; the attested namespace and adjacent resources were preserved."
 }
 
