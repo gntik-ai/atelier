@@ -402,6 +402,27 @@ function invokeHarness(scenario, extraEnv = {}) {
           .map((entry) => join(directory, entry.name)),
       }
     },
+    runStackLifecycle: () => {
+      const before = readCalls().length
+      const stateDirectory = mkdtempSync(join(directory, 'falcone-e2e-harness.'))
+      const stateEnv = { E2E_HARNESS_STATE_DIR: stateDirectory }
+      const upResult = launch(stack, ['up'], stateEnv)
+      const downResult = launch(stack, ['down'], stateEnv)
+      const calls = readCalls().slice(before)
+      const remainingStateDirectories = readdirSync(directory, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith('falcone-e2e-harness.'))
+        .map((entry) => join(directory, entry.name))
+      return {
+        upResult,
+        downResult,
+        calls,
+        output: `${upResult.stdout ?? ''}\n${upResult.stderr ?? ''}\n${downResult.stdout ?? ''}\n${downResult.stderr ?? ''}`,
+        remainingStateDirectories,
+        remainingStateEntries: remainingStateDirectories.flatMap((retainedDirectory) => (
+          readdirSync(retainedDirectory).map((entry) => `${retainedDirectory}/${entry}`)
+        )),
+      }
+    },
     cleanup: () => rmSync(directory, { recursive: true, force: true }),
   }
 }
@@ -492,6 +513,18 @@ test('issue E2E harness preserves an attested existing namespace without weakeni
         assert.ok(adjacentReads.some(({ index }) => index < installIndex), 'harness omitted adjacent-resource proof before install')
         assert.ok(adjacentReads.some(({ index }) => index > uninstallIndex), 'harness omitted adjacent-resource proof after cleanup')
         assert.doesNotMatch(invocation.output, new RegExp(secretSentinel), 'harness output disclosed secret evidence')
+        if (scenario === 'preserve-success') {
+          const directLifecycle = invocation.runStackLifecycle()
+          assert.equal(directLifecycle.upResult.status, 0, directLifecycle.output)
+          assert.equal(directLifecycle.downResult.status, 0, directLifecycle.output)
+          assert.deepEqual({
+            stateDirectoryCount: directLifecycle.remainingStateDirectories.length,
+            stateEntries: directLifecycle.remainingStateEntries,
+          }, {
+            stateDirectoryCount: 0,
+            stateEntries: [],
+          }, 'successful preserve cleanup left private state directories or files behind')
+        }
       } finally { invocation.cleanup() }
     })
   }
