@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import { createMcpRuntimeAdapter } from '../../apps/control-plane-executor/src/runtime/mcp-runtime-adapter.mjs';
 
 const manifest = { status: 'published', tools: [{ name: 'query_orders', description: 'Query orders.' }] };
+const resolveRuntimeNamespace = ({ tenantId }) => `runtime-${tenantId}`;
 
 test('adapter create and conflict patch ownership', async () => {
   const calls = [];
   const adapter = createMcpRuntimeAdapter({
     apiBase: 'https://k',
     token: 't',
+    ca: 'test-ca',
+    resolveRuntimeNamespace,
     runtimeImage: 'img',
     runtimeImageDigest: 'sha256:abc',
     fetchImpl: async (url, init) => {
@@ -33,7 +36,9 @@ test('adapter create and conflict patch ownership', async () => {
     tenantId: 't', workspaceId: 'w', serverId: 's', version: 'v2', operation: 'approve', manifest,
   });
   assert.equal(calls[0].init.method, 'POST');
-  const created = JSON.parse(calls[0].init.body);
+  const serviceCreate = calls.find(({ url, init }) => init.method === 'POST' && String(url).endsWith('/services'));
+  assert.ok(serviceCreate);
+  const created = JSON.parse(serviceCreate.init.body);
   assert.match(created.spec.template.spec.containers[0].image, /sha256:abc/);
   assert.deepEqual(
     Object.fromEntries(created.spec.template.spec.containers[0].env.map(({ name, value }) => [name, value])),
@@ -44,8 +49,9 @@ test('adapter create and conflict patch ownership', async () => {
       FALCONE_MCP_MANIFEST_JSON: JSON.stringify(manifest),
     },
   );
-  assert.equal(calls[2].init.method, 'PATCH');
-  const patched = JSON.parse(calls[2].init.body);
+  const servicePatch = calls.find(({ url, init }) => init.method === 'PATCH' && String(url).includes('/services/'));
+  assert.ok(servicePatch);
+  const patched = JSON.parse(servicePatch.init.body);
   assert.equal(patched.metadata.annotations['in-falcone.io/mcp-version'], 'v2');
   assert.equal(patched.metadata.annotations['in-falcone.io/mcp-operation'], 'approve');
 });
@@ -54,6 +60,8 @@ test('adapter refuses foreign conflict, incomplete deployment contracts, and una
   const adapter = createMcpRuntimeAdapter({
     apiBase: 'https://k',
     token: 't',
+    ca: 'test-ca',
+    resolveRuntimeNamespace,
     runtimeImage: 'img',
     fetchImpl: async (_url, init) => init.method === 'POST'
       ? { status: 409, ok: false }
@@ -74,6 +82,7 @@ test('adapter invoke sends trusted JSON-RPC context, strips ownership arguments,
   let responseBody = { jsonrpc: '2.0', id: 'corr-1', result: { content: [], isError: false } };
   let status = 200;
   const adapter = createMcpRuntimeAdapter({
+    resolveRuntimeNamespace,
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
       return { status, ok: status >= 200 && status < 300, json: async () => responseBody };

@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 
 import { createMcpRuntimeCleaner } from '../../apps/control-plane-executor/src/runtime/mcp-runtime-cleaner.mjs';
 
+const resolveRuntimeNamespace = ({ tenantId }) => `runtime-${tenantId}`;
+
 test('mcp-runtime-cleaner-01: cleanup targets only tenant/server-owned ksvc, revisions, routes, RBAC and NetworkPolicy', async () => {
   const calls = [];
   const listCounts = new Map();
   const cleaner = createMcpRuntimeCleaner({
     apiBase: 'https://kubernetes.default.svc',
     env: {},
+    resolveRuntimeNamespace,
     readFile: (path) => path.endsWith('token') ? 'secret-token' : Buffer.from('ca'),
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
@@ -31,7 +34,7 @@ test('mcp-runtime-cleaner-01: cleanup targets only tenant/server-owned ksvc, rev
   await cleaner.deleteOwnedRuntimeResources({ tenantId: 'tenant-a', resourceId: 'srv-shared' });
   assert.equal(calls.length, 18);
   for (const call of calls) {
-    assert.match(call.url, /\/namespaces\/tenant-a\//);
+    assert.match(call.url, /\/namespaces\/runtime-tenant-a\//);
     const parsed = new URL(call.url);
     if (call.init.method === 'GET') assert.equal(parsed.searchParams.get('labelSelector'), 'in-falcone.io/tenant=tenant-a,in-falcone.io/mcp-server=srv-shared');
     assert.ok(['GET', 'DELETE'].includes(call.init.method));
@@ -49,19 +52,20 @@ test('mcp-runtime-cleaner-02: invalid namespace input fails before any Kubernete
   let calls = 0;
   const cleaner = createMcpRuntimeCleaner({
     apiBase: 'https://kubernetes.default.svc',
+    resolveRuntimeNamespace: () => '../tenant-b',
     readFile: () => 'token',
     fetchImpl: async () => { calls += 1; return { status: 200 }; },
   });
   await assert.rejects(
     () => cleaner.deleteOwnedRuntimeResources({ tenantId: '../tenant-b', resourceId: 'srv-a' }),
-    /safe Kubernetes name/,
+    /valid Kubernetes DNS label/,
   );
   assert.equal(calls, 0);
 });
 
 test('mcp-runtime-cleaner-03: genuinely missing preconditions reject without deletion', async () => {
   let deletes = 0;
-  const cleaner = createMcpRuntimeCleaner({ apiBase: 'https://k', readFile: () => 't', fetchImpl: async (url, init) => init.method === 'GET' ? { status: 200, body: { items: [{ metadata: { name: 'x', labels: { 'in-falcone.io/tenant': 'tenant-a', 'in-falcone.io/mcp-server': 's' } } }] } } : (() => { deletes++; return { status: 409 }; })() });
+  const cleaner = createMcpRuntimeCleaner({ apiBase: 'https://k', resolveRuntimeNamespace, readFile: () => 't', fetchImpl: async (url, init) => init.method === 'GET' ? { status: 200, body: { items: [{ metadata: { name: 'x', labels: { 'in-falcone.io/tenant': 'tenant-a', 'in-falcone.io/mcp-server': 's' } } }] } } : (() => { deletes++; return { status: 409 }; })() });
   await assert.rejects(
     () => cleaner.deleteOwnedRuntimeResources({ tenantId: 'tenant-a', resourceId: 's' }),
     (error) => error.code === 'MCP_RUNTIME_DELETE_PRECONDITION_MISSING',
@@ -73,6 +77,7 @@ test('mcp-runtime-cleaner-04: non-success LIST and DELETE conflict remain retrya
   for (const status of [401, 403, 500]) {
     const cleaner = createMcpRuntimeCleaner({
       apiBase: 'https://k',
+      resolveRuntimeNamespace,
       readFile: () => 't',
       fetchImpl: async () => ({ status, body: JSON.stringify({ kind: 'Status', code: status }) }),
     });
@@ -84,6 +89,7 @@ test('mcp-runtime-cleaner-04: non-success LIST and DELETE conflict remain retrya
 
   const cleaner = createMcpRuntimeCleaner({
     apiBase: 'https://k',
+    resolveRuntimeNamespace,
     readFile: () => 't',
     fetchImpl: async (_url, init) => init.method === 'GET'
       ? { status: 200, body: { items: [{ metadata: { name: 'x', uid: 'u', resourceVersion: '7', labels: { 'in-falcone.io/tenant': 'tenant-a', 'in-falcone.io/mcp-server': 's' } } }] } }
