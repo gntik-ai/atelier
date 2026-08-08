@@ -80,7 +80,11 @@ case "$command_name" in
       exit 0
     fi
     if [[ " $* " == *" get "* ]]; then
-      printf '{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"v1","kind":"ConfigMap","metadata":{"namespace":"%s","name":"adjacent-bbx-933","uid":"00000000-0000-4000-8000-000000009933"}}]}\n' "$E2E_NAMESPACE"
+      if [[ "$(cat "$BBX_ADJACENT_RESOURCE_STATE")" == "present" ]]; then
+        printf '{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"v1","kind":"ConfigMap","metadata":{"namespace":"%s","name":"adjacent-bbx-933","uid":"00000000-0000-4000-8000-000000009933"}}]}\n' "$E2E_NAMESPACE"
+      else
+        printf '%s\n' '{"apiVersion":"v1","kind":"List","items":[]}'
+      fi
     fi
     exit 0
     ;;
@@ -131,6 +135,7 @@ case "$command_name" in
       fi
       : >"$BBX_RELEASE_STATE"
       if [[ "$BBX_SCENARIO" != "orphaned-owned-resource" ]]; then printf '%s\n' 'absent' >"$BBX_OWNED_RESOURCE_STATE"; fi
+      if [[ "$BBX_SCENARIO" == "adjacent-disappears-after-uninstall" ]]; then printf '%s\n' 'absent' >"$BBX_ADJACENT_RESOURCE_STATE"; fi
       exit 0
     fi
     exit 0
@@ -175,10 +180,12 @@ function invokeHarness(scenario, extraEnv = {}) {
   const releaseState = join(directory, 'release.state')
   const uninstallCount = join(directory, 'uninstall.count')
   const ownedResourceState = join(directory, 'owned-resource.state')
+  const adjacentResourceState = join(directory, 'adjacent-resource.state')
   writeFileSync(log, '')
   writeFileSync(releaseState, '')
   writeFileSync(uninstallCount, '0\n')
   writeFileSync(ownedResourceState, 'absent\n')
+  writeFileSync(adjacentResourceState, 'present\n')
   const env = {
     ...process.env,
     PATH: `${fakeBin}:/usr/bin:/bin`,
@@ -193,6 +200,7 @@ function invokeHarness(scenario, extraEnv = {}) {
     BBX_RELEASE_STATE: releaseState,
     BBX_UNINSTALL_COUNT: uninstallCount,
     BBX_OWNED_RESOURCE_STATE: ownedResourceState,
+    BBX_ADJACENT_RESOURCE_STATE: adjacentResourceState,
     BBX_SECRET_SENTINEL: secretSentinel,
     ...extraEnv,
   }
@@ -231,6 +239,9 @@ function invokeHarness(scenario, extraEnv = {}) {
         calls: readCalls().slice(before),
         output: `${retryResult.stdout ?? ''}\n${retryResult.stderr ?? ''}`,
         retainedStateDirectories,
+        retainedStateDirectoriesAfter: readdirSync(directory, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory() && entry.name.startsWith('falcone-e2e-harness.'))
+          .map((entry) => join(directory, entry.name)),
       }
     },
     cleanup: () => rmSync(directory, { recursive: true, force: true }),
@@ -450,4 +461,43 @@ test('preserve cleanup proves every UID-attested release object is absent after 
       assert.match(invocation.output, /orphan|remain|cleanup|owned|absent|refus/i, 'orphan failure did not provide actionable secret-safe evidence')
     } finally { invocation.cleanup() }
   })
+})
+
+// bbx-933-004 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('an unresolved adjacent-resource UID proof remains fail-closed and retryable after uninstall', () => {
+  const invocation = invokeHarness('adjacent-disappears-after-uninstall', {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  })
+  try {
+    assert.notEqual(invocation.result.status, 0, 'cleanup accepted the disappearance of a preexisting adjacent-resource UID')
+    const uninstalls = invocation.calls.filter(({ command, args }) => command === 'helm' && /(?:^|\s)uninstall\s+\S+/.test(args))
+    assert.equal(uninstalls.length, 1, 'initial cleanup did not uninstall the exact E2E release once')
+    assert.deepEqual(namespaceMutations(invocation), [], 'initial adjacent-UID proof failure mutated the preserved Namespace')
+    const retainedBeforeRetry = invocation.retainedStateDirectories()
+    assert.equal(retainedBeforeRetry.length, 1, 'initial adjacent-UID proof failure did not retain its ownership/evidence directory')
+    assert.match(invocation.output, /adjacent|identity|uid|snapshot|proof|changed|disappear/i, 'initial failure omitted actionable adjacent-resource evidence')
+
+    const retry = invocation.retryCleanup()
+    assert.deepEqual(
+      {
+        failedClosed: retry.result.status !== 0,
+        retainedCount: retry.retainedStateDirectoriesAfter.length,
+        retainedSameDirectory: retry.retainedStateDirectoriesAfter[0] === retainedBeforeRetry[0],
+      },
+      {
+        failedClosed: true,
+        retainedCount: 1,
+        retainedSameDirectory: true,
+      },
+      'cleanup retry falsely succeeded or deleted unresolved adjacent-resource evidence after the active marker was removed',
+    )
+    assert.deepEqual(namespaceMutations({ calls: retry.calls }), [], 'adjacent-UID cleanup retry mutated the preserved Namespace')
+    assert.equal(
+      retry.calls.filter(({ command, args }) => command === 'helm' && /(?:^|\s)uninstall\s+\S+/.test(args)).length,
+      0,
+      'adjacent-UID proof retry uninstalled an already-removed release again',
+    )
+    assert.doesNotMatch(`${invocation.output}\n${retry.output}`, new RegExp(secretSentinel), 'adjacent-UID retry evidence disclosed secret output')
+  } finally { invocation.cleanup() }
 })
