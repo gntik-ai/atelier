@@ -36,7 +36,7 @@ The proposed managed bundle is patched upstream Knative Serving and Kourier 1.22
 1.34 and OpenShift 4.21 `restricted-v2`. It is a Falcone-supported bundle only after coordinated
 acceptance. It is **not** the Red Hat-supported OpenShift Serverless Operator product path.
 
-The companion chart owns the future cluster-administrator lifecycle command, separate
+The companion chart owns the published cluster-administrator lifecycle command, separate
 `falcone-knative` release, provenance lock, digest-only images, CRDs, cluster RBAC, webhooks,
 Serving controllers, Kourier, compatibility/ownership preflight, upgrades, rollback, uninstall,
 and handoff. This repository does not install or reconcile those resources.
