@@ -40,6 +40,9 @@ case "$command_name" in
       fi
       exit 0
     fi
+    if [[ " $* " == *" get deployment "* && " $* " == *" -o name "* ]]; then exit 0; fi
+    if [[ " $* " == *" get statefulset "* && " $* " == *" -o name "* ]]; then exit 0; fi
+    if [[ (" $* " == *" get pod "* || " $* " == *" get pods "*) && " $* " == *" --no-headers "* ]]; then exit 0; fi
     if [[ " $* " == *" get "* ]]; then
       printf '{"apiVersion":"v1","kind":"List","items":[{"apiVersion":"v1","kind":"ConfigMap","metadata":{"namespace":"%s","name":"adjacent-bbx-933","uid":"00000000-0000-4000-8000-000000009933"}}]}\n' "$E2E_NAMESPACE"
     fi
@@ -83,7 +86,8 @@ case "$command_name" in
     exit 0
     ;;
   npx)
-    [[ "$BBX_SCENARIO" == "test-failure" ]] && exit 42
+    [[ " $* " == *" playwright --version "* ]] && exit 0
+    [[ "$BBX_SCENARIO" == "test-failure" && " $* " == *" playwright test "* ]] && exit 42
     exit 0
     ;;
   npm|pnpm|yarn)
