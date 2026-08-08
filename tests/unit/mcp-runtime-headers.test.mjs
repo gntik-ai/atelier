@@ -173,3 +173,52 @@ test('mcp runtime accepts whitespace scopes and preserves downstream Authorizati
     delete process.env.FALCONE_API_BASE_URL;
   }
 });
+
+test('mcp runtime turns a downstream HTTP 401 into an explicit JSON-RPC error', async () => {
+  let capturedAuthorization;
+  const upstream = http.createServer((req, res) => {
+    capturedAuthorization = req.headers.authorization;
+    res.writeHead(401, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ code: 'UNAUTHENTICATED', message: 'Missing token' }));
+  });
+  const upstreamAddr = await listen(upstream);
+  process.env.FALCONE_API_BASE_URL = `http://${upstreamAddr.address}:${upstreamAddr.port}`;
+  process.env.FALCONE_MCP_MANIFEST_JSON = JSON.stringify({
+    status: 'published',
+    tools: [{
+      name: 'query_orders',
+      method: 'GET',
+      path: '/v1/postgres/workspaces/{workspaceId}/data/app/schemas/public/tables/orders/rows',
+      source: { type: 'postgres' },
+      mutates: false,
+      scope: null,
+    }],
+  });
+  const mod = await import(`../../apps/mcp-runtime/server.mjs?downstream-401=${Date.now()}`);
+  const runtimeAddr = await listen(mod.server);
+
+  try {
+    const response = await postJson(`http://${runtimeAddr.address}:${runtimeAddr.port}/`, {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'query_orders', arguments: {} },
+    }, {
+      authorization: 'Bearer delegated-token',
+      'x-tenant-id': 'tenant-a',
+      'x-workspace-id': 'workspace-a',
+      'x-auth-scopes': BASE_SCOPE,
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(capturedAuthorization, 'Bearer delegated-token');
+    assert.equal(response.body.result, undefined);
+    assert.equal(response.body.error?.code, -32001);
+    assert.match(response.body.error?.message ?? '', /HTTP 401/);
+  } finally {
+    await close(mod.server);
+    await close(upstream);
+    delete process.env.FALCONE_API_BASE_URL;
+    delete process.env.FALCONE_MCP_MANIFEST_JSON;
+  }
+});

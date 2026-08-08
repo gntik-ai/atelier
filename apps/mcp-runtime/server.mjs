@@ -138,7 +138,7 @@ export async function handleHostedMcpMessage(message, context, manifest = HOSTED
     const result = await context.callFalcone(call.method, call.path, call.body);
     return rpc(id, { content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result) }], isError: false });
   } catch (error) {
-    return rpcError(id, -32003, error.message ?? 'control-plane call failed');
+    return rpcError(id, error.rpcCode ?? -32003, error.message ?? 'control-plane call failed');
   }
 }
 
@@ -181,11 +181,21 @@ async function callFalconeFrom(req, method, path, body) {
   if (body !== undefined) init.body = JSON.stringify(body);
   const response = await fetch(new URL(path, FALCONE_API_BASE_URL), init);
   const text = await response.text();
+  let parsed;
   try {
-    return JSON.parse(text);
+    parsed = text ? JSON.parse(text) : null;
   } catch {
-    return text;
+    parsed = text;
   }
+  if (!response.ok) {
+    const status = Number(response.status) || 502;
+    throw Object.assign(new Error(`control-plane call failed with HTTP ${status}`), {
+      statusCode: status,
+      code: 'MCP_CONTROL_PLANE_CALL_FAILED',
+      rpcCode: status === 401 || status === 403 ? -32001 : -32003,
+    });
+  }
+  return parsed;
 }
 
 export const server = http.createServer(async (req, res) => {

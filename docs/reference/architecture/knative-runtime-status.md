@@ -214,10 +214,15 @@ mutable draft cannot change the approved deployment contract.
 Both the REST tool-call endpoint and JSON-RPC `tools/call` path dispatch a hosted invocation as a
 JSON-RPC 2.0 `tools/call` request. The runtime adapter supplies tenant ID, workspace ID, caller
 roles, granted scopes, active version, and correlation ID from the credential-bound server and
-verified caller context. It removes top-level `tenantId`, `tenant_id`, `workspaceId`, and
+verified caller context. It also delegates the caller's Bearer or Falcone API-key credential through
+the cluster-local managed runtime so the control-plane route independently re-verifies the caller;
+the `x-*` context headers are not sufficient authorization on their own. The credential is used only
+for that request and is not placed in the Knative manifest, runtime environment, audit event, or
+metric. The adapter removes top-level `tenantId`, `tenant_id`, `workspaceId`, and
 `workspace_id` fields from caller arguments before dispatch, so a tool call cannot smuggle an
 ownership boundary. The remaining arguments, tool name, and request ID are preserved. Runtime
-errors remain bounded MCP/HTTP errors; they do not replace the server-derived authorization
+errors remain bounded MCP/HTTP errors; a downstream non-2xx response becomes an MCP error and can
+never be returned as `isError: false`. Errors do not replace the server-derived authorization
 context with caller input.
 
 Hosted tool invocation requires the caller's granted `mcp:invoke` scope. A mutating published tool

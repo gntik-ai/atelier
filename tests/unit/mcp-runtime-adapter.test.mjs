@@ -36,6 +36,13 @@ test('adapter create and conflict patch ownership', async () => {
     tenantId: 't', workspaceId: 'w', serverId: 's', version: 'v2', operation: 'approve', manifest,
   });
   assert.equal(calls[0].init.method, 'POST');
+  const policyCreate = calls.find(({ url, init }) => init.method === 'POST' && String(url).endsWith('/networkpolicies'));
+  assert.ok(policyCreate);
+  const policy = JSON.parse(policyCreate.init.body);
+  assert.deepEqual(policy.spec.ingress[0].ports, [
+    { protocol: 'TCP', port: 8012 },
+    { protocol: 'TCP', port: 8112 },
+  ]);
   const serviceCreate = calls.find(({ url, init }) => init.method === 'POST' && String(url).endsWith('/services'));
   assert.ok(serviceCreate);
   const created = JSON.parse(serviceCreate.init.body);
@@ -92,6 +99,7 @@ test('adapter invoke sends trusted JSON-RPC context, strips ownership arguments,
     tenantId: 't', workspaceId: 'w', serverId: 's', version: 'v2', tool: 'query_orders',
     args: { query: 'kept', tenantId: 'smuggled', tenant_id: 'smuggled', workspaceId: 'wrong', workspace_id: 'wrong' },
     roles: ['workspace_owner'], scopes: ['mcp:invoke'], correlationId: 'corr-1',
+    authorization: 'Bearer delegated-caller-token',
   });
   assert.deepEqual(result, { content: [], isError: false });
   const headers = new Headers(calls[0].init.headers);
@@ -100,6 +108,7 @@ test('adapter invoke sends trusted JSON-RPC context, strips ownership arguments,
   assert.equal(headers.get('x-actor-roles'), 'workspace_owner');
   assert.equal(headers.get('x-auth-scopes'), 'mcp:invoke');
   assert.equal(headers.get('x-correlation-id'), 'corr-1');
+  assert.equal(headers.get('authorization'), 'Bearer delegated-caller-token');
   assert.deepEqual(JSON.parse(calls[0].init.body), {
     jsonrpc: '2.0', id: 'corr-1', method: 'tools/call',
     params: { name: 'query_orders', arguments: { query: 'kept' } },
@@ -107,13 +116,24 @@ test('adapter invoke sends trusted JSON-RPC context, strips ownership arguments,
 
   responseBody = { jsonrpc: '2.0', id: 'corr-1', error: { code: -32601, message: 'unknown tool' } };
   await assert.rejects(
-    () => adapter.invoke({ tenantId: 't', workspaceId: 'w', serverId: 's', tool: 'missing', args: {}, correlationId: 'corr-1' }),
+    () => adapter.invoke({
+      tenantId: 't', workspaceId: 'w', serverId: 's', tool: 'missing', args: {},
+      correlationId: 'corr-1', authorization: 'Bearer delegated-caller-token',
+    }),
     (error) => error.code === 'MCP_RUNTIME_RPC_ERROR' && error.rpcCode === -32601,
   );
 
   status = 503;
   await assert.rejects(
-    () => adapter.invoke({ tenantId: 't', workspaceId: 'w', serverId: 's', tool: 'x', args: {} }),
+    () => adapter.invoke({
+      tenantId: 't', workspaceId: 'w', serverId: 's', tool: 'x', args: {},
+      authorization: 'Bearer delegated-caller-token',
+    }),
     (error) => error.code === 'MCP_RUNTIME_INVOKE_FAILED' && error.statusCode === 503,
+  );
+
+  await assert.rejects(
+    () => adapter.invoke({ tenantId: 't', workspaceId: 'w', serverId: 's', tool: 'x', args: {} }),
+    (error) => error.code === 'MCP_RUNTIME_DELEGATED_CREDENTIAL_REQUIRED' && error.statusCode === 401,
   );
 });

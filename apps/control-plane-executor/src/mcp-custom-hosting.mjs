@@ -10,6 +10,12 @@
  */
 import { runtimeTenantOwnership, validateRuntimeNamespace } from './runtime/mcp-runtime-namespace.mjs';
 
+// Knative ingress and Activator traffic enters the Revision pod through queue-proxy, not through
+// the user-container port. These are the stable backend listener ports in the supported Knative
+// Serving contract; allowing only 8080 makes an otherwise healthy hosted service unreachable when
+// the cluster CNI enforces NetworkPolicy.
+const KNATIVE_QUEUE_PROXY_INGRESS_PORTS = Object.freeze([8012, 8112]);
+
 /** Parse an image ref into { registry, name, tag, digest }. */
 export function parseImageRef(ref = '') {
   let digest = null;
@@ -173,7 +179,7 @@ export function buildCustomServerNetworkPolicy({
         from: ingressNamespaces.map((allowedNamespace) => ({
           namespaceSelector: { matchLabels: { 'kubernetes.io/metadata.name': allowedNamespace } },
         })),
-        ports: [{ protocol: 'TCP', port: 8080 }],
+        ports: KNATIVE_QUEUE_PROXY_INGRESS_PORTS.map((port) => ({ protocol: 'TCP', port })),
       }],
       egress: [
         {

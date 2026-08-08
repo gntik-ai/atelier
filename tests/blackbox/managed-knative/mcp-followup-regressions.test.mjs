@@ -23,6 +23,12 @@
  *   OpenSpec #### Scenario: Same server identity in two tenants remains isolated
  * bbx-933-mcp-cluster-local-isolation-36 | fn-mcp-hosted-isolation
  *   OpenSpec #### Scenario: Managed Knative preserves hosted MCP isolation and scale-to-zero semantics
+ * bbx-933-mcp-knative-ingress-52 | fn-mcp-hosted-isolation
+ *   OpenSpec #### Scenario: Direct or cross-namespace ingress remains denied
+ * bbx-933-mcp-downstream-http-error-53 | fn-mcp-hosted-invoke
+ *   OpenSpec #### Scenario: Idle server scales down and cold-starts
+ * bbx-933-mcp-hosted-delegation-54 | fn-mcp-hosted-invoke, fn-mcp-hosted-isolation
+ *   OpenSpec #### Scenario: Same server identity in two tenants remains isolated
  *
  * These tests use only exported runtime factories and the public HTTP API. Kubernetes is represented
  * at the production adapter's documented HTTP boundary; no cluster or external network is contacted.
@@ -379,6 +385,7 @@ test('bbx-933-mcp-cleanup-api-retention-31: missing preconditions and 409 retain
 
 test('bbx-933-mcp-runtime-wire-context-32: hosted dispatch emits JSON-RPC with trusted context and strips smuggled ownership', async () => {
   const wireCalls = [];
+  const callerCredential = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvd25lci05MzMtYSIsInRlbmFudF9pZCI6InRlbmFudC05MzMtYSIsIndvcmtzcGFjZV9pZCI6IndvcmtzcGFjZS05MzMtYSJ9.bbx933-wire-context-proof';
   const productionAdapter = createMcpRuntimeAdapter({
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
@@ -408,7 +415,10 @@ test('bbx-933-mcp-runtime-wire-context-32: hosted dispatch emits JSON-RPC with t
 
     const response = await fetch(serverUrl(baseUrl, created.serverId, '/tool-calls'), {
       method: 'POST',
-      headers: authHeaders({ correlationId: 'corr-mcp-wire-context-933' }),
+      headers: {
+        ...authHeaders({ correlationId: 'corr-mcp-wire-context-933' }),
+        authorization: `Bearer ${callerCredential}`,
+      },
       body: JSON.stringify({
         name: 'query_orders',
         arguments: {
@@ -435,6 +445,7 @@ test('bbx-933-mcp-runtime-wire-context-32: hosted dispatch emits JSON-RPC with t
     assert.match(headers.get('x-actor-roles') ?? '', /(?:^|,)workspace_owner(?:,|$)/);
     assert.match(headers.get('x-auth-scopes') ?? '', new RegExp(`(?:^|[ ,])${BASE_SCOPE.replaceAll(':', '\\:')}(?:[ ,]|$)`));
     assert.equal(headers.get('x-correlation-id'), 'corr-mcp-wire-context-933');
+    assert.equal(headers.get('authorization'), `Bearer ${callerCredential}`);
   }, { mcpRuntimeAdapter: productionAdapter });
 });
 
@@ -664,4 +675,140 @@ test('bbx-933-mcp-cluster-local-isolation-36: hosted MCP reconciliation is clust
         'RoleBinding references a ServiceAccount outside the mapped runtime namespace');
     }
   });
+});
+
+/**
+ * bbx-933-mcp-knative-ingress-52 | fn-mcp-hosted-isolation
+ * OpenSpec #### Scenario: Direct or cross-namespace ingress remains denied
+ *
+ * Knative sends external HTTP and HTTPS ingress to the queue-proxy sidecar on 8012 and 8112.
+ * A policy which selects the whole Revision pod but admits only the user-container's 8080 port
+ * makes an otherwise authorized, cluster-local hosted MCP Service unreachable.
+ */
+test('bbx-933-mcp-knative-ingress-52: hosted MCP NetworkPolicy admits Knative queue-proxy HTTP and HTTPS ingress', async () => {
+  const calls = [];
+  const adapter = createMcpRuntimeAdapter({
+    apiBase: 'https://kubernetes.invalid',
+    runtimeImage: 'registry.invalid/falcone/mcp-runtime',
+    runtimeImageDigest: DIGEST,
+    env: {},
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
+    fetchImpl: async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      return successfulKubeResponse();
+    },
+  });
+  await publishThrough(adapter, 'knative-ingress-ports-933');
+
+  const policies = appliedObjects(calls)
+    .filter((object) => object.apiVersion === 'networking.k8s.io/v1' && object.kind === 'NetworkPolicy');
+  assert.equal(policies.length, 1, `expected one hosted MCP NetworkPolicy, got ${JSON.stringify(policies)}`);
+  const ingressPorts = (policies[0].spec?.ingress ?? [])
+    .flatMap((rule) => rule.ports ?? [])
+    .filter((port) => (port.protocol ?? 'TCP') === 'TCP')
+    .map((port) => Number(port.port));
+
+  assert.ok(
+    ingressPorts.includes(8012) && ingressPorts.includes(8112),
+    `hosted MCP ingress must admit Knative queue-proxy HTTP/HTTPS ports 8012 and 8112; observed ${JSON.stringify(ingressPorts)}`,
+  );
+});
+
+/**
+ * bbx-933-mcp-downstream-http-error-53 | fn-mcp-hosted-invoke
+ * OpenSpec #### Scenario: Idle server scales down and cold-starts
+ */
+test('bbx-933-mcp-downstream-http-error-53: a downstream HTTP 401 cannot become a successful MCP tools/call result', async () => {
+  const downstreamCalls = [];
+  const downstream401 = async (url, init = {}) => {
+    downstreamCalls.push({ url: String(url), init: structuredClone(init) });
+    return new Response(JSON.stringify({ code: 'UNAUTHORIZED', message: 'delegated credential required' }), {
+      status: 401,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+
+  await withHarness(async ({ baseUrl, engine }) => {
+    const created = await createDraft(engine, { name: 'downstream-401-933' });
+    await curate(engine, created.serverId);
+    await publish(engine, created.serverId);
+
+    const response = await fetch(serverUrl(baseUrl, created.serverId, '/rpc'), {
+      method: 'POST',
+      headers: authHeaders({ correlationId: 'corr-mcp-downstream-401-933' }),
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 93353, method: 'tools/call',
+        params: { name: 'query_orders', arguments: {} },
+      }),
+    });
+    assert.equal(response.status, 200, 'JSON-RPC requests retain HTTP 200 transport semantics');
+    const body = await response.json();
+    assert.equal(downstreamCalls.length, 1, 'the published tool must reach the downstream HTTP boundary exactly once');
+    assert.equal(body.jsonrpc, '2.0');
+    assert.equal(body.id, 93353);
+    assert.ok(
+      body.error != null || body.result?.isError === true,
+      `HTTP 401 was encapsulated as MCP success: ${JSON.stringify(body)}`,
+    );
+    assert.notEqual(body.result?.isError, false, `HTTP 401 must never produce isError:false: ${JSON.stringify(body)}`);
+  }, { fallbackFetch: downstream401 });
+});
+
+/**
+ * bbx-933-mcp-hosted-delegation-54 | fn-mcp-hosted-invoke, fn-mcp-hosted-isolation
+ * OpenSpec #### Scenario: Same server identity in two tenants remains isolated
+ */
+test('bbx-933-mcp-hosted-delegation-54: hosted tools/call carries a verifiable delegated credential, not only x-* identity metadata', async () => {
+  const runtimeCalls = [];
+  const callerCredential = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvd25lci05MzMtYSIsInRlbmFudF9pZCI6InRlbmFudC05MzMtYSIsIndvcmtzcGFjZV9pZCI6IndvcmtzcGFjZS05MzMtYSJ9.bbx933-signature-proof';
+  const productionAdapter = createMcpRuntimeAdapter({
+    apiBase: 'https://kubernetes.invalid',
+    runtimeImage: 'registry.invalid/falcone/mcp-runtime',
+    runtimeImageDigest: DIGEST,
+    env: {},
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
+    fetchImpl: async (url, init = {}) => {
+      if (String(url).includes('.svc.cluster.local')) {
+        runtimeCalls.push({ url: String(url), init: structuredClone(init) });
+        const request = JSON.parse(init.body);
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0', id: request.id,
+          result: { content: [{ type: 'text', text: '{"delegated":true}' }], isError: false },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      return successfulKubeResponse();
+    },
+  });
+
+  await withHarness(async ({ baseUrl, engine }) => {
+    const created = await createDraft(engine, { name: 'hosted-delegation-933' });
+    await curate(engine, created.serverId);
+    await publish(engine, created.serverId);
+
+    const response = await fetch(serverUrl(baseUrl, created.serverId, '/rpc'), {
+      method: 'POST',
+      headers: {
+        ...authHeaders({ correlationId: 'corr-mcp-hosted-delegation-933' }),
+        authorization: `Bearer ${callerCredential}`,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 93354, method: 'tools/call',
+        params: { name: 'query_orders', arguments: {} },
+      }),
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.result?.isError, false, JSON.stringify(body));
+    assert.equal(runtimeCalls.length, 1, 'hosted tools/call must cross the runtime HTTP boundary once');
+
+    const headers = new Headers(runtimeCalls[0].init.headers);
+    const bearer = headers.get('authorization') ?? '';
+    const delegatedProof = headers.get('x-falcone-delegation') ?? headers.get('x-falcone-internal') ?? '';
+    assert.ok(
+      bearer === `Bearer ${callerCredential}` || delegatedProof.length >= 32,
+      `hosted route trusted only unsigned x-* identity metadata; headers=${JSON.stringify([...headers.keys()].sort())}`,
+    );
+  }, { mcpRuntimeAdapter: productionAdapter });
 });

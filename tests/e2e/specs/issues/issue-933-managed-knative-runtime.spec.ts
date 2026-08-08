@@ -896,6 +896,7 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
   let functionB = ''
   let mcpA = ''
   let mcpB = ''
+  let mcpAHostedTool = ''
   let mcpConflict = ''
   let activationA = ''
   let rollbackVersionA = ''
@@ -1161,15 +1162,18 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     expect(listBody).toMatchObject({ jsonrpc: '2.0', id: 93301 })
     const tools = (listBody.result as JsonObject).tools as JsonObject[]
     expect(tools.length).toBeGreaterThan(0)
-    const hostedToolName = String(tools[0].name)
+    mcpAHostedTool = String(tools[0].name)
 
     const hostedCall = await call(request, MANAGED_API, ENV.mcpConsumerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/tool-calls`, 'mcp-hosted-tool-call-ready', {
-      name: hostedToolName,
+      name: mcpAHostedTool,
       arguments: { workspaceId: ENV.workspaceA },
     })
     const hostedCallBody = await expectStatus(hostedCall, 200, 'MCP hosted tool call ready')
     expect(hostedCallBody.isError).toBe(false)
     expect(hostedCallBody.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'text' })]))
+    expect(JSON.stringify(hostedCallBody), 'hosted call must not wrap downstream authentication failure as success').not.toMatch(
+      /(?:HTTP(?:_STATUS)?\s*[:=]?\s*401|\b401\s+Unauthorized\b|UNAUTHORIZED|UNAUTHENTICATED|Missing token|delegated credential required)/i,
+    )
 
     const foreign = await call(request, MANAGED_API, ENV.tenantBToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/rpc`, 'mcp-foreign-ready', {
       jsonrpc: '2.0', id: 93302, method: 'ping', params: {},
@@ -1189,7 +1193,11 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
     }
   })
 
-  test('issue-933-07 | P3/P12: hosted MCP scales to zero and a public JSON-RPC call cold-starts it', async ({ request }) => {
+  /**
+   * bbx-933-mcp-cold-start-tool-55 | fn-mcp-hosted-invoke
+   * OpenSpec #### Scenario: Idle server scales down and cold-starts
+   */
+  test('issue-933-07 | P3/P12: hosted MCP scales to zero and a real published tool cold-starts it', async ({ request }) => {
     const podsPath = `/api/v1/namespaces/${encodeURIComponent(ENV.mcpNamespaceA)}/pods?labelSelector=${encodeURIComponent(`serving.knative.dev/service=mcp-${mcpA}`)}`
     await expect.poll(async () => (await listClusterResources(request, podsPath)).length, {
       message: 'hosted MCP should scale to zero without a fixed sleep',
@@ -1197,11 +1205,25 @@ test.describe('issue #933 remote OpenShift 4.21 managed runtime acceptance', () 
       intervals: [1_000, 2_000, 5_000, 10_000],
     }).toBe(0)
 
-    const ping = await call(request, MANAGED_API, ENV.mcpConsumerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/rpc`, 'mcp-cold-start', {
-      jsonrpc: '2.0', id: 93303, method: 'ping', params: {},
+    expect(mcpAHostedTool, 'the previously published hosted tool contract must survive scale-to-zero').toMatch(/\S/)
+    const toolCall = await call(request, MANAGED_API, ENV.mcpConsumerToken, 'POST', `/v1/mcp/workspaces/${encodeURIComponent(ENV.workspaceA)}/servers/${encodeURIComponent(mcpA)}/rpc`, 'mcp-cold-start-tool', {
+      jsonrpc: '2.0', id: 93303, method: 'tools/call',
+      params: { name: mcpAHostedTool, arguments: { workspaceId: ENV.workspaceA } },
     })
-    const pingBody = await expectStatus(ping, 200, 'MCP cold-start ping')
-    expect(pingBody).toEqual({ jsonrpc: '2.0', id: 93303, result: {} })
+    const toolBody = await expectStatus(toolCall, 200, 'MCP cold-start hosted tools/call')
+    expect(toolBody).toMatchObject({ jsonrpc: '2.0', id: 93303 })
+    expect(toolBody.error, `cold-started hosted tool returned JSON-RPC error: ${JSON.stringify(toolBody)}`).toBeUndefined()
+    const result = toolBody.result as JsonObject
+    expect(result?.isError, `cold-started hosted tool reported failure: ${JSON.stringify(toolBody)}`).toBe(false)
+    expect(result?.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'text' })]))
+    expect(JSON.stringify(result), 'downstream HTTP authorization failures must not be encapsulated as MCP success').not.toMatch(
+      /(?:HTTP(?:_STATUS)?\s*[:=]?\s*401|\b401\s+Unauthorized\b|UNAUTHORIZED|UNAUTHENTICATED|Missing token|delegated credential required)/i,
+    )
+    await expect.poll(async () => (await listClusterResources(request, podsPath)).length, {
+      message: 'the successful hosted tools/call must cold-start at least one pod for the same Knative Service',
+      timeout: Number(process.env.E2E_933_COLD_START_READY_TIMEOUT_MS ?? 2 * 60_000),
+      intervals: [500, 1_000, 2_000, 5_000],
+    }).toBeGreaterThan(0)
   })
 
   test('issue-933-07b | P7/P18: replacement conflict retains MCP ownership and replay safely removes the replacement', async ({ request }) => {

@@ -292,7 +292,7 @@ export function createMcpEngine({
   // self-call the runtime using the tool's REAL executor/control-plane route (workspace from the
   // credential context, NEVER from args). Returns an MCP-style result envelope (tool-level errors
   // live in content).
-  async function invokeTool(identity, entry, registered, toolName, args = {}, correlationId) {
+  async function invokeTool(identity, entry, registered, toolName, args = {}, correlationId, authorization) {
     const activeRecord = registered.versions.find((v) => v.version === registered.activeVersion);
     const tool = (activeRecord?.tools ?? []).find((t) => t.name === toolName);
     if (!tool) return { content: [{ type: 'text', text: `unknown tool: ${toolName}` }], isError: true };
@@ -316,6 +316,7 @@ export function createMcpEngine({
         correlationId,
         roles: Array.isArray(identity.roles) ? identity.roles : [],
         scopes: Array.isArray(identity.scopes) ? identity.scopes : [],
+        authorization,
       });
       return { content: hosted?.content ?? [], isError: hosted?.isError === true, ...hosted };
     }
@@ -337,7 +338,15 @@ export function createMcpEngine({
     try {
       const res = await fetchImpl(`${selfBaseUrl}${call.path}`, init);
       let body; try { body = await res.json(); } catch { body = null; }
-      return { content: [{ type: 'text', text: typeof body === 'string' ? body : JSON.stringify(body) }], status: res.status };
+      const status = Number(res.status ?? res.statusCode);
+      const succeeded = typeof res.ok === 'boolean'
+        ? res.ok
+        : Number.isFinite(status) && status >= 200 && status < 300;
+      return {
+        content: [{ type: 'text', text: typeof body === 'string' ? body : JSON.stringify(body) }],
+        status,
+        isError: !succeeded,
+      };
     } catch (err) {
       return { content: [{ type: 'text', text: `tool backend unavailable: ${err.message}` }], isError: true };
     }
@@ -461,7 +470,15 @@ export function createMcpEngine({
         enforceRate(identity, serverId, 'server', oauthClientId);
         enforceRate(identity, serverId, 'oauth_client', oauthClientId);
         const started = clock();
-        const result = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {}, params.correlationId ?? randomUUID());
+        const result = await invokeTool(
+          identity,
+          entry,
+          registered,
+          body.name,
+          body.arguments ?? {},
+          params.correlationId ?? randomUUID(),
+          params.authorization,
+        );
         const telemetry = mcpToolCallTelemetry({ tenantId: tid, workspaceId: entry.workspaceId, serverId, toolName: body.name, oauthClientId, latencyMs: clock() - started, status: result.isError ? 'error' : 'ok' });
         recordAudit({ ...mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() }), action: { category: 'tool_invocation', id: `mcp.tool_call.${body.name}` }, detail: telemetry.log });
         return changed({ result, content: result.content, toolName: body.name });
@@ -635,7 +652,7 @@ export function createMcpEngine({
   // JSON-RPC error. Notifications (no id) are acknowledged with no body.
   //   Deferred (tracked, not in this change): Streamable-HTTP SSE transport, sessions, resources/*,
   //   prompts/* — a standard client can list+call tools over plain JSON-RPC POST without them.
-  async function executeMcpRpc({ identity, workspaceId, serverId, message, beforeDispatch } = {}) {
+  async function executeMcpRpc({ identity, workspaceId, serverId, message, beforeDispatch, authorization } = {}) {
     await ensureLoaded();
     const { id, method, params } = message ?? {};
     const isNotification = id === undefined || id === null;
@@ -676,6 +693,7 @@ export function createMcpEngine({
           const out = await executeMcp({
             operation: 'call_tool', identity, workspaceId, serverId,
             body: { name: params.name, arguments: params.arguments ?? {} },
+            authorization,
           });
           return rpc(id, { content: out.content ?? [], isError: !!out.result?.isError });
         }

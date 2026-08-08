@@ -158,6 +158,18 @@ function apiKeyFromHeaders(headers) {
   return typeof direct === 'string' && direct.startsWith('flc_') ? direct : undefined;
 }
 
+// Normalize only credentials that the control-plane authentication gate can re-verify. Hosted MCP
+// forwards this value through the managed runtime and never derives authority from x-* identity
+// headers alone. Direct API-key headers are converted to the control-plane's accepted scheme.
+function delegatedAuthorizationFromHeaders(headers) {
+  const authorization = headers['authorization'];
+  if (typeof authorization === 'string' && /^(?:Bearer|ApiKey)\s+\S+$/i.test(authorization.trim())) {
+    return authorization.trim();
+  }
+  const apiKey = headers['apikey'] || headers['x-api-key'];
+  return typeof apiKey === 'string' && apiKey.startsWith('flc_') ? `ApiKey ${apiKey}` : undefined;
+}
+
 // Extract a Bearer JWT (NOT an flc_ api-key, which apiKeyFromHeaders handles).
 function bearerJwtFromHeaders(headers) {
   const m = /^Bearer\s+(\S+)$/i.exec(headers['authorization'] ?? '');
@@ -757,14 +769,20 @@ function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, funct
       ['POST', new RegExp(`${mcp}/([^/]+)/versions/([^/]+)/approval$`), ([w, s, v], c) =>
         runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: w, serverId: s, version: decodeURIComponent(v), correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/tool-calls$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'call_tool', identity: c.identity, workspaceId: w, serverId: s, body: c.body, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
+        runMcp(mcpEngine, {
+          operation: 'call_tool', identity: c.identity, workspaceId: w, serverId: s,
+          body: c.body, correlationId: c.headers['x-correlation-id'], authorization: c.authorization,
+        }, 200, knativeRuntime, mcpRuntimeCleaner)],
       // Standard MCP wire protocol (JSON-RPC 2.0 over HTTP POST) for an external MCP client
       // (add-mcp-jsonrpc-protocol, #608). The request body is the JSON-RPC message; the server is
       // resolved from the credential-derived identity + the URL serverId (cross-tenant → 404 in the
       // engine). Distinct from the REST tool-calls route above; covered by the same gateway
       // /v1/mcp/* route, so no APISIX change is needed.
       ['POST', new RegExp(`${mcp}/([^/]+)/rpc$`), ([w, s], c) =>
-        runMcpRpc(mcpEngine, { identity: c.identity, workspaceId: w, serverId: s, message: c.body, correlationId: c.headers['x-correlation-id'] }, knativeRuntime)],
+        runMcpRpc(mcpEngine, {
+          identity: c.identity, workspaceId: w, serverId: s, message: c.body,
+          correlationId: c.headers['x-correlation-id'], authorization: c.authorization,
+        }, knativeRuntime)],
       ['GET', new RegExp(`${mcp}/([^/]+)/audit$`), ([w, s], c) =>
         runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: w, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
     ] : []),
@@ -1425,7 +1443,10 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
       // `authorization` is threaded through for handlers that must call the control-plane on the
       // caller's behalf (the platform MCP JSON-RPC route forwards the bearer token to the upstream,
       // the only credential the control-plane accepts).
-      const { status, body: out, headers } = await handler(groups, { method, url, identity, body, registry, headers: req.headers, authorization: req.headers.authorization });
+      const { status, body: out, headers } = await handler(groups, {
+        method, url, identity, body, registry, headers: req.headers,
+        authorization: delegatedAuthorizationFromHeaders(req.headers),
+      });
       return sendJson(res, status, out, headers);
     } catch (err) {
       const statusCode = err.statusCode ?? 500;

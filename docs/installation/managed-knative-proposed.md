@@ -85,9 +85,14 @@ existing `501 FUNCTIONS_DISABLED` behavior takes precedence over runtime availab
 `MCP_RUNTIME_NAMESPACE_MAP` is a JSON object whose keys are application tenant identifiers and
 whose values are validated Kubernetes DNS-label namespaces. There is no identity fallback.
 Apply, internal invocation, and cleanup consult the same resolver. The ingress allow-list must name
-the platform and Knative data-path namespaces; egress is limited to DNS on port 53 plus the named
-platform destinations. Invalid or missing mappings and namespace entries fail closed before a
-Kubernetes write. These variables describe application source behavior only: chart 0.4.1 does not
+the platform and Knative data-path namespaces. Its NetworkPolicy admits the supported Knative
+`queue-proxy` backend listeners on TCP 8012 and 8112 rather than treating the user-container port
+8080 as the ingress endpoint. Egress is limited to DNS on port 53 plus the named platform
+destinations. Hosted invocations carry the caller's delegated Bearer or Falcone API-key credential
+through the cluster-local runtime so the control plane re-verifies it; unsigned identity headers
+alone are never sufficient, and downstream non-2xx responses remain errors. Invalid or missing
+mappings, namespace entries, or delegated credentials fail closed before Kubernetes mutation or
+tool execution. These variables describe application source behavior only: chart 0.4.1 does not
 create the mapped namespaces, bind the executor service account there, or configure these values.
 
 For `managed` and `external`, the chart mounts an atomically replaced, non-secret JSON file. Falcone

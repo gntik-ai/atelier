@@ -42,6 +42,17 @@ function stripOwnershipArguments(args = {}) {
   return safeArgs;
 }
 
+function delegatedAuthorization(value) {
+  const authorization = String(value ?? '').trim();
+  if (!/^(?:Bearer|ApiKey)\s+\S+$/i.test(authorization)) {
+    throw Object.assign(new Error('Hosted MCP invocation requires a delegated caller credential'), {
+      statusCode: 401,
+      code: 'MCP_RUNTIME_DELEGATED_CREDENTIAL_REQUIRED',
+    });
+  }
+  return authorization;
+}
+
 function runtimeContractEnv({ workspaceId, manifest, version, operation }) {
   return [
     { name: 'FALCONE_MCP_WORKSPACE_ID', value: String(workspaceId) },
@@ -207,16 +218,18 @@ export function createMcpRuntimeAdapter({
       return { status: 'accepted', tenantId, workspaceId, serverId, version, operation, correlationId };
     },
 
-    async invoke({ tenantId, workspaceId, serverId, version, tool, args, roles = [], scopes = [], correlationId }) {
+    async invoke({ tenantId, workspaceId, serverId, version, tool, args, roles = [], scopes = [], correlationId, authorization }) {
       if (typeof fetchImpl !== 'function') {
         throw Object.assign(new Error('MCP runtime adapter unavailable'), { statusCode: 503 });
       }
       const namespace = await resolveMappedRuntimeNamespace(resolveRuntimeNamespace, tenantId);
       const safeServerId = validateRuntimeServerId(serverId);
       const requestId = correlationId ?? randomUUID();
+      const callerAuthorization = delegatedAuthorization(authorization);
       const response = await fetchImpl(`http://mcp-${safeServerId}.${namespace}.svc.cluster.local/tools/call`, {
         method: 'POST',
         headers: {
+          authorization: callerAuthorization,
           'content-type': 'application/json',
           accept: 'application/json',
           'x-tenant-id': tenantId,
