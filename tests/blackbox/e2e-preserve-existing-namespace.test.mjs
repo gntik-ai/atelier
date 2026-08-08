@@ -423,6 +423,47 @@ function invokeHarness(scenario, extraEnv = {}) {
         )),
       }
     },
+    runStackLifecycleWithUnexpectedEvidence: () => {
+      const stateDirectory = mkdtempSync(join(directory, 'falcone-e2e-harness.'))
+      const stateEnv = { E2E_HARNESS_STATE_DIR: stateDirectory }
+      const unexpectedEvidence = join(stateDirectory, 'unexpected-evidence')
+      const listStateDirectories = () => readdirSync(directory, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith('falcone-e2e-harness.'))
+        .map((entry) => join(directory, entry.name))
+      const listStateEntries = (directories) => directories.flatMap((retainedDirectory) => (
+        readdirSync(retainedDirectory).map((entry) => join(retainedDirectory, entry)).sort()
+      ))
+
+      const upResult = launch(stack, ['up'], stateEnv)
+      writeFileSync(unexpectedEvidence, 'bbx unexpected ownership evidence\n')
+
+      const firstDownStart = readCalls().length
+      const firstDownResult = launch(stack, ['down'], stateEnv)
+      const firstDownCalls = readCalls().slice(firstDownStart)
+      const retainedAfterFirstDown = listStateDirectories()
+      const entriesAfterFirstDown = listStateEntries(retainedAfterFirstDown)
+
+      const retryStart = readCalls().length
+      const retryResult = launch(stack, ['down'], stateEnv)
+      const retryCalls = readCalls().slice(retryStart)
+      const retainedAfterRetry = listStateDirectories()
+      const entriesAfterRetry = listStateEntries(retainedAfterRetry)
+
+      return {
+        stateDirectory,
+        unexpectedEvidence,
+        upResult,
+        firstDownResult,
+        firstDownCalls,
+        retainedAfterFirstDown,
+        entriesAfterFirstDown,
+        retryResult,
+        retryCalls,
+        retainedAfterRetry,
+        entriesAfterRetry,
+        output: `${upResult.stdout ?? ''}\n${upResult.stderr ?? ''}\n${firstDownResult.stdout ?? ''}\n${firstDownResult.stderr ?? ''}\n${retryResult.stdout ?? ''}\n${retryResult.stderr ?? ''}`,
+      }
+    },
     cleanup: () => rmSync(directory, { recursive: true, force: true }),
   }
 }
@@ -528,6 +569,57 @@ test('issue E2E harness preserves an attested existing namespace without weakeni
       } finally { invocation.cleanup() }
     })
   }
+})
+
+// bbx-933-010 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('unexpected preserve evidence remains active and fail-closed across cleanup retries', () => {
+  const invocation = invokeHarness('preserve-success', {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  })
+  try {
+    assert.equal(invocation.result.status, 0, invocation.output)
+    const lifecycle = invocation.runStackLifecycleWithUnexpectedEvidence()
+    const firstUninstalls = lifecycle.firstDownCalls.filter(({ command, args }) => command === 'helm'
+      && /(?:^|\s)uninstall\s+falcone(?:\s|$)/.test(args))
+    const retryUninstalls = lifecycle.retryCalls.filter(({ command, args }) => command === 'helm'
+      && /(?:^|\s)uninstall\s+falcone(?:\s|$)/.test(args))
+    const activeFile = join(lifecycle.stateDirectory, 'active')
+
+    assert.deepEqual({
+      upSucceeded: lifecycle.upResult.status === 0,
+      firstDownFailedClosed: lifecycle.firstDownResult.status !== 0,
+      firstStateDirectoryRetained: lifecycle.retainedAfterFirstDown.length === 1
+        && lifecycle.retainedAfterFirstDown[0] === lifecycle.stateDirectory,
+      firstActiveMarkerRetained: lifecycle.entriesAfterFirstDown.includes(activeFile),
+      firstUnexpectedEvidenceRetained: lifecycle.entriesAfterFirstDown.includes(lifecycle.unexpectedEvidence),
+      firstUninstallCount: firstUninstalls.length,
+      retryFailedClosed: lifecycle.retryResult.status !== 0,
+      retryRetainedSameDirectory: lifecycle.retainedAfterRetry.length === 1
+        && lifecycle.retainedAfterRetry[0] === lifecycle.stateDirectory,
+      retryActiveMarkerRetained: lifecycle.entriesAfterRetry.includes(activeFile),
+      retryUnexpectedEvidenceRetained: lifecycle.entriesAfterRetry.includes(lifecycle.unexpectedEvidence),
+      retryUninstallCount: retryUninstalls.length,
+    }, {
+      upSucceeded: true,
+      firstDownFailedClosed: true,
+      firstStateDirectoryRetained: true,
+      firstActiveMarkerRetained: true,
+      firstUnexpectedEvidenceRetained: true,
+      firstUninstallCount: 1,
+      retryFailedClosed: true,
+      retryRetainedSameDirectory: true,
+      retryActiveMarkerRetained: true,
+      retryUnexpectedEvidenceRetained: true,
+      retryUninstallCount: 0,
+    }, 'cleanup discarded its active ownership proof or reported a false-success retry with unexpected evidence')
+    assert.deepEqual(
+      namespaceMutations({ calls: [...lifecycle.firstDownCalls, ...lifecycle.retryCalls] }),
+      [],
+      'unexpected-evidence cleanup or retry mutated the preserved Namespace',
+    )
+    assert.match(lifecycle.output, /unexpected|evidence|retain|refus|fail/i, 'unexpected evidence failure omitted an actionable diagnostic')
+  } finally { invocation.cleanup() }
 })
 
 // bbx-933-002 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
