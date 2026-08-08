@@ -14,6 +14,7 @@ test('adapter create and conflict patch ownership', async () => {
     resolveRuntimeNamespace,
     runtimeImage: 'img',
     runtimeImageDigest: 'sha256:abc',
+    runtimeApiBaseUrl: 'http://falcone-control-plane-executor.platform.svc.cluster.local:8080',
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
       if (init.method === 'POST') return { status: 409, ok: false };
@@ -54,6 +55,7 @@ test('adapter create and conflict patch ownership', async () => {
       FALCONE_MCP_VERSION: 'v2',
       FALCONE_MCP_OPERATION: 'approve',
       FALCONE_MCP_MANIFEST_JSON: JSON.stringify(manifest),
+      FALCONE_API_BASE_URL: 'http://falcone-control-plane-executor.platform.svc.cluster.local:8080',
     },
   );
   const servicePatch = calls.find(({ url, init }) => init.method === 'PATCH' && String(url).includes('/services/'));
@@ -70,6 +72,7 @@ test('adapter refuses foreign conflict, incomplete deployment contracts, and una
     ca: 'test-ca',
     resolveRuntimeNamespace,
     runtimeImage: 'img',
+    runtimeApiBaseUrl: 'http://falcone-control-plane-executor.platform.svc.cluster.local:8080',
     fetchImpl: async (_url, init) => init.method === 'POST'
       ? { status: 409, ok: false }
       : { status: 200, json: async () => ({ metadata: { labels: {} } }) },
@@ -80,6 +83,15 @@ test('adapter refuses foreign conflict, incomplete deployment contracts, and una
   await assert.rejects(
     () => adapter.apply({ tenantId: 't', workspaceId: 'w', serverId: 's' }),
     (error) => error.code === 'MCP_RUNTIME_CONTRACT_INVALID',
+  );
+  await assert.rejects(
+    () => createMcpRuntimeAdapter({
+      apiBase: 'https://k', token: 't', ca: 'test-ca', resolveRuntimeNamespace,
+      runtimeImage: 'img', runtimeApiBaseUrl: 'http://executor.invalid/path',
+    }).apply({
+      tenantId: 't', workspaceId: 'w', serverId: 's', version: 'v1', operation: 'publish', manifest,
+    }),
+    (error) => error.code === 'MCP_RUNTIME_API_BASE_URL_INVALID' && error.statusCode === 503,
   );
   await assert.rejects(() => createMcpRuntimeAdapter({}).apply({ tenantId: 't', serverId: 's' }));
 });

@@ -215,7 +215,11 @@ Both the REST tool-call endpoint and JSON-RPC `tools/call` path dispatch a hoste
 JSON-RPC 2.0 `tools/call` request. The runtime adapter supplies tenant ID, workspace ID, caller
 roles, granted scopes, active version, and correlation ID from the credential-bound server and
 verified caller context. It also delegates the caller's Bearer or Falcone API-key credential through
-the cluster-local managed runtime so the control-plane route independently re-verifies the caller;
+the cluster-local managed runtime to the explicitly configured `control-plane-executor` Service, so
+the second hop independently re-verifies the caller. The deployment adapter accepts only an
+absolute HTTP(S) origin from `MCP_RUNTIME_API_BASE_URL`, writes it to the Knative Service as the
+non-secret `FALCONE_API_BASE_URL`, and rejects missing or path-bearing destinations before any
+Kubernetes mutation. A runtime started without that destination reports unavailable readiness;
 the `x-*` context headers are not sufficient authorization on their own. The credential is used only
 for that request and is not placed in the Knative manifest, runtime environment, audit event, or
 metric. The adapter removes top-level `tenantId`, `tenant_id`, `workspaceId`, and

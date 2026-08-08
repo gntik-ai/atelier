@@ -53,12 +53,37 @@ function delegatedAuthorization(value) {
   return authorization;
 }
 
-function runtimeContractEnv({ workspaceId, manifest, version, operation }) {
+function normalizeRuntimeApiBaseUrl(value) {
+  let url;
+  try {
+    url = new URL(String(value ?? ''));
+  } catch {
+    url = null;
+  }
+  if (
+    !url
+    || !['http:', 'https:'].includes(url.protocol)
+    || url.username
+    || url.password
+    || (url.pathname && url.pathname !== '/')
+    || url.search
+    || url.hash
+  ) {
+    throw Object.assign(new Error('MCP_RUNTIME_API_BASE_URL must be an absolute HTTP(S) origin'), {
+      statusCode: 503,
+      code: 'MCP_RUNTIME_API_BASE_URL_INVALID',
+    });
+  }
+  return url.origin;
+}
+
+function runtimeContractEnv({ workspaceId, manifest, version, operation, apiBaseUrl }) {
   return [
     { name: 'FALCONE_MCP_WORKSPACE_ID', value: String(workspaceId) },
     { name: 'FALCONE_MCP_VERSION', value: String(version) },
     { name: 'FALCONE_MCP_OPERATION', value: String(operation) },
     { name: 'FALCONE_MCP_MANIFEST_JSON', value: JSON.stringify(manifest) },
+    { name: 'FALCONE_API_BASE_URL', value: apiBaseUrl },
   ];
 }
 
@@ -113,6 +138,7 @@ export function createMcpRuntimeAdapter({
   resolveRuntimeNamespace = createRuntimeNamespaceResolver({ env }),
   runtimeImage = env.MCP_RUNTIME_IMAGE,
   runtimeImageDigest = env.MCP_RUNTIME_IMAGE_DIGEST,
+  runtimeApiBaseUrl = env.MCP_RUNTIME_API_BASE_URL,
 } = {}) {
   const image = runtimeImageDigest ? `${runtimeImage}@${runtimeImageDigest}` : runtimeImage;
 
@@ -164,6 +190,7 @@ export function createMcpRuntimeAdapter({
           code: 'MCP_RUNTIME_CONTRACT_INVALID',
         });
       }
+      const hostedApiBaseUrl = normalizeRuntimeApiBaseUrl(runtimeApiBaseUrl);
       const namespace = await resolveMappedRuntimeNamespace(resolveRuntimeNamespace, tenantId);
       const safeServerId = validateRuntimeServerId(serverId);
       const tenantOwner = runtimeTenantOwnership(tenantId);
@@ -172,7 +199,9 @@ export function createMcpRuntimeAdapter({
         serverId: safeServerId,
         image,
         namespace,
-        env: runtimeContractEnv({ workspaceId, manifest, version, operation }),
+        env: runtimeContractEnv({
+          workspaceId, manifest, version, operation, apiBaseUrl: hostedApiBaseUrl,
+        }),
       });
       if (!built.manifest) throw new Error('Unable to build hosted MCP manifest');
       built.manifest.metadata.annotations = {

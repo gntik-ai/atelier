@@ -114,6 +114,7 @@ test('mcp runtime refuses tool calls when trusted headers omit the base scope', 
       method: 'tools/call',
       params: { name: 'list_workspaces', arguments: {} },
     }, {
+      authorization: 'Bearer delegated-token',
       'x-falcone-tenant-id': 'ten-a',
       'x-falcone-scopes': 'mcp:falcone:workspaces:write',
     });

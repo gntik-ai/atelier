@@ -4,10 +4,28 @@ import { handleMcpMessage } from '../control-plane-executor/src/mcp-official-ser
 import { BASE_SCOPE } from '../control-plane-executor/src/mcp-official-catalog.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
-const FALCONE_API_BASE_URL = process.env.FALCONE_API_BASE_URL || 'http://falcone-control-plane:8080';
 const RUNTIME_VERSION = process.env.FALCONE_VERSION || '0.3.0';
 const HOSTED_VERSION = process.env.FALCONE_MCP_VERSION || null;
 const RECONCILE_OPERATION = process.env.FALCONE_MCP_OPERATION || null;
+
+function runtimeApiBaseUrl(value) {
+  try {
+    const url = new URL(String(value ?? ''));
+    if (
+      !['http:', 'https:'].includes(url.protocol)
+      || url.username
+      || url.password
+      || (url.pathname && url.pathname !== '/')
+      || url.search
+      || url.hash
+    ) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+const FALCONE_API_BASE_URL = runtimeApiBaseUrl(process.env.FALCONE_API_BASE_URL);
 
 function hostedManifestFromEnv(value = process.env.FALCONE_MCP_MANIFEST_JSON) {
   if (!value) return null;
@@ -35,6 +53,11 @@ export function contextFromHeaders(headers = {}) {
     roles: [...headerList(headers['x-actor-roles']), ...headerList(headers['x-falcone-roles'])],
     grantedScopes: [...scopes],
   };
+}
+
+export function delegatedAuthorizationFromHeaders(headers = {}) {
+  const authorization = String(headers.authorization ?? '').trim();
+  return /^(?:Bearer|ApiKey)\s+\S+$/i.test(authorization) ? authorization : null;
 }
 
 function rpc(id, result) {
@@ -169,12 +192,20 @@ function writeJson(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-async function callFalconeFrom(req, method, path, body) {
+async function callFalconeFrom(req, method, path, body, authorization) {
+  if (!FALCONE_API_BASE_URL) {
+    throw Object.assign(new Error('control-plane executor destination is unavailable'), {
+      statusCode: 503,
+      code: 'MCP_RUNTIME_API_BASE_URL_UNAVAILABLE',
+      rpcCode: -32003,
+    });
+  }
   const headers = {
     accept: 'application/json',
     'content-type': 'application/json',
+    authorization,
   };
-  for (const name of ['authorization', 'x-correlation-id', 'x-tenant-id', 'x-workspace-id', 'x-auth-scopes', 'x-actor-roles']) {
+  for (const name of ['x-correlation-id', 'x-tenant-id', 'x-workspace-id', 'x-auth-scopes', 'x-actor-roles']) {
     if (req.headers[name]) headers[name] = req.headers[name];
   }
   const init = { method, headers };
@@ -200,10 +231,12 @@ async function callFalconeFrom(req, method, path, body) {
 
 export const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && (req.url === '/' || req.url === '/healthz' || req.url === '/readyz')) {
-    return writeJson(res, 200, {
-      status: 'ready',
+    const ready = Boolean(FALCONE_API_BASE_URL);
+    return writeJson(res, ready ? 200 : 503, {
+      status: ready ? 'ready' : 'unavailable',
       runtime: 'mcp',
       version: RUNTIME_VERSION,
+      ...(!ready ? { code: 'MCP_RUNTIME_API_BASE_URL_UNAVAILABLE' } : {}),
       ...(HOSTED_VERSION ? { serverVersion: HOSTED_VERSION } : {}),
       ...(RECONCILE_OPERATION ? { reconcileOperation: RECONCILE_OPERATION } : {}),
     });
@@ -211,11 +244,18 @@ export const server = http.createServer(async (req, res) => {
   if (req.method !== 'POST') {
     return writeJson(res, 405, { error: 'method_not_allowed' });
   }
+  const authorization = delegatedAuthorizationFromHeaders(req.headers);
+  if (!authorization) {
+    return writeJson(res, 401, {
+      code: 'UNAUTHENTICATED',
+      message: 'A delegated Bearer or API-key credential is required.',
+    });
+  }
   try {
     const message = await readJson(req);
     const context = {
       ...contextFromHeaders(req.headers),
-      callFalcone: (method, path, body) => callFalconeFrom(req, method, path, body),
+      callFalcone: (method, path, body) => callFalconeFrom(req, method, path, body, authorization),
     };
     const result = await handleHostedMcpMessage(message, context);
     writeJson(res, 200, result);

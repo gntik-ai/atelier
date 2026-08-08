@@ -47,6 +47,7 @@ const WORKSPACE = 'workspace-933-a';
 const ADJACENT_WORKSPACE = 'workspace-933-b';
 const SERVER_ID = 'srv-cleanup-933';
 const DIGEST = `sha256:${'9'.repeat(64)}`;
+const RUNTIME_API_BASE_URL = 'http://falcone-control-plane-executor.platform.svc.cluster.local:8080';
 const READY = { mode: 'managed', state: 'ready', reason: 'READY' };
 const OUTAGE = { mode: 'managed', state: 'degraded', reason: 'CONTROL_PLANE_NOT_READY' };
 const OWNER = {
@@ -390,6 +391,7 @@ test('bbx-933-mcp-runtime-wire-context-32: hosted dispatch emits JSON-RPC with t
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    runtimeApiBaseUrl: RUNTIME_API_BASE_URL,
     env: {},
     readFile: serviceAccountReader([]),
     resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
@@ -539,6 +541,7 @@ test('bbx-933-mcp-kube-ca-34: adapter and cleaner explicitly trust the mounted K
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    runtimeApiBaseUrl: RUNTIME_API_BASE_URL,
     env: {},
     readFile: serviceAccountReader(adapterReads),
     resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
@@ -589,6 +592,7 @@ test('bbx-933-mcp-runtime-namespace-map-35: apply and cleaner share the authorit
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    runtimeApiBaseUrl: RUNTIME_API_BASE_URL,
     env: {},
     readFile: serviceAccountReader([]),
     resolveRuntimeNamespace,
@@ -631,6 +635,7 @@ test('bbx-933-mcp-cluster-local-isolation-36: hosted MCP reconciliation is clust
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    runtimeApiBaseUrl: RUNTIME_API_BASE_URL,
     env: {},
     readFile: serviceAccountReader([]),
     resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
@@ -691,6 +696,7 @@ test('bbx-933-mcp-knative-ingress-52: hosted MCP NetworkPolicy admits Knative qu
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    runtimeApiBaseUrl: RUNTIME_API_BASE_URL,
     env: {},
     readFile: serviceAccountReader([]),
     resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
@@ -766,6 +772,7 @@ test('bbx-933-mcp-hosted-delegation-54: hosted tools/call carries a verifiable d
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    runtimeApiBaseUrl: RUNTIME_API_BASE_URL,
     env: {},
     readFile: serviceAccountReader([]),
     resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,

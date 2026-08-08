@@ -70,6 +70,7 @@ KNATIVE_RUNTIME_STATUS_FILE=/var/run/falcone/knative/status.json
 FUNCTIONS_ENABLED=true
 # Proposed source contract only; chart 0.4.1 does not render these values.
 MCP_RUNTIME_NAMESPACE_MAP={"tenant-id":"tenant-runtime-namespace"}
+MCP_RUNTIME_API_BASE_URL=http://falcone-control-plane-executor.falcone.svc.cluster.local:8080
 MCP_RUNTIME_PLATFORM_NAMESPACES=falcone
 MCP_RUNTIME_INGRESS_NAMESPACES=knative-serving,kourier-system,falcone
 MCP_RUNTIME_EGRESS_NAMESPACES=falcone
@@ -88,12 +89,18 @@ Apply, internal invocation, and cleanup consult the same resolver. The ingress a
 the platform and Knative data-path namespaces. Its NetworkPolicy admits the supported Knative
 `queue-proxy` backend listeners on TCP 8012 and 8112 rather than treating the user-container port
 8080 as the ingress endpoint. Egress is limited to DNS on port 53 plus the named platform
-destinations. Hosted invocations carry the caller's delegated Bearer or Falcone API-key credential
-through the cluster-local runtime so the control plane re-verifies it; unsigned identity headers
+destinations. `MCP_RUNTIME_API_BASE_URL` must be the absolute HTTP(S) origin of the exact
+`control-plane-executor` Service, including its platform namespace in the cluster DNS name; paths,
+credentials, query strings, and fragments are rejected. The adapter materializes that non-secret
+origin as `FALCONE_API_BASE_URL` in each hosted Knative Service. Hosted invocations carry the
+caller's delegated Bearer or Falcone API-key credential through the cluster-local runtime so that
+executor re-verifies it; unsigned identity headers
 alone are never sufficient, and downstream non-2xx responses remain errors. Invalid or missing
-mappings, namespace entries, or delegated credentials fail closed before Kubernetes mutation or
-tool execution. These variables describe application source behavior only: chart 0.4.1 does not
-create the mapped namespaces, bind the executor service account there, or configure these values.
+mappings, namespace entries, runtime API destinations, or delegated credentials fail closed before
+Kubernetes mutation or tool execution. A runtime without the explicit executor destination reports
+`503 MCP_RUNTIME_API_BASE_URL_UNAVAILABLE` on its health endpoints. These variables describe
+application source behavior only: chart 0.4.1 does not create the mapped namespaces, bind the
+executor service account there, or configure these values.
 
 For `managed` and `external`, the chart mounts an atomically replaced, non-secret JSON file. Falcone
 does not accept runtime status from a tenant request, and it does not write this file. The v1 input
