@@ -33,6 +33,42 @@ case "$command_name" in
       *" config current-context "*) printf '%s\n' 'kind-falcone-bbx'; exit 0 ;;
       *" port-forward "*) trap 'exit 0' TERM INT; while sleep 1; do :; done ;;
     esac
+    if [[ " $* " == *" get --raw "* ]]; then
+      discovery_path="\${*: -1}"
+      case "$discovery_path" in
+        /api)
+          printf '%s\n' '{"kind":"APIVersions","versions":["v1"]}'
+          ;;
+        /apis)
+          printf '%s\n' '{"kind":"APIGroupList","groups":[{"name":"apps","versions":[{"groupVersion":"apps/v1","version":"v1"}]},{"name":"batch","versions":[{"groupVersion":"batch/v1","version":"v1"}]},{"name":"example.io","versions":[{"groupVersion":"example.io/v1","version":"v1"}]},{"name":"certificates.k8s.io","versions":[{"groupVersion":"certificates.k8s.io/v1","version":"v1"}]}]}'
+          ;;
+        /api/v1)
+          if [[ "$BBX_SCENARIO" == "hook-pod" ]]; then
+            printf '%s\n' '{"kind":"APIResourceList","groupVersion":"v1","resources":[{"name":"pods","namespaced":true,"kind":"Pod","verbs":["get","list"]}]}'
+          else
+            printf '%s\n' '{"kind":"APIResourceList","groupVersion":"v1","resources":[{"name":"configmaps","namespaced":true,"kind":"ConfigMap","verbs":["get","list"]}]}'
+          fi
+          ;;
+        /apis/apps/v1)
+          printf '%s\n' '{"kind":"APIResourceList","groupVersion":"apps/v1","resources":[{"name":"deployments","namespaced":true,"kind":"Deployment","verbs":["get","list"]}]}'
+          ;;
+        /apis/batch/v1)
+          printf '%s\n' '{"kind":"APIResourceList","groupVersion":"batch/v1","resources":[{"name":"jobs","namespaced":true,"kind":"Job","verbs":["get","list"]}]}'
+          ;;
+        /apis/example.io/v1)
+          if [[ "$BBX_SCENARIO" == "rendered-cluster-cr" ]]; then
+            printf '%s\n' '{"kind":"APIResourceList","groupVersion":"example.io/v1","resources":[{"name":"clusterwidgets","namespaced":false,"kind":"ClusterWidget","verbs":["get","list"]}]}'
+          else
+            printf '%s\n' '{"kind":"APIResourceList","groupVersion":"example.io/v1","resources":[{"name":"widgets","namespaced":true,"kind":"Widget","verbs":["get","list"]}]}'
+          fi
+          ;;
+        /apis/certificates.k8s.io/v1)
+          printf '%s\n' '{"kind":"APIResourceList","groupVersion":"certificates.k8s.io/v1","resources":[{"name":"certificatesigningrequests","namespaced":false,"kind":"CertificateSigningRequest","verbs":["get","list"]}]}'
+          ;;
+        *) exit 1 ;;
+      esac
+      exit 0
+    fi
     if [[ " $* " == *" api-resources "* ]]; then
       # The preserve preflight must discover the scope of every rendered GVK. Keep the
       # existing adjacent-resource snapshot response distinct from GVK-specific discovery.
@@ -43,10 +79,26 @@ case "$command_name" in
       fi
       case "$BBX_SCENARIO" in
         discovery-resolves-gvks)
-          if [[ "$kubectl_args_lower" == *"example.io"* || "$kubectl_args_lower" == *"widget"* ]]; then
-            [[ " $* " == *" -o name "* ]] && printf '%s\n' 'widgets.example.io' || printf '%s\n' 'widgets wd example.io/v1 true Widget get,list'
+          if [[ " $* " == *" -o name "* ]]; then
+            printf '%s\n' 'configmaps' 'deployments.apps' 'widgets.example.io'
           else
-            [[ " $* " == *" -o name "* ]] && printf '%s\n' 'configmaps' || printf '%s\n' 'configmaps cm v1 true ConfigMap get,list'
+            printf '%s\n' \
+              'configmaps cm v1 true ConfigMap get,list' \
+              'deployments deploy apps/v1 true Deployment get,list' \
+              'widgets wd example.io/v1 true Widget get,list'
+          fi
+          ;;
+        discovery-empty-shortnames)
+          if [[ " $* " == *" -o name "* ]]; then
+            printf '%s\n' 'configmaps' 'deployments.apps'
+          else
+            # Real kubectl api-resources -o wide: SHORTNAMES may be empty, so whitespace
+            # parsing must not shift APIVERSION/NAMESPACED/KIND. The same Kind in another
+            # apiVersion proves discovery must match the full apiVersion+kind tuple.
+            printf '%s\n' \
+              'configmaps                       v1 true ConfigMap get,list' \
+              'configmaps foreign example.io/v1 false ConfigMap get,list' \
+              'deployments                      apps/v1 true Deployment get,list'
           fi
           ;;
         rendered-cluster-cr)
@@ -58,8 +110,18 @@ case "$command_name" in
         rendered-unknown-gvk)
           # Discovery cannot resolve this rendered GVK at all: fail-closed is required.
           ;;
+        hook-job)
+          [[ " $* " == *" -o name "* ]] && printf '%s\n' 'jobs.batch' || printf '%s\n' 'jobs job batch/v1 true Job get,list'
+          ;;
+        hook-pod)
+          [[ " $* " == *" -o name "* ]] && printf '%s\n' 'pods' || printf '%s\n' 'pods po v1 true Pod get,list'
+          ;;
         *)
-          [[ " $* " == *" -o name "* ]] && printf '%s\n' 'configmaps' || printf '%s\n' 'configmaps cm v1 true ConfigMap get,list'
+          if [[ " $* " == *" -o name "* ]]; then
+            printf '%s\n' 'configmaps' 'deployments.apps'
+          else
+            printf '%s\n' 'configmaps cm v1 true ConfigMap get,list' 'deployments deploy apps/v1 true Deployment get,list'
+          fi
           ;;
       esac
       exit 0
@@ -98,6 +160,11 @@ case "$command_name" in
       if [[ "$*" == *"jsonpath"* ]]; then printf '%s' '00000000-0000-4000-8000-000000003933'; fi
       exit 0
     fi
+    if [[ "$kubectl_args_lower" == *"bbx-release-workload"* && " $kubectl_args_lower " == *" get "* ]]; then
+      [[ -s "$BBX_RELEASE_STATE" ]] || exit 0
+      if [[ "$*" == *"jsonpath"* ]]; then printf '%s' '00000000-0000-4000-8000-000000004933'; fi
+      exit 0
+    fi
     if [[ "$BBX_SCENARIO" =~ ^(rendered-unknown-gvk|rendered-cluster-cr|rendered-csr|hook-job|hook-pod)$ && "$*" == *"jsonpath"* ]]; then
       # The current static-kind preflight sees a free namespaced name and proceeds. A
       # discovery-driven implementation must reject the unresolved/cluster/hook object first.
@@ -108,7 +175,12 @@ case "$command_name" in
       exit $?
     fi
     if [[ " $* " == *" get deployment "* && " $* " == *" -o name "* ]]; then
-      if [[ "$BBX_SCENARIO" == "adjacent-unhealthy" && "$*" != *"app.kubernetes.io/instance="* ]]; then printf '%s\n' 'deployment.apps/adjacent-bbx-unhealthy'; fi
+      if [[ "$*" == *"app.kubernetes.io/instance=falcone"* && -s "$BBX_RELEASE_STATE"
+        && "$BBX_SCENARIO" != "empty-health-selector" && "$BBX_SCENARIO" != "helm-status-transport-error" ]]; then
+        printf '%s\n' 'deployment.apps/bbx-release-workload'
+      elif [[ "$BBX_SCENARIO" == "adjacent-unhealthy" && "$*" != *"app.kubernetes.io/instance="* ]]; then
+        printf '%s\n' 'deployment.apps/adjacent-bbx-unhealthy'
+      fi
       exit 0
     fi
     if [[ " $* " == *" get statefulset "* && " $* " == *" -o name "* ]]; then
@@ -147,7 +219,8 @@ case "$command_name" in
         discovery-resolves-gvks)
           printf '%s\n' \
             'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '---' \
-            'apiVersion: example.io/v1' 'kind: Widget' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-namespaced-cr'
+            'apiVersion: example.io/v1' 'kind: Widget' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-namespaced-cr' '---' \
+            'apiVersion: apps/v1' 'kind: Deployment' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-workload' '  labels:' '    app.kubernetes.io/instance: falcone' 'spec:' '  replicas: 1'
           ;;
         rendered-unknown-gvk)
           printf '%s\n' 'apiVersion: mystery.example.io/v1' 'kind: VanishingClusterThing' 'metadata:' '  name: bbx-unknown-cluster-object'
@@ -167,8 +240,13 @@ case "$command_name" in
         helm-status-transport-error)
           printf '%s\n' '# deliberately empty release: helm status remains the ownership authority'
           ;;
+        empty-health-selector)
+          printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '  labels:' '    app.kubernetes.io/instance: falcone' 'data:' '  contract: intentionally-no-workload'
+          ;;
         *)
-          printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '  labels:' '    app.kubernetes.io/instance: falcone' 'data:' '  contract: owned'
+          printf '%s\n' \
+            'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '  labels:' '    app.kubernetes.io/instance: falcone' 'data:' '  contract: owned' '---' \
+            'apiVersion: apps/v1' 'kind: Deployment' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-workload' '  labels:' '    app.kubernetes.io/instance: falcone' 'spec:' '  replicas: 1'
           ;;
       esac
       exit 0
@@ -347,6 +425,13 @@ function namespaceMutations(invocation) {
 function assertRejectedBeforeMutation(invocation, context) {
   assert.notEqual(invocation.result.status, 0, `${context} unexpectedly succeeded`)
   assert.deepEqual(mutations(invocation), [], `${context} reached a cluster or Helm mutation before refusing`)
+}
+
+function isDiscoveryCall({ command, args }) {
+  return command === 'kubectl' && (
+    /(?:^|\s)api-resources(?:\s|$)/.test(args)
+    || /(?:^|\s)get\s+--raw\s+\/apis?(?:\/|\s|$)/.test(args)
+  )
 }
 
 // bbx-933-001 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
@@ -592,7 +677,7 @@ test('preserve preflight resolves every rendered GVK through discovery and rejec
       const templateIndex = invocation.calls.findIndex(({ command, args }) => command === 'helm' && /(?:^|\s)template(?:\s|$)/.test(args))
       const discoveryIndexes = invocation.calls
         .map((call, index) => ({ ...call, index }))
-        .filter(({ command, args }) => command === 'kubectl' && /(?:^|\s)api-resources(?:\s|$)/.test(args))
+        .filter(isDiscoveryCall)
         .map(({ index }) => index)
       const preflightObjectReads = invocation.calls
         .map((call, index) => ({ ...call, index }))
@@ -608,6 +693,20 @@ test('preserve preflight resolves every rendered GVK through discovery and rejec
     } finally { invocation.cleanup() }
   })
 
+  await t.test('accepts empty SHORTNAMES only after exact apiVersion+kind+namespaced discovery', () => {
+    const invocation = invokeHarness('discovery-empty-shortnames', preserveEnv)
+    try {
+      assert.equal(invocation.result.status, 0, invocation.output)
+      const templateIndex = invocation.calls.findIndex(({ command, args }) => command === 'helm' && /(?:^|\s)template(?:\s|$)/.test(args))
+      const firstRenderedRead = invocation.calls.findIndex(({ command, args }) => command === 'kubectl'
+        && /(?:^|\s)get(?:\s|$)/.test(args)
+        && /bbx-release-owned|bbx-release-workload/.test(args))
+      const discoveryIndex = invocation.calls.findIndex((call, index) => index > templateIndex && isDiscoveryCall(call))
+      assert.ok(discoveryIndex > templateIndex && discoveryIndex < firstRenderedRead, 'exact rendered GVK discovery did not precede object-name checks')
+      assert.equal(releaseInstalls(invocation).length, 1, 'valid namespaced GVKs with empty SHORTNAMES were rejected')
+    } finally { invocation.cleanup() }
+  })
+
   for (const [label, scenario] of [
     ['unresolved GVK', 'rendered-unknown-gvk'],
     ['cluster-scoped custom resource', 'rendered-cluster-cr'],
@@ -618,7 +717,7 @@ test('preserve preflight resolves every rendered GVK through discovery and rejec
       try {
         assertRejectedBeforeMutation(invocation, label)
         assert.ok(
-          invocation.calls.some(({ command, args }) => command === 'kubectl' && /(?:^|\s)api-resources(?:\s|$)/.test(args)),
+          invocation.calls.some(isDiscoveryCall),
           `${label} was rejected without a discovery attempt`,
         )
         assert.match(invocation.output, /discover|scope|cluster|GVK|resource|refus|resolve/i, `${label} rejection omitted actionable discovery evidence`)
