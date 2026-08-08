@@ -307,6 +307,19 @@ preserve_verify_owned_uids() {
   done <"$STATE_DIR/owned-uids"
 }
 
+preserve_verify_owned_absent() {
+  local kind name namespace expected_uid actual_uid
+  [ -f "$STATE_DIR/owned-uids" ] || return 0
+  while IFS='|' read -r kind name namespace expected_uid; do
+    [ -z "$kind" ] && continue
+    actual_uid="$(preserve_object_uid "$kind" "$name" "$namespace")" || return 1
+    if [ -n "$actual_uid" ]; then
+      echo "Preserve-existing cleanup found a release-owned resource after uninstall." >&2
+      return 1
+    fi
+  done <"$STATE_DIR/owned-uids"
+}
+
 preserve_remove_state() {
   rm -f \
     "$STATE_DIR/active" "$STATE_DIR/namespace" "$STATE_DIR/release" "$STATE_DIR/namespace-uid" \
@@ -347,6 +360,7 @@ preserve_cleanup() {
   }
 
   if ! helm status "$REL" -n "$NS" >/dev/null 2>&1; then
+    preserve_verify_owned_absent || return 1
     after_snapshot="$STATE_DIR/adjacent-after"
     preserve_snapshot_adjacent "$after_snapshot" || return 1
     comm -23 "$STATE_DIR/adjacent-before" "$after_snapshot" | grep -q . && {
@@ -379,6 +393,7 @@ preserve_cleanup() {
     echo "Preserve-existing Helm cleanup failed; details remain in the private harness state directory." >&2
     return 1
   fi
+  preserve_verify_owned_absent || return 1
   : >"$cleanup_complete"
   rm -f "$ACTIVE_FILE"
 
