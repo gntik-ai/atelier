@@ -268,15 +268,17 @@ preserve_resolve_rendered_scopes() {
       *) group=""; version="$api_version" ;;
     esac
     found=0
-    while read -r name short versions namespaced discovered_kind rest; do
+    while IFS=$'\t' read -r discovered_version discovered_kind discovered_namespaced; do
       [ "$discovered_kind" = "$kind" ] || continue
-      case "$versions" in *"$api_version"*|*"$version"*) : ;; *) continue ;; esac
+      [ "$discovered_version" = "$api_version" ] || continue
       found=1
-      if [ "$namespaced" != "true" ]; then
+      if [ "$discovered_namespaced" != "true" ]; then
         echo "Preserve-existing preflight rejected cluster-scoped rendered GVK $api_version/$kind." >&2
         return 1
       fi
-    done < <(kubectl api-resources --verbs=get,list -o wide 2>/dev/null) || return 1
+    done < <(kubectl api-resources --verbs=get,list -o wide 2>/dev/null | awk '
+      { ns=""; for (i=1;i<=NF;i++) if ($i=="true" || $i=="false") { ns=$i; if (i>1 && i<NF) print $(i-1) "\t" $(i+1) "\t" ns; break } }
+    ') || return 1
     if [ "$found" -ne 1 ]; then
       echo "Preserve-existing preflight could not resolve rendered GVK $api_version/$kind through discovery." >&2
       return 1
