@@ -1,5 +1,5 @@
 /**
- * bbx-933-console-01..10 | fn-knative-runtime-status, fn-mcp-hosted-runtime, fn-function-action-mutation, fn-function-runtime-availability-gate
+ * bbx-933-console-01..11 | fn-knative-runtime-status, fn-mcp-hosted-runtime, fn-function-action-mutation, fn-function-runtime-availability-gate
  * OpenSpec scenarios are mapped in the focused Vitest and type-contract files beside this runner.
  */
 import assert from 'node:assert/strict'
@@ -11,7 +11,7 @@ import test from 'node:test'
 const capabilityDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(capabilityDir, '../../..')
 
-test('bbx-933-console-01..10: managed Knative console public behavior', () => {
+test('bbx-933-console-01..11: managed Knative console public behavior', () => {
   const result = spawnSync('pnpm', [
     '--filter', '@in-falcone/web-console',
     'exec', 'vitest', 'run',

@@ -1,4 +1,10 @@
 /**
+ * bbx-fix-787-00..03 | fn-function-delete-capability
+ * OpenSpec scenarios:
+ * - #### Scenario: Workspace owner deletes an action and its owned runtime
+ * - #### Scenario: Cross-tenant action lookup is hidden
+ * - #### Scenario: A caller without the target workspace claim receives a hidden denial
+ *
  * Regression coverage for fix-787-function-delete-capability (#787).
  *
  * The kind control-plane advertised DELETE /v1/functions/actions/{resourceId} in the public
@@ -21,16 +27,20 @@ const OWNER = {
   sub: 'user_alpha_owner',
   tenantId: TENANT_ID,
   workspaceId: WORKSPACE_ID,
-  actorType: 'tenant_owner',
-  roles: ['tenant_owner']
+  credentialWorkspaceId: WORKSPACE_ID,
+  workspaceIds: [WORKSPACE_ID],
+  actorType: 'workspace_owner',
+  roles: ['workspace_owner']
 };
 
-const MEMBER = {
-  sub: 'user_alpha_member',
+const ADJACENT_WORKSPACE_OWNER = {
+  sub: 'user_alpha_adjacent_workspace_owner',
   tenantId: TENANT_ID,
-  workspaceId: WORKSPACE_ID,
-  actorType: 'tenant_member',
-  roles: ['tenant_member']
+  workspaceId: FOREIGN_WORKSPACE_ID,
+  credentialWorkspaceId: FOREIGN_WORKSPACE_ID,
+  workspaceIds: [FOREIGN_WORKSPACE_ID],
+  actorType: 'workspace_owner',
+  roles: ['workspace_owner']
 };
 
 function compilePath(tmpl) {
@@ -190,7 +200,7 @@ test('fix-787-00: DELETE /v1/functions/actions/{id} resolves to fnDelete', () =>
   assert.equal(hit.params.actionId, 'res_fn_1');
 });
 
-test('fix-787-01: tenant owner delete removes owned action rows and owned Knative service', async () => {
+test('fix-787-01: target-bound workspace owner delete removes owned action rows and owned Knative service', async () => {
   const pool = makePool();
   const deletedKsvcs = [];
 
@@ -228,17 +238,17 @@ test('fix-787-02: cross-tenant delete is scoped 404 and has no side effects', as
   assert.equal(countFor(pool.activations, 'res_fn_foreign'), 1);
 });
 
-test('fix-787-03: same-tenant non-admin delete is denied before Knative or row deletion', async () => {
+test('fix-787-03: same-tenant owner without the target workspace claim receives a hidden denial', async () => {
   const pool = makePool();
   const deletedKsvcs = [];
 
   const response = await FN_HANDLERS.fnDelete(ctx(pool, {
-    identity: MEMBER,
+    identity: ADJACENT_WORKSPACE_OWNER,
     deleteKnativeService: async (name) => { deletedKsvcs.push(name); }
   }));
 
-  assert.equal(response.statusCode, 403);
-  assert.equal(response.body.code, 'FORBIDDEN');
+  assert.equal(response.statusCode, 404);
+  assert.equal(response.body.code, 'ACTION_NOT_FOUND');
   assert.deepEqual(deletedKsvcs, []);
   assert.equal(pool.actions.has('res_fn_1'), true);
   assert.equal(countFor(pool.versions, 'res_fn_1'), 1);

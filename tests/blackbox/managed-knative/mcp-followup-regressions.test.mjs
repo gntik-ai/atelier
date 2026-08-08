@@ -17,6 +17,12 @@
  *   OpenSpec #### Scenario: Hosted-server outage is correlated without secrets
  * bbx-933-mcp-review-reconcile-33 | fn-mcp-hosted-publish
  *   OpenSpec #### Scenario: Managed Knative preserves hosted MCP isolation and scale-to-zero semantics
+ * bbx-933-mcp-kube-ca-34 | fn-mcp-hosted-publish, fn-mcp-hosted-cleanup
+ *   OpenSpec #### Scenario: Managed Knative preserves hosted MCP isolation and scale-to-zero semantics
+ * bbx-933-mcp-runtime-namespace-map-35 | fn-mcp-hosted-isolation, fn-mcp-hosted-cleanup
+ *   OpenSpec #### Scenario: Same server identity in two tenants remains isolated
+ * bbx-933-mcp-cluster-local-isolation-36 | fn-mcp-hosted-isolation
+ *   OpenSpec #### Scenario: Managed Knative preserves hosted MCP isolation and scale-to-zero semantics
  *
  * These tests use only exported runtime factories and the public HTTP API. Kubernetes is represented
  * at the production adapter's documented HTTP boundary; no cluster or external network is contacted.
@@ -219,7 +225,7 @@ function ownedService(options = {}) {
   const uid = Object.hasOwn(options, 'uid') ? options.uid : 'uid-service-933';
   const resourceVersion = Object.hasOwn(options, 'resourceVersion') ? options.resourceVersion : '41';
   const metadata = {
-    namespace: TENANT,
+    namespace: RUNTIME_NAMESPACE,
     name: 'mcp-orders-followup-933',
     labels: {
       'in-falcone.io/tenant': TENANT,
@@ -234,7 +240,8 @@ function ownedService(options = {}) {
 function productionCleaner(fetchImpl) {
   return createMcpRuntimeCleaner({
     apiBase: 'https://kubernetes.invalid',
-    readFile: () => 'service-account-token-for-local-fixture',
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
     fetchImpl,
     env: {},
   });
@@ -376,6 +383,9 @@ test('bbx-933-mcp-runtime-wire-context-32: hosted dispatch emits JSON-RPC with t
     apiBase: 'https://kubernetes.invalid',
     runtimeImage: 'registry.invalid/falcone/mcp-runtime',
     runtimeImageDigest: DIGEST,
+    env: {},
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
     fetchImpl: async (url, init) => {
       const call = { url: String(url), init: structuredClone(init) };
       wireCalls.push(call);
@@ -467,4 +477,191 @@ test('bbx-933-mcp-review-reconcile-33: review-held publish waits for approval be
     assert.equal(approvedApply.manifest?.tools?.find((tool) => tool.name === 'query_orders')?.description,
       'Changed description requiring review.');
   }, { mcpRuntimeAdapter: adapter });
+});
+
+const SERVICE_ACCOUNT_ROOT = '/var/run/secrets/kubernetes.io/serviceaccount';
+const FIXTURE_CA = '-----BEGIN CERTIFICATE-----\nBBX-933-KUBERNETES-CA\n-----END CERTIFICATE-----\n';
+const RUNTIME_NAMESPACE = 'runtime-tenant-933-a';
+
+function serviceAccountReader(readPaths) {
+  return (path) => {
+    const value = String(path);
+    readPaths.push(value);
+    if (value === `${SERVICE_ACCOUNT_ROOT}/token`) return 'bbx-933-service-account-token';
+    if (value === `${SERVICE_ACCOUNT_ROOT}/ca.crt`) return FIXTURE_CA;
+    throw new Error(`unexpected serviceaccount read: ${value}`);
+  };
+}
+
+function successfulKubeResponse() {
+  return new Response(JSON.stringify({ kind: 'Status', status: 'Success' }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+function appliedObjects(calls) {
+  return calls.flatMap(({ init }) => {
+    if (typeof init?.body !== 'string') return [];
+    try {
+      const value = JSON.parse(init.body);
+      return value?.apiVersion && value?.kind ? [value] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+async function publishThrough(adapter, name) {
+  await withHarness(async ({ engine }) => {
+    const created = await createDraft(engine, { name });
+    await curate(engine, created.serverId);
+    const result = await publish(engine, created.serverId);
+    assert.equal(result.status, 'active');
+  }, { mcpRuntimeAdapter: adapter });
+}
+
+test('bbx-933-mcp-kube-ca-34: adapter and cleaner explicitly trust the mounted Kubernetes serviceaccount CA', async () => {
+  const adapterReads = [];
+  const adapterCalls = [];
+  const adapter = createMcpRuntimeAdapter({
+    apiBase: 'https://kubernetes.invalid',
+    runtimeImage: 'registry.invalid/falcone/mcp-runtime',
+    runtimeImageDigest: DIGEST,
+    env: {},
+    readFile: serviceAccountReader(adapterReads),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
+    fetchImpl: async (url, init = {}) => {
+      adapterCalls.push({ url: String(url), init });
+      return successfulKubeResponse();
+    },
+  });
+  await publishThrough(adapter, 'explicit-kube-ca-933');
+
+  const cleanerReads = [];
+  const cleanerCalls = [];
+  const cleaner = createMcpRuntimeCleaner({
+    apiBase: 'https://kubernetes.invalid',
+    env: {},
+    readFile: serviceAccountReader(cleanerReads),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
+    fetchImpl: async (url, init = {}) => {
+      cleanerCalls.push({ url: String(url), init });
+      return kubeResponse(200, { items: [] });
+    },
+  });
+  const cleanup = await cleaner.deleteOwnedRuntimeResources({ tenantId: TENANT, resourceId: SERVER_ID });
+  assert.equal(cleanup.deleted, true);
+
+  for (const [label, reads, calls] of [
+    ['apply adapter', adapterReads, adapterCalls],
+    ['cleanup adapter', cleanerReads, cleanerCalls],
+  ]) {
+    assert.ok(reads.includes(`${SERVICE_ACCOUNT_ROOT}/ca.crt`), `${label} did not read the mounted Kubernetes CA`);
+    assert.ok(calls.length > 0, `${label} made no Kubernetes HTTPS request`);
+    assert.ok(
+      calls.every(({ init }) => init.dispatcher != null || init.agent != null),
+      `${label} delegated Kubernetes TLS trust to ambient NODE_EXTRA_CA_CERTS`,
+    );
+  }
+});
+
+test('bbx-933-mcp-runtime-namespace-map-35: apply and cleaner share the authoritative tenant runtime-namespace mapping', async () => {
+  const resolverCalls = [];
+  const resolveRuntimeNamespace = ({ tenantId }) => {
+    resolverCalls.push(tenantId);
+    assert.equal(tenantId, TENANT);
+    return RUNTIME_NAMESPACE;
+  };
+  const adapterCalls = [];
+  const adapter = createMcpRuntimeAdapter({
+    apiBase: 'https://kubernetes.invalid',
+    runtimeImage: 'registry.invalid/falcone/mcp-runtime',
+    runtimeImageDigest: DIGEST,
+    env: {},
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace,
+    fetchImpl: async (url, init = {}) => {
+      adapterCalls.push({ url: String(url), init });
+      return successfulKubeResponse();
+    },
+  });
+  await publishThrough(adapter, 'authoritative-namespace-933');
+
+  const cleanerCalls = [];
+  const cleaner = createMcpRuntimeCleaner({
+    apiBase: 'https://kubernetes.invalid',
+    env: {},
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace,
+    fetchImpl: async (url, init = {}) => {
+      cleanerCalls.push({ url: String(url), init });
+      return kubeResponse(200, { items: [] });
+    },
+  });
+  await cleaner.deleteOwnedRuntimeResources({ tenantId: TENANT, resourceId: SERVER_ID });
+
+  assert.ok(resolverCalls.length >= 2, 'apply and cleaner did not both consult the shared tenant→runtime namespace authority');
+  const kubeUrls = [...adapterCalls, ...cleanerCalls].map(({ url }) => url);
+  assert.ok(kubeUrls.length > 0);
+  for (const url of kubeUrls) {
+    assert.match(url, new RegExp(`/namespaces/${RUNTIME_NAMESPACE}(?:/|$)`), `Kubernetes request escaped the mapped namespace: ${url}`);
+    assert.doesNotMatch(url, new RegExp(`/namespaces/${TENANT}(?:/|$)`), 'raw tenantId was used as a Kubernetes namespace');
+  }
+  const objects = appliedObjects(adapterCalls);
+  assert.ok(objects.length > 0, 'publish reconciled no Kubernetes objects');
+  assert.ok(objects.every((object) => object.metadata?.namespace === RUNTIME_NAMESPACE),
+    `rendered resources escaped the authoritative namespace: ${JSON.stringify(objects)}`);
+});
+
+test('bbx-933-mcp-cluster-local-isolation-36: hosted MCP reconciliation is cluster-local and materially namespaced-isolated', async (t) => {
+  const calls = [];
+  const adapter = createMcpRuntimeAdapter({
+    apiBase: 'https://kubernetes.invalid',
+    runtimeImage: 'registry.invalid/falcone/mcp-runtime',
+    runtimeImageDigest: DIGEST,
+    env: {},
+    readFile: serviceAccountReader([]),
+    resolveRuntimeNamespace: () => RUNTIME_NAMESPACE,
+    fetchImpl: async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      return successfulKubeResponse();
+    },
+  });
+  await publishThrough(adapter, 'cluster-local-isolation-933');
+  const objects = appliedObjects(calls);
+  const services = objects.filter((object) => object.apiVersion === 'serving.knative.dev/v1' && object.kind === 'Service');
+  assert.equal(services.length, 1, `expected one hosted Knative Service, got ${JSON.stringify(objects)}`);
+  const service = services[0];
+  const serviceNamespace = service.metadata?.namespace;
+
+  await t.test('Knative Service is cluster-local and does not mount Kubernetes credentials', () => {
+    assert.equal(service.metadata?.labels?.['networking.knative.dev/visibility'], 'cluster-local',
+      'hosted MCP Knative Service is externally visible instead of cluster-local');
+    assert.equal(service.spec?.template?.spec?.automountServiceAccountToken, false,
+      'hosted MCP runtime unnecessarily mounts Kubernetes API credentials');
+  });
+
+  await t.test('NetworkPolicy selects the exact hosted workload in the same mapped namespace', () => {
+    const policies = objects.filter((object) => object.apiVersion === 'networking.k8s.io/v1' && object.kind === 'NetworkPolicy');
+    assert.ok(policies.length > 0, 'hosted MCP reconciliation materialized no namespaced NetworkPolicy isolation');
+    const templateLabels = service.spec?.template?.metadata?.labels ?? {};
+    assert.ok(Object.keys(templateLabels).length > 0, 'hosted MCP revision exposes no stable isolation selector labels');
+    assert.ok(policies.every((policy) => policy.metadata?.namespace === serviceNamespace));
+    assert.ok(policies.some((policy) => {
+      const selector = policy.spec?.podSelector?.matchLabels ?? {};
+      return Object.keys(selector).length > 0
+        && Object.entries(selector).every(([key, value]) => templateLabels[key] === value)
+        && (policy.spec?.policyTypes ?? []).includes('Ingress');
+    }), 'no ingress NetworkPolicy selects the exact hosted MCP revision labels');
+  });
+
+  await t.test('any reconciled RBAC remains namespace-local', () => {
+    const rbac = objects.filter((object) => ['Role', 'RoleBinding', 'ServiceAccount'].includes(object.kind));
+    assert.ok(rbac.every((object) => object.metadata?.namespace === serviceNamespace));
+    for (const binding of rbac.filter((object) => object.kind === 'RoleBinding')) {
+      assert.ok((binding.subjects ?? []).every((subject) => subject.kind !== 'ServiceAccount' || subject.namespace === serviceNamespace),
+        'RoleBinding references a ServiceAccount outside the mapped runtime namespace');
+    }
+  });
 });

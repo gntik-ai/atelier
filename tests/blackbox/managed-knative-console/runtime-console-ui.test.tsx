@@ -1,5 +1,5 @@
 /**
- * bbx-933-console-02..05, bbx-933-console-10 | fn-knative-runtime-status, fn-mcp-hosted-runtime
+ * bbx-933-console-02..05, bbx-933-console-10..11 | fn-knative-runtime-status, fn-mcp-hosted-runtime
  * OpenSpec scenarios:
  * - #### Scenario: Disabled mode is deliberate
  * - #### Scenario: External canary is absent or unreadable
@@ -187,6 +187,22 @@ describe('issue #933 runtime console route', () => {
     const announcements = screen.getAllByRole('status')
     expect(announcements).toHaveLength(1)
     expect(announcements[0]).toHaveTextContent(/estado actualizado.*listo/i)
+  })
+
+  /**
+   * bbx-933-console-11 | fn-mcp-hosted-runtime
+   * OpenSpec: #### Scenario: Developer receives actionable availability status
+   */
+  it('bbx-933-console-11 recovers through an existing public destination instead of inventing an MCP server id', async () => {
+    renderRuntimePage(status('degraded'))
+    await screen.findByRole('heading', { name: 'Runtime de funciones' })
+
+    const hostedMcpRecovery = screen.getByRole('link', { name: 'Inspeccionar Hosted MCP' })
+    const href = hostedMcpRecovery.getAttribute('href') ?? ''
+    expect(href).toBe('/console')
+    expect(href).not.toMatch(/\/mcp\/servers\/srv_1(?:\/|$)/)
+    const matches = matchRoutes(appRoutes, href)
+    expect(matches?.at(-1)?.route.path).not.toBe('*')
   })
 })
 
