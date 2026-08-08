@@ -18,6 +18,7 @@ const changeId = 'issue-933-managed-knative-runtime'
 const namespace = 'cingusoft-dev'
 const namespaceUid = '00000000-0000-4000-8000-000000000933'
 const secretSentinel = 'bbx-933-secret-must-not-leak'
+const ownedResourceName = 'bbx-release-owned'
 
 function fakeDispatcher() {
   return `#!/usr/bin/env bash
@@ -27,6 +28,7 @@ printf '%s\t%s\n' "$command_name" "$*" >>"$BBX_COMMAND_LOG"
 
 case "$command_name" in
   kubectl)
+    kubectl_args_lower="\${*,,}"
     case " $* " in
       *" config current-context "*) printf '%s\n' 'kind-falcone-bbx'; exit 0 ;;
       *" port-forward "*) trap 'exit 0' TERM INT; while sleep 1; do :; done ;;
@@ -40,6 +42,24 @@ case "$command_name" in
         printf '%s\n' "$E2E_NAMESPACE"
       fi
       exit 0
+    fi
+    if [[ "$kubectl_args_lower" == *"bbx-release-owned"* && (" $kubectl_args_lower " == *" get configmap "* || " $kubectl_args_lower " == *" get configmaps "* || " $kubectl_args_lower " == *" get configmap/"*) ]]; then
+      if [[ "$(cat "$BBX_OWNED_RESOURCE_STATE")" != "present" ]]; then
+        [[ " $* " == *" --ignore-not-found "* ]] && exit 0
+        exit 1
+      fi
+      if [[ "$*" == *"jsonpath"* ]]; then printf '%s' '00000000-0000-4000-8000-000000001933'; exit 0; fi
+      if [[ " $* " == *" -o name "* ]]; then printf '%s\n' 'configmap/bbx-release-owned'; exit 0; fi
+      if [[ " $* " == *" -o json "* ]]; then
+        printf '%s\n' '{"apiVersion":"v1","kind":"ConfigMap","metadata":{"namespace":"cingusoft-dev","name":"bbx-release-owned","uid":"00000000-0000-4000-8000-000000001933","labels":{"app.kubernetes.io/instance":"falcone"}}}'
+      else
+        printf '%s\n' 'bbx-release-owned'
+      fi
+      exit 0
+    fi
+    if [[ "$*" == *"bbx-release-owned"* && " $* " == *" wait "* && "$*" == *"--for=delete"* ]]; then
+      [[ "$(cat "$BBX_OWNED_RESOURCE_STATE")" == "absent" ]]
+      exit $?
     fi
     if [[ " $* " == *" get deployment "* && " $* " == *" -o name "* ]]; then
       if [[ "$BBX_SCENARIO" == "adjacent-unhealthy" && "$*" != *"app.kubernetes.io/instance="* ]]; then printf '%s\n' 'deployment.apps/adjacent-bbx-unhealthy'; fi
@@ -72,6 +92,8 @@ case "$command_name" in
     if [[ " $* " == *" template "* ]]; then
       if [[ "$BBX_SCENARIO" == "rendered-namespace-conflict" ]]; then
         printf '%s\n' 'apiVersion: v1' 'kind: Namespace' 'metadata:' "  name: $E2E_NAMESPACE" '  labels:' '    unsafe-bbx-change: rejected'
+      else
+        printf '%s\n' 'apiVersion: v1' 'kind: ConfigMap' 'metadata:' "  namespace: $E2E_NAMESPACE" '  name: bbx-release-owned' '  labels:' '    app.kubernetes.io/instance: falcone' 'data:' '  contract: owned'
       fi
       exit 0
     fi
@@ -96,6 +118,7 @@ case "$command_name" in
     fi
     if [[ "$1" == "install" && -n "\${2:-}" ]]; then
       printf '%s\n' "$2" >"$BBX_RELEASE_STATE"
+      printf '%s\n' 'present' >"$BBX_OWNED_RESOURCE_STATE"
       exit 0
     fi
     if [[ " $* " == *" uninstall "* ]]; then
@@ -107,6 +130,7 @@ case "$command_name" in
         exit 73
       fi
       : >"$BBX_RELEASE_STATE"
+      if [[ "$BBX_SCENARIO" != "orphaned-owned-resource" ]]; then printf '%s\n' 'absent' >"$BBX_OWNED_RESOURCE_STATE"; fi
       exit 0
     fi
     exit 0
@@ -150,9 +174,11 @@ function invokeHarness(scenario, extraEnv = {}) {
   const log = join(directory, 'commands.log')
   const releaseState = join(directory, 'release.state')
   const uninstallCount = join(directory, 'uninstall.count')
+  const ownedResourceState = join(directory, 'owned-resource.state')
   writeFileSync(log, '')
   writeFileSync(releaseState, '')
   writeFileSync(uninstallCount, '0\n')
+  writeFileSync(ownedResourceState, 'absent\n')
   const env = {
     ...process.env,
     PATH: `${fakeBin}:/usr/bin:/bin`,
@@ -166,6 +192,7 @@ function invokeHarness(scenario, extraEnv = {}) {
     BBX_COMMAND_LOG: log,
     BBX_RELEASE_STATE: releaseState,
     BBX_UNINSTALL_COUNT: uninstallCount,
+    BBX_OWNED_RESOURCE_STATE: ownedResourceState,
     BBX_SECRET_SENTINEL: secretSentinel,
     ...extraEnv,
   }
@@ -187,6 +214,10 @@ function invokeHarness(scenario, extraEnv = {}) {
     result,
     calls,
     output: `${result.stdout ?? ''}\n${result.stderr ?? ''}`,
+    ownedResourcePresent: () => readFileSync(ownedResourceState, 'utf8').trim() === 'present',
+    retainedStateDirectories: () => readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && entry.name.startsWith('falcone-e2e-harness.'))
+      .map((entry) => join(directory, entry.name)),
     retryCleanup: () => {
       const before = readCalls().length
       const retainedStateDirectories = readdirSync(directory, { withFileTypes: true })
@@ -365,6 +396,58 @@ test('issue E2E preserve mode is prerequisite-checked, Helm-4-safe, failure-roll
       assert.equal(retryUninstalls.length, 1, 'failed cleanup discarded its ownership state instead of allowing one exact retry')
       assert.equal(retryUninstalls[0].args.match(/(?:^|\s)uninstall\s+(\S+)/)?.[1], release, 'cleanup retry targeted a different Helm release')
       assert.deepEqual(namespaceMutations({ calls: retry.calls }), [], 'cleanup retry mutated the preserved Namespace')
+    } finally { invocation.cleanup() }
+  })
+})
+
+// bbx-933-003 | fn-e2e-preserve-existing-namespace | OpenSpec #### Scenario: Existing namespace E2E execution is explicitly attested and non-destructive
+test('preserve cleanup proves every UID-attested release object is absent after Helm uninstall', async (t) => {
+  const preserveEnv = {
+    E2E_NAMESPACE_MODE: 'preserve-existing',
+    E2E_EXPECTED_NAMESPACE_UID: namespaceUid,
+  }
+  const ownedCalls = (invocation) => invocation.calls
+    .map((call, index) => ({ ...call, index }))
+    .filter(({ command, args }) => command === 'kubectl' && args.includes(ownedResourceName))
+
+  await t.test('normal cleanup observes the owned object before uninstall and proves its absence afterward', () => {
+    const invocation = invokeHarness('post-uninstall-absence', preserveEnv)
+    try {
+      assert.equal(invocation.result.status, 0, invocation.output)
+      const installs = releaseInstalls(invocation)
+      const uninstalls = invocation.calls.filter(({ command, args }) => command === 'helm' && /(?:^|\s)uninstall\s+\S+/.test(args))
+      assert.equal(installs.length, 1, 'fixture did not install the release-owned object exactly once')
+      assert.equal(uninstalls.length, 1, 'normal cleanup did not uninstall the exact release once')
+      const installIndex = invocation.calls.indexOf(installs[0])
+      const uninstallIndex = invocation.calls.indexOf(uninstalls[0])
+      const observations = ownedCalls(invocation)
+      assert.ok(
+        observations.some(({ index, args }) => index > installIndex && index < uninstallIndex && /(?:^|\s)get(?:\s|$)/.test(args)),
+        `cleanup never UID-attested ${ownedResourceName} before uninstall`,
+      )
+      assert.ok(
+        observations.some(({ index, args }) => index > uninstallIndex && (/(?:^|\s)get(?:\s|$)/.test(args) || /(?:^|\s)wait(?:\s|$)/.test(args))),
+        `cleanup never proved ${ownedResourceName} absent after uninstall`,
+      )
+      assert.equal(invocation.ownedResourcePresent(), false, `${ownedResourceName} remained after normal cleanup`)
+    } finally { invocation.cleanup() }
+  })
+
+  await t.test('successful Helm response with an owned orphan fails closed and retains cleanup evidence', () => {
+    const invocation = invokeHarness('orphaned-owned-resource', preserveEnv)
+    try {
+      assert.notEqual(invocation.result.status, 0, 'cleanup accepted Helm success while a UID-attested owned object remained')
+      const uninstalls = invocation.calls.filter(({ command, args }) => command === 'helm' && /(?:^|\s)uninstall\s+\S+/.test(args))
+      assert.equal(uninstalls.length, 1, 'orphan scenario did not receive exactly one successful exact-release uninstall')
+      const uninstallIndex = invocation.calls.indexOf(uninstalls[0])
+      assert.ok(
+        ownedCalls(invocation).some(({ index, args }) => index > uninstallIndex && (/(?:^|\s)get(?:\s|$)/.test(args) || /(?:^|\s)wait(?:\s|$)/.test(args))),
+        'cleanup did not check the UID-attested owned object after Helm reported success',
+      )
+      assert.equal(invocation.ownedResourcePresent(), true, 'orphan fixture did not retain its release-owned object')
+      assert.equal(invocation.retainedStateDirectories().length, 1, 'orphaned cleanup deleted ownership/evidence needed for a safe retry')
+      assert.doesNotMatch(invocation.output, new RegExp(secretSentinel), 'orphan evidence disclosed secret output')
+      assert.match(invocation.output, /orphan|remain|cleanup|owned|absent|refus/i, 'orphan failure did not provide actionable secret-safe evidence')
     } finally { invocation.cleanup() }
   })
 })
