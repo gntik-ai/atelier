@@ -395,7 +395,6 @@ preserve_cleanup() {
   fi
   preserve_verify_owned_absent || return 1
   : >"$cleanup_complete"
-  rm -f "$ACTIVE_FILE"
 
   after_snapshot="$STATE_DIR/adjacent-after"
   preserve_snapshot_adjacent "$after_snapshot" || return 1
@@ -403,6 +402,7 @@ preserve_cleanup() {
     echo "Preserve-existing cleanup found changed adjacent resource UIDs." >&2
     return 1
   }
+  rm -f "$ACTIVE_FILE"
   preserve_remove_state
   echo ">> Removed the exact E2E Helm release; the attested namespace and adjacent resources were preserved."
 }
