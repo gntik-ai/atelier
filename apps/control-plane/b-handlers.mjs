@@ -19,6 +19,7 @@ import { FN_HANDLERS } from './fn-handlers.mjs';
 import { WEBHOOK_HANDLERS } from './webhook-handlers.mjs';
 import { REALTIME_HANDLERS } from './realtime-handlers.mjs';
 import { APPLICATION_HANDLERS } from './application-handlers.mjs';
+import { KNATIVE_RUNTIME_HANDLERS } from './knative-runtime-handlers.mjs';
 import { checkWorkspaceQuota } from './workspace-quota.mjs';
 import { recordScopeDenial, recordQuotaEnforcement } from './audit-writer.mjs';
 import { buildTenantConfigExport } from './tenant-config-export.mjs';
@@ -456,6 +457,9 @@ async function purgeTenant(ctx) {
   const tenant = await store.getTenant(pool, params.tenantId);
   if (!tenant) return err(404, 'TENANT_NOT_FOUND', `tenant ${params.tenantId} not found`);
   if (!canManageTenantId(identity, tenant.id)) return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  if (!ctx.runtimeTeardownCoordinator) return err(503, 'RUNTIME_TEARDOWN_UNAVAILABLE', 'runtime teardown coordinator is required');
+  const pending = await ctx.runtimeTeardownCoordinator.purgeTenant(pool, tenant.id, ctx.callerContext?.correlationId);
+  if (pending.pending) return ok(202, { tenantId: tenant.id, status: 'cleanup_pending', obligations: (pending.obligations ?? []).map((o) => ({ resourceType: o.resourceType ?? (o.type === 'mcp' ? 'mcp' : (o.ksvcName ? 'function' : 'mcp')), resourceId: o.resourceId ?? o.id ?? o.ksvcName, status: 'pending' })) });
   const realm = tenant.iam_realm;
 
   // 1. Delete all registry rows + collect the physical resources to tear down.
@@ -489,7 +493,7 @@ async function purgeTenant(ctx) {
       mongoDatabases: mongo.dropped, mongoDatabasesRetained: mongo.retained,
     },
     // Resources whose physical teardown is not wired in this runtime (rows ARE removed).
-    residual: { knativeServices: phys.ksvcs },
+    residual: { knativeServices: [] },
   });
 }
 
@@ -855,6 +859,9 @@ async function deleteWorkspace(ctx) {
   // internal bypass the tenant match; everyone else must own the workspace's tenant.
   const owns = ws && canManageTenantId(identity, ws.tenant_id);
   if (!ws || !owns) return err(404, 'WORKSPACE_NOT_FOUND', `workspace ${params.workspaceId} not found`);
+  if (!ctx.runtimeTeardownCoordinator) return err(503, 'RUNTIME_TEARDOWN_UNAVAILABLE', 'runtime teardown coordinator is required');
+  const pending = await ctx.runtimeTeardownCoordinator.purgeWorkspace(pool, ws.id, ctx.callerContext?.correlationId);
+  if (pending.pending) return ok(202, { workspaceId: ws.id, tenantId: ws.tenant_id, status: 'cleanup_pending', obligations: (pending.obligations ?? []).map((o) => ({ resourceType: o.resourceType ?? (o.type === 'mcp' ? 'mcp' : (o.ksvcName ? 'function' : 'mcp')), resourceId: o.resourceId ?? o.id ?? o.ksvcName, status: 'pending' })) });
 
   // 1. Delete the workspace's registry rows + collect the physical resources to tear down.
   const phys = await store.purgeWorkspace(pool, ws.id);
@@ -879,7 +886,7 @@ async function deleteWorkspace(ctx) {
       mongoDatabases: mongo.dropped, mongoDatabasesRetained: mongo.retained,
     },
     // Resources whose physical teardown is not wired in this runtime (rows ARE removed).
-    residual: { knativeServices: phys.ksvcs },
+    residual: { knativeServices: [] },
   });
 }
 
@@ -1618,6 +1625,7 @@ export const LOCAL_HANDLERS = {
   ...WEBHOOK_HANDLERS,
   ...REALTIME_HANDLERS,
   ...APPLICATION_HANDLERS,
+  ...KNATIVE_RUNTIME_HANDLERS,
   ...AUTH_HANDLERS
 };
 

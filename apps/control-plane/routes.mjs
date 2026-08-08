@@ -10,6 +10,9 @@
 const PO = '/repo/packages/provisioning-orchestrator/src/actions';
 
 export const routes = [
+  // Platform-wide Knative dependency status. This route is deliberately GET-only: the selected
+  // mode and readiness record come from installer/chart configuration, never a tenant API write.
+  { method: 'GET', path: '/v1/platform/runtime/knative', localHandler: 'getKnativeRuntimeStatus', auth: 'knative_status' },
   // plan catalog (superadmin)
   { method: 'GET',  path: '/v1/plans', module: `${PO}/plan-list.mjs`, export: 'main',
     invoke: 'callercontext-overrides', deps: ['db'], auth: 'superadmin', mergeQueryIntoParams: true },
@@ -311,6 +314,7 @@ export const routes = [
   { method: 'GET',  path: '/v1/functions/actions/{actionId}/activations/{activationId}', localHandler: 'fnActivation', auth: 'authenticated' },
   { method: 'GET',  path: '/v1/functions/actions/{actionId}/activations/{activationId}/logs', localHandler: 'fnActivationLogs', auth: 'authenticated' },
   { method: 'GET',  path: '/v1/functions/actions/{actionId}/activations/{activationId}/result', localHandler: 'fnActivationResult', auth: 'authenticated' },
+  { method: 'POST', path: '/v1/functions/actions/{actionId}/activations/{activationId}/rerun', localHandler: 'fnActivationRerun', auth: 'authenticated' },
 
   // ---- domain B: Events / Kafka (REAL kafkajs; PLAINTEXT broker) ------------
   { method: 'GET',  path: '/v1/events/workspaces/{workspaceId}/inventory', localHandler: 'eventsInventory', auth: 'authenticated' },

@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react'
+import { useId, type ReactNode, type RefObject } from 'react'
 import { Button } from '@/components/ui/button'
 
 export function ConsolePageState({
@@ -7,6 +7,7 @@ export function ConsolePageState({
   description,
   actionLabel,
   onAction,
+  actionRef,
   icon,
   children
 }: {
@@ -15,6 +16,7 @@ export function ConsolePageState({
   description: string
   actionLabel?: string
   onAction?: () => void
+  actionRef?: RefObject<HTMLButtonElement>
   icon?: ReactNode
   // Extra inline content rendered below the title/description (and the actionLabel/onAction
   // button, if present) — e.g. WorkspaceRequiredState's inline workspace picker / create-workspace
@@ -46,7 +48,7 @@ export function ConsolePageState({
           </div>
           {actionLabel && onAction ? (
             <div className="pt-4">
-              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onAction}>
+              <Button ref={actionRef} type="button" variant="outline" className="w-full sm:w-auto" onClick={onAction}>
                 {actionLabel}
               </Button>
             </div>

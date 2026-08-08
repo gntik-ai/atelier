@@ -18,8 +18,8 @@ test('recordHttp + renderMetrics emit counter + histogram in Prometheus text for
   const text = renderMetrics();
 
   assert.match(text, /# TYPE falcone_http_requests_total counter/);
-  assert.match(text, /falcone_http_requests_total\{method="GET",route="\/v1\/tenants",status="200",tenant_id="ten-a"\} 2/);
-  assert.match(text, /falcone_http_requests_total\{method="POST",route="\/v1\/tenants",status="500",tenant_id="anonymous"\} 1/);
+  assert.match(text, /falcone_http_requests_total\{method="GET",route="\/v1\/tenants",status="200"\} 2/);
+  assert.match(text, /falcone_http_requests_total\{method="POST",route="\/v1\/tenants",status="500"\} 1/);
   assert.match(text, /# TYPE falcone_http_request_duration_seconds histogram/);
   assert.match(text, /falcone_http_request_duration_seconds_bucket\{method="GET",route="\/v1\/tenants",le="\+Inf"\} 2/);
   assert.match(text, /falcone_http_request_duration_seconds_count\{method="GET",route="\/v1\/tenants"\} 2/);

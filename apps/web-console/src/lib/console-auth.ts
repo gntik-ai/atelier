@@ -5,6 +5,7 @@ export type ConsoleSignupActivationMode = 'self_service' | 'approval_required' |
 export type ConsoleSignupPolicyMode = 'self_service' | 'invitation'
 export type ConsoleSignupState = 'pending_activation' | 'active' | 'rejected'
 export type ConsoleStatusViewId =
+  | 'active'
   | 'login'
   | 'signup'
   | 'pending_activation'
@@ -276,6 +277,8 @@ export function inferStatusViewFromError(error: ApiError): ConsoleAuthStatusHint
 
 function normalizeStatusView(value: string | null): ConsoleStatusViewId | null {
   switch (value) {
+    case 'active':
+      return value
     case 'pending_activation':
     case 'account_suspended':
     case 'credentials_expired':

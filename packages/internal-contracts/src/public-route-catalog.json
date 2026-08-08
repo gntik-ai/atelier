@@ -2023,7 +2023,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -2072,6 +2073,14 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "function_action",
+      "runtimeSuccessContract": {
+        "requiredBodyFields": {
+          "family": "functions",
+          "resourceType": "function_action"
+        },
+        "schema": "GatewayMutationAccepted",
+        "status": 202
+      },
       "scope": "workspace",
       "summary": "Submit one workspace-scoped function action provisioning request with governed source, runtime, execution, and policy inputs",
       "supportsIdempotencyKey": true,
@@ -2080,7 +2089,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -2105,7 +2127,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -2154,6 +2177,17 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "function_action",
+      "runtimeCleanupOwnership": {
+        "appliesTo": [
+          "immediate",
+          "deferred"
+        ],
+        "onMismatch": "retain",
+        "requiredIdentity": [
+          "tenantId",
+          "functionResourceId"
+        ]
+      },
       "scope": "workspace",
       "summary": "Delete one governed function action and its managed exposure bindings from the workspace serverless context",
       "supportsIdempotencyKey": true,
@@ -2162,7 +2196,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -2271,7 +2318,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -2320,6 +2368,14 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "function_action",
+      "runtimeSuccessContract": {
+        "requiredBodyFields": {
+          "family": "functions",
+          "resourceType": "function_action"
+        },
+        "schema": "GatewayMutationAccepted",
+        "status": 202
+      },
       "scope": "workspace",
       "summary": "Update one governed function action without exposing native namespace, subject, or unrestricted provider administration",
       "supportsIdempotencyKey": true,
@@ -2328,7 +2384,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -2599,7 +2668,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -3339,7 +3409,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -3588,7 +3659,8 @@
       "deprecated": false,
       "discoveryRoute": "/v1/platform/route-catalog",
       "downstreamAdapters": [
-        "openwhisk"
+        "knative",
+        "local-control-plane"
       ],
       "downstreamService": "control_api",
       "errorEnvelope": "ErrorResponse",
@@ -3645,7 +3717,20 @@
       ],
       "tenantBinding": "required",
       "visibility": "public",
-      "workspaceBinding": "required"
+      "workspaceBinding": "required",
+      "workspaceMutationAuthorization": {
+        "allowedWorkspaceRoles": [
+          "workspace_owner",
+          "workspace_admin",
+          "workspace_developer"
+        ],
+        "deniedWorkspaceRoles": [
+          "workspace_viewer"
+        ],
+        "dependencyDisclosure": "after_authorization",
+        "workspaceClaim": "workspace_id",
+        "workspaceClaimMatch": "required"
+      }
     },
     {
       "adminChannel": null,
@@ -10287,6 +10372,676 @@
     {
       "adminChannel": null,
       "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql",
+        "mcp-runtime"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "DELETE",
+      "operationId": "deleteMcpServer",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_server",
+      "scope": "workspace",
+      "summary": "Delete a hosted MCP server or durably defer cleanup during a Knative outage",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_service_account",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql",
+        "mcp-runtime"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "getMcpServer",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_server",
+      "scope": "workspace",
+      "summary": "Read one tenant-scoped hosted MCP server and its runtime dependency state",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "GET",
+      "operationId": "listMcpServerAudit",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/audit",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-read",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_audit_event",
+      "scope": "workspace",
+      "summary": "Read tenant-scoped hosted MCP audit events and dependency readiness",
+      "supportsIdempotencyKey": false,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "authorizedRoleClaims": [
+        "tenant_owner",
+        "tenant_admin",
+        "workspace_owner",
+        "workspace_admin",
+        "platform_admin",
+        "superadmin"
+      ],
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "curateMcpServer",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_server_curation",
+      "scope": "workspace",
+      "summary": "Curate the generated tools for one hosted MCP server",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_service_account",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mcp-runtime"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "dispatchHostedMcpJsonRpc",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_jsonrpc",
+      "scope": "workspace",
+      "summary": "Dispatch one JSON-RPC request or notification to a hosted MCP server",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "developer_external",
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "workspace_service_account",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "mcp-runtime"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "invokeMcpServerTool",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/tool-calls",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_tool_call",
+      "scope": "workspace",
+      "summary": "Invoke a published hosted MCP tool",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "workspace_developer",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql",
+        "mcp-runtime"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "publishMcpServerVersion",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_server_version",
+      "scope": "workspace",
+      "summary": "Publish and deploy a hosted MCP server version",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "workspace_owner",
+        "workspace_admin",
+        "platform_team"
+      ],
+      "authRequired": true,
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [
+        "postgresql",
+        "mcp-runtime"
+      ],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "mcp",
+      "familyTitle": "MCP",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "provisioning",
+      "gatewayRequestValidationProfile": "provisioning",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "data-control",
+      "gatewayTimeoutProfile": "provisioning",
+      "idempotencyReplayHeader": "X-Idempotency-Replayed",
+      "idempotencyTtlSeconds": 86400,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 1048576,
+      "method": "POST",
+      "operationId": "approveMcpServerVersion",
+      "path": "/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions/{version}/approval",
+      "planCapabilityAnyOf": [
+        "mcp.hosting"
+      ],
+      "qosBurst": 30,
+      "rateLimitClass": "data-write",
+      "requiredHeaders": [
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "mcp_server_version",
+      "scope": "workspace",
+      "summary": "Approve and activate a hosted MCP server version",
+      "supportsIdempotencyKey": true,
+      "tags": [
+        "MCP"
+      ],
+      "tenantBinding": "required",
+      "visibility": "public",
+      "workspaceBinding": "required"
+    },
+    {
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
       "allowedContentTypes": [],
       "audiences": [
         "tenant_owner",
@@ -16781,6 +17536,88 @@
       "supportsIdempotencyKey": false,
       "tags": [
         "Catalog",
+        "Platform"
+      ],
+      "tenantBinding": "none",
+      "visibility": "public",
+      "workspaceBinding": "none"
+    },
+    {
+      "actorTypeAuthorization": false,
+      "adminChannel": null,
+      "allowAnonymousOptions": true,
+      "allowedContentTypes": [
+        "application/json"
+      ],
+      "audiences": [
+        "platform_team",
+        "superadmin"
+      ],
+      "authRequired": true,
+      "authorizedRoleClaims": [
+        "platform_operator",
+        "platform_auditor",
+        "platform_admin",
+        "superadmin"
+      ],
+      "consoleDelegationMode": null,
+      "consoleDiscoverySurface": false,
+      "consoleStatusOperationIds": [],
+      "consoleTier": null,
+      "consoleWorkflowId": null,
+      "correlationIdGeneratedWhenMissing": true,
+      "correlationIdRequired": true,
+      "deprecated": false,
+      "discoveryRoute": "/v1/platform/route-catalog",
+      "downstreamAdapters": [],
+      "downstreamService": "control_api",
+      "errorEnvelope": "ErrorResponse",
+      "explicitConfirmationRequired": false,
+      "family": "platform",
+      "familyTitle": "Platform",
+      "gatewayAllowedHeaders": [
+        "Authorization",
+        "Content-Type",
+        "Idempotency-Key",
+        "X-API-Version",
+        "X-Correlation-Id",
+        "X-Requested-With"
+      ],
+      "gatewayAuthMode": "bearer_oidc",
+      "gatewayContextHeaders": [
+        "X-Auth-Subject",
+        "X-Actor-Username",
+        "X-Tenant-Id",
+        "X-Workspace-Id",
+        "X-Plan-Id",
+        "X-Auth-Scopes",
+        "X-Actor-Roles"
+      ],
+      "gatewayQosProfile": "platform_control",
+      "gatewayRequestValidationProfile": "platform_control",
+      "gatewayRetryProfile": "mutations",
+      "gatewayRouteClass": "control",
+      "gatewayTimeoutProfile": "control_plane",
+      "idempotencyReplayHeader": null,
+      "idempotencyTtlSeconds": null,
+      "internalRequestMode": "validated_attestation",
+      "maxRequestBodyBytes": 262144,
+      "method": "GET",
+      "operationId": "getKnativeRuntimeStatus",
+      "path": "/v1/platform/runtime/knative",
+      "planCapabilityAnyOf": [],
+      "qosBurst": 60,
+      "rateLimitClass": "catalog",
+      "requiredHeaders": [
+        "X-API-Version",
+        "X-Correlation-Id"
+      ],
+      "requiredPlanFlags": [],
+      "resourceType": "knative_runtime_status",
+      "scope": "platform",
+      "summary": "Read the installation-wide Knative runtime mode and sanitized readiness status",
+      "supportsIdempotencyKey": false,
+      "tags": [
         "Platform"
       ],
       "tenantBinding": "none",
@@ -30652,6 +31489,19 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "tenant_purge",
+      "runtimeAggregateTeardown": {
+        "adjacentTenantEffect": "none",
+        "durableObligations": "owner_scoped",
+        "ownedCapabilities": [
+          "functions",
+          "hosted_mcp"
+        ],
+        "ownershipVerification": "required_before_delete",
+        "readyCompletion": "only_after_owned_resources_absent",
+        "retainOwnershipMetadata": true,
+        "retry": "idempotent_after_readiness",
+        "unavailableStatus": "cleanup_pending"
+      },
       "scope": "tenant",
       "summary": "Definitively purge one logically deleted tenant after retention and elevated confirmation checks",
       "supportsIdempotencyKey": true,
@@ -31369,6 +32219,19 @@
       ],
       "requiredPlanFlags": [],
       "resourceType": "workspace",
+      "runtimeAggregateTeardown": {
+        "adjacentTenantEffect": "none",
+        "durableObligations": "owner_scoped",
+        "ownedCapabilities": [
+          "functions",
+          "hosted_mcp"
+        ],
+        "ownershipVerification": "required_before_delete",
+        "readyCompletion": "only_after_owned_resources_absent",
+        "retainOwnershipMetadata": true,
+        "retry": "idempotent_after_readiness",
+        "unavailableStatus": "cleanup_pending"
+      },
       "scope": "workspace",
       "summary": "Soft-delete one canonical workspace while preserving audit and clone lineage metadata",
       "supportsIdempotencyKey": true,

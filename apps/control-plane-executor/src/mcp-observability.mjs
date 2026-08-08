@@ -124,6 +124,9 @@ const AUDIT_CATEGORY_BY_ACTION = {
   consent_revoked: 'access_control_modification',
   server_published: 'resource_creation',
   server_unpublished: 'resource_deletion',
+  runtime_unavailable: 'configuration_change',
+  cleanup_deferred: 'resource_deletion',
+  cleanup_recovered: 'resource_deletion',
 };
 
 /**
@@ -133,7 +136,7 @@ const AUDIT_CATEGORY_BY_ACTION = {
  *          outcome?:string, serverId?:string, correlationId:string, eventId:string,
  *          eventTimestamp:string, emittingService?:string}} input
  */
-export function mcpAuditEvent({ tenantId, workspaceId, oauthClientId, action, outcome = 'succeeded', serverId, correlationId, eventId, eventTimestamp, emittingService = 'control-plane' } = {}) {
+export function mcpAuditEvent({ tenantId, workspaceId, oauthClientId, action, outcome = 'succeeded', serverId, correlationId, eventId, eventTimestamp, emittingService = 'control-plane', detail = {} } = {}) {
   if (!tenantId) throw new Error('MCP audit event requires a tenant scope (ADR-2).');
   const category = AUDIT_CATEGORY_BY_ACTION[action];
   if (!category) throw new Error(`Unknown MCP audit action "${action}".`);
@@ -148,7 +151,7 @@ export function mcpAuditEvent({ tenantId, workspaceId, oauthClientId, action, ou
     result: { outcome },
     correlation_id: correlationId,
     origin: { origin_surface: 'control_api', emitting_service: emittingService },
-    detail: compact({ mcp_server_id: serverId ?? null }),
+    detail: compact({ mcp_server_id: serverId ?? null, ...detail }),
   };
 }
 

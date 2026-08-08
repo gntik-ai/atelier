@@ -221,6 +221,14 @@ Workspace-scoped MCP server publishing, version curation, and tool-call mediatio
 | --- | --- | --- | --- | --- |
 | GET | `/v1/mcp/workspaces/{workspaceId}/servers` | workspace | mcp_server | List MCP servers for one workspace |
 | POST | `/v1/mcp/workspaces/{workspaceId}/servers` | workspace | mcp_server | Create an MCP server draft for one workspace |
+| DELETE | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}` | workspace | mcp_server | Delete a hosted MCP server or durably defer cleanup during a Knative outage |
+| GET | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}` | workspace | mcp_server | Read one tenant-scoped hosted MCP server and its runtime dependency state |
+| GET | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/audit` | workspace | mcp_audit_event | Read tenant-scoped hosted MCP audit events and dependency readiness |
+| POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/curations` | workspace | mcp_server_curation | Curate the generated tools for one hosted MCP server |
+| POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/rpc` | workspace | mcp_jsonrpc | Dispatch one JSON-RPC request or notification to a hosted MCP server |
+| POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/tool-calls` | workspace | mcp_tool_call | Invoke a published hosted MCP tool |
+| POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions` | workspace | mcp_server_version | Publish and deploy a hosted MCP server version |
+| POST | `/v1/mcp/workspaces/{workspaceId}/servers/{serverId}/versions/{version}/approval` | workspace | mcp_server_version | Approve and activate a hosted MCP server version |
 
 ## Metrics
 
@@ -352,6 +360,7 @@ Cross-tenant platform governance, catalog, and operator discovery surfaces.
 | POST | `/v1/platform/provider-capabilities` | platform | provider_capability | Submit a provider capability write request |
 | GET | `/v1/platform/provider-capabilities/{providerCapabilityId}` | platform | provider_capability | Fetch one provider capability record |
 | GET | `/v1/platform/route-catalog` | platform | route_catalog | List public gateway routes and filter them by family, scope, resource type, method, audience, or visibility |
+| GET | `/v1/platform/runtime/knative` | platform | knative_runtime_status | Read the installation-wide Knative runtime mode and sanitized readiness status |
 | GET | `/v1/platform/storage/provider` | platform | storage_provider | Inspect the active storage provider abstraction and common capability manifest |
 | GET | `/v1/platform/topology/regions` | platform | topology_region | List the supported data residency regions for tenant provisioning |
 | POST | `/v1/platform/users` | platform | platform_user | Submit a canonical platform user write request under the platform family |

@@ -1,13 +1,22 @@
 {
   "components": {
     "parameters": {
+      "FunctionActionId": {
+        "in": "path",
+        "name": "resourceId",
+        "required": true,
+        "schema": {
+          "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
+          "type": "string"
+        }
+      },
       "FunctionActivationId": {
         "description": "Stable activation identifier assigned to one governed function execution.",
         "in": "path",
         "name": "activationId",
         "required": true,
         "schema": {
-          "pattern": "^act_[0-9a-z]+$",
+          "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
           "type": "string"
         }
       },
@@ -145,16 +154,6 @@
           "maximum": 200,
           "minimum": 1,
           "type": "integer"
-        }
-      },
-      "ResourceId": {
-        "description": "Stable managed resource identifier.",
-        "in": "path",
-        "name": "resourceId",
-        "required": true,
-        "schema": {
-          "pattern": "^res_[0-9a-z]+$",
-          "type": "string"
         }
       },
       "Search": {
@@ -552,7 +551,7 @@
             "type": "string"
           },
           "execution": {
-            "$ref": "#/components/schemas/FunctionExecutionConfiguration"
+            "$ref": "#/components/schemas/FunctionActionExecutionConfiguration"
           },
           "httpExposure": {
             "$ref": "#/components/schemas/FunctionHttpExposure"
@@ -583,14 +582,17 @@
             "$ref": "#/components/schemas/OpenWhiskProviderCompatibility"
           },
           "provisioning": {
-            "$ref": "#/components/schemas/ProvisioningResourceState"
+            "$ref": "#/components/schemas/FunctionProvisioningState"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "rollbackAvailable": {
             "type": "boolean"
+          },
+          "runtimeDependency": {
+            "$ref": "#/components/schemas/FunctionRuntimeDependency"
           },
           "secretReferences": {
             "items": {
@@ -603,12 +605,9 @@
           },
           "status": {
             "enum": [
-              "draft",
-              "deploying",
               "active",
-              "suspended",
-              "failed",
-              "deleting"
+              "unavailable",
+              "deletion_pending"
             ],
             "type": "string"
           },
@@ -655,6 +654,8 @@
           "execution",
           "activationPolicy",
           "status",
+          "runtimeDependency",
+          "provisioning",
           "timestamps",
           "versionCount",
           "rollbackAvailable",
@@ -673,12 +674,84 @@
             "type": "array"
           },
           "page": {
-            "$ref": "#/components/schemas/FunctionAdminPage"
+            "$ref": "#/components/schemas/FunctionActionPage"
           }
         },
         "required": [
           "items",
           "page"
+        ],
+        "type": "object"
+      },
+      "FunctionActionExecutionConfiguration": {
+        "additionalProperties": false,
+        "properties": {
+          "entrypoint": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/FunctionActionExecutionLimits"
+          },
+          "parameters": {
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "integer",
+                "boolean",
+                "object",
+                "array",
+                "null"
+              ]
+            },
+            "type": "object"
+          },
+          "runtime": {
+            "maxLength": 40,
+            "minLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtime",
+          "entrypoint",
+          "parameters",
+          "limits"
+        ],
+        "type": "object"
+      },
+      "FunctionActionExecutionLimits": {
+        "additionalProperties": false,
+        "properties": {
+          "memoryMb": {
+            "maximum": 2048,
+            "minimum": 128,
+            "type": "integer"
+          },
+          "timeoutMs": {
+            "maximum": 900000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "timeoutMs",
+          "memoryMb"
+        ],
+        "type": "object"
+      },
+      "FunctionActionPage": {
+        "additionalProperties": false,
+        "properties": {
+          "total": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total"
         ],
         "type": "object"
       },
@@ -748,7 +821,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "durationMs": {
@@ -769,11 +842,8 @@
             "minimum": 128,
             "type": "integer"
           },
-          "policy": {
-            "$ref": "#/components/schemas/FunctionActivationPolicy"
-          },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "startedAt": {
@@ -797,6 +867,7 @@
           },
           "triggerKind": {
             "enum": [
+              "manual",
               "direct",
               "http",
               "kafka",
@@ -812,8 +883,7 @@
           "status",
           "startedAt",
           "durationMs",
-          "triggerKind",
-          "policy"
+          "triggerKind"
         ],
         "type": "object"
       },
@@ -840,7 +910,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "lines": {
@@ -924,11 +994,11 @@
             "type": "string"
           },
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "rerunInvocationId": {
-            "pattern": "^inv_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|inv_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "status": {
@@ -952,7 +1022,7 @@
         "additionalProperties": false,
         "properties": {
           "activationId": {
-            "pattern": "^act_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "contentType": {
@@ -1267,6 +1337,45 @@
         },
         "required": [
           "resourceType"
+        ],
+        "type": "object"
+      },
+      "FunctionDeletionAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "requestId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "resourceId": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "deletion_pending"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "requestId",
+          "correlationId",
+          "resourceId",
+          "status",
+          "acceptedAt"
         ],
         "type": "object"
       },
@@ -1676,22 +1785,18 @@
             "format": "date-time",
             "type": "string"
           },
-          "activationPolicy": {
-            "$ref": "#/components/schemas/FunctionActivationPolicy"
-          },
           "invocationId": {
-            "pattern": "^inv_[0-9a-z]+$",
+            "pattern": "^(?:act_[0-9a-f]{8}-[0-9a-f]{3}|act_[0-9a-z]{1,64})$",
             "type": "string"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "status": {
             "enum": [
-              "accepted",
-              "queued",
-              "running"
+              "completed",
+              "failed"
             ],
             "type": "string"
           }
@@ -1700,8 +1805,7 @@
           "invocationId",
           "resourceId",
           "status",
-          "acceptedAt",
-          "activationPolicy"
+          "acceptedAt"
         ],
         "type": "object"
       },
@@ -1942,6 +2046,14 @@
         ],
         "type": "object"
       },
+      "FunctionLifecycleState": {
+        "enum": [
+          "active",
+          "unavailable",
+          "deletion_pending"
+        ],
+        "type": "string"
+      },
       "FunctionPackage": {
         "additionalProperties": false,
         "properties": {
@@ -2089,6 +2201,18 @@
         },
         "required": [
           "packageName"
+        ],
+        "type": "object"
+      },
+      "FunctionProvisioningState": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/FunctionLifecycleState"
+          }
+        },
+        "required": [
+          "state"
         ],
         "type": "object"
       },
@@ -2369,7 +2493,7 @@
             "type": "string"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "status": {
@@ -2559,6 +2683,43 @@
           "ruleName",
           "triggerName",
           "actionName"
+        ],
+        "type": "object"
+      },
+      "FunctionRuntimeDependency": {
+        "additionalProperties": false,
+        "properties": {
+          "mode": {
+            "enum": [
+              "managed",
+              "external",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "reason": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "unverified",
+              "degraded",
+              "unavailable",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "state",
+          "reason",
+          "ready"
         ],
         "type": "object"
       },
@@ -3134,7 +3295,7 @@
             "type": "string"
           },
           "resourceId": {
-            "pattern": "^res_[0-9a-z]+$",
+            "pattern": "^(?:fn_[0-9a-f]{8}-[0-9a-f]{3}|res_[0-9a-z]+)$",
             "type": "string"
           },
           "rollbackEligible": {
@@ -3324,6 +3485,30 @@
         ],
         "type": "object"
       },
+      "FunctionsDisabledError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "FUNCTIONS_DISABLED",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "message": {
+            "const": "Functions capability is disabled.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "correlationId"
+        ],
+        "type": "object"
+      },
       "GatewayMutationAccepted": {
         "additionalProperties": false,
         "properties": {
@@ -3366,6 +3551,54 @@
           "resourceId",
           "correlationId",
           "acceptedAt"
+        ],
+        "type": "object"
+      },
+      "KnativeUnavailableError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "KNATIVE_UNAVAILABLE",
+            "type": "string"
+          },
+          "correlationId": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "message": {
+            "const": "Knative runtime is unavailable.",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "managed",
+              "external",
+              "disabled"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "unverified",
+              "degraded",
+              "unavailable",
+              "disabled"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "mode",
+          "state",
+          "reason",
+          "correlationId"
         ],
         "type": "object"
       },
@@ -4003,6 +4236,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -4041,14 +4294,36 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_action",
+        "x-runtime-success-contract": {
+          "requiredBodyFields": {
+            "family": "functions",
+            "resourceType": "function_action"
+          },
+          "schema": "GatewayMutationAccepted",
+          "status": 202
+        },
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       }
     },
     "/v1/functions/actions/{resourceId}": {
@@ -4062,7 +4337,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -4073,7 +4348,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GatewayMutationAccepted"
+                  "$ref": "#/components/schemas/FunctionDeletionAccepted"
                 }
               }
             },
@@ -4159,6 +4434,16 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -4196,14 +4481,39 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_action",
+        "x-runtime-cleanup-ownership": {
+          "appliesTo": [
+            "immediate",
+            "deferred"
+          ],
+          "onMismatch": "retain",
+          "requiredIdentity": [
+            "tenantId",
+            "functionResourceId"
+          ]
+        },
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       },
       "get": {
         "operationId": "getFunctions",
@@ -4215,7 +4525,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -4338,7 +4648,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -4445,6 +4755,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no Function or runtime mutation was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -4482,14 +4812,36 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_action",
+        "x-runtime-success-contract": {
+          "requiredBodyFields": {
+            "family": "functions",
+            "resourceType": "function_action"
+          },
+          "schema": "GatewayMutationAccepted",
+          "status": 202
+        },
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       }
     },
     "/v1/functions/actions/{resourceId}/activations": {
@@ -4503,7 +4855,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/PageSize"
@@ -4635,7 +4987,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -4761,7 +5113,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -4887,7 +5239,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -4997,6 +5349,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no rerun was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -5034,7 +5406,8 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
@@ -5055,7 +5428,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionActivationId"
@@ -5181,7 +5554,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -5346,7 +5719,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/TriggerId"
@@ -5472,7 +5845,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -5585,7 +5958,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -5738,7 +6111,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -5859,7 +6232,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6022,7 +6395,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6187,7 +6560,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6294,6 +6667,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no invocation or successful activation was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -6333,7 +6726,8 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
@@ -6354,7 +6748,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6491,7 +6885,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/TriggerId"
@@ -6608,7 +7002,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6715,6 +7109,26 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "501": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FunctionsDisabledError"
+                }
+              }
+            },
+            "description": "The Functions capability is intentionally disabled."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnativeUnavailableError"
+                }
+              }
+            },
+            "description": "The selected Knative runtime cannot serve workloads; no rollback mutation was attempted."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -6752,14 +7166,28 @@
           "platform_team"
         ],
         "x-downstream-adapters": [
-          "openwhisk"
+          "knative",
+          "local-control-plane"
         ],
         "x-family": "functions",
         "x-owning-service": "control_api",
         "x-rate-limit-class": "provisioning",
         "x-resource-type": "function_rollback",
         "x-scope": "workspace",
-        "x-visibility": "public"
+        "x-visibility": "public",
+        "x-workspace-mutation-authorization": {
+          "allowedWorkspaceRoles": [
+            "workspace_owner",
+            "workspace_admin",
+            "workspace_developer"
+          ],
+          "deniedWorkspaceRoles": [
+            "workspace_viewer"
+          ],
+          "dependencyDisclosure": "after_authorization",
+          "workspaceClaim": "workspace_id",
+          "workspaceClaimMatch": "required"
+        }
       }
     },
     "/v1/functions/actions/{resourceId}/storage-triggers": {
@@ -6773,7 +7201,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6939,7 +7367,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/TriggerId"
@@ -7066,7 +7494,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           }
         ],
         "responses": {
@@ -7191,7 +7619,7 @@
             "$ref": "#/components/parameters/XCorrelationId"
           },
           {
-            "$ref": "#/components/parameters/ResourceId"
+            "$ref": "#/components/parameters/FunctionActionId"
           },
           {
             "$ref": "#/components/parameters/FunctionVersionId"

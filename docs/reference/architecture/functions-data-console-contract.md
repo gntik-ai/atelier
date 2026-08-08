@@ -73,6 +73,8 @@ action, the delete path removes the current `fn_actions` row, retained `fn_actio
 The Knative delete helper treats an already-absent service as a clean success so retries do not leave
 the console stuck on cluster garbage-collection timing.
 
+## Authorization and isolation
+
 Workspace function listing is tenant-scoped. The workspace-scoped LIST routes —
 `GET /v1/functions/workspaces/{workspaceId}/inventory` and
 `GET /v1/functions/workspaces/{workspaceId}/actions` — resolve the addressed workspace against the
@@ -80,10 +82,10 @@ caller's verified tenant before returning any function data. When the caller's t
 the workspace, or the workspace does not exist, the control-plane returns a uniform `403` with no
 function data and no field that distinguishes "not yours" from "does not exist" (no existence
 oracle); it never returns another tenant's function metadata or `source.inlineCode`. A
-superadmin/internal caller (no bound tenant) may read any workspace's functions. The store query
-backing these routes also carries the caller's tenant as a predicate (`fn_actions.tenant_id`) as
-defense-in-depth. No public route or response field changes — the `403` response is already declared
-for both routes, so the runtime is brought into agreement with the published contract.
+platform-trusted caller may read across tenants only on platform-observability routes. Function
+resource routes require a verified workspace claim matching the addressed workspace; an actor type,
+`superadmin` label, or internal flag alone is never a workspace grant. The store query also carries
+the caller's tenant as a predicate (`fn_actions.tenant_id`) as defense-in-depth.
 
 Workspace function deploy/update is also tenant-scoped. `POST /v1/functions/actions` (create) and
 `PATCH /v1/functions/actions/{actionId}` (update) share one handler, which resolves the body
@@ -91,7 +93,19 @@ Workspace function deploy/update is also tenant-scoped. `POST /v1/functions/acti
 the caller's tenant does not own the workspace, or the workspace does not exist, the control-plane
 returns a uniform `403` and performs no write — it never creates or overwrites an `fn_actions` row
 and never deploys a Knative service into another tenant's workspace, and (as with the LIST routes)
-the response does not distinguish a foreign workspace from a non-existent one. A superadmin/internal
-caller (no bound tenant) may deploy into any workspace. No public route or response field changes —
-the `403` response is already declared for both the POST and PATCH routes, so the runtime is brought
-into agreement with the published contract.
+the response does not distinguish a foreign workspace from a non-existent one. Mutation requires an
+allowed workspace role (`workspace_owner`, `workspace_admin`, or `workspace_developer`) and a
+matching verified workspace claim. Tenant owner/admin, platform operator, internal actor, and
+actor-type-only superadmin credentials are denied.
+
+Create and update return HTTP `202` with the exact seven-field `GatewayMutationAccepted` envelope:
+`accepted`, `operation`, `resourceType`, `resourceId`, `status`, `correlationId`, and
+`idempotencyKey`. Delete returns `FunctionDeletionAccepted`. Neither response proves that a Knative
+Service has already disappeared.
+
+Direct and aggregate teardown use stable tenant/function ownership labels, GET verification, and
+UID/resourceVersion delete preconditions. An outage, ownership mismatch, replacement, or conflict
+fails closed: the API returns `202 cleanup_pending`, retains metadata and ownership rows, and
+creates/reuses an owner-scoped durable obligation. Recovery is idempotent and never selects an
+adjacent owner's resource by an unscoped name. Hosted MCP state is the durable `falcone_mcp_state`
+snapshot, retained until it can be reconciled safely.

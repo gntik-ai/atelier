@@ -11,8 +11,8 @@
  * bbx-fn-scope-05: Tenant B principal reads activation logs of Tenant A fn → 404
  * bbx-fn-scope-06: Tenant B principal reads activation result of Tenant A fn → 404
  * bbx-fn-scope-07: Tenant B principal reads versions of Tenant A function → 404
- * bbx-fn-scope-08: Tenant A principal reads its own function → 200 (own-tenant positive case)
- * bbx-fn-scope-09: Superadmin can read any tenant's function → 200 (superadmin bypass)
+ * bbx-fn-scope-08: Same-tenant tenant owner reads a Function without a workspace claim → 200
+ * bbx-fn-scope-09: Tenantless platform-team/superadmin readers read a tenant Function → 200
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -103,7 +103,7 @@ function fakePool({ fnRow = FN_A, actRow = ACT_A } = {}) {
 const IDENTITY_A = {
   sub: 'user-a-1',
   tenantId: 'tenant-a',
-  workspaceId: 'ws-a',
+  workspaceId: null,
   actorType: 'tenant_owner',
   roles: ['tenant_owner'],
   scopes: [],
@@ -127,6 +127,18 @@ const IDENTITY_SA = {
   actorType: 'superadmin',
   roles: ['superadmin'],
   scopes: [],
+  trust: { kind: 'platform', realm: 'in-falcone-platform' },
+};
+
+/** Platform-team read-only identity with no tenant or workspace binding. */
+const IDENTITY_PLATFORM_AUDITOR = {
+  sub: 'platform-auditor-1',
+  tenantId: null,
+  workspaceId: null,
+  actorType: 'platform_auditor',
+  roles: ['platform_auditor'],
+  scopes: [],
+  trust: { kind: 'platform', realm: 'in-falcone-platform' },
 };
 
 function ctx(identity, params = {}, body = {}, poolOpts = {}) {
@@ -137,6 +149,7 @@ function ctx(identity, params = {}, body = {}, poolOpts = {}) {
     body,
     identity,
     callerContext: { actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
+    knativeRuntime: { functionsEnabled: true, status: () => ({ mode: 'managed', state: 'ready', reason: 'READY' }), canServeWorkloads: () => true },
   };
 }
 
@@ -212,9 +225,14 @@ test('bbx-fn-scope-07: fnVersions cross-tenant lookup returns 404', async () => 
 });
 
 // ===========================================================================
-// bbx-fn-scope-08: Tenant A reads its own function → 200 (positive case)
-// ===========================================================================
-test('bbx-fn-scope-08: fnActionDetail own-tenant access returns 200', async () => {
+/**
+ * bbx-fn-scope-08 | fn-function-workspace-isolation
+ * OpenSpec #### Scenario: Degraded metadata read remains honest
+ *
+ * Function reads retain the established tenant-wide tenant-owner contract. A
+ * workspace claim is required for mutations, not for this legitimate read.
+ */
+test('bbx-fn-scope-08: same-tenant tenant owner reads its Function without a workspace claim', async () => {
   const result = await FN_HANDLERS.fnActionDetail(ctx(IDENTITY_A));
   assert.equal(result.statusCode, 200,
     `expected 200 for own-tenant fn access, got ${result.statusCode}`);
@@ -222,11 +240,18 @@ test('bbx-fn-scope-08: fnActionDetail own-tenant access returns 200', async () =
 });
 
 // ===========================================================================
-// bbx-fn-scope-09: Superadmin can read any tenant's function → 200 (bypass)
-// ===========================================================================
-test('bbx-fn-scope-09: fnActionDetail superadmin can read any tenant function (cross-tenant bypass)', async () => {
-  const result = await FN_HANDLERS.fnActionDetail(ctx(IDENTITY_SA));
-  assert.equal(result.statusCode, 200,
-    `expected 200 for superadmin fn access, got ${result.statusCode}`);
-  assert.equal(result.body?.resourceId, 'fn_aaaaaaaaaaaa', 'superadmin must receive the function resource');
+/**
+ * bbx-fn-scope-09 | fn-function-workspace-isolation
+ * OpenSpec #### Scenario: Degraded metadata read remains honest
+ *
+ * Platform-trusted readers are intentionally tenantless. This does not grant
+ * ordinary tenant identities a cross-tenant or wrong-workspace bypass.
+ */
+test('bbx-fn-scope-09: platform-trusted platform-team and superadmin identities can read a tenant Function', async () => {
+  for (const identity of [IDENTITY_PLATFORM_AUDITOR, IDENTITY_SA]) {
+    const result = await FN_HANDLERS.fnActionDetail(ctx(identity));
+    assert.equal(result.statusCode, 200,
+      `expected 200 for ${identity.actorType} fn access, got ${result.statusCode}`);
+    assert.equal(result.body?.resourceId, 'fn_aaaaaaaaaaaa', `${identity.actorType} must receive the function resource`);
+  }
 });

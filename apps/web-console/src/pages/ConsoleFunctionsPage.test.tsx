@@ -781,6 +781,56 @@ describe('ConsoleFunctionsPage', () => {
     expect(screen.getByText(/termina de aprovisionarse/i)).toBeInTheDocument()
   })
 
+  // #933: managed Knative outage — an unavailable runtime makes every write non-actionable and is
+  // explained honestly, without claiming the workload is ready.
+  it('bloquea y explica escrituras cuando el runtime de Knative no está disponible', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory({ actions: [{ ...inventory().actions[0], status: 'unavailable', provisioning: { state: 'unavailable' } }] })
+      if (url === '/v1/functions/actions/res_fn_1') return detail({ status: 'unavailable', provisioning: { state: 'unavailable' } })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    const deleteButton = await screen.findByRole('button', { name: /eliminar función hello-fn/i })
+    expect(deleteButton).toBeDisabled()
+    expect(deleteButton).toHaveAttribute('aria-describedby', 'functions-write-disabled-reason')
+    expect(screen.getByText(/runtime de knative no está disponible/i)).toHaveAttribute('id', 'functions-write-disabled-reason')
+    await openTab('Invocar')
+    const invokeButton = await screen.findByRole('button', { name: 'Invocar' })
+    expect(invokeButton).toBeDisabled()
+    expect(invokeButton).toHaveAttribute('aria-describedby', 'functions-write-disabled-reason')
+    await openTab('Desplegar')
+    const deployButton = screen.getByRole('button', { name: /actualizar función/i })
+    expect(deployButton).toBeDisabled()
+    expect(deployButton).toHaveAttribute('aria-describedby', 'functions-write-disabled-reason')
+  })
+
+  // #933: a delete during an outage is accepted as `deletion_pending` cleanup, so the resource is
+  // non-actionable (no re-delete, invoke, rollback or update) until cleanup resolves.
+  it('bloquea y explica escrituras cuando la eliminación de la función está pendiente', async () => {
+    mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
+      if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory({ actions: [{ ...inventory().actions[0], status: 'deletion_pending', provisioning: { state: 'deletion_pending' } }] })
+      if (url === '/v1/functions/actions/res_fn_1') return detail({ status: 'deletion_pending', provisioning: { state: 'deletion_pending' } })
+      throw new Error(`Unexpected URL ${url}`)
+    })
+
+    renderPage()
+    await userEvent.click(await screen.findByRole('button', { name: /hello-fn/i }))
+    const deleteButton = await screen.findByRole('button', { name: /eliminar función hello-fn/i })
+    expect(deleteButton).toBeDisabled()
+    expect(deleteButton).toHaveAttribute('aria-describedby', 'functions-write-disabled-reason')
+    expect(screen.getByText(/eliminación de la función está pendiente/i)).toHaveAttribute('id', 'functions-write-disabled-reason')
+    await openTab('Invocar')
+    const invokeButton = await screen.findByRole('button', { name: 'Invocar' })
+    expect(invokeButton).toBeDisabled()
+    expect(invokeButton).toHaveAttribute('aria-describedby', 'functions-write-disabled-reason')
+    await openTab('Desplegar')
+    const deployButton = screen.getByRole('button', { name: /actualizar función/i })
+    expect(deployButton).toBeDisabled()
+    expect(deployButton).toHaveAttribute('aria-describedby', 'functions-write-disabled-reason')
+  })
+
   it('resetea y recarga al cambiar workspace', async () => {
     mockRequestConsoleSessionJson.mockImplementation(async (url: string) => {
       if (url === '/v1/functions/workspaces/wrk_alpha/inventory') return inventory()

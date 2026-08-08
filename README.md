@@ -186,6 +186,14 @@ remain Preview under the not-production-ready posture above:
 | **API gateway** | Single public surface at `/v1` with required idempotency keys, correlation IDs, request validation and per-route timeouts/retries. |
 | **Web console** | React + Vite admin UI for tenants, workspaces, members, databases, storage, functions, events, plans, quotas and observability. |
 
+> [!IMPORTANT]
+> **Managed Knative is proposed and blocked, not available.** The application-side runtime contract
+> is documented in the [managed Knative integration proposal](docs/installation/managed-knative-proposed.md),
+> but the companion chart implementation and required disposable Kubernetes 1.34/OpenShift 4.21
+> cluster-admin acceptance are incomplete. Continue to use the
+> [currently documented Knative prerequisite](docs-site/guide/installation.md#chart-shape); do not
+> treat the proposal as an installation or production-support procedure.
+
 ---
 
 ## QuickStart with Docker Compose

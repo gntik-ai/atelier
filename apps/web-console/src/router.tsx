@@ -47,6 +47,7 @@ import { ConsoleOperationDetailPage } from '@/pages/ConsoleOperationDetailPage'
 import { ConsoleFunctionsPage } from '@/pages/ConsoleFunctionsPage'
 import { ConsoleMcpServerDetailPage } from '@/pages/ConsoleMcpServerDetailPage'
 import { ConsoleWorkspaceSecretsPage } from '@/pages/ConsoleWorkspaceSecretsPage'
+import { ConsoleRuntimePage } from '@/pages/ConsoleRuntimePage'
 // Eager (not lazy) for the same reason as the block above (#755): the secret-rotation table's
 // "Rotate"/"History" buttons reach these routes via a synchronous in-app `navigate()`, so a lazy
 // element would suspend synchronously and throw React #426 (blanking the whole shell).
@@ -104,6 +105,17 @@ function RequireSuperadminRoute({ children }: { children: JSX.Element }) {
       title="Necesitas permisos de superadmin"
       description="Esta sección administra recursos globales de la plataforma. Tu sesión actual no incluye el rol superadmin, así que la consola conserva esta ruta y muestra el bloqueo en lugar de enviarte a otra página sin explicación."
     />
+  )
+}
+
+export function isPlatformObserverRole(role: string): boolean {
+  return ['superadmin', 'platform_admin', 'platform_operator', 'platform_auditor'].includes(role)
+}
+
+function RequirePlatformObserverRoute({ children }: { children: JSX.Element }) {
+  const roles = readConsoleShellSession()?.principal?.platformRoles ?? []
+  return roles.some(isPlatformObserverRole) ? children : (
+    <ConsoleAccessDeniedState title="Estado de plataforma restringido" description="Esta vista está disponible para operadores de plataforma. Solicita acceso a un administrador para consultar el runtime global." />
   )
 }
 
@@ -363,6 +375,7 @@ export const appRoutes = [
             path: 'observability',
             element: <ConsoleObservabilityPage />
           },
+          { path: 'runtime', element: <RequirePlatformObserverRoute><ConsoleRuntimePage /></RequirePlatformObserverRoute>, handle: { platformGlobal: true } },
           {
             path: 'service-accounts',
             element: <ConsoleServiceAccountsPage />

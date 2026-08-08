@@ -58,6 +58,10 @@ packages/provisioning-orchestrator/src/migrations/117-tenant-config-reprovision.
 packages/provisioning-orchestrator/src/migrations/118-config-preflight.sql
 # config_preflight_audit_log — written by tenant-config-preflight (insertPreflightAuditLog).
 
+packages/provisioning-orchestrator/src/migrations/122-knative-runtime-cleanup.sql
+# runtime_cleanup_obligations — durable cleanup queue for managed runtime resources.
+# Keep this migration applied while obligations exist; rollback must not drop the table.
+
 # --- workspace-docs-service (packages/workspace-docs-service/migrations) ---
 
 packages/workspace-docs-service/migrations/087-workspace-doc-notes.sql

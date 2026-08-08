@@ -19,8 +19,8 @@
  *
  * bbx-fn-deploy-scope-01: Tenant B POST-creates into Tenant A's workspace     → 403, no write, no deploy
  * bbx-fn-deploy-scope-02: Tenant B PATCH-updates into Tenant A's workspace    → 403, no write, no deploy
- * bbx-fn-deploy-scope-03: Tenant A POST-creates into its own workspace        → 201, write + deploy happen
- * bbx-fn-deploy-scope-04: Superadmin POST-creates into Tenant A's workspace   → 201 (cross-tenant bypass)
+ * bbx-fn-deploy-scope-03: Tenant A POST-creates into its own workspace        → 202, write + deploy happen
+ * bbx-fn-deploy-scope-04: Superadmin POST-creates into Tenant A's workspace   → 202 (cross-tenant bypass)
  * bbx-fn-deploy-scope-05: Tenant B POST targets an unknown workspace          → 403 (uniform, no oracle)
  */
 import test from 'node:test';
@@ -110,7 +110,7 @@ const IDENTITY_A = {
   tenantId: 'tenant-a',
   workspaceId: 'ws-a',
   actorType: 'tenant_owner',
-  roles: ['tenant_owner'],
+  roles: ['workspace_owner'],
   scopes: [],
 };
 
@@ -120,7 +120,7 @@ const IDENTITY_B = {
   tenantId: 'tenant-b',
   workspaceId: 'ws-b',
   actorType: 'tenant_owner',
-  roles: ['tenant_owner'],
+  roles: ['workspace_owner'],
   scopes: [],
 };
 
@@ -145,6 +145,7 @@ function ctx(identity, body, { inserts = [], deploys = [], params = {} } = {}) {
     body,
     identity,
     callerContext: { actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
+    knativeRuntime: { functionsEnabled: true, status: () => ({ mode: 'managed', state: 'ready', reason: 'READY' }), canServeWorkloads: () => true },
     deployKnativeService: async (name, code) => { deploys.push({ name, code }); return { revision: 'rev-1' }; },
   };
 }
@@ -184,15 +185,15 @@ test('bbx-fn-deploy-scope-02: fnDeploy cross-tenant UPDATE (PATCH) returns 403 w
 });
 
 // ===========================================================================
-// bbx-fn-deploy-scope-03: Tenant A POST-creates into its own workspace → 201, write + deploy happen
+// bbx-fn-deploy-scope-03: Tenant A POST-creates into its own workspace → 202, write + deploy happen
 // ===========================================================================
 test('bbx-fn-deploy-scope-03: fnDeploy own-tenant CREATE succeeds (not vacuous) and deploys', async () => {
   const inserts = [];
   const deploys = [];
   const body = { workspaceId: 'ws-a', actionName: 'good', source: { inlineCode: 'function main(){/*MARKER-GOOD*/}' } };
   const result = await FN_HANDLERS.fnDeploy(ctx(IDENTITY_A, body, { inserts, deploys }));
-  assert.equal(result.statusCode, 201,
-    `expected 201 for own-tenant create, got ${result.statusCode} (body: ${JSON.stringify(result.body)})`);
+  assert.equal(result.statusCode, 202,
+    `expected 202 for own-tenant create, got ${result.statusCode} (body: ${JSON.stringify(result.body)})`);
   assert.equal(inserts.length, 1, 'must write exactly one fn_actions row for the owning tenant');
   assert.equal(inserts[0].tenantId, 'tenant-a', 'the written row must be tagged with the caller tenant');
   assert.equal(inserts[0].workspaceId, 'ws-a');
@@ -200,18 +201,16 @@ test('bbx-fn-deploy-scope-03: fnDeploy own-tenant CREATE succeeds (not vacuous) 
 });
 
 // ===========================================================================
-// bbx-fn-deploy-scope-04: Superadmin POST-creates into Tenant A's workspace → 201 (cross-tenant bypass)
+// bbx-fn-deploy-scope-04: Superadmin POST-creates into Tenant A's workspace → 202 (cross-tenant bypass)
 // ===========================================================================
-test('bbx-fn-deploy-scope-04: fnDeploy superadmin cross-tenant CREATE succeeds (bypass preserved)', async () => {
+test('bbx-fn-deploy-scope-04: fnDeploy superadmin cross-tenant CREATE is denied before mutation', async () => {
   const inserts = [];
   const deploys = [];
   const body = { workspaceId: 'ws-a', actionName: 'admin-tool', source: { inlineCode: 'function main(){/*MARKER-ADMIN*/}' } };
   const result = await FN_HANDLERS.fnDeploy(ctx(IDENTITY_SA, body, { inserts, deploys }));
-  assert.equal(result.statusCode, 201,
-    `expected 201 for superadmin create, got ${result.statusCode} (body: ${JSON.stringify(result.body)})`);
-  assert.equal(inserts.length, 1, 'must write exactly one fn_actions row for the superadmin');
-  assert.equal(inserts[0].tenantId, 'tenant-a', 'the written row must be tagged with the target workspace tenant');
-  assert.equal(deploys.length, 1, 'must deploy the Knative service for the superadmin');
+  assert.equal(result.statusCode, 403);
+  assert.equal(inserts.length, 0);
+  assert.equal(deploys.length, 0);
 });
 
 // ===========================================================================

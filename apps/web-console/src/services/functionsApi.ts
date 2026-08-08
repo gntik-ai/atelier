@@ -56,11 +56,25 @@ export interface FunctionRecord {
 }
 
 export interface GatewayMutationAccepted {
-  requestId?: string
-  correlationId?: string
-  resourceId?: string
-  status?: string
-  acceptedAt?: string
+  acceptedAt: string
+  correlationId: string
+  family: string
+  requestId: string
+  resourceId: string
+  resourceType: string
+  status: string
+}
+
+// Function delete has its own accepted envelope (change: add-managed-knative-serving, #933):
+// a delete while the Knative runtime is unavailable is atomically recorded as `deletion_pending`
+// rather than reporting the Knative Service gone, so the response is the deletion-specific shape
+// (not the generic GatewayMutationAccepted returned by deploy/update).
+export interface FunctionDeletionAccepted {
+  acceptedAt: string
+  correlationId: string
+  requestId: string
+  resourceId: string
+  status: 'accepted' | 'deletion_pending'
 }
 
 export interface InvocationResult {
@@ -118,8 +132,8 @@ export function deployFunction(
   workspaceId: string,
   spec: LegacyFunctionDeploySpec | FunctionActionWriteRequest,
   tenantId?: string
-): Promise<FunctionRecord> {
-  return requestConsoleSessionJson<FunctionRecord>('/v1/functions/actions', {
+): Promise<GatewayMutationAccepted> {
+  return requestConsoleSessionJson<GatewayMutationAccepted>('/v1/functions/actions', {
     method: 'POST',
     body: toFunctionActionWriteRequest(workspaceId, spec, tenantId) as unknown as JsonValue
   })
@@ -129,8 +143,8 @@ export function getFunction(resourceId: string): Promise<FunctionRecord> {
   return requestConsoleSessionJson<FunctionRecord>(actionResourceBase(resourceId))
 }
 
-export function deleteFunction(resourceId: string, idempotencyKey?: string): Promise<GatewayMutationAccepted> {
-  return requestConsoleSessionJson<GatewayMutationAccepted>(actionResourceBase(resourceId), {
+export function deleteFunction(resourceId: string, idempotencyKey?: string): Promise<FunctionDeletionAccepted> {
+  return requestConsoleSessionJson<FunctionDeletionAccepted>(actionResourceBase(resourceId), {
     method: 'DELETE',
     ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {})
   })
