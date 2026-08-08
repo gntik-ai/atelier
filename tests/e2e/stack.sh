@@ -470,7 +470,6 @@ preserve_cleanup() {
     echo "Preserve-existing cleanup found changed adjacent resource UIDs." >&2
     return 1
   }
-  rm -f "$ACTIVE_FILE"
   preserve_remove_state || return 1
   echo ">> Removed the exact E2E Helm release; the attested namespace and adjacent resources were preserved."
 }
