@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ID="${1:?usage: run-issue.sh <change-id>}"
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl + a local cluster required." >&2; exit 2; }
-command -v npx >/dev/null 2>&1 || { echo "Install Playwright first: npm i -D @playwright/test && npx playwright install --with-deps" >&2; exit 2; }
+npx playwright --version >/dev/null 2>&1 || { echo "Install Playwright first: npm i -D @playwright/test && npx playwright install --with-deps" >&2; exit 2; }
 
 # Isolate ownership/proof records so concurrent issue runs cannot clean one
 # another.  This directory contains resource identities and UIDs, never values.
@@ -17,8 +17,12 @@ cleanup() {
   set +e
   bash stack.sh down
   cleanup_result=$?
-  rm -f "$HARNESS_STATE_DIR"/*
-  rmdir "$HARNESS_STATE_DIR" 2>/dev/null || true
+  if [ "$cleanup_result" -eq 0 ]; then
+    rm -f "$HARNESS_STATE_DIR"/*
+    rmdir "$HARNESS_STATE_DIR" 2>/dev/null || true
+  else
+    echo "E2E cleanup failed; private ownership evidence retained at: $HARNESS_STATE_DIR" >&2
+  fi
   if [ "$result" -eq 0 ] && [ "$cleanup_result" -ne 0 ]; then result=$cleanup_result; fi
   exit "$result"
 }

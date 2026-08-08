@@ -39,6 +39,10 @@ case "$REL" in
 esac
 
 STATE_KEY="${NS}.${REL}"
+if [ "$MODE" = "preserve-existing" ] && [ -z "${E2E_HARNESS_STATE_DIR:-}" ]; then
+  echo "E2E_HARNESS_STATE_DIR is mandatory with E2E_NAMESPACE_MODE=preserve-existing." >&2
+  exit 2
+fi
 STATE_DIR="${E2E_HARNESS_STATE_DIR:-tests/e2e/.harness-state-${STATE_KEY}}"
 ACTIVE_FILE="$STATE_DIR/active"
 PIDFILE="tests/e2e/.port-forward.pids"
@@ -72,21 +76,27 @@ find_chart() {
 }
 
 healthy() {
-  echo ">> Verifying ALL services are operational ..."
-  # Iterates EVERY Deployment and StatefulSet in the namespace, so the FerretDB gateway
-  # (Deployment) and DocumentDB engine (StatefulSet) are auto-covered when E2E_FERRETDB=true —
-  # no FerretDB-specific wait logic is needed (add-ferretdb-document-store-e2e #464, task 8.3).
-  for dep in $(kubectl get deployment -n "$NS" -o name 2>/dev/null); do
+  local selector=()
+  if [ "$MODE" = "preserve-existing" ]; then
+    selector=(-l "app.kubernetes.io/instance=$REL")
+    echo ">> Verifying the installed Helm release is operational ..."
+  else
+    echo ">> Verifying ALL services are operational ..."
+  fi
+  # Ephemeral mode covers every Deployment and StatefulSet in its private namespace.
+  # Preserve mode scopes every health read to this run's Helm release so adjacent
+  # workloads cannot affect the result or appear in harness output.
+  for dep in $(kubectl get deployment -n "$NS" "${selector[@]}" -o name 2>/dev/null); do
     kubectl rollout status "$dep" -n "$NS" --timeout=10m
   done
-  for sts in $(kubectl get statefulset -n "$NS" -o name 2>/dev/null); do
+  for sts in $(kubectl get statefulset -n "$NS" "${selector[@]}" -o name 2>/dev/null); do
     kubectl rollout status "$sts" -n "$NS" --timeout=10m
   done
   local bad notready
-  bad=$(kubectl get pods -n "$NS" --no-headers 2>/dev/null | awk 'NF >= 3 && $3 !~ /^(Running|Completed)$/ {c++} END {print c+0}')
-  notready=$(kubectl get pods -n "$NS" --no-headers 2>/dev/null | awk '$3=="Running"{split($2,a,"/"); if(a[1]!=a[2]) c++} END{print c+0}')
+  bad=$(kubectl get pods -n "$NS" "${selector[@]}" --no-headers 2>/dev/null | awk 'NF >= 3 && $3 !~ /^(Running|Completed)$/ {c++} END {print c+0}')
+  notready=$(kubectl get pods -n "$NS" "${selector[@]}" --no-headers 2>/dev/null | awk '$3=="Running"{split($2,a,"/"); if(a[1]!=a[2]) c++} END{print c+0}')
   if [ "${bad:-0}" -gt 0 ] || [ "${notready:-0}" -gt 0 ]; then
-    echo "!! Unhealthy pods in '$NS':"; kubectl get pods -n "$NS"; exit 1
+    echo "!! Unhealthy pods in '$NS':"; kubectl get pods -n "$NS" "${selector[@]}"; exit 1
   fi
   echo ">> All pods Running/Completed and Ready."
 }
@@ -131,8 +141,8 @@ preserve_release_storage() {
   return 1
 }
 
-# Record only object identity and UID.  In particular, never serialize Secret data
-# while proving that resources adjacent to this run survive byte-for-byte by UID.
+# Record only object identity and UID. In particular, never serialize Secret data
+# while proving that adjacent identities and UIDs survive this run.
 preserve_snapshot_adjacent() {
   local destination="$1" resource resources dynamic_snapshot
   dynamic_snapshot="${destination}.dynamic"
@@ -399,7 +409,7 @@ preserve_up_exit() {
 }
 
 preserve_up() {
-  local actual_uid releases chart identities values=()
+  local actual_uid releases chart identities install_help values=() rollback_flag=()
   umask 077
   PRESERVE_UP_ARMED=0
   trap preserve_up_exit EXIT
@@ -436,7 +446,7 @@ preserve_up() {
     return 2
   }
 
-  releases="$(helm list --all -n "$NS" -o json 2>/dev/null)" || {
+  releases="$(helm list -n "$NS" -o json 2>/dev/null)" || {
     echo "Could not prove that the preserve-existing namespace has no Helm releases." >&2
     return 2
   }
@@ -452,6 +462,18 @@ preserve_up() {
   }
   case "$chart" in -*|*$'\n'*|*$'\r'*) echo "E2E_HELM_CHART is not a safe chart reference." >&2; return 2 ;; esac
   if [ -n "${E2E_HELM_VALUES:-}" ]; then values=(-f "$E2E_HELM_VALUES"); fi
+  install_help="$(helm install --help 2>/dev/null)" || {
+    echo "Could not inspect Helm's failure-rollback capability." >&2
+    return 2
+  }
+  if grep -q -- '--rollback-on-failure' <<<"$install_help"; then
+    rollback_flag=(--rollback-on-failure)
+  elif grep -q -- '--atomic' <<<"$install_help"; then
+    rollback_flag=(--atomic)
+  else
+    echo "Helm does not expose a supported install failure-rollback flag." >&2
+    return 2
+  fi
   PRESERVE_MANIFEST="$(mktemp "${TMPDIR:-/tmp}/falcone-preserve-render.XXXXXX")"
   identities="$STATE_DIR/rendered-identities"
   if ! helm template "$REL" "$chart" "${values[@]}" --namespace "$NS" --include-crds --skip-schema-validation >"$PRESERVE_MANIFEST" 2>"$STATE_DIR/template.log"; then
@@ -476,7 +498,7 @@ preserve_up() {
   PRESERVE_UP_ARMED=1
 
   echo ">> Installing one preflighted Helm release into the attested existing namespace ..."
-  if ! helm install "$REL" "$chart" "${values[@]}" -n "$NS" --skip-schema-validation --server-side=false --wait --timeout 15m >"$STATE_DIR/install.log" 2>&1; then
+  if ! helm install "$REL" "$chart" "${values[@]}" -n "$NS" "${rollback_flag[@]}" --skip-schema-validation --server-side=false --wait --timeout 15m >"$STATE_DIR/install.log" 2>&1; then
     preserve_release_storage || true
     echo "Preserve-existing Helm install failed; trap cleanup is removing any verified release." >&2
     return 1
