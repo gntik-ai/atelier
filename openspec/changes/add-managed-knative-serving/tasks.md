@@ -15,22 +15,22 @@
 
 ## 2. Chart-side managed bundle (`gntik-ai/falcone-charts`)
 
-- [ ] T04 Vendor a reviewed Knative Serving and Kourier release with an upstream revision,
+- [x] T04 Vendor a reviewed Knative Serving and Kourier release with an upstream revision,
   original/patched manifest checksums, license inventory, SBOMs, and a complete image lock.
-- [ ] T05 Replace every mutable image reference, including the current Envoy tag, with an immutable
+- [x] T05 Replace every mutable image reference, including the current Envoy tag, with an immutable
   digest and implement deterministic Harbor/private-registry rewrites with no public-registry pulls.
-- [ ] T06 Implement explicit `managed`, `external`, and `disabled` values plus compatibility
+- [x] T06 Implement explicit `managed`, `external`, and `disabled` values plus compatibility
   validation; do not make the managed bundle an unconditional umbrella-chart dependency.
-- [ ] T07 Implement fail-closed preflight for Kubernetes compatibility, cluster-scoped authority,
+- [x] T07 Implement fail-closed preflight for Kubernetes compatibility, cluster-scoped authority,
   CRD/storage state, existing namespaces/resources, and exclusive Operator/raw/Falcone ownership.
-- [ ] T08 Implement ordered CRD establishment; namespace/RBAC/configuration/Service; webhook backend
+- [x] T08 Implement ordered CRD establishment; namespace/RBAC/configuration/Service; webhook backend
   endpoint/certificate; AdmissionRegistration CA/admission probe; remaining Serving; Kourier; and
   smoke `ksvc` phases with bounded readiness, diagnostics, and cleanup behavior.
-- [ ] T09 Patch Kourier for OpenShift by removing fixed UID/GID and retaining non-root,
+- [x] T09 Patch Kourier for OpenShift by removing fixed UID/GID and retaining non-root,
   no-privilege-escalation, `RuntimeDefault` seccomp, and dropped capabilities; require no custom SCC.
-- [ ] T10 Implement one-minor upgrade orchestration, required storage migrations, compatibility-aware
+- [x] T10 Implement one-minor upgrade orchestration, required storage migrations, compatibility-aware
   rollback, recovery records, retain-by-default uninstall, explicit purge, and owner-safe handoff.
-- [ ] T11 Add chart/render/policy tests for Kubernetes and OpenShift, collision cases, digest-only
+- [x] T11 Add chart/render/policy tests for Kubernetes and OpenShift, collision cases, digest-only
   images, disconnected Harbor, `restricted-v2`, install ordering, upgrades, rollback, and uninstall.
 
 ## 3. Falcone runtime and public contract (`gntik-ai/falcone`)

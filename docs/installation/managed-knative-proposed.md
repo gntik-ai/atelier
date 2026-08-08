@@ -1,15 +1,19 @@
 # Managed Knative installation — proposed integration contract
 
 > Status: **proposed and unavailable for production use**. This page documents the Falcone-side
-> integration being built under issues `gntik-ai/falcone#933` and
-> `gntik-ai/falcone-charts#8`. It is not an installation procedure and does not mean that Falcone
-> currently installs or supports managed Knative. The existing Knative prerequisite remains
-> authoritative until both repositories pass the coordinated acceptance described below.
+> integration tracked under issue `gntik-ai/falcone#933`; the companion chart bundle and lifecycle
+> command were delivered in `gntik-ai/falcone-charts#8` (merged via PR #9). It is not an
+> installation procedure and does not mean that Falcone currently installs or supports managed
+> Knative. The existing Knative prerequisite remains authoritative until both repositories pass the
+> coordinated acceptance described below.
 
-As of 2026-08-07, `gntik-ai/falcone-charts#8` is open and unimplemented. There is also no authorized
-disposable remote OpenShift 4.21 or Kubernetes 1.34 cluster-admin target for the required managed
-acceptance. Consequently, the application-side contracts described here are source-level behavior,
-not release, deployment, or support availability; live managed acceptance is blocked.
+As of 2026-08-08, `gntik-ai/falcone-charts#8` is merged (PR #9) and the `falcone-knative` runtime
+chart 0.1.0 is published, so the chart-side bundle and cluster-administrator lifecycle command
+exist. There is still no authorized disposable remote OpenShift 4.21 or Kubernetes 1.34
+cluster-admin target on which the required managed acceptance has run. Consequently, the
+application-side and chart-side contracts described here are source-level behavior, not release,
+deployment, or support availability; live managed acceptance remains blocked and managed mode stays
+unavailable.
 
 ## Audience and outcome
 

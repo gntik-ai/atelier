@@ -2,10 +2,11 @@
 
 > Maturity: **proposed**. The runtime status API and Function gate are implemented for issue #933,
 > as are the application-side hosted MCP and web-console contracts documented here. Managed
-> installation remains unavailable: `gntik-ai/falcone-charts#8` is open and unimplemented, and no
-> authorized disposable remote OpenShift 4.21 or Kubernetes 1.34 cluster-admin acceptance target is
-> available. These source-level contracts do not establish release, deployment, or support
-> availability; live managed acceptance is blocked.
+> installation remains unavailable: although `gntik-ai/falcone-charts#8` is merged (PR #9) and the
+> `falcone-knative` runtime chart 0.1.0 is published, no authorized disposable remote OpenShift 4.21
+> or Kubernetes 1.34 cluster-admin acceptance target has yet run the required acceptance. These
+> source-level contracts do not establish release, deployment, or support availability; live managed
+> acceptance is blocked.
 
 ## Scope and actors
 
@@ -28,9 +29,10 @@ replacement installation procedure.
 Coordinated managed delivery is tracked by
 [`gntik-ai/falcone#933`](https://github.com/gntik-ai/falcone/issues/933) and
 [`gntik-ai/falcone-charts#8`](https://github.com/gntik-ai/falcone-charts/issues/8). Chart issue #8 is
-open and unimplemented. There is no authorized disposable remote OpenShift 4.21 or Kubernetes 1.34
-cluster-admin target, so clean-install, upgrade, rollback, `restricted-v2`, and cleanup acceptance
-have not run and release availability remains blocked.
+merged (PR #9) and the `falcone-knative` runtime chart 0.1.0 is published, so the bundle and
+cluster-administrator lifecycle command are implemented. There is still no authorized disposable
+remote OpenShift 4.21 or Kubernetes 1.34 cluster-admin target, so clean-install, upgrade, rollback,
+`restricted-v2`, and cleanup acceptance have not run and release availability remains blocked.
 
 This reference is grounded in the
 [OpenSpec proposal](../../../openspec/changes/add-managed-knative-serving/proposal.md), the
