@@ -86,12 +86,19 @@ healthy() {
   # Ephemeral mode covers every Deployment and StatefulSet in its private namespace.
   # Preserve mode scopes every health read to this run's Helm release so adjacent
   # workloads cannot affect the result or appear in harness output.
+  local workload_count=0
   for dep in $(kubectl get deployment -n "$NS" "${selector[@]}" -o name 2>/dev/null); do
+    workload_count=$((workload_count + 1))
     kubectl rollout status "$dep" -n "$NS" --timeout=10m
   done
   for sts in $(kubectl get statefulset -n "$NS" "${selector[@]}" -o name 2>/dev/null); do
+    workload_count=$((workload_count + 1))
     kubectl rollout status "$sts" -n "$NS" --timeout=10m
   done
+  if [ "$MODE" = "preserve-existing" ] && [ "$workload_count" -eq 0 ] && [ -z "${E2E_HEALTH_TARGET:-}" ]; then
+    echo "Preserve-existing health check found no release-labelled workloads; set E2E_HEALTH_TARGET to an explicit target." >&2
+    return 1
+  fi
   local bad notready
   bad=$(kubectl get pods -n "$NS" "${selector[@]}" --no-headers 2>/dev/null | awk 'NF >= 3 && $3 !~ /^(Running|Completed)$/ {c++} END {print c+0}')
   notready=$(kubectl get pods -n "$NS" "${selector[@]}" --no-headers 2>/dev/null | awk '$3=="Running"{split($2,a,"/"); if(a[1]!=a[2]) c++} END{print c+0}')
@@ -240,6 +247,43 @@ preserve_render_has_namespace_mutating_hook() {
   ' "$manifest"
 }
 
+preserve_render_has_workload_hook() {
+  awk '
+    function flush() { if (hook && kind ~ /^(Job|Pod|Deployment|StatefulSet|DaemonSet|ReplicaSet|CronJob)$/) bad=1 }
+    function reset() { hook=0; kind="" }
+    BEGIN { reset() }
+    /^---[[:space:]]*$/ { flush(); reset(); next }
+    /^kind:[[:space:]]*/ { line=$0; sub(/^kind:[[:space:]]*/, "", line); kind=line; gsub(/["\047[:space:]]/, "", kind) }
+    /helm\.sh\/hook/ { hook=1 }
+    END { flush(); exit bad ? 0 : 1 }
+  ' "$1"
+}
+
+preserve_resolve_rendered_scopes() {
+  local manifest="$1" api_version kind group version found namespaced
+  while IFS='|' read -r api_version kind; do
+    [ -z "$api_version$kind" ] && continue
+    case "$api_version" in
+      */*) group="${api_version%%/*}"; version="${api_version#*/}" ;;
+      *) group=""; version="$api_version" ;;
+    esac
+    found=0
+    while read -r name short versions namespaced discovered_kind rest; do
+      [ "$discovered_kind" = "$kind" ] || continue
+      case "$versions" in *"$api_version"*|*"$version"*) : ;; *) continue ;; esac
+      found=1
+      if [ "$namespaced" != "true" ]; then
+        echo "Preserve-existing preflight rejected cluster-scoped rendered GVK $api_version/$kind." >&2
+        return 1
+      fi
+    done < <(kubectl api-resources --verbs=get,list -o wide 2>/dev/null) || return 1
+    if [ "$found" -ne 1 ]; then
+      echo "Preserve-existing preflight could not resolve rendered GVK $api_version/$kind through discovery." >&2
+      return 1
+    fi
+  done < <(awk '/^apiVersion:[[:space:]]*/ { av=$0; sub(/^apiVersion:[[:space:]]*/, "", av); gsub(/["\047[:space:]]/, "", av) } /^kind:[[:space:]]*/ { k=$0; sub(/^kind:[[:space:]]*/, "", k); gsub(/["\047[:space:]]/, "", k); if (av!=""&&k!="") print av "|" k; av=""; k="" }' "$manifest" | sort -u)
+}
+
 preserve_is_cluster_scoped_kind() {
   case "${1,,}" in
     namespace|node|persistentvolume|customresourcedefinition|mutatingwebhookconfiguration|validatingwebhookconfiguration|validatingadmissionpolicy|validatingadmissionpolicybinding|storageclass|priorityclass|clusterrole|clusterrolebinding|apiservice|runtimeclass|podsecuritypolicy|volumeattachment|csidriver|csinode|ingressclass|gatewayclass|flowschema|prioritylevelconfiguration) return 0 ;;
@@ -359,7 +403,17 @@ preserve_cleanup() {
     return 1
   }
 
-  if ! helm status "$REL" -n "$NS" >/dev/null 2>&1; then
+  local status_output status_result
+  status_output="$STATE_DIR/status.log"
+  if helm status "$REL" -n "$NS" >"$status_output" 2>&1; then
+    status_result=0
+  else
+    status_result=$?
+    if ! grep -Eiq 'not[[:space:]-]*found|release:.*not found' "$status_output"; then
+      preserve_release_storage || true
+      echo "Preserve-existing cleanup could not establish Helm release absence; status failed with an ambiguous transport/auth/server error. Evidence remains for retry." >&2
+      return 1
+    fi
     preserve_verify_owned_absent || return 1
     after_snapshot="$STATE_DIR/adjacent-after"
     preserve_snapshot_adjacent "$after_snapshot" || return 1
@@ -496,6 +550,11 @@ preserve_up() {
     return 2
   fi
   preserve_render_identities "$PRESERVE_MANIFEST" "$identities"
+  preserve_resolve_rendered_scopes "$PRESERVE_MANIFEST" || return 2
+  if preserve_render_has_workload_hook "$PRESERVE_MANIFEST"; then
+    echo "Preserve-existing preflight rejected a Helm workload hook." >&2
+    return 2
+  fi
   if preserve_render_has_namespace_mutating_hook "$PRESERVE_MANIFEST"; then
     echo "Preserve-existing preflight rejected a namespace-mutating Helm hook." >&2
     return 2
