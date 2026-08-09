@@ -27,6 +27,7 @@ export interface JsonRequestOptions {
   headers?: HeadersInit
   idempotent?: boolean
   signal?: AbortSignal
+  onResponse?: (metadata: { correlationId?: string }) => void
 }
 
 export function createRequestId(prefix = 'req'): string {
@@ -37,13 +38,24 @@ export function createRequestId(prefix = 'req'): string {
   return `${prefix}_${Math.random().toString(36).slice(2, 14)}`
 }
 
+/** Apply canonical public trace headers while preserving identity and content headers. */
+export function createPublicApiHeaders(input?: HeadersInit): Headers {
+  const headers = new Headers(input)
+  if (!headers.has('X-API-Version')) headers.set('X-API-Version', API_VERSION)
+  if (!headers.has('X-Correlation-Id')) headers.set('X-Correlation-Id', createRequestId('corr'))
+  return headers
+}
+
+/** Raw-response transport for public calls that cannot use requestJson (SSE, downloads, 207/304). */
+export function publicApiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, headers: createPublicApiHeaders(init.headers) })
+}
+
 export async function requestJson<T>(url: string, options: JsonRequestOptions = {}): Promise<T> {
   const method = options.method ?? 'GET'
-  const headers = new Headers({
+  const headers = createPublicApiHeaders({
     Accept: 'application/json',
-    'Content-Type': 'application/json',
-    'X-API-Version': API_VERSION,
-    'X-Correlation-Id': createRequestId('corr')
+    'Content-Type': 'application/json'
   })
 
   if (method !== 'GET' || options.idempotent) {
@@ -55,12 +67,13 @@ export async function requestJson<T>(url: string, options: JsonRequestOptions = 
     headers.set(key, value)
   })
 
-  const response = await fetch(url, {
+  const response = await publicApiFetch(url, {
     method,
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal
   })
+  options.onResponse?.({ correlationId: response.headers.get('x-correlation-id') ?? undefined })
 
   const contentType = response.headers.get('content-type') ?? ''
   const hasJsonBody = contentType.includes('application/json')

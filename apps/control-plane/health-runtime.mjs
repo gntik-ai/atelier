@@ -162,7 +162,6 @@ async function runBounded(adapter, context, timeoutMs) {
       controller.abort();
       reject(Object.assign(new Error('probe timeout'), { code: 'PROBE_TIMEOUT' }));
     }, timeoutMs);
-    timer.unref?.();
   });
 
   try {

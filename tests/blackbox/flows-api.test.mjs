@@ -20,6 +20,8 @@ const TEN = 'ten_bbx_flows';
 const WS = 'ws_bbx_flows';
 const authHeaders = {
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flows-api',
   'x-tenant-id': TEN,
   'x-workspace-id': WS,
   'x-auth-subject': 'admin-flows',

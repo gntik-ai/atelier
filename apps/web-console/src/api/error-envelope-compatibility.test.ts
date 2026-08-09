@@ -18,10 +18,12 @@ const canonicalError = {
 }
 
 function rejectWithCanonicalEnvelope() {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalError), {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(canonicalError), {
     status: 403,
     headers: { 'content-type': 'application/json' },
-  })))
+  }))
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
 }
 
 afterEach(() => vi.unstubAllGlobals())
@@ -37,12 +39,15 @@ describe('custom API clients consume the canonical error envelope', () => {
 
   for (const [name, invoke] of cases) {
     it(`${name} retains the canonical message and code`, async () => {
-      rejectWithCanonicalEnvelope()
+      const fetchMock = rejectWithCanonicalEnvelope()
       await expect(invoke()).rejects.toMatchObject({
         statusCode: 403,
         code: 'GW_FORBIDDEN',
         message: 'Request forbidden',
       })
+      const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
+      expect(headers.get('x-api-version')).toBe('2026-03-26')
+      expect(headers.get('x-correlation-id')).toMatch(/^[A-Za-z0-9._:-]{8,128}$/)
     })
   }
 })

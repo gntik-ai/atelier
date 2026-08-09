@@ -28,6 +28,8 @@ const WS_B = 'ws_sched_b';
 
 const headersFor = (tenantId, workspaceId) => ({
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flow-schedule',
   'x-tenant-id': tenantId,
   'x-workspace-id': workspaceId,
   'x-auth-subject': `admin-${tenantId}`,

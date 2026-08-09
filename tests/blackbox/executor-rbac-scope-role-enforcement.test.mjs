@@ -21,6 +21,10 @@ import { createConnectionRegistry } from '../../apps/control-plane-executor/src/
 
 const TEN = 'tenant_rbac';
 const WS = 'ws_rbac';
+const TRACE_HEADERS = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-rbac-scope',
+};
 
 // API keys keyed by presented secret → scope set. Every key is bound to (TEN, WS).
 const KEY_SCOPES = {
@@ -87,7 +91,7 @@ const keys = (ws = WS) => `/v1/workspaces/${ws}/api-keys`;
 test('bbx-624-01: a data:read key cannot write (POST documents) -> 403', async () => {
   await withServer({}, async ({ baseUrl, mongoCalls }) => {
     const res = await fetch(`${baseUrl}${docs()}`, {
-      method: 'POST', headers: { apikey: 'flc_service_read', 'content-type': 'application/json' },
+      method: 'POST', headers: { ...TRACE_HEADERS, apikey: 'flc_service_read', 'content-type': 'application/json' },
       body: JSON.stringify({ document: { x: 1 } }),
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);
@@ -98,7 +102,7 @@ test('bbx-624-01: a data:read key cannot write (POST documents) -> 403', async (
 test('bbx-624-02: a key without ddl:write cannot run DDL (POST schemas) -> 403', async () => {
   await withServer({}, async ({ baseUrl }) => {
     const res = await fetch(`${baseUrl}${schemas()}`, {
-      method: 'POST', headers: { apikey: 'flc_service_nodll', 'content-type': 'application/json' },
+      method: 'POST', headers: { ...TRACE_HEADERS, apikey: 'flc_service_nodll', 'content-type': 'application/json' },
       body: JSON.stringify({ schemaName: 'probe' }),
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);
@@ -108,7 +112,7 @@ test('bbx-624-02: a key without ddl:write cannot run DDL (POST schemas) -> 403',
 test('bbx-624-03: a SERVICE key with full scopes can write -> 201 (no regression)', async () => {
   await withServer({}, async ({ baseUrl, mongoCalls }) => {
     const res = await fetch(`${baseUrl}${docs()}`, {
-      method: 'POST', headers: { apikey: 'flc_service_full', 'content-type': 'application/json' },
+      method: 'POST', headers: { ...TRACE_HEADERS, apikey: 'flc_service_full', 'content-type': 'application/json' },
       body: JSON.stringify({ document: { x: 1 } }),
     });
     assert.equal(res.status, 201, `expected 201, got ${res.status}: ${await res.clone().text()}`);
@@ -118,7 +122,7 @@ test('bbx-624-03: a SERVICE key with full scopes can write -> 201 (no regression
 
 test('bbx-624-04: a data:read key can read (GET documents) -> 200 (no regression)', async () => {
   await withServer({}, async ({ baseUrl }) => {
-    const res = await fetch(`${baseUrl}${docs()}`, { headers: { apikey: 'flc_service_read' } });
+    const res = await fetch(`${baseUrl}${docs()}`, { headers: { ...TRACE_HEADERS, apikey: 'flc_service_read' } });
     assert.equal(res.status, 200, `expected 200, got ${res.status}: ${await res.clone().text()}`);
   });
 });
@@ -129,7 +133,7 @@ test('bbx-624-04: a data:read key can read (GET documents) -> 200 (no regression
 test('bbx-624-05: a tenant_developer cannot issue API keys -> 403', async () => {
   await withServer({ jwtVerifier: rolesJwtVerifier(['tenant_developer']) }, async ({ baseUrl, apiKeyStore }) => {
     const res = await fetch(`${baseUrl}${keys()}`, {
-      method: 'POST', headers: { authorization: 'Bearer stub', 'content-type': 'application/json' },
+      method: 'POST', headers: { ...TRACE_HEADERS, authorization: 'Bearer stub', 'content-type': 'application/json' },
       body: JSON.stringify({ keyType: 'service', scopes: ['data:read'] }),
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);
@@ -140,7 +144,7 @@ test('bbx-624-05: a tenant_developer cannot issue API keys -> 403', async () => 
 test('bbx-624-06: a tenant_owner may issue API keys -> 201', async () => {
   await withServer({ jwtVerifier: rolesJwtVerifier(['tenant_owner']) }, async ({ baseUrl, apiKeyStore }) => {
     const res = await fetch(`${baseUrl}${keys()}`, {
-      method: 'POST', headers: { authorization: 'Bearer stub', 'content-type': 'application/json' },
+      method: 'POST', headers: { ...TRACE_HEADERS, authorization: 'Bearer stub', 'content-type': 'application/json' },
       body: JSON.stringify({ keyType: 'service', scopes: ['data:read'] }),
     });
     assert.equal(res.status, 201, `expected 201, got ${res.status}: ${await res.clone().text()}`);
@@ -151,7 +155,7 @@ test('bbx-624-06: a tenant_owner may issue API keys -> 201', async () => {
 test('bbx-624-07: a JWT with empty roles cannot issue API keys -> 403 (#773 structural positive role)', async () => {
   await withServer({ jwtVerifier: rolesJwtVerifier([]) }, async ({ baseUrl, apiKeyStore }) => {
     const res = await fetch(`${baseUrl}${keys()}`, {
-      method: 'POST', headers: { authorization: 'Bearer stub', 'content-type': 'application/json' },
+      method: 'POST', headers: { ...TRACE_HEADERS, authorization: 'Bearer stub', 'content-type': 'application/json' },
       body: JSON.stringify({ keyType: 'service' }),
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);

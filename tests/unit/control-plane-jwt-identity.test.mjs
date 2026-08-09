@@ -32,10 +32,14 @@ before(async () => {
 after(async () => { if (server) await new Promise((r) => server.close(r)); });
 
 const keys = (ws) => `${base}/v1/workspaces/${ws}/api-keys`;
+const traceHeaders = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-c03-unit-jwt-identity',
+};
 
 test('a verified Bearer JWT authenticates issuance (no gateway header injection needed)', async () => {
   const res = await fetch(keys('ws-jwt'), {
-    method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer good.jwt.token' },
+    method: 'POST', headers: { ...traceHeaders, 'content-type': 'application/json', authorization: 'Bearer good.jwt.token' },
     body: JSON.stringify({ keyType: 'anon' }),
   });
   assert.equal(res.status, 201);
@@ -45,7 +49,7 @@ test('a verified Bearer JWT authenticates issuance (no gateway header injection 
 test('JWT claims win over a spoofed x-tenant-id header', async () => {
   const res = await fetch(keys('ws-jwt'), {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: 'Bearer good.jwt.token', 'x-tenant-id': 'victim-tenant' },
+    headers: { ...traceHeaders, 'content-type': 'application/json', authorization: 'Bearer good.jwt.token', 'x-tenant-id': 'victim-tenant' },
     body: JSON.stringify({ keyType: 'service' }),
   });
   assert.equal(res.status, 201);
@@ -54,14 +58,16 @@ test('JWT claims win over a spoofed x-tenant-id header', async () => {
 
 test('an invalid Bearer JWT fails closed (401) even with x-tenant-id present', async () => {
   const res = await fetch(keys('ws-jwt'), {
-    headers: { authorization: 'Bearer forged', 'x-tenant-id': 'ten-admin' },
+    headers: { ...traceHeaders, authorization: 'Bearer forged', 'x-tenant-id': 'ten-admin' },
   });
   assert.equal(res.status, 401);
   assert.equal((await res.json()).code, 'GW_UNAUTHENTICATED');
 });
 
 test('no credential → gateway-injected x-tenant-id header still trusted (Helm/OIDC path)', async () => {
-  const res = await fetch(keys('ws-admin'), { headers: { 'x-tenant-id': 'ten-admin', 'x-auth-subject': 'admin-1' } });
+  const res = await fetch(keys('ws-admin'), {
+    headers: { ...traceHeaders, 'x-tenant-id': 'ten-admin', 'x-auth-subject': 'admin-1' },
+  });
   assert.equal(res.status, 200);
   assert.ok(Array.isArray((await res.json()).items));
 });

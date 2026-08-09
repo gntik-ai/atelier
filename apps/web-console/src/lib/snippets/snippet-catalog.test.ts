@@ -30,6 +30,14 @@ describe('SNIPPET_CATALOG', () => {
     }
   })
 
+  it('los snippets HTTP de funciones incluyen versión y correlación públicas', () => {
+    for (const snippet of SNIPPET_CATALOG['serverless-function']) {
+      expect(snippet.codeTemplate).toContain('X-API-Version')
+      expect(snippet.codeTemplate).toContain('2026-03-26')
+      expect(snippet.codeTemplate).toContain('X-Correlation-Id')
+    }
+  })
+
   it('mantiene las notas visibles sin términos de marcador en inglés', () => {
     const visibleCopy = Object.values(SNIPPET_CATALOG)
       .flat()

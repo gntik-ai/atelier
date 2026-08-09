@@ -1,5 +1,17 @@
 {
   "components": {
+    "headers": {
+      "XCorrelationId": {
+        "description": "Correlation identifier resolved for this request. It is preserved when valid at ingress or generated when omitted.",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      }
+    },
     "parameters": {
       "ApplicationId": {
         "description": "Stable external application identifier.",
@@ -211,10 +223,10 @@
         }
       },
       "XCorrelationId": {
-        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, audit flows, and backfilled by the gateway when recovery requires it.",
+        "description": "Optional caller correlation identifier. The gateway preserves one valid value or generates one when omitted, and every response returns the resolved value in X-Correlation-Id.",
         "in": "header",
         "name": "X-Correlation-Id",
-        "required": true,
+        "required": false,
         "schema": {
           "maxLength": 128,
           "minLength": 8,
@@ -3922,7 +3934,12 @@
                 }
               }
             },
-            "description": "Workspace collection returned."
+            "description": "Workspace collection returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3932,7 +3949,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3942,7 +3964,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -3952,7 +3979,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3962,7 +3994,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3972,7 +4009,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3982,7 +4024,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3992,7 +4039,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4051,7 +4103,12 @@
                 }
               }
             },
-            "description": "Workspace mutation accepted."
+            "description": "Workspace mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4061,7 +4118,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4071,7 +4133,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4081,7 +4148,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4091,7 +4163,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4101,7 +4178,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4111,7 +4193,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4121,7 +4208,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4131,7 +4223,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4191,7 +4288,12 @@
                 }
               }
             },
-            "description": "Workspace deletion accepted."
+            "description": "Workspace deletion accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4201,7 +4303,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4211,7 +4318,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4221,7 +4333,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4231,7 +4348,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4241,7 +4363,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4251,7 +4378,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4261,7 +4393,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4271,7 +4408,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4319,7 +4461,12 @@
                 }
               }
             },
-            "description": "Workspace returned."
+            "description": "Workspace returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4329,7 +4476,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4339,7 +4491,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -4349,7 +4506,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4359,7 +4521,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4369,7 +4536,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4379,7 +4551,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4389,7 +4566,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4452,7 +4634,12 @@
                 }
               }
             },
-            "description": "Workspace mutation accepted."
+            "description": "Workspace mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4462,7 +4649,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4472,7 +4664,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4482,7 +4679,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4492,7 +4694,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4502,7 +4709,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4512,7 +4724,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4522,7 +4739,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4532,7 +4754,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4582,7 +4809,12 @@
                 }
               }
             },
-            "description": "Workspace API surface returned."
+            "description": "Workspace API surface returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4592,7 +4824,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4602,7 +4839,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -4612,7 +4854,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4622,7 +4869,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4632,7 +4884,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4642,7 +4899,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4652,7 +4914,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4738,7 +5005,12 @@
                 }
               }
             },
-            "description": "External application collection returned."
+            "description": "External application collection returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4748,7 +5020,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4758,7 +5035,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4768,7 +5050,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4778,7 +5065,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4788,7 +5080,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4798,7 +5095,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4862,7 +5164,12 @@
                 }
               }
             },
-            "description": "External application mutation accepted."
+            "description": "External application mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4872,7 +5179,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4882,7 +5194,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4892,7 +5209,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4902,7 +5224,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4912,7 +5239,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4922,7 +5254,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4932,7 +5269,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4942,7 +5284,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5029,7 +5376,12 @@
                 }
               }
             },
-            "description": "Starter template collection returned."
+            "description": "Starter template collection returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5039,7 +5391,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5049,7 +5406,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5059,7 +5421,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5069,7 +5436,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5079,7 +5451,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5089,7 +5466,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5145,7 +5527,12 @@
                 }
               }
             },
-            "description": "External application returned."
+            "description": "External application returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5155,7 +5542,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5165,7 +5557,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5175,7 +5572,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5185,7 +5587,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5195,7 +5602,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5205,7 +5617,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5215,7 +5632,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5282,7 +5704,12 @@
                 }
               }
             },
-            "description": "External application update accepted."
+            "description": "External application update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5292,7 +5719,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5302,7 +5734,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5312,7 +5749,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5322,7 +5764,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5332,7 +5779,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5342,7 +5794,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5352,7 +5809,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5362,7 +5824,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5372,7 +5839,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5454,7 +5926,12 @@
                 }
               }
             },
-            "description": "Federated provider collection returned."
+            "description": "Federated provider collection returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5464,7 +5941,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5474,7 +5956,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5484,7 +5971,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5494,7 +5986,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5504,7 +6001,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5514,7 +6016,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5524,7 +6031,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5591,7 +6103,12 @@
                 }
               }
             },
-            "description": "Federated provider mutation accepted."
+            "description": "Federated provider mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5601,7 +6118,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5611,7 +6133,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5621,7 +6148,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5631,7 +6163,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5641,7 +6178,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5651,7 +6193,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5661,7 +6208,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5671,7 +6223,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5681,7 +6238,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5739,7 +6301,12 @@
                 }
               }
             },
-            "description": "Federated identity provider returned."
+            "description": "Federated identity provider returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5749,7 +6316,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5759,7 +6331,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5769,7 +6346,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5779,7 +6361,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5789,7 +6376,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5799,7 +6391,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5809,7 +6406,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5879,7 +6481,12 @@
                 }
               }
             },
-            "description": "Federated provider update accepted."
+            "description": "Federated provider update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5889,7 +6496,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5899,7 +6511,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5909,7 +6526,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5919,7 +6541,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5929,7 +6556,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5939,7 +6571,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5949,7 +6586,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5959,7 +6601,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5969,7 +6616,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6034,7 +6686,12 @@
                 }
               }
             },
-            "description": "Workspace clone accepted."
+            "description": "Workspace clone accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6044,7 +6701,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6054,7 +6716,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6064,7 +6731,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6074,7 +6746,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6084,7 +6761,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6094,7 +6776,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6104,7 +6791,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6114,7 +6806,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6164,7 +6861,12 @@
                 }
               }
             },
-            "description": "Workspace documentation returned."
+            "description": "Workspace documentation returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6174,7 +6876,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6184,7 +6891,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6194,7 +6906,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6204,7 +6921,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6214,7 +6936,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6224,7 +6951,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6234,7 +6966,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6299,7 +7036,12 @@
                 }
               }
             },
-            "description": "Workspace documentation note created."
+            "description": "Workspace documentation note created.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6309,7 +7051,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6319,7 +7066,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6329,7 +7081,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6339,7 +7096,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "422": {
             "content": {
@@ -6349,7 +7111,12 @@
                 }
               }
             },
-            "description": "The note content is empty, unsafe, or exceeds the configured length limit."
+            "description": "The note content is empty, unsafe, or exceeds the configured length limit.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6359,7 +7126,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6369,7 +7141,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6379,7 +7156,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6389,7 +7171,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6435,7 +7222,12 @@
         ],
         "responses": {
           "204": {
-            "description": "Workspace documentation note deleted."
+            "description": "Workspace documentation note deleted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6445,7 +7237,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6455,7 +7252,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6465,7 +7267,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6475,7 +7282,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6485,7 +7297,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6495,7 +7312,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6505,7 +7327,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6515,7 +7342,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6576,7 +7408,12 @@
                 }
               }
             },
-            "description": "Workspace documentation note updated."
+            "description": "Workspace documentation note updated.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6586,7 +7423,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6596,7 +7438,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6606,7 +7453,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6616,7 +7468,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "422": {
             "content": {
@@ -6626,7 +7483,12 @@
                 }
               }
             },
-            "description": "The note content is empty, unsafe, or exceeds the configured length limit."
+            "description": "The note content is empty, unsafe, or exceeds the configured length limit.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6636,7 +7498,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6646,7 +7513,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6656,7 +7528,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6666,7 +7543,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6713,7 +7595,12 @@
                 }
               }
             },
-            "description": "Entity returned."
+            "description": "Entity returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6723,7 +7610,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6733,7 +7625,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6743,7 +7640,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6753,7 +7655,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6763,7 +7670,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6773,7 +7685,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6783,7 +7700,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6849,7 +7771,12 @@
                 }
               }
             },
-            "description": "Managed resource mutation accepted."
+            "description": "Managed resource mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6859,7 +7786,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6869,7 +7801,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6879,7 +7816,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6889,7 +7831,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6899,7 +7846,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6909,7 +7861,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6919,7 +7876,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6929,7 +7891,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6984,7 +7951,12 @@
                 }
               }
             },
-            "description": "Managed resource returned."
+            "description": "Managed resource returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6994,7 +7966,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7004,7 +7981,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7014,7 +7996,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7024,7 +8011,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7034,7 +8026,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7044,7 +8041,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7054,7 +8056,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7121,7 +8128,12 @@
                 }
               }
             },
-            "description": "Mutation accepted."
+            "description": "Mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7131,7 +8143,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7141,7 +8158,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7151,7 +8173,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -7161,7 +8188,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7171,7 +8203,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7181,7 +8218,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7191,7 +8233,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7201,7 +8248,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7256,7 +8308,12 @@
                 }
               }
             },
-            "description": "Entity returned."
+            "description": "Entity returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7266,7 +8323,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7276,7 +8338,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7286,7 +8353,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7296,7 +8368,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7306,7 +8383,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7316,7 +8398,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7326,7 +8413,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7381,7 +8473,12 @@
                 }
               }
             },
-            "description": "Entity returned."
+            "description": "Entity returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7391,7 +8488,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7401,7 +8503,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7411,7 +8518,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7421,7 +8533,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7431,7 +8548,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7441,7 +8563,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7451,7 +8578,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7684,7 +8816,12 @@
                 }
               }
             },
-            "description": "Privilege-domain denial history page for the workspace. An authorized query with no matching rows, including an unknown workspace, returns an empty collection with zero total."
+            "description": "Privilege-domain denial history page for the workspace. An authorized query with no matching rows, including an unknown workspace, returns an empty collection with zero total.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7694,7 +8831,12 @@
                 }
               }
             },
-            "description": "Invalid request. A platform_admin omitted the required tenantId."
+            "description": "Invalid request. A platform_admin omitted the required tenantId.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "401": {
             "content": {
@@ -7704,7 +8846,12 @@
                 }
               }
             },
-            "description": "Unauthorized."
+            "description": "Unauthorized.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7714,7 +8861,12 @@
                 }
               }
             },
-            "description": "Forbidden. The role list is not platform_admin or tenant_owner, or a tenant_owner requested another tenant."
+            "description": "Forbidden. The role list is not platform_admin or tenant_owner, or a tenant_owner requested another tenant.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7724,7 +8876,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7734,7 +8891,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7744,7 +8906,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7754,7 +8921,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7802,7 +8974,12 @@
                 }
               }
             },
-            "description": "Service account collection returned."
+            "description": "Service account collection returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7812,7 +8989,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7822,7 +9004,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7832,7 +9019,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7842,7 +9034,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7852,7 +9049,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7862,7 +9064,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7927,7 +9134,12 @@
                 }
               }
             },
-            "description": "Service account mutation accepted."
+            "description": "Service account mutation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7937,7 +9149,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7947,7 +9164,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -7957,7 +9179,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -7967,7 +9194,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7977,7 +9209,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7987,7 +9224,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7997,7 +9239,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8007,7 +9254,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8093,7 +9345,12 @@
                 }
               }
             },
-            "description": "Service account deleted. Its persistence row and Keycloak client are removed and it no longer appears in list results. Idempotent: a subsequent delete or read returns 404."
+            "description": "Service account deleted. Its persistence row and Keycloak client are removed and it no longer appears in list results. Idempotent: a subsequent delete or read returns 404.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8103,7 +9360,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8113,7 +9375,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8123,7 +9390,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -8133,7 +9405,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8143,7 +9420,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8153,7 +9435,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8163,7 +9450,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8173,7 +9465,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8227,7 +9524,12 @@
                 }
               }
             },
-            "description": "Service account returned."
+            "description": "Service account returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8237,7 +9539,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8247,7 +9554,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8257,7 +9569,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8267,7 +9584,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8277,7 +9599,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8287,7 +9614,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8297,7 +9629,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8366,7 +9703,12 @@
                 }
               }
             },
-            "description": "Credential issuance accepted."
+            "description": "Credential issuance accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8376,7 +9718,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8386,7 +9733,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8396,7 +9748,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -8406,7 +9763,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -8416,7 +9778,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8426,7 +9793,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8436,7 +9808,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8446,7 +9823,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8456,7 +9838,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8526,7 +9913,12 @@
                 }
               }
             },
-            "description": "Credential revocation accepted."
+            "description": "Credential revocation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8536,7 +9928,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8546,7 +9943,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8556,7 +9958,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -8566,7 +9973,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -8576,7 +9988,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8586,7 +10003,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8596,7 +10018,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8606,7 +10033,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8616,7 +10048,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8686,7 +10123,12 @@
                 }
               }
             },
-            "description": "Credential rotation accepted."
+            "description": "Credential rotation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8696,7 +10138,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8706,7 +10153,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8716,7 +10168,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -8726,7 +10183,12 @@
                 }
               }
             },
-            "description": "The request conflicts with current entity integrity or lifecycle state."
+            "description": "The request conflicts with current entity integrity or lifecycle state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -8736,7 +10198,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8746,7 +10213,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8756,7 +10228,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8766,7 +10243,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8776,7 +10258,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8912,7 +10399,12 @@
                 }
               }
             },
-            "description": "Workflow job status returned."
+            "description": "Workflow job status returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8922,7 +10414,12 @@
                 }
               }
             },
-            "description": "The workflow-job status request is malformed or contextually inconsistent."
+            "description": "The workflow-job status request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8932,7 +10429,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8942,7 +10444,12 @@
                 }
               }
             },
-            "description": "The requested workflow job was not found."
+            "description": "The requested workflow job was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8952,7 +10459,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8962,7 +10474,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8972,7 +10489,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8982,7 +10504,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [

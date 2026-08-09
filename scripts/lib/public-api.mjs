@@ -340,8 +340,10 @@ export function buildPublicApiDocs(
     '',
     `- URI prefix: \`${taxonomy.versioning.uri_prefix}\``,
     `- Discovery route: \`${taxonomy.versioning.discovery_route}\``,
-    `- Required headers: ${taxonomy.shared_http.headers.api_version.name}, ${taxonomy.shared_http.headers.correlation_id.name}`,
-    `- Gateway correlation continuity: ${taxonomy.shared_http.headers.correlation_id.name} is preserved end-to-end and may be backfilled for downstream continuity when recovery requires it.`,
+    `- Required request header: ${taxonomy.shared_http.headers.api_version.name}: ${taxonomy.shared_http.headers.api_version.current_value}`,
+    `- Optional request correlation: ${taxonomy.shared_http.headers.correlation_id.name} is preserved when valid or generated when omitted, then returned in the response header and propagated end-to-end.`,
+    `- Header validation errors: ${taxonomy.shared_http.headers.api_version.missing_error_code}, ${taxonomy.shared_http.headers.api_version.unsupported_error_code}, ${taxonomy.shared_http.headers.correlation_id.invalid_error_code}`,
+    '- First-party raw-response calls use the shared public transport so downloads, `207`/`304` responses, and SSE carry the same trace headers as JSON calls.',
     `- Idempotency header for mutations: ${taxonomy.shared_http.headers.idempotency_key.name}`,
     `- Idempotency replay header: ${taxonomy.shared_http.errors.replay_header}`,
     `- Pagination: ${taxonomy.shared_http.pagination.cursor_param} + ${taxonomy.shared_http.pagination.limit_param}`,
@@ -385,7 +387,7 @@ export function buildPublicApiDocs(
     '- The web console shared `requestJson` reader retains the wire value as `gatewayCode`, exposes the `GW_`-stripped class as `code` for existing comparisons, folds `detail.errors` into its compatibility `errors` property, and accepts the legacy `{ code, message }` body during rolling upgrades. Custom configuration and backup clients consume the canonical `message` and wire `code` directly, with their existing legacy-body fallback.',
     '- Machine and SDK clients must read the public `GW_` class from top-level `code`, use `requestId` and `correlationId` when correlating a failure with support, and treat the envelope as closed: undeclared top-level fields must not be assumed. Clients migrating from the legacy two-field body should not strip `GW_` or depend on handler-specific text.',
     '- Success bodies are unchanged. SSE frames and JSON-RPC frames keep their protocol-specific shapes. Any JSON failure emitted before a stream opens still passes through the canonical envelope boundary.',
-    '- Executor proxy responses are streamed through unchanged because the upstream control-plane applies the same normalizer; locally generated proxy failures use the canonical envelope.',
+    '- Executor proxy response bodies are streamed through unchanged because the upstream control-plane applies the same normalizer; the executor overwrites `X-Correlation-Id` with the resolved ingress value, and locally generated proxy failures use the canonical envelope.',
     '',
     '## Gateway protection matrix',
     '',
@@ -441,6 +443,13 @@ function collectOperationViolations(document, taxonomy, violations) {
   const requiredErrorFields = new Set(taxonomy.shared_http.errors.required_fields ?? []);
   const errorSchema = document?.components?.schemas?.[taxonomy.shared_http.errors.schema] ?? {};
   const declaredErrorFields = new Set(errorSchema.required ?? []);
+  const traceHeaders = taxonomy.shared_http.headers;
+
+  if (traceHeaders.api_version.missing_error_code !== 'GW_API_VERSION_REQUIRED'
+      || traceHeaders.api_version.unsupported_error_code !== 'GW_UNSUPPORTED_API_VERSION'
+      || traceHeaders.correlation_id.invalid_error_code !== 'GW_INVALID_CORRELATION_ID') {
+    violations.push('Public API taxonomy must declare the three canonical trace-header rejection codes.');
+  }
 
   for (const field of requiredErrorFields) {
     if (!declaredErrorFields.has(field)) {
@@ -454,6 +463,13 @@ function collectOperationViolations(document, taxonomy, violations) {
     const familyId = operation['x-family'];
     const headers = normalizeRequiredHeaders(document, operation);
     const responseCodes = new Set(Object.keys(operation.responses ?? {}));
+
+    for (const [status, response] of Object.entries(operation.responses ?? {})) {
+      if (response?.$ref) continue;
+      if (response?.headers?.['X-Correlation-Id']?.$ref !== '#/components/headers/XCorrelationId') {
+        violations.push(`${method.toUpperCase()} ${path} response ${status} must return X-Correlation-Id.`);
+      }
+    }
 
     if (!familyIds.has(familyId)) {
       violations.push(`${method.toUpperCase()} ${path} must declare an x-family present in public-api-taxonomy.`);
@@ -469,8 +485,11 @@ function collectOperationViolations(document, taxonomy, violations) {
       violations.push(`${method.toUpperCase()} ${path} must require ${taxonomy.shared_http.headers.api_version.name}.`);
     }
 
-    if (!headers.includes(taxonomy.shared_http.headers.correlation_id.name)) {
-      violations.push(`${method.toUpperCase()} ${path} must require ${taxonomy.shared_http.headers.correlation_id.name}.`);
+    const correlationParameter = resolveParameters(document, operation).find(
+      (parameter) => parameter?.in === 'header' && parameter?.name === taxonomy.shared_http.headers.correlation_id.name
+    );
+    if (!correlationParameter || correlationParameter.required === true) {
+      violations.push(`${method.toUpperCase()} ${path} must declare ${taxonomy.shared_http.headers.correlation_id.name} optional/generated.`);
     }
 
     if (requiredMutationMethods.has(method) && !headers.includes(taxonomy.shared_http.headers.idempotency_key.name)) {
@@ -508,6 +527,14 @@ function collectGatewayAlignmentViolations(taxonomy, gatewayRouting, violations)
 
   if (gatewayRouting?.spec?.versionHeader?.currentValue !== taxonomy.release.header_version) {
     violations.push(`Gateway routing version header must use ${taxonomy.release.header_version}.`);
+  }
+  if (gatewayRouting?.spec?.versionHeader?.required !== true) {
+    violations.push('Gateway routing must require X-API-Version at public ingress.');
+  }
+  if (gatewayRouting?.spec?.correlationHeader?.required !== false
+      || gatewayRouting?.spec?.correlationHeader?.generateWhenMissing !== true
+      || gatewayRouting?.spec?.correlationHeader?.responseHeader !== 'X-Correlation-Id') {
+    violations.push('Gateway routing must make client correlation optional, generated when absent, and returned.');
   }
 
   for (const family of taxonomy.families) {
@@ -581,6 +608,13 @@ function collectRouteCatalogViolations(document, taxonomy, routeCatalog, gateway
 
     if (route.path !== path || route.method !== method.toUpperCase()) {
       violations.push(`Route catalog entry ${operation.operationId} must preserve method/path ${method.toUpperCase()} ${path}.`);
+    }
+
+    if (!route.requiredHeaders.includes('X-API-Version') || route.requiredHeaders.includes('X-Correlation-Id')) {
+      violations.push(`Route catalog entry ${operation.operationId} must require version but generate external correlation.`);
+    }
+    if (route.correlationIdRequired !== false || route.correlationIdGeneratedWhenMissing !== true) {
+      violations.push(`Route catalog entry ${operation.operationId} must expose optional/generated correlation semantics.`);
     }
 
     const routing = routingById.get(route.family);

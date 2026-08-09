@@ -400,7 +400,10 @@ async function requestRoute(route, {
     'x-request-id': `req-c16-${route.id}`,
     'x-correlation-id': `corr-c16-${route.id}`
   };
-  if (bearer !== undefined) headers.authorization = `Bearer ${bearer}`;
+  if (bearer !== undefined) {
+    headers.authorization = `Bearer ${bearer}`;
+    headers['x-api-version'] = '2026-03-26';
+  }
   const body = route.method === 'POST'
     ? (malformedBody ? '{not-json' : (requestBody === undefined ? route.validBody : JSON.stringify(requestBody)))
     : undefined;

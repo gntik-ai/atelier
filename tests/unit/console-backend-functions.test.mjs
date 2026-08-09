@@ -41,6 +41,8 @@ test('console backend workflow invocation builds annotation and public API call 
   assert.equal(invocation.activationAnnotation.initiating_surface, 'console_backend');
   assert.equal(invocation.representativeOperation.operationId, 'getFunctionInventory');
   assert.equal(invocation.publicApiSurface.privateBackchannelAllowed, false);
+  assert.equal(invocation.invocationRequest.body.publicApiCall.headers['X-API-Version'], '2026-03-26');
+  assert.equal(invocation.invocationRequest.body.publicApiCall.headers['X-Correlation-Id'], 'corr_console_backend_01');
 });
 
 test('console backend workflow invocation rejects missing tenant or workspace scope', () => {

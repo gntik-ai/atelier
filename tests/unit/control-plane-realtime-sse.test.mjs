@@ -22,6 +22,10 @@ const realtimeExecutor = {
 let server;
 let base;
 const path = '/v1/realtime/workspaces/ws1/data/appdb/collections/notes/changes';
+const traceHeaders = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-c03-unit-realtime',
+};
 
 // Stub key store so the ?apikey= (EventSource) auth path can resolve a valid anon key.
 const apiKeyStore = {
@@ -44,7 +48,7 @@ test('streams change events as SSE, tenant identity passed through, and tears do
   closed = false;
   const controller = new AbortController();
   const res = await fetch(`${base}${path}`, {
-    headers: { 'x-tenant-id': 'ten-a', 'x-workspace-id': 'ws1' },
+    headers: { ...traceHeaders, 'x-tenant-id': 'ten-a', 'x-workspace-id': 'ws1' },
     signal: controller.signal
   });
   assert.equal(res.status, 200);
@@ -82,7 +86,7 @@ test('realtime route requires tenant identity → 401', async () => {
 
 test('authenticates via ?apikey= (EventSource cannot set headers)', async () => {
   lastSubscribe = undefined;
-  const res = await fetch(`${base}${path}?apikey=flc_anon_good`);
+  const res = await fetch(`${base}${path}?apikey=flc_anon_good`, { headers: traceHeaders });
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
   assert.equal(lastSubscribe.identity.tenantId, 'ten-a'); // tenant from the verified key, not headers
@@ -90,7 +94,7 @@ test('authenticates via ?apikey= (EventSource cannot set headers)', async () => 
 });
 
 test('an invalid ?apikey= → 401 (no stream)', async () => {
-  const res = await fetch(`${base}${path}?apikey=flc_anon_bogus`);
+  const res = await fetch(`${base}${path}?apikey=flc_anon_bogus`, { headers: traceHeaders });
   assert.equal(res.status, 401);
   await res.body?.cancel?.();
 });

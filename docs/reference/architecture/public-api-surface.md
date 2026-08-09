@@ -21,8 +21,10 @@ Native operator passthrough routes under `/_native/*` are documented separately 
 
 - URI prefix: `/v1`
 - Discovery route: `/v1/platform/route-catalog`
-- Required headers: X-API-Version, X-Correlation-Id
-- Gateway correlation continuity: X-Correlation-Id is preserved end-to-end and may be backfilled for downstream continuity when recovery requires it.
+- Required request header: X-API-Version: 2026-03-26
+- Optional request correlation: X-Correlation-Id is preserved when valid or generated when omitted, then returned in the response header and propagated end-to-end.
+- Header validation errors: GW_API_VERSION_REQUIRED, GW_UNSUPPORTED_API_VERSION, GW_INVALID_CORRELATION_ID
+- First-party raw-response calls use the shared public transport so downloads, `207`/`304` responses, and SSE carry the same trace headers as JSON calls.
 - Idempotency header for mutations: Idempotency-Key
 - Idempotency replay header: X-Idempotency-Replayed
 - Pagination: page[after] + page[size]
@@ -66,7 +68,7 @@ Both HTTP runtimes serialize every buffered JSON response with status 400–599 
 - The web console shared `requestJson` reader retains the wire value as `gatewayCode`, exposes the `GW_`-stripped class as `code` for existing comparisons, folds `detail.errors` into its compatibility `errors` property, and accepts the legacy `{ code, message }` body during rolling upgrades. Custom configuration and backup clients consume the canonical `message` and wire `code` directly, with their existing legacy-body fallback.
 - Machine and SDK clients must read the public `GW_` class from top-level `code`, use `requestId` and `correlationId` when correlating a failure with support, and treat the envelope as closed: undeclared top-level fields must not be assumed. Clients migrating from the legacy two-field body should not strip `GW_` or depend on handler-specific text.
 - Success bodies are unchanged. SSE frames and JSON-RPC frames keep their protocol-specific shapes. Any JSON failure emitted before a stream opens still passes through the canonical envelope boundary.
-- Executor proxy responses are streamed through unchanged because the upstream control-plane applies the same normalizer; locally generated proxy failures use the canonical envelope.
+- Executor proxy response bodies are streamed through unchanged because the upstream control-plane applies the same normalizer; the executor overwrites `X-Correlation-Id` with the resolved ingress value, and locally generated proxy failures use the canonical envelope.
 
 ## Gateway protection matrix
 

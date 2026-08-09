@@ -30,6 +30,8 @@ const WS_A = 'ws_bbx_mon_a';
 const WS_B = 'ws_bbx_mon_b';
 
 const authHeaders = (tenant = TEN_A, ws = WS_A) => ({
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flow-events',
   'x-tenant-id': tenant,
   'x-workspace-id': ws,
   'x-auth-subject': 'admin-mon',

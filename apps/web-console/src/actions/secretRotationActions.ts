@@ -1,3 +1,5 @@
+import { publicApiFetch } from '@/lib/http'
+
 export type InitiateRotationInput = {
   gracePeriodSeconds: number
   justification: string
@@ -51,7 +53,7 @@ function parseSecretPath(secretPath: string) {
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  const response = await publicApiFetch(url, {
     headers: {
       'content-type': 'application/json'
     },

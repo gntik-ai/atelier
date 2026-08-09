@@ -1,5 +1,9 @@
+import { randomUUID } from 'node:crypto';
+
 import { config } from './config.mjs';
 import { buildServiceUrl, encodePathSegment } from './network.mjs';
+
+const PUBLIC_API_VERSION = '2026-03-26';
 
 export async function fetchEnabledCapabilities(workspaceId, authToken) {
   const workspaceIdPath = encodePathSegment(workspaceId, 'workspaceId');
@@ -8,7 +12,11 @@ export async function fetchEnabledCapabilities(workspaceId, authToken) {
     `v1/workspaces/${workspaceIdPath}/effective-capabilities`
   );
   const res = await fetch(url, {
-    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {}
+    headers: {
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      'X-API-Version': PUBLIC_API_VERSION,
+      'X-Correlation-Id': randomUUID()
+    }
   });
 
   if (!res.ok) {

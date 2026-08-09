@@ -21,6 +21,8 @@ const DEF = {
 
 const headersFor = (tenant, ws) => ({
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flow-isolation',
   'x-tenant-id': tenant,
   'x-workspace-id': ws,
   'x-auth-subject': `admin-${tenant}`,

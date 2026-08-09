@@ -44,6 +44,7 @@ test('bbx-795-01: tenant owner GET /v1/workspaces/{workspaceId}/docs reaches run
     });
 
     assert.equal(res.status, 200, 'workspace docs must not return 404 NO_ROUTE or 403 for tenant_owner');
+    assert.equal(res.headers.get('x-correlation-id'), 'corr-docs-route', 'the listener returns exactly one resolved correlation id');
     const body = await res.json();
     assert.equal(body.workspaceId, 'ws-docs-route');
     assert.equal(body.tenantId, 'tenant-docs-route');
@@ -52,6 +53,33 @@ test('bbx-795-01: tenant owner GET /v1/workspaces/{workspaceId}/docs reaches run
     assert.equal(body.stale, false);
     assert.ok(body.enabledServices.some((service) => service.serviceKey === 'postgres-database'));
     assert.deepEqual(body.customNotes, []);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test('bbx-795-03: docs response uses the generated listener correlation when the request omits one', async () => {
+  const server = createControlPlaneServer({
+    registry,
+    workspaceDocsDb: createDocsDb(),
+    logger: { error() {} }
+  });
+  const baseUrl = await listen(server);
+  try {
+    const res = await fetch(`${baseUrl}/v1/workspaces/ws-docs-route/docs`, {
+      headers: {
+        'X-API-Version': '2026-03-26',
+        'X-Tenant-Id': 'tenant-docs-route',
+        'X-Auth-Subject': 'tenant-owner-1',
+        'X-Actor-Roles': 'tenant_owner'
+      }
+    });
+
+    assert.equal(res.status, 200);
+    const correlationId = res.headers.get('x-correlation-id');
+    assert.match(correlationId, /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/);
+    assert.equal(correlationId.includes(','), false, 'the response must contain one logical correlation id');
+    assert.notEqual(correlationId, 'corr-missing', 'the inner action fallback must not escape the public listener');
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

@@ -18,7 +18,12 @@ const mongoExecutor = {
 let server;
 let base;
 const path = '/v1/mongo/workspaces/ws1/data/appdb/collections/notes/documents';
-const headers = { 'x-tenant-id': 'ten-a', 'x-workspace-id': 'ws1' };
+const headers = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-c03-unit-mongo-list',
+  'x-tenant-id': 'ten-a',
+  'x-workspace-id': 'ws1',
+};
 
 before(async () => {
   server = createControlPlaneServer({ registry, mongoExecutor, logger: { error() {} } });

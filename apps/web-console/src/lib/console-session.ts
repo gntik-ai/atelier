@@ -30,6 +30,7 @@ export interface ConsoleSessionRequestOptions {
   headers?: HeadersInit
   idempotent?: boolean
   signal?: AbortSignal
+  onResponse?: (metadata: { correlationId?: string }) => void
 }
 
 export function persistConsoleShellSession(session: ConsoleLoginSession): void {
@@ -310,7 +311,8 @@ async function performAuthenticatedRequest<T>(
     body: options.body,
     headers,
     idempotent: options.idempotent,
-    signal: options.signal
+    signal: options.signal,
+    onResponse: options.onResponse
   })
 }
 

@@ -27,11 +27,16 @@
         "name": "X-API-Version",
         "required": true,
         "current_value": "2026-03-26",
+        "missing_error_code": "GW_API_VERSION_REQUIRED",
+        "unsupported_error_code": "GW_UNSUPPORTED_API_VERSION",
         "purpose": "Pins the non-breaking contract generation inside /v1."
       },
       "correlation_id": {
         "name": "X-Correlation-Id",
-        "required": true,
+        "required": false,
+        "generated_when_missing": true,
+        "response_header": true,
+        "invalid_error_code": "GW_INVALID_CORRELATION_ID",
         "purpose": "Carries one stable trace, audit, and orchestration identifier across gateway and internal services; the gateway preserves or backfills it for downstream continuity."
       },
       "idempotency_key": {

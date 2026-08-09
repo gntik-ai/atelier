@@ -167,14 +167,17 @@ export function buildMongoFrontendSnippet(params: MongoEmbedParams): string {
   return [
     `const res = await fetch(`,
     `  '${embedDocsUrl(params)}',`,
-    `  { headers: { apikey: '${params.apiKey}' } }`,
+    `  { headers: { apikey: '${params.apiKey}', 'X-API-Version': '2026-03-26', 'X-Correlation-Id': crypto.randomUUID() } }`,
     `)`,
     `const { items } = await res.json()`
   ].join('\n')
 }
 
 export function buildMongoCurlSnippet(params: MongoEmbedParams): string {
-  return [`curl -H 'apikey: ${params.apiKey}' \\`, `  '${embedDocsUrl(params)}'`].join('\n')
+  return [
+    `curl -H 'apikey: ${params.apiKey}' -H 'X-API-Version: 2026-03-26' \\`,
+    `  -H 'X-Correlation-Id: corr-client-0001' '${embedDocsUrl(params)}'`
+  ].join('\n')
 }
 
 // Live read-only preview AS the anon key: a bare request carrying only the `apikey` header

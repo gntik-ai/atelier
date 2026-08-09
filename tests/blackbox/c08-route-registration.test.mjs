@@ -237,6 +237,7 @@ test('C-08 governance replay exposes the exact canonical response header at the 
     headers: {
       authorization: 'Bearer hermetic-c08-token',
       'content-type': 'application/json',
+      'x-api-version': '2026-03-26',
       'idempotency-key': 'idem-c08-http-0001',
       'x-correlation-id': 'cor_c08_http_0001'
     },

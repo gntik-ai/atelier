@@ -25,7 +25,14 @@ import { createFlowExecutor } from '../../apps/control-plane-executor/src/runtim
 import { createFlowQuotaGate, FLOW_QUOTA_DIMENSIONS } from '../../apps/control-plane-executor/src/runtime/flow-quota-gate.mjs';
 
 const DEF = { apiVersion: 'v1.0', name: 'f', nodes: [{ id: 'a', type: 'task', taskType: 't' }] };
-const headersFor = (t, w) => ({ 'content-type': 'application/json', 'x-tenant-id': t, 'x-workspace-id': w, 'x-auth-subject': `admin-${t}` });
+const headersFor = (t, w) => ({
+  'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flow-quotas',
+  'x-tenant-id': t,
+  'x-workspace-id': w,
+  'x-auth-subject': `admin-${t}`,
+});
 const A = headersFor('tenant_A', 'ws_A');
 const B = headersFor('tenant_B', 'ws_B');
 

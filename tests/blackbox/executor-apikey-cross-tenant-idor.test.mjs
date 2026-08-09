@@ -87,7 +87,12 @@ async function withServer({ tenantId }, fn) {
   }
 }
 
-const ADMIN = { authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.stub.stub', 'content-type': 'application/json' };
+const ADMIN = {
+  authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.stub.stub',
+  'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-apikey-idor',
+};
 
 // ---------------------------------------------------------------------------
 // bbx-xt-idor-01: cross-tenant issuance is rejected and no key is minted

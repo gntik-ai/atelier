@@ -1,6 +1,7 @@
 /**
  * API client for backup operations endpoints.
  */
+import { publicApiFetch } from '@/lib/http'
 
 const API_BASE = (typeof process !== 'undefined' && process.env?.BACKUP_API_URL) || '/api'
 
@@ -17,7 +18,7 @@ export class BackupOperationsApiError extends Error {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options)
+  const res = await publicApiFetch(url, options)
   const data = await res.json().catch(() => ({} as Record<string, unknown>))
   if (!res.ok) {
     const error = data as { message?: string; error?: string; code?: string }

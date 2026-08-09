@@ -15,7 +15,14 @@ import { createFlowExecutor } from '../../apps/control-plane-executor/src/runtim
 
 const TEN = 'ten_memo';
 const WS = 'ws_memo';
-const authHeaders = { 'content-type': 'application/json', 'x-tenant-id': TEN, 'x-workspace-id': WS, 'x-auth-subject': 'admin' };
+const authHeaders = {
+  'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flow-memo',
+  'x-tenant-id': TEN,
+  'x-workspace-id': WS,
+  'x-auth-subject': 'admin',
+};
 const DEF = { apiVersion: 'v1.0', name: 'memo-flow', nodes: [{ id: 's1', type: 'task', taskType: 'fetch-record' }] };
 
 // Minimal @temporalio/client-shaped fake that records every start()'s opts.

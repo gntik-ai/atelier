@@ -93,6 +93,8 @@ test('mcp runtime accepts whitespace scopes and preserves downstream Authorizati
         method: req.method,
         url: req.url,
         authorization: req.headers.authorization,
+        apiVersion: req.headers['x-api-version'],
+        correlationId: req.headers['x-correlation-id'],
         body: body ? JSON.parse(body) : undefined,
       };
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -112,6 +114,7 @@ test('mcp runtime accepts whitespace scopes and preserves downstream Authorizati
       params: { name: 'create_workspace', arguments: { slug: 'demo', environment: 'dev' } },
     }, {
       authorization: 'Bearer forwarded-token',
+      'x-correlation-id': 'corr-mcp-runtime-forward-001',
       'x-falcone-tenant-id': 'ten-a',
       'x-falcone-scopes': `${BASE_SCOPE} mcp:falcone:workspaces:write`,
     });
@@ -121,6 +124,8 @@ test('mcp runtime accepts whitespace scopes and preserves downstream Authorizati
     assert.equal(captured.method, 'POST');
     assert.equal(captured.url, '/v1/tenants/ten-a/workspaces');
     assert.equal(captured.authorization, 'Bearer forwarded-token');
+    assert.equal(captured.apiVersion, '2026-03-26');
+    assert.equal(captured.correlationId, 'corr-mcp-runtime-forward-001');
     assert.deepEqual(captured.body, { slug: 'demo', environment: 'dev' });
   } finally {
     await close(mod.server);

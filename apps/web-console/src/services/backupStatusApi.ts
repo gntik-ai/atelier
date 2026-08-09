@@ -1,6 +1,7 @@
 /**
  * API client for the backup status endpoint.
  */
+import { publicApiFetch } from '@/lib/http'
 
 export type BackupStatus =
   | 'success'
@@ -54,7 +55,7 @@ export async function getBackupStatus(
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(url.toString(), { headers })
+  const res = await publicApiFetch(url.toString(), { headers })
 
   if (res.status === 401) {
     throw new BackupStatusApiError(401, 'Unauthorized')

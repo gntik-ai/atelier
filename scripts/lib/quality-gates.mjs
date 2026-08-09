@@ -93,12 +93,10 @@ export function collectContractViolations(document) {
       }
 
       const correlationHeader = parameters.find(
-        (parameter) =>
-          parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id' && parameter?.required === true
+        (parameter) => parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id'
       );
-
-      if (!correlationHeader) {
-        violations.push(`${operationLabel} must require the X-Correlation-Id header.`);
+      if (!correlationHeader || correlationHeader.required === true) {
+        violations.push(`${operationLabel} must declare X-Correlation-Id as an optional generated header.`);
       }
 
       const responseCodes = Object.keys(operation.responses ?? {});

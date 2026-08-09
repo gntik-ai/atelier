@@ -2,11 +2,38 @@ import { randomUUID } from 'node:crypto';
 
 const REQUEST_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/;
 const CORRELATION_ID_RE = /^[A-Za-z0-9._:-]{8,128}$/;
+export const PUBLIC_API_VERSION = '2026-03-26';
+export const PUBLIC_CORS_ALLOW_HEADERS = Object.freeze([
+  'authorization',
+  'content-type',
+  'x-api-version',
+  'x-correlation-id',
+  'idempotency-key',
+  'x-requested-with',
+  'apikey',
+  'x-api-key',
+  'last-event-id',
+  'x-request-id',
+  'range',
+  'if-match',
+  'if-none-match',
+  'x-origin-surface'
+]);
+export const PUBLIC_CORS_EXPOSE_HEADERS = Object.freeze([
+  'x-correlation-id',
+  'x-idempotency-replayed',
+  'x-ratelimit-limit',
+  'x-ratelimit-remaining',
+  'x-ratelimit-reset',
+  'content-range',
+  'accept-ranges'
+]);
 const SENSITIVE_RE = /(stack|sqlstate|\bsql\b|select\s|insert\s|update\s|delete\s|https?:\/\/|token|password|secret|credential|authorization|bearer|postgres|mongodb)/i;
 // Only server-owned classes already present in the public runtime surface may cross the boundary.
 // Unknown provider, datastore, or attacker-controlled class-shaped values fall back by HTTP status.
 const APPROVED_ERROR_CLASSES = new Set(`
   ACTION_NOT_FOUND ACTIVATION_NOT_FOUND API_KEYS_DISABLED APPLICATION_NOT_FOUND APPLICATION_SLUG_TAKEN
+  API_VERSION_REQUIRED UNSUPPORTED_API_VERSION INVALID_CORRELATION_ID
   BACKUP_SCOPE_UNKNOWN_PROFILE
   AUDIT_EXPORT_BUILD_FAILED AUDIT_EXPORT_INVALID_FORMAT AUDIT_EXPORT_INVALID_TIME_WINDOW
   AUDIT_EXPORT_LIMIT_EXCEEDED AUDIT_EXPORT_QUERY_FAILED AUDIT_EXPORT_UNKNOWN_MASKING_PROFILE
@@ -87,6 +114,34 @@ function validId(pattern, ...candidates) {
     if (pattern.test(value)) return value;
   }
   return randomUUID();
+}
+
+/** Normalize the externally supplied tracing boundary without reflecting attacker input. */
+export function resolveCorrelationId(value) {
+  const raw = String(value ?? '');
+  return raw && CORRELATION_ID_RE.test(raw) ? raw : randomUUID();
+}
+
+export function validatePublicRequestHeaders(headers = {}) {
+  const version = String(headers['x-api-version'] ?? '').trim();
+  const hasCorrelation = Object.prototype.hasOwnProperty.call(headers, 'x-correlation-id');
+  const correlation = String(headers['x-correlation-id'] ?? '').trim();
+  if (!version) return { ok: false, status: 400, code: 'API_VERSION_REQUIRED' };
+  if (version !== PUBLIC_API_VERSION) return { ok: false, status: 400, code: 'UNSUPPORTED_API_VERSION' };
+  if (hasCorrelation && !CORRELATION_ID_RE.test(correlation)) {
+    return { ok: false, status: 400, code: 'INVALID_CORRELATION_ID' };
+  }
+  return { ok: true, correlationId: resolveCorrelationId(correlation), apiVersion: PUBLIC_API_VERSION };
+}
+
+export function withCorrelationResponseHeader(headers = {}, correlationId) {
+  const normalized = {};
+  for (const [name, value] of Object.entries(headers ?? {})) {
+    if (name.toLowerCase() === 'x-correlation-id') continue;
+    normalized[name] = value;
+  }
+  if (correlationId) normalized['x-correlation-id'] = correlationId;
+  return normalized;
 }
 
 function safeString(value, maxLength = 512) {

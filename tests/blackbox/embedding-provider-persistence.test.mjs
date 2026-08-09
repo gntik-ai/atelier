@@ -34,6 +34,8 @@ const TEN = 'ten_bbx_emb';
 const WS = 'ws_bbx_emb';
 const authHeaders = {
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-embedding-persistence',
   'x-tenant-id': TEN,
   'x-workspace-id': WS,
   'x-auth-subject': 'admin-1',

@@ -65,7 +65,11 @@ routes:
     priority: 239
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -76,7 +80,11 @@ routes:
     priority: 238
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -87,7 +95,11 @@ routes:
     priority: 237
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -98,7 +110,11 @@ routes:
     priority: 235
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -109,7 +125,11 @@ routes:
     priority: 236
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -120,7 +140,11 @@ routes:
     priority: 235
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -131,7 +155,11 @@ routes:
     priority: 234
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -142,7 +170,11 @@ routes:
     priority: 233
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -156,7 +188,11 @@ routes:
     priority: 432
     methods: ["GET", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -167,7 +203,11 @@ routes:
     priority: 232
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -178,7 +218,11 @@ routes:
     priority: 224
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -189,7 +233,11 @@ routes:
     priority: 231
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -200,7 +248,11 @@ routes:
     priority: 230
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -211,7 +263,11 @@ routes:
     priority: 229
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -222,7 +278,11 @@ routes:
     priority: 228
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -233,7 +293,11 @@ routes:
     priority: 227
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -244,7 +308,11 @@ routes:
     priority: 226
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -255,7 +323,11 @@ routes:
     priority: 225
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http
@@ -290,14 +362,84 @@ routes:
   # (see tasks.md task 2.1). The header-strip + x-gateway-auth injection closes the primary
   # exploit (unauthenticated header-only impersonation) in combination with the executor
   # gate added in server.mjs. API-key auth for data-plane routes is verified by the executor.
+  #
+  # Browser preflight carries the requested header NAMES in
+  # Access-Control-Request-Headers, not the eventual `apikey` value. Route every OPTIONS
+  # request for these executor-capable families to the executor's catalog-aware preflight
+  # boundary. Otherwise the `http_apikey` condition below cannot match and executor-only
+  # public operations fall through to the control-plane as false 404 responses.
+  - id: "2005-key-preflight"
+    uri: "/v1/postgres/*"
+    priority: 339
+    methods: ["OPTIONS"]
+    plugins:
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
+    upstream:
+      type: roundrobin
+      scheme: http
+      nodes:
+        "falcone-control-plane-executor.falcone.svc.cluster.local:8080": 1
+  - id: "2006-key-preflight"
+    uri: "/v1/mongo/*"
+    priority: 339
+    methods: ["OPTIONS"]
+    plugins:
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
+    upstream:
+      type: roundrobin
+      scheme: http
+      nodes:
+        "falcone-control-plane-executor.falcone.svc.cluster.local:8080": 1
+  - id: "2007-key-preflight"
+    uri: "/v1/events/*"
+    priority: 339
+    methods: ["OPTIONS"]
+    plugins:
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
+    upstream:
+      type: roundrobin
+      scheme: http
+      nodes:
+        "falcone-control-plane-executor.falcone.svc.cluster.local:8080": 1
+  - id: "2008-key-preflight"
+    uri: "/v1/functions/*"
+    priority: 339
+    methods: ["OPTIONS"]
+    plugins:
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
+    upstream:
+      type: roundrobin
+      scheme: http
+      nodes:
+        "falcone-control-plane-executor.falcone.svc.cluster.local:8080": 1
   - id: "2005-key"
     uri: "/v1/postgres/*"
     priority: 335
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     vars:
       - ["http_apikey", "~~", "^flc_"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       # Strip client-supplied identity headers and inject the gateway trust signal.
       proxy-rewrite:
         headers:
@@ -311,6 +453,29 @@ routes:
             # Placeholder for the kind dev install — replace with the real value or mount
             # from a Kubernetes Secret via APISIX environment variable interpolation.
             x-gateway-auth: "${{GATEWAY_SHARED_SECRET}}"
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local raw = ngx.req.get_headers()["x-correlation-id"]
+              local valid = type(raw) == "string"
+                and ngx.re.match(raw, [[^[A-Za-z0-9._:-]{8,128}$]], "jo")
+              ctx.c03_correlation_id = valid and raw or ngx.var.request_id
+              if raw == nil then
+                ngx.req.set_header("X-Correlation-Id", ctx.c03_correlation_id)
+              end
+            end
+      serverless-post-function:
+        phase: header_filter
+        functions:
+          - |
+            return function(conf, ctx)
+              local current = ngx.header["X-Correlation-Id"]
+              if current == nil or current == "" then
+                ngx.header["X-Correlation-Id"] = ctx.c03_correlation_id or ngx.var.request_id
+              end
+            end
       # Per-key rate limit (noisy-neighbor guard for the public anon/service surface).
       limit-count:
         count: 120
@@ -327,11 +492,15 @@ routes:
   - id: "2006-key"
     uri: "/v1/mongo/*"
     priority: 334
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     vars:
       - ["http_apikey", "~~", "^flc_"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -340,6 +509,29 @@ routes:
             x-auth-subject: ""
             x-actor-roles: ""
             x-gateway-auth: "${{GATEWAY_SHARED_SECRET}}"
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local raw = ngx.req.get_headers()["x-correlation-id"]
+              local valid = type(raw) == "string"
+                and ngx.re.match(raw, [[^[A-Za-z0-9._:-]{8,128}$]], "jo")
+              ctx.c03_correlation_id = valid and raw or ngx.var.request_id
+              if raw == nil then
+                ngx.req.set_header("X-Correlation-Id", ctx.c03_correlation_id)
+              end
+            end
+      serverless-post-function:
+        phase: header_filter
+        functions:
+          - |
+            return function(conf, ctx)
+              local current = ngx.header["X-Correlation-Id"]
+              if current == nil or current == "" then
+                ngx.header["X-Correlation-Id"] = ctx.c03_correlation_id or ngx.var.request_id
+              end
+            end
       # Per-key rate limit (noisy-neighbor guard for the public anon/service surface).
       limit-count:
         count: 120
@@ -356,11 +548,15 @@ routes:
   - id: "2007-key"
     uri: "/v1/events/*"
     priority: 333
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     vars:
       - ["http_apikey", "~~", "^flc_"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -369,6 +565,29 @@ routes:
             x-auth-subject: ""
             x-actor-roles: ""
             x-gateway-auth: "${{GATEWAY_SHARED_SECRET}}"
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local raw = ngx.req.get_headers()["x-correlation-id"]
+              local valid = type(raw) == "string"
+                and ngx.re.match(raw, [[^[A-Za-z0-9._:-]{8,128}$]], "jo")
+              ctx.c03_correlation_id = valid and raw or ngx.var.request_id
+              if raw == nil then
+                ngx.req.set_header("X-Correlation-Id", ctx.c03_correlation_id)
+              end
+            end
+      serverless-post-function:
+        phase: header_filter
+        functions:
+          - |
+            return function(conf, ctx)
+              local current = ngx.header["X-Correlation-Id"]
+              if current == nil or current == "" then
+                ngx.header["X-Correlation-Id"] = ctx.c03_correlation_id or ngx.var.request_id
+              end
+            end
       # Per-key rate limit (noisy-neighbor guard for the public anon/service surface).
       limit-count:
         count: 120
@@ -385,11 +604,15 @@ routes:
   - id: "2008-key"
     uri: "/v1/functions/*"
     priority: 332
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     vars:
       - ["http_apikey", "~~", "^flc_"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -398,6 +621,29 @@ routes:
             x-auth-subject: ""
             x-actor-roles: ""
             x-gateway-auth: "${{GATEWAY_SHARED_SECRET}}"
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local raw = ngx.req.get_headers()["x-correlation-id"]
+              local valid = type(raw) == "string"
+                and ngx.re.match(raw, [[^[A-Za-z0-9._:-]{8,128}$]], "jo")
+              ctx.c03_correlation_id = valid and raw or ngx.var.request_id
+              if raw == nil then
+                ngx.req.set_header("X-Correlation-Id", ctx.c03_correlation_id)
+              end
+            end
+      serverless-post-function:
+        phase: header_filter
+        functions:
+          - |
+            return function(conf, ctx)
+              local current = ngx.header["X-Correlation-Id"]
+              if current == nil or current == "" then
+                ngx.header["X-Correlation-Id"] = ctx.c03_correlation_id or ngx.var.request_id
+              end
+            end
       # Per-key rate limit (noisy-neighbor guard for the public anon/service surface).
       limit-count:
         count: 120
@@ -422,7 +668,11 @@ routes:
       # matches both Mongo (collections/{c}/changes) and Postgres (tables/{t}/changes)
       - ["uri", "~~", "/changes$"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -431,6 +681,29 @@ routes:
             x-auth-subject: ""
             x-actor-roles: ""
             x-gateway-auth: "${{GATEWAY_SHARED_SECRET}}"
+      serverless-pre-function:
+        phase: rewrite
+        functions:
+          - |
+            return function(conf, ctx)
+              local raw = ngx.req.get_headers()["x-correlation-id"]
+              local valid = type(raw) == "string"
+                and ngx.re.match(raw, [[^[A-Za-z0-9._:-]{8,128}$]], "jo")
+              ctx.c03_correlation_id = valid and raw or ngx.var.request_id
+              if raw == nil then
+                ngx.req.set_header("X-Correlation-Id", ctx.c03_correlation_id)
+              end
+            end
+      serverless-post-function:
+        phase: header_filter
+        functions:
+          - |
+            return function(conf, ctx)
+              local current = ngx.header["X-Correlation-Id"]
+              if current == nil or current == "" then
+                ngx.header["X-Correlation-Id"] = ctx.c03_correlation_id or ngx.var.request_id
+              end
+            end
       limit-count:
         count: 120
         time_window: 60
@@ -461,7 +734,11 @@ routes:
     vars:
       - ["uri", "~~", "^/v1/workspaces/[^/]+/api-keys"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -489,7 +766,11 @@ routes:
     vars:
       - ["uri", "~~", "^/v1/workspaces/[^/]+/embedding-provider"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -517,7 +798,11 @@ routes:
     vars:
       - ["uri", "~~", "^/v1/workspaces/[^/]+/(llm-provider|llm/completions|llm-usage)"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -545,7 +830,11 @@ routes:
     priority: 245
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -567,7 +856,11 @@ routes:
     priority: 244
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
       proxy-rewrite:
         headers:
           set:
@@ -591,7 +884,11 @@ routes:
     priority: 50
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     plugins:
-      cors: {}
+      cors:
+        _meta:
+          disable: true
+        allow_headers: "Authorization,Content-Type,X-API-Version,X-Correlation-Id,Idempotency-Key,X-Requested-With,apikey,X-Api-Key,Last-Event-ID,X-Request-Id,Range,If-Match,If-None-Match,X-Origin-Surface"
+        expose_headers: "X-Correlation-Id,X-Idempotency-Replayed,X-RateLimit-Limit,X-RateLimit-Remaining,X-RateLimit-Reset,Content-Range,Accept-Ranges"
     upstream:
       type: roundrobin
       scheme: http

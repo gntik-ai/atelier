@@ -1,35 +1,45 @@
 import { act, cleanup, render } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useFlowExecution, type FlowExecutionState } from './use-flow-execution'
 
-// Reuse the same FakeEventSource shape as the service test so the hook exercises the real
-// subscribeFlowExecution path (no service mock — closer to integration).
-class FakeEventSource {
-  static instances: FakeEventSource[] = []
-  url: string
-  closed = false
-  listeners: Record<string, Array<(e: unknown) => void>> = {}
-  constructor(url: string) {
-    this.url = url
-    FakeEventSource.instances.push(this)
+// Controllable fetch/ReadableStream harness: the hook still exercises the real
+// subscribeFlowExecution path while tests choose when each named SSE frame arrives.
+class ControllableSseReader {
+  private queued: Uint8Array[] = []
+  private pending: ((value: { done: false; value: Uint8Array }) => void) | null = null
+
+  read(): Promise<{ done: false; value: Uint8Array }> {
+    const value = this.queued.shift()
+    if (value) return Promise.resolve({ done: false, value })
+    return new Promise((resolve) => { this.pending = resolve })
   }
-  addEventListener(type: string, fn: (e: unknown) => void) {
-    ;(this.listeners[type] ??= []).push(fn)
-  }
-  emit(type: string, data: unknown) {
-    for (const fn of this.listeners[type] ?? []) fn({ data: JSON.stringify(data) })
-  }
-  close() {
-    this.closed = true
+
+  emit(type: string, data: unknown): void {
+    const value = new TextEncoder().encode(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`)
+    if (this.pending) {
+      const resolve = this.pending
+      this.pending = null
+      resolve({ done: false, value })
+    } else {
+      this.queued.push(value)
+    }
   }
 }
 
+let reader: ControllableSseReader
+let requestSignal: AbortSignal | undefined
 beforeEach(() => {
-  FakeEventSource.instances = []
-  ;(globalThis as unknown as { EventSource: unknown }).EventSource = FakeEventSource as unknown
+  reader = new ControllableSseReader()
+  vi.stubGlobal('fetch', vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+    requestSignal = init?.signal ?? undefined
+    return Promise.resolve({ ok: true, body: { getReader: () => reader } })
+  }))
 })
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
 
 function Harness({ onState }: { onState: (state: FlowExecutionState) => void }) {
   const state = useFlowExecution({ workspaceId: 'ws1', executionId: 'ten:ws1:flow:run-1', apiKey: 'flc_anon' })
@@ -38,40 +48,40 @@ function Harness({ onState }: { onState: (state: FlowExecutionState) => void }) 
 }
 
 describe('useFlowExecution', () => {
-  it('accumulates node-status events into a per-node map (latest wins)', () => {
+  it('accumulates node-status events from fetch SSE into a per-node map (latest wins)', async () => {
     let latest: FlowExecutionState | null = null
     render(<Harness onState={(s) => (latest = s)} />)
-    const es = FakeEventSource.instances[0]
-    act(() => {
-      es.emit('node-status', { type: 'node-status', nodeId: 'step-1', status: 'scheduled', attemptNumber: 1 })
-      es.emit('node-status', { type: 'node-status', nodeId: 'step-1', status: 'started', attemptNumber: 1 })
-      es.emit('node-status', { type: 'node-status', nodeId: 'step-2', status: 'scheduled' })
+    await act(async () => {
+      reader.emit('node-status', { type: 'node-status', nodeId: 'step-1', status: 'scheduled', attemptNumber: 1 })
+      reader.emit('node-status', { type: 'node-status', nodeId: 'step-1', status: 'started', attemptNumber: 1 })
+      reader.emit('node-status', { type: 'node-status', nodeId: 'step-2', status: 'scheduled' })
+      await new Promise((resolve) => setTimeout(resolve, 0))
     })
     expect(latest!.nodeStatuses.get('step-1')?.status).toBe('started')
     expect(latest!.nodeStatuses.get('step-2')?.status).toBe('scheduled')
   })
 
-  it('marks the run ended and closes the EventSource on stream-end', () => {
+  it('marks the run ended and aborts the fetch stream on stream-end', async () => {
     let latest: FlowExecutionState | null = null
     render(<Harness onState={(s) => (latest = s)} />)
-    const es = FakeEventSource.instances[0]
-    act(() => {
-      es.emit('stream-end', { type: 'stream-end', status: 'Completed' })
+    await act(async () => {
+      reader.emit('stream-end', { type: 'stream-end', status: 'Completed' })
+      await new Promise((resolve) => setTimeout(resolve, 0))
     })
     expect(latest!.ended).toBe(true)
-    expect(es.closed).toBe(true)
+    expect(requestSignal?.aborted).toBe(true)
   })
 
-  it('closes the EventSource on unmount and dispatches no state update afterward', () => {
+  it('aborts the fetch stream on unmount and dispatches no state update afterward', async () => {
     const states: FlowExecutionState[] = []
     const { unmount } = render(<Harness onState={(s) => states.push(s)} />)
-    const es = FakeEventSource.instances[0]
     const countBeforeUnmount = states.length
     unmount()
-    expect(es.closed).toBe(true)
-    // A late frame from an in-flight EventSource must NOT trigger a re-render / state update.
-    act(() => {
-      es.emit('node-status', { type: 'node-status', nodeId: 'late', status: 'completed' })
+    expect(requestSignal?.aborted).toBe(true)
+    // A late frame from an in-flight fetch reader must NOT trigger a state update.
+    await act(async () => {
+      reader.emit('node-status', { type: 'node-status', nodeId: 'late', status: 'completed' })
+      await new Promise((resolve) => setTimeout(resolve, 0))
     })
     expect(states.length).toBe(countBeforeUnmount)
   })

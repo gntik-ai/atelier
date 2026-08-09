@@ -28,6 +28,25 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function applyPublicTraceHeaders(spec) {
+  const methods = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
+  for (const pathItem of Object.values(spec.paths)) {
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!methods.has(method) || !operation || typeof operation !== 'object') continue;
+      operation.parameters ??= [];
+      operation.parameters.unshift(
+        { $ref: '#/components/parameters/XApiVersion' },
+        { $ref: '#/components/parameters/XCorrelationId' }
+      );
+      for (const response of Object.values(operation.responses ?? {})) {
+        if (!response || typeof response !== 'object' || '$ref' in response) continue;
+        response.headers ??= {};
+        response.headers['X-Correlation-Id'] ??= { $ref: '#/components/headers/XCorrelationId' };
+      }
+    }
+  }
+}
+
 function bump(version, index) {
   const parts = version.split('.').map((item) => Number(item) || 0).slice(0, 3);
   while (parts.length < 3) parts.push(0);
@@ -66,6 +85,7 @@ export function assembleSpec({ enabledCapabilities, workspaceBaseUrl, previousSp
     spec.components.schemas = { ...spec.components.schemas, ...(module.components?.schemas ?? {}) };
     spec.tags.push(module.tag);
   }
+  applyPublicTraceHeaders(spec);
 
   const specVersion = computeNextVersion(previousSpecVersion, previousCapabilityTags, capabilityTags);
   spec.info.version = specVersion;

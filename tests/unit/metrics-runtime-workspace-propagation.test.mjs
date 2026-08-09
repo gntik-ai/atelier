@@ -272,6 +272,8 @@ async function withExecutorServer(fn) {
 
 function trustedHeaders(tenantId = TENANT, extra = {}) {
   return {
+    'x-api-version': '2026-03-26',
+    'x-correlation-id': 'corr-c03-unit-metrics-runtime',
     'x-gateway-auth': GATEWAY_SECRET,
     'x-tenant-id': tenantId,
     'x-auth-subject': 'user-c04',
@@ -392,6 +394,8 @@ test('executor never labels spoofed, foreign, unresolved, or membership-denied w
   await withExecutorServer(async (baseUrl) => {
     const spoofed = await fetch(`${baseUrl}/v1/workspaces/${WORKSPACE}/api-keys`, {
       headers: {
+        'x-api-version': '2026-03-26',
+        'x-correlation-id': 'corr-c03-unit-metrics-spoofed',
         'x-gateway-auth': 'wrong-secret',
         'x-tenant-id': TENANT,
         'x-workspace-id': SPOOFED_WORKSPACE
@@ -466,7 +470,11 @@ test('executor never promotes a tenant-only JWT path fallback into a trusted wor
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
   try {
     const response = await fetch(`${baseUrl}/v1/workspaces/${UNRESOLVED_JWT_WORKSPACE}/api-keys`, {
-      headers: { authorization: 'Bearer tenant.only.jwt' }
+      headers: {
+        'x-api-version': '2026-03-26',
+        'x-correlation-id': 'corr-c03-unit-metrics-jwt',
+        authorization: 'Bearer tenant.only.jwt'
+      }
     });
     assert.equal(response.status, 200);
 

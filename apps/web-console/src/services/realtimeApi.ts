@@ -1,9 +1,9 @@
 // Realtime change-stream client for the console (changes: add-realtime-gateway-console,
 // add-realtime-unify). Subscribes to a tenant-scoped change stream via Server-Sent Events,
-// for EITHER a Mongo collection or a Postgres table. A browser EventSource cannot set headers,
-// so the anon key is passed as ?apikey= (the gateway routes it to the executor, which verifies
-// the key). URLs match the executor's SSE routes exactly.
+// for EITHER a Mongo collection or a Postgres table. The anon key remains in the endpoint URL
+// for the executor's existing authentication contract; subscribeSse supplies trace headers.
 import type { JsonValue } from '@/lib/http'
+import { subscribeSse } from '@/lib/sse'
 
 const enc = encodeURIComponent
 
@@ -41,16 +41,8 @@ export function subscribeRealtimeChanges(params: {
   onError?: (event: Event) => void
   origin?: string
 }): RealtimeSubscription {
-  const source = new EventSource(realtimeChangesUrl(params))
-  for (const type of CHANGE_EVENTS) {
-    source.addEventListener(type, (event) => {
-      try {
-        params.onChange(JSON.parse((event as MessageEvent).data) as RealtimeChange)
-      } catch {
-        /* ignore malformed frame */
-      }
-    })
-  }
-  if (params.onError) source.addEventListener('error', params.onError)
-  return { close: () => source.close() }
+  const handlers = Object.fromEntries(CHANGE_EVENTS.map((type) => [type, (data: string) => {
+    try { params.onChange(JSON.parse(data) as RealtimeChange) } catch { /* ignore malformed frame */ }
+  }]))
+  return subscribeSse(realtimeChangesUrl(params), handlers, params.onError)
 }

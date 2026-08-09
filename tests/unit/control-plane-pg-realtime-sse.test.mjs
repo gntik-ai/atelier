@@ -20,6 +20,10 @@ const pgRealtimeExecutor = {
 let server;
 let base;
 const path = '/v1/realtime/workspaces/ws1/data/appdb/schemas/public/tables/notes/changes';
+const traceHeaders = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-c03-unit-pg-realtime',
+};
 
 before(async () => {
   server = createControlPlaneServer({ registry, pgRealtimeExecutor, logger: { error() {} } });
@@ -31,7 +35,9 @@ after(async () => { if (server) await new Promise((r) => server.close(r)); });
 test('streams Postgres table changes as SSE with the table target + tenant identity', async () => {
   lastSubscribe = undefined;
   closed = false;
-  const res = await fetch(`${base}${path}`, { headers: { 'x-tenant-id': 'ten-a', 'x-workspace-id': 'ws1' } });
+  const res = await fetch(`${base}${path}`, {
+    headers: { ...traceHeaders, 'x-tenant-id': 'ten-a', 'x-workspace-id': 'ws1' },
+  });
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type') ?? '', /text\/event-stream/);
 

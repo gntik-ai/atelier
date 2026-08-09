@@ -31,13 +31,17 @@ before(async () => {
 after(async () => { if (server) await new Promise((r) => server.close(r)); });
 
 const keysPath = (ws) => `/v1/workspaces/${ws}/api-keys`;
+const traceHeaders = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-c03-unit-apikey-identity',
+};
 
 test('a valid API key is authoritative — a spoofed x-tenant-id header cannot override it', async () => {
   // GET api-keys with a valid anon key AND a spoofed admin tenant header. The key resolves to
   // an api-key identity (dbRole set) → key management is forbidden for api keys → 403.
   // If the spoofed header won instead, this would be treated as an admin JWT identity → 200.
   const res = await fetch(`${base}${keysPath('ws-attacker')}`, {
-    headers: { apikey: VALID_KEY, 'x-tenant-id': 'victim-tenant', 'x-workspace-id': 'victim-ws' },
+    headers: { ...traceHeaders, apikey: VALID_KEY, 'x-tenant-id': 'victim-tenant', 'x-workspace-id': 'victim-ws' },
   });
   assert.equal(res.status, 403);
   assert.equal((await res.json()).code, 'GW_FORBIDDEN');
@@ -45,7 +49,7 @@ test('a valid API key is authoritative — a spoofed x-tenant-id header cannot o
 
 test('an invalid API key fails closed (401) even when x-tenant-id is present', async () => {
   const res = await fetch(`${base}${keysPath('ws-x')}`, {
-    headers: { apikey: 'flc_anon_bogus', 'x-tenant-id': 'ten-admin' },
+    headers: { ...traceHeaders, apikey: 'flc_anon_bogus', 'x-tenant-id': 'ten-admin' },
   });
   assert.equal(res.status, 401);
   assert.equal((await res.json()).code, 'GW_UNAUTHENTICATED');
@@ -53,7 +57,7 @@ test('an invalid API key fails closed (401) even when x-tenant-id is present', a
 
 test('no API key → gateway-injected JWT identity headers are trusted (admin path preserved)', async () => {
   const res = await fetch(`${base}${keysPath('ws-admin')}`, {
-    headers: { 'x-tenant-id': 'ten-admin', 'x-auth-subject': 'user-1' },
+    headers: { ...traceHeaders, 'x-tenant-id': 'ten-admin', 'x-auth-subject': 'user-1' },
   });
   assert.equal(res.status, 200);
   const out = await res.json();
@@ -62,7 +66,7 @@ test('no API key → gateway-injected JWT identity headers are trusted (admin pa
 
 test('Authorization: ApiKey form is also authoritative', async () => {
   const res = await fetch(`${base}${keysPath('ws-attacker')}`, {
-    headers: { authorization: `ApiKey ${VALID_KEY}`, 'x-tenant-id': 'victim-tenant' },
+    headers: { ...traceHeaders, authorization: `ApiKey ${VALID_KEY}`, 'x-tenant-id': 'victim-tenant' },
   });
   assert.equal(res.status, 403);
 });

@@ -1,12 +1,12 @@
 // React hook for the flow run view's live SSE subscription (change: add-console-flow-monitoring).
 //
-// Opens the execution-events EventSource on mount, accumulates node-status events into a
+// Opens the header-capable execution-events fetch stream on mount, accumulates node-status events into a
 // Map<nodeId, NodeStatusSnapshot> (latest-wins per node), buffers log-line frames per node, and
 // closes the subscription on unmount. A `stream-end` frame marks the run terminal and closes the
-// EventSource (the run view then renders statically from accumulated history). Mirrors the
+// stream (the run view then renders statically from accumulated history). Mirrors the
 // subscribe/close discipline of use-reconnect-state-sync.ts + realtimeApi.ts.
 //
-// Guard: no state update is dispatched after unmount (a late frame from an in-flight EventSource
+// Guard: no state update is dispatched after unmount (a late frame from an in-flight fetch reader
 // is dropped) — the spec scenario "SSE hook closes subscription on unmount".
 import { useEffect, useRef, useState } from 'react'
 
@@ -34,7 +34,7 @@ export interface FlowExecutionState {
   logsByNode: Map<string, LogLineEvent[]>
   // True once a stream-end frame arrives → the run reached a terminal state.
   ended: boolean
-  // True while the EventSource has emitted no error.
+  // True while the fetch-backed SSE stream has emitted no error.
   streaming: boolean
 }
 

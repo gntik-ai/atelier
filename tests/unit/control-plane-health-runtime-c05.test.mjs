@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import {
@@ -117,6 +118,29 @@ test('C-05 adapter timeout is bounded, sanitized, and cannot fabricate health', 
   assert.equal(result.status, 'unknown');
   assert.equal(result.summary, 'Probe timed out before evidence was available');
   assert.equal(JSON.stringify(result).includes(rawSecret), false);
+});
+
+test('C-05 adapter timeout remains live when it is the process only referenced handle', () => {
+  const moduleUrl = new URL('../../apps/control-plane/health-runtime.mjs', import.meta.url).href;
+  const script = `
+    import { createHealthRuntime } from ${JSON.stringify(moduleUrl)};
+    const runtime = createHealthRuntime({
+      pool: { query: async () => ({ rows: [{ ok: 1 }] }) },
+      schemaReadiness: { responseForReadyProbe: () => null },
+      componentAdapters: { kafka: async () => new Promise(() => {}) },
+      probeTimeoutMs: 10
+    });
+    const result = await runtime.evaluate('health', { componentId: 'kafka' });
+    console.log(result.status);
+  `;
+  const child = spawnSync(process.execPath, ['--input-type=module', '--eval', script], {
+    encoding: 'utf8',
+    timeout: 1_000
+  });
+
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.signal, null);
+  assert.equal(child.stdout.trim(), 'unknown');
 });
 
 test('C-05 custom adapter payloads are normalized and raw summaries are not reflected', async () => {
