@@ -52,3 +52,8 @@ tests/live-campaign/.fixtures.json
 /audit/
 /tests/live-campaign/
 /tests/live-audit/
+kubeconfig*
+*.kubeconfig
+*.token
+byok-*.key
+secrets.local*

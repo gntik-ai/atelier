@@ -5,7 +5,7 @@
 #   docker build -f apps/workflow-worker/Dockerfile -t in-falcone-workflow-worker:0.1.0 .
 #
 # Two stages: (1) compile TypeScript → dist/ (CommonJS) with dev deps, then (2) a slim
-# runtime image with only production deps and the compiled dist/, running as USER node.
+# runtime image with only production deps and the compiled dist/, running as UID 1000.
 # @temporalio/core-bridge ships a glibc native binary; Alpine (musl) cannot load it.
 # Use node:22-slim (Debian Bookworm slim) which provides glibc. Both stages must match.
 #
@@ -98,5 +98,7 @@ ENV NODE_ENV=production \
     WORKER_HEALTH_PORT=8080
 
 EXPOSE 8080
-USER node
+# Numeric UID, not `USER node` (#965) — see apps/control-plane-executor/Dockerfile. 1000 IS
+# `node` in node:22-slim, so this is the same identity with no permission change.
+USER 1000
 CMD ["node", "dist/worker.js"]

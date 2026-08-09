@@ -185,12 +185,13 @@ test('bbx-flows-interp-006: activity-interface contract envelope is exported and
 // ---------------------------------------------------------------------------
 // bbx-flows-interp-007: Dockerfile properties
 // ---------------------------------------------------------------------------
-test('bbx-flows-interp-007: Dockerfile uses node:22-slim, USER node, builds from repo root', () => {
+test('bbx-flows-interp-007: Dockerfile uses node:22-slim, a numeric non-root UID, builds from repo root', () => {
   const df = resolve(SVC, 'Dockerfile');
   assert.ok(existsSync(df), 'apps/workflow-worker/Dockerfile must exist');
   const src = read(df);
   assert.match(src, /FROM\s+node:22-slim/, 'Dockerfile must base on node:22-slim (glibc required by @temporalio/core-bridge native binary; Alpine/musl cannot load it)');
-  assert.match(src, /USER\s+node/, 'Dockerfile must run as USER node (non-root)');
+  // Numeric, not `USER node` (#965): kubelet resolves runAsNonRoot against the numeric UID only.
+  assert.match(src, /USER\s+[1-9]\d*/, 'Dockerfile must run as a numeric non-root UID (#965)');
   // Build from repo root: copies apps/workflow-worker paths (not bare src/).
   assert.match(src, /services\/workflow-worker/, 'Dockerfile must copy from the repo-root apps/workflow-worker path');
   assert.match(src, /CMD\s+\[?["']?node["']?/, 'Dockerfile CMD must launch the node worker process');

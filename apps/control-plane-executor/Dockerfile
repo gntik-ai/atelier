@@ -53,6 +53,10 @@ ENV NODE_ENV=production \
     FUNCTIONS_ENABLED=true
 
 EXPOSE 8080
-USER node
+# Numeric UID, not `USER node` (#965). Kubernetes resolves `runAsNonRoot: true` against the
+# image's numeric UID only — it never reads /etc/passwd to map a username — so a named user
+# leaves the container in CreateContainerConfigError ("image has non-numeric user (node)")
+# unless every consumer pins `runAsUser`. 1000 IS `node` in the official node images.
+USER 1000
 WORKDIR /app/apps/control-plane-executor
 CMD ["node", "src/runtime/main.mjs"]
