@@ -28,14 +28,16 @@ const TENANT_REALM   = TENANT_ID; // Falcone realm-per-tenant: realm name == ten
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 /**
- * Fake pool that returns a known tenant record when queried.
- * Mirrors the minimal pg Pool.query interface used by tenant-store.getTenant.
+ * Fake pool that returns a known tenant record when queried, and — since #961 — the workspace
+ * signup resolves before stamping the binding. Mirrors the minimal pg Pool.query interface used
+ * by tenant-store.getTenant / getWorkspace.
  */
-function fakeTenantPool(tenant) {
+function fakeTenantPool(tenant, workspace = { id: WORKSPACE_ID, tenant_id: TENANT_ID, slug: 'acme-ws' }) {
   return {
-    async query(_sql, _params) {
+    async query(sql, _params) {
+      // getWorkspace runs: SELECT … FROM workspaces WHERE id=$1 OR slug=$1
+      if (/FROM workspaces/i.test(sql)) return { rows: workspace ? [workspace] : [] };
       // getTenant runs: SELECT … FROM tenants WHERE id=$1 OR slug=$1
-      // We return the tenant regardless of the query text (single table, single use here).
       return { rows: tenant ? [tenant] : [] };
     }
   };

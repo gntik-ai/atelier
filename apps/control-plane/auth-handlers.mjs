@@ -247,7 +247,31 @@ async function signup(ctx) {
   const realm = tenant.iam_realm;
   const attributes = {};
   attributes.tenant_id = tenant.id;
-  if (body.workspaceId) attributes.workspace_id = body.workspaceId;
+  // The workspace binding must be REAL before it is stamped (#961). This endpoint is public and
+  // takes workspaceId straight from the request body; workspace_id is also the claim
+  // workspace-scoped authorization binds to. Until #961 the attribute was silently discarded by
+  // Keycloak, so an unchecked value was inert — now that it reaches the token, an unchecked value
+  // would be self-assignment of any workspace, so it is resolved and required to belong to the
+  // tenant being signed up for.
+  //
+  // Unknown and foreign workspaces share ONE response: a public endpoint that distinguished them
+  // would answer "does workspace X exist" for any caller.
+  //
+  // 400, not 422: workspaceId is caller-supplied payload, so this is the same class as the
+  // VALIDATION_ERRORs above, and 400 is one of the statuses the published contract already
+  // declares for this operation ("The signup payload is malformed") — no new response class
+  // enters the contract drift.
+  // Scoped by tenant, not filtered after the fact: `workspaces.slug` is only
+  // `UNIQUE (tenant_id, slug)`, so an unscoped `id = $1 OR slug = $1` resolves a common slug like
+  // `default` to whichever tenant wins an arbitrary LIMIT 1 — which would refuse a tenant its OWN
+  // workspace. The `tenant_id` re-check below is belt-and-braces on top of the scoped query.
+  if (body.workspaceId) {
+    const workspace = await store.getWorkspaceInTenant(pool, tenant.id, body.workspaceId);
+    if (!workspace || workspace.tenant_id !== tenant.id) {
+      return errBody(400, 'WORKSPACE_NOT_IN_TENANT', 'workspaceId does not identify a workspace of this tenant');
+    }
+    attributes.workspace_id = workspace.id;
+  }
 
   try {
     const userId = await kc.createUser(realm, {
