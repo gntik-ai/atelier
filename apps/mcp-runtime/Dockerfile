@@ -19,5 +19,7 @@ ENV NODE_ENV=production \
     PORT=8080
 
 EXPOSE 8080
-USER node
+# Numeric UID, not `USER node` (#965) — see apps/control-plane-executor/Dockerfile. Same
+# defect as the executor and the workflow worker; 1000 IS `node` in node:22-alpine.
+USER 1000
 CMD ["node", "server.mjs"]

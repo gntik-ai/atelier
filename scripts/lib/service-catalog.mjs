@@ -181,6 +181,59 @@ export function parseDockerfileBaseImages(dockerfilePath) {
   return { argDefaults, fromRefs };
 }
 
+// Return the `USER` in effect at the END of the FINAL build stage — the only one baked into the
+// published image config. `USER` is stage-scoped, so every `FROM` resets it and a USER declared in
+// an earlier stage never reaches the runtime image. Returns null when the final stage declares none
+// (i.e. the image runs as root).
+export function parseDockerfileFinalUser(dockerfilePath) {
+  const text = readFileSync(dockerfilePath, 'utf8');
+  let user = null;
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.replace(/\s+#.*$/, '').trim();
+    if (!line || line.startsWith('#')) continue;
+    if (/^FROM\s+/i.test(line)) {
+      user = null;
+      continue;
+    }
+    const match = line.match(/^USER\s+(\S+)/i);
+    if (match) user = match[1];
+  }
+  return user;
+}
+
+// Kubernetes resolves `runAsNonRoot: true` against the image config's NUMERIC uid only; it never
+// reads /etc/passwd inside the image to map a username. A named `USER node` therefore leaves the
+// container in CreateContainerConfigError ("image has non-numeric user (node), cannot verify user
+// is non-root") on every deployment that does not separately pin `runAsUser` — which is issue #965,
+// where the executor and the workflow worker were unschedulable as shipped. Every released image
+// must declare a numeric, non-zero UID so it starts under the default hardened security context.
+export function collectNonRootUserViolations(catalog = readServiceCatalog()) {
+  const violations = [];
+  const services = Array.isArray(catalog?.services) ? catalog.services : [];
+
+  for (const service of services.filter((entry) => entry.release === true)) {
+    const image = service.imageIdentity ?? service.id;
+    if (!service.dockerfile || !existsSync(service.dockerfile)) continue;
+
+    const user = parseDockerfileFinalUser(service.dockerfile);
+    if (user === null) {
+      violations.push(`${image} Dockerfile ${service.dockerfile} declares no USER in its final stage; the image runs as root and cannot start under runAsNonRoot: true.`);
+      continue;
+    }
+    // `USER <uid>[:<gid>]` — only the uid half is what kubelet checks.
+    const uid = user.split(':')[0];
+    if (!/^\d+$/.test(uid)) {
+      violations.push(`${image} Dockerfile USER "${user}" is not a numeric UID; kubelet cannot verify runAsNonRoot and the container fails with CreateContainerConfigError (#965).`);
+      continue;
+    }
+    if (Number(uid) === 0) {
+      violations.push(`${image} Dockerfile USER "${user}" is UID 0 (root); the image cannot start under runAsNonRoot: true.`);
+    }
+  }
+
+  return violations;
+}
+
 // Every `release: true` service must (a) parameterize each external `FROM` base through a build ARG
 // that declares a default, and (b) record those ARGs and defaults in service-catalog.json. The
 // catalog is the source of truth, so any drift between the recorded defaults and the Dockerfile ARG
@@ -369,6 +422,7 @@ export function collectServiceCatalogViolations(catalog = readServiceCatalog(), 
   }
 
   violations.push(...collectBaseImageArgViolations(catalog));
+  violations.push(...collectNonRootUserViolations(catalog));
 
   return violations;
 }

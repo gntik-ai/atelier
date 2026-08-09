@@ -175,6 +175,6 @@ pnpm --filter @in-falcone/workflow-worker build   # tsc → dist/ (CommonJS)
 node dist/worker.js                                # run the worker
 ```
 
-The container image (`Dockerfile`, `node:22-alpine`, `USER node`) is built **from the
+The container image (`Dockerfile`, `node:22-slim`, `USER 1000`) is built **from the
 repo root** so the worker's workspace deps resolve, consistent with
 `apps/control-plane-executor/Dockerfile`.
