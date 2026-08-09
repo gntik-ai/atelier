@@ -31,6 +31,13 @@ non-JSON content type, in which case the exact request bytes are stored.
 | `contentBase64` present but not unambiguous base64 | `400 STORAGE_INVALID_BODY` — nothing is written. |
 | No `contentBase64` and no `content` | `400 STORAGE_INVALID_BODY` — nothing is written. |
 | `contentBase64: ""`, `{ content: "" }`, or a **zero-length request body** | `201` with `sizeBytes: 0` — an explicitly empty object. |
+| A zero-length body under an **explicit** `application/json` (or `+json`) content type | `400 STORAGE_INVALID_BODY` — a client that declares an envelope and sends nothing failed to serialize. An *absent* content type is not a declaration, so a bodyless `curl -X PUT` still writes an empty object. |
+
+The stored content type is the envelope's `contentType`, defaulting to `application/octet-stream`.
+The request's `Content-Type` header is **not** a fallback for it: that header describes the
+*envelope*, not the payload, so honouring it would store a binary object as `application/json` — and
+that is what a later `GET` reports and what a browser receives from a presigned URL. A raw/binary
+upload has no envelope, so there the request header *is* the payload's type.
 
 Both `400`s are raised **before** any storage-backend call, and both come **after** the
 bucket-ownership and role gates — so a caller who does not own the bucket still gets
@@ -39,8 +46,10 @@ bucket exists.
 
 `contentBase64` is accepted in any form that decodes to exactly one byte string, which is wider
 than RFC 4648 §3.2's canonical encoding on purpose: the contract-*mandated* field must not be
-stricter than the legacy `content` field it replaces. ASCII whitespace is stripped first (so
-newline-wrapped output from `openssl base64` or Python's `base64.encodebytes()` is fine), padding is
+stricter than the legacy `content` field it replaces. ASCII whitespace — tab, newline, form feed,
+carriage return, space, and nothing else — is stripped first (so newline-wrapped output from
+`openssl base64` or Python's `base64.encodebytes()` is fine, while a stray NBSP or BOM is still a
+`400`, since no base64 encoder emits one). Padding is
 optional (Go's `RawStdEncoding` and JWT-style encoders omit it) but must complete its 4-character
 quantum when present, and either the standard (`+/`) or URL-safe (`-_`) alphabet is accepted — but
 not a mix of the two, which is valid in neither and is the signal a payload is corrupt. Anything

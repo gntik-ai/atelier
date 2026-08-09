@@ -399,14 +399,23 @@ function decodeObjectKey(rawKey) {
 // here decodes to exactly one byte string, and rejecting a payload that decodes losslessly would
 // make the contract-MANDATED field stricter than the schema-forbidden `content` one:
 //   - ASCII whitespace is stripped first: `openssl base64` and Python's base64.encodebytes() emit
-//     newline-wrapped base64.
+//     newline-wrapped base64. Deliberately ASCII-only (`\s` would also strip NBSP, BOM, U+2028 and
+//     U+3000, which no base64 encoder emits — accepting those would be leniency nothing asked for).
 //   - Padding is optional (Go's RawStdEncoding and JWT-style encoders omit it) but, when present,
 //     must complete its 4-character quantum.
 //   - Either alphabet, standard (`+/`) or URL-safe (`-_`), but not a mix of the two — a mixed
 //     string is not valid in either and is exactly the corruption signal worth refusing.
 // A length ≡ 1 (mod 4) cannot be a base64 sequence at all.
+// Did the CLIENT explicitly declare a JSON request body? Mirrors server.mjs's `isJsonBody` EXCEPT
+// for the empty-content-type case: server.mjs treats an absent Content-Type as JSON for backward
+// compatibility, but an absent header is not a declaration, so a bodyless `curl -X PUT` keeps the
+// touch semantics it has always had.
+function declaresJsonBody(contentType) {
+  const value = String(contentType ?? '').toLowerCase();
+  return value.includes('application/json') || value.includes('+json');
+}
 function decodeBase64Exact(raw) {
-  const compact = raw.replace(/\s+/g, '');
+  const compact = raw.replace(/[\t\n\f\r ]+/g, '');
   const body = compact.replace(/={1,2}$/, '');
   const padding = compact.length - body.length;
   if (!/^(?:[A-Za-z0-9+/]*|[A-Za-z0-9_-]*)$/.test(body)) return null;
@@ -421,13 +430,21 @@ export function resolveObjectBody(ctx) {
     return { bytes: ctx.rawBody, contentType: ctx.contentType || 'application/octet-stream' };
   }
   const env = ctx.body ?? {};
-  const contentType = env.contentType ?? ctx.contentType ?? 'application/octet-stream';
+  // The envelope's own contentType describes the PAYLOAD. The request's Content-Type header
+  // describes the ENVELOPE, so it must NOT be used as a fallback here: a JSON envelope carrying a
+  // binary payload with no explicit contentType would be stored as `application/json` — which is
+  // then what a later GET reports and what a browser receives from a presigned URL.
+  const contentType = env.contentType ?? 'application/octet-stream';
   // An EMPTY request body is an explicit "store nothing" (the S3 `touch` idiom), not an unusable
   // envelope — so it stays a 201 with 0 bytes. server.mjs only sets rawBodyIsBinary when the body
   // is non-empty (`if (rawBody.length)`), so a zero-length raw upload arrives here with body `{}`
-  // and would otherwise be refused as if it were a malformed JSON envelope.
-  if (Buffer.isBuffer(ctx.rawBody) && ctx.rawBody.length === 0) {
-    return { bytes: ctx.rawBody, contentType };
+  // and would otherwise be refused as if it were a malformed JSON envelope. Its content type comes
+  // from the request header, exactly as the rawBodyIsBinary branch above does it — there is no
+  // envelope to read one from. An explicitly declared JSON body is excluded: a client that says it
+  // is sending an envelope and sends nothing failed to serialize, and handing it back a 201 with no
+  // data is the very shape this issue is about.
+  if (Buffer.isBuffer(ctx.rawBody) && ctx.rawBody.length === 0 && !declaresJsonBody(ctx.contentType)) {
+    return { bytes: ctx.rawBody, contentType: ctx.contentType || 'application/octet-stream' };
   }
   // The contract-mandated field. Typed before it is decoded: String() coercion would turn `true`
   // into "true" and `["SEVMTE8="]` into its element, both of which are valid base64, so a

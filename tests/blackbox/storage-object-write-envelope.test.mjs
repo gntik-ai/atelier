@@ -228,6 +228,76 @@ test('bbx-stor-env-05c: contentBase64 accepts every unambiguous base64 encoding 
   for (const impossible of ['SEVMT', 'SEVMTE8==', 'SEVM=', 'A=']) {
     assert.equal(resolveObjectBody({ body: { contentBase64: impossible } }).error?.statusCode, 400, `${impossible} is refused`);
   }
+  // The highest-value case for the hazard the guard exists for: an out-of-alphabet character in the
+  // MIDDLE of otherwise-valid base64. Buffer.from() would silently drop it and return a shorter,
+  // wrong byte string under a 201 — a naive filter-then-decode guard passes every case above and
+  // still fails this one. Non-ASCII whitespace belongs here too: no base64 encoder emits it.
+  for (const embedded of ['SE!!VMTE8=', 'SEVM TE8=x', 'SEV MTE8=', '﻿SEVMTE8=', 'SEVM TE8=', 'SEVM\0TE8=']) {
+    assert.equal(
+      resolveObjectBody({ body: { contentBase64: embedded } }).error?.statusCode, 400,
+      `${JSON.stringify(embedded)} carries an out-of-alphabet character and must be refused, not silently shortened`
+    );
+  }
+});
+
+// The stored content type describes the PAYLOAD. A JSON envelope's request Content-Type describes
+// the ENVELOPE, so it must never become the object's type — that is what a later GET reports and
+// what a browser receives from a presigned URL.
+test('bbx-stor-env-05e: the stored content type comes from the envelope, never from the request header', async () => {
+  const pool = makeMockPool();
+  await withFakeS3(async ({ store }) => {
+    // A binary payload in a JSON envelope with no explicit contentType must not become JSON.
+    const res = await storagePutObject({
+      ...ctxFor({ bucketId: BUCKET_A, objectKey: 'untyped.bin' }, {
+        pool, body: { contentBase64: 'SEVMTE8=' }
+      }),
+      contentType: 'application/json'
+    });
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.body.contentType, 'application/octet-stream', 'the envelope Content-Type is not the payload type');
+    assert.equal(store.get(`/${BUCKET_A}/untyped.bin`).contentType, 'application/octet-stream');
+  });
+  await withFakeS3(async ({ store }) => {
+    // An explicit envelope contentType still wins.
+    await storagePutObject({
+      ...ctxFor({ bucketId: BUCKET_A, objectKey: 'typed.png' }, {
+        pool, body: { contentBase64: 'SEVMTE8=', contentType: 'image/png' }
+      }),
+      contentType: 'application/json'
+    });
+    assert.equal(store.get(`/${BUCKET_A}/typed.png`).contentType, 'image/png');
+  });
+  await withFakeS3(async ({ store }) => {
+    // A raw/binary upload has no envelope, so its request header IS the payload type.
+    await storagePutObject({
+      ...ctxFor({ bucketId: BUCKET_A, objectKey: 'raw.png' }, { pool }),
+      rawBody: Buffer.from([1, 2, 3]), rawBodyIsBinary: true, contentType: 'image/png'
+    });
+    assert.equal(store.get(`/${BUCKET_A}/raw.png`).contentType, 'image/png');
+  });
+});
+
+// An empty body under an EXPLICIT JSON declaration is a client that failed to serialize, not a
+// touch — handing it back a 201 with no data is the shape #994 is about. An absent header is not a
+// declaration, so a bodyless `curl -X PUT` keeps the touch semantics it has always had.
+test('bbx-stor-env-05f: an empty body is a touch unless the client explicitly declared JSON', async () => {
+  const pool = makeMockPool();
+  for (const [contentType, expected] of [
+    ['application/octet-stream', 201],
+    ['image/png', 201],
+    ['', 201],
+    [undefined, 201],
+    ['application/json', 400],
+    ['application/merge-patch+json', 400]
+  ]) {
+    await withFakeS3(async () => {
+      const res = await storagePutObject({
+        ...ctxFor({ bucketId: BUCKET_A, objectKey: 'empty-decl.bin' }, { pool }),
+        rawBody: Buffer.alloc(0), contentType
+      });
+      assert.equal(res.statusCode, expected, `Content-Type ${JSON.stringify(contentType)} must be ${expected}, got ${res.statusCode} ${JSON.stringify(res.body)}`);
+    });
+  }
 });
 
 // server.mjs only sets rawBodyIsBinary when the body is NON-empty (`if (rawBody.length)`), so a
