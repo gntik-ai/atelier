@@ -1249,3 +1249,42 @@ Recorded rather than smoothed over:
 - **`plan-context` / `workspace-roles` stay mapper-less** — see the rationale above. Not an
   oversight, and deliberately not "fixed" by adding mappers for values nothing sets and nothing
   reads.
+
+## Carried in from F0-6's pending queue — verdicts that landed during this run
+
+Four verifier verdicts from run F0-6's eleven-candidate backlog completed while this fix run was in
+progress. They are **not this run's work and none was filed**; recorded here so the next run inherits
+them instead of re-deriving them. The filing decision is still open.
+
+| Candidate | Verdict as returned | Note for the filing decision |
+|---|---|---|
+| `contract:identifiers:prefixed-id-patterns` (C4) | **CONFIRMED**, bug/high | Published contract declares `^ten_[0-9a-z]+$`-style patterns across 112 of 673 schemas while the runtime issues UUIDs. Verifier widened it: it is **request-side too** (22 reusable `components.parameters`, so **237 of 417 operations** cannot be *called* with a real id by a validating client), **28 prefix families** not 2, and the scheme was never implemented rather than superseded (no generator anywhere in git history). Same class as #993/#990 — cross-reference, do not merge. |
+| `docs:examples:gateway-routes-dead` (C7) | **CONFIRMED**, re-scoped to medium | The verifier's falsification test **overturned the candidate's framing**: a gateway variant does exist (`docs-site/guide/examples.md`, in the published nav) and every route in it 404s `NO_ROUTE`. Also inverts the candidate's "API key required" claim — live probes want a bearer, and no API-key issuance route exists in the contract at all. Medium because the namespace has no external exposure. |
+| `platform:authz:developer-roles-inert` (C1) | **NOT-REPRODUCIBLE as characterized** | Central claim refuted — all four "inert" roles read data fine; the probe set never touched the 156 `authenticated` routes. The residue **is already #973**. One distinct defect found underneath: `packages/internal-contracts/src/authorization-model.json` is imported by no control-plane or executor module, so a shipped permission matrix is never honoured — `workspace_developer` has strictly *less* access than `workspace_viewer`. Under-permission axis; fail-closed. |
+| `platform:data-plane:falcone-anon-role-absent` (C5b + C6's 500) | **CONFIRMED**, one defect not two | The chart never creates the `falcone_anon`/`falcone_service` roles the executor's API-key data path does `SET LOCAL ROLE` on, so the whole API-key Postgres data plane is dead on any chart install (`22023: role does not exist`, surfaced as a 500 with the raw SQLSTATE as the public `code`). 0 RLS policies on all 6 databases. C6's 404 half was **re-attributed**: same 2005/2005-key credential-class routing as **#980**, not #985. |
+
+Two of these are chart-side, which is the same wall #997/#981/#980 hit.
+
+## Noticed, unverified, not filed — hardcoded SSH private key in the seaweedfs subchart
+
+`falcone-charts/charts/in-falcone/charts/seaweedfs/templates/sftp/sftp-secret.yaml` embeds a literal
+`BEGIN OPENSSH PRIVATE KEY` block. The sftp component is `enabled: false` by default, so it is
+latent rather than live, and the file appears to be upstream subchart content rather than anything
+this platform authored. **Spotted incidentally during the end-of-run scratchpad credential sweep; no
+verifier looked at it and CLAUDE.md rule 3 says it cannot be filed until one does.** Next run should
+route it: a committed private key that renders whenever an operator flips one value is the shape of
+#976 (execution tokens signed with a committed constant), and that one was CONFIRMED.
+
+## Cleanup
+
+`tests/env` Keycloak 26 torn down (`docker compose down -v`, container and network removed). No
+kubectl call was made in this session and no namespace was touched — the whole run was local, and
+the deployed staging release still runs the pre-fix image.
+
+Scratchpad credential sweep: the only match in this session's scratchpad is the synthetic fixture
+password `CorrectHorseBattery1` in the verifier's probe files, used against local throwaway
+containers that no longer exist. No minted token, API key or private key was written to disk, and
+nothing reached git. The verifier's probe harness (`probe*.mjs`, plus the pinned pre-fix/fixed
+`kc-admin` copies) is **kept deliberately** — it is the reusable independent repro for this defect
+class. Four credential-pattern matches elsewhere under `/tmp/claude-1000` belong to *other*
+sessions' scratchpad copies of the charts repo and were left untouched.
