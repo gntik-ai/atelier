@@ -210,6 +210,7 @@ test('bbx-c17-http-001 | fn-async-operation-id-validation | Scenario: HTTP respo
     headers: {
       authorization: `Bearer ${VALID_BEARER}`,
       'content-type': 'application/json',
+      'x-api-version': '2026-03-26',
       'x-request-id': REQUEST_ID,
       'x-correlation-id': CORRELATION_ID
     },

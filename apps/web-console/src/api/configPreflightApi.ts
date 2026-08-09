@@ -2,6 +2,8 @@
  * API client for tenant config pre-flight conflict check endpoint.
  */
 
+import { publicApiFetch } from '@/lib/http'
+
 const API_BASE = (typeof process !== 'undefined' && process.env?.CONFIG_PREFLIGHT_API_URL) || '/api'
 
 export class ConfigPreflightApiError extends Error {
@@ -77,7 +79,7 @@ export interface PreflightRequest {
 // --- API functions ---
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options)
+  const res = await publicApiFetch(url, options)
   const data = await res.json().catch(() => ({} as Record<string, unknown>))
   if (!res.ok) {
     const message = (data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? `HTTP ${res.status}`

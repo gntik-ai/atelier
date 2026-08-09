@@ -24,6 +24,28 @@
         "name": "X-Api-Key"
       }
     },
+    "parameters": {
+      "XApiVersion": {
+        "name": "X-API-Version",
+        "in": "header",
+        "required": true,
+        "schema": { "type": "string", "const": "2026-03-26" }
+      },
+      "XCorrelationId": {
+        "name": "X-Correlation-Id",
+        "in": "header",
+        "required": false,
+        "description": "Optional caller correlation identifier; generated when omitted and returned in every response.",
+        "schema": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{8,128}$" }
+      }
+    },
+    "headers": {
+      "XCorrelationId": {
+        "description": "Resolved request correlation identifier.",
+        "required": true,
+        "schema": { "type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{8,128}$" }
+      }
+    },
     "schemas": {
       "ErrorResponse": {
         "type": "object",

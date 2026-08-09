@@ -89,12 +89,17 @@ describe('mongoApi — anon-key embeds', () => {
   it('buildMongoFrontendSnippet uses the apikey header (gateway routes by it, not Authorization)', () => {
     const snippet = buildMongoFrontendSnippet(params)
     expect(snippet).toContain("apikey: 'flc_anon_abc'")
+    expect(snippet).toContain("'X-API-Version': '2026-03-26'")
+    expect(snippet).toContain("'X-Correlation-Id': crypto.randomUUID()")
     expect(snippet).not.toContain('Authorization')
     expect(snippet).toContain(docsUrl)
   })
 
   it('buildMongoCurlSnippet sends the apikey header', () => {
-    expect(buildMongoCurlSnippet(params)).toContain("-H 'apikey: flc_anon_abc'")
+    const snippet = buildMongoCurlSnippet(params)
+    expect(snippet).toContain("-H 'apikey: flc_anon_abc'")
+    expect(snippet).toContain("-H 'X-API-Version: 2026-03-26'")
+    expect(snippet).toContain("-H 'X-Correlation-Id: corr-client-0001'")
   })
 
   it('previewDocumentsWithApiKey does a bare apikey request (no console session)', async () => {

@@ -111,7 +111,7 @@ async function stopChild(child) {
   });
 }
 
-test('control-plane HTTP boundary normalizes 404/503 errors and leaves success unchanged', { timeout: 15000 }, async () => {
+test('control-plane HTTP boundary normalizes 404/401 errors and leaves success unchanged', { timeout: 15000 }, async () => {
   const { child, base } = await startControlPlaneProcess();
   const requestId = 'req-main-blackbox-001';
   const correlationId = 'corr-main-blackbox-001';
@@ -124,11 +124,11 @@ test('control-plane HTTP boundary normalizes 404/503 errors and leaves success u
       path: '/v1/reproduction/no-such-route', requestId, correlationId
     });
 
-    const gated = await fetch(`${base}/v1/metrics/tenants/tnt_reproduction/quotas`, {
+    const unauthenticated = await fetch(`${base}/v1/metrics/tenants/tnt_reproduction/quotas`, {
       headers: { 'x-request-id': requestId, 'x-correlation-id': correlationId }
     });
-    assert.equal(gated.status, 503);
-    assertEnvelope(await gated.json(), 503, {
+    assert.equal(unauthenticated.status, 401, 'authentication precedes trace and schema-readiness gates');
+    assertEnvelope(await unauthenticated.json(), 401, {
       path: '/v1/metrics/tenants/{id}/quotas', requestId, correlationId
     });
 
@@ -163,6 +163,7 @@ test('executor HTTP boundary normalizes 400/401/403/404/500 and leaves success u
   };
   const trusted = {
     ...validIds,
+    'x-api-version': '2026-03-26',
     'x-tenant-id': 'tenant-alpha',
     'x-workspace-id': 'ws-alpha',
     'x-auth-subject': 'operator-alpha',
@@ -187,7 +188,7 @@ test('executor HTTP boundary normalizes 400/401/403/404/500 and leaves success u
     });
 
     response = await fetch(`${base}/v1/workspaces/ws-other/api-keys`, {
-      headers: { ...validIds, 'x-api-key': 'flc_bound_key' }
+      headers: { ...validIds, 'x-api-version': '2026-03-26', 'x-api-key': 'flc_bound_key' }
     });
     assert.equal(response.status, 403);
     assertEnvelope(await response.json(), 403, { path: '/v1/workspaces/{id}/api-keys' });

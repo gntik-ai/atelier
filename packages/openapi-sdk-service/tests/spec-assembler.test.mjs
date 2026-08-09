@@ -14,6 +14,16 @@ test('assembleSpec includes enabled capability paths and excludes disabled paths
   assert.ok(spec.paths['/auth/tokens']);
   assert.equal(spec.paths['/channels'], undefined);
   assert.equal(spec.paths['/mongo/collections'], undefined);
+  const createToken = spec.paths['/auth/tokens'].post;
+  assert.deepEqual(createToken.parameters.slice(0, 2), [
+    { $ref: '#/components/parameters/XApiVersion' },
+    { $ref: '#/components/parameters/XCorrelationId' }
+  ]);
+  assert.equal(spec.components.parameters.XApiVersion.schema.const, '2026-03-26');
+  assert.equal(spec.components.parameters.XCorrelationId.required, false);
+  for (const response of Object.values(createToken.responses)) {
+    assert.deepEqual(response.headers['X-Correlation-Id'], { $ref: '#/components/headers/XCorrelationId' });
+  }
 });
 
 test('assembleSpec with empty set produces valid empty paths object', () => {

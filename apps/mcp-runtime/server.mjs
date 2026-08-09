@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { handleMcpMessage } from '../control-plane-executor/src/mcp-official-server.mjs';
+import { PUBLIC_API_VERSION, resolveCorrelationId } from '../shared/error-envelope.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
 const FALCONE_API_BASE_URL = process.env.FALCONE_API_BASE_URL || 'http://falcone-control-plane:8080';
@@ -52,8 +53,10 @@ async function callFalconeFrom(req, method, path, body) {
   const headers = {
     accept: 'application/json',
     'content-type': 'application/json',
+    'x-api-version': PUBLIC_API_VERSION,
+    'x-correlation-id': resolveCorrelationId(req.headers['x-correlation-id']),
   };
-  for (const name of ['authorization', 'x-correlation-id', 'x-tenant-id', 'x-workspace-id']) {
+  for (const name of ['authorization', 'x-tenant-id', 'x-workspace-id']) {
     if (req.headers[name]) headers[name] = req.headers[name];
   }
   const init = { method, headers };

@@ -1,5 +1,17 @@
 {
   "components": {
+    "headers": {
+      "XCorrelationId": {
+        "description": "Correlation identifier resolved for this request. It is preserved when valid at ingress or generated when omitted.",
+        "required": true,
+        "schema": {
+          "maxLength": 128,
+          "minLength": 8,
+          "pattern": "^[A-Za-z0-9._:-]{8,128}$",
+          "type": "string"
+        }
+      }
+    },
     "parameters": {
       "ClientId": {
         "description": "Stable client identifier inside one managed realm.",
@@ -183,10 +195,10 @@
         }
       },
       "XCorrelationId": {
-        "description": "Stable request correlation identifier reused by downstream authorization, orchestration, audit flows, and backfilled by the gateway when recovery requires it.",
+        "description": "Optional caller correlation identifier. The gateway preserves one valid value or generates one when omitted, and every response returns the resolved value in X-Correlation-Id.",
         "in": "header",
         "name": "X-Correlation-Id",
-        "required": true,
+        "required": false,
         "schema": {
           "maxLength": 128,
           "minLength": 8,
@@ -2169,7 +2181,12 @@
                 }
               }
             },
-            "description": "IAM realm page returned."
+            "description": "IAM realm page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2179,7 +2196,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2189,7 +2211,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -2199,7 +2226,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -2209,7 +2241,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -2219,7 +2256,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -2229,7 +2271,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -2286,7 +2333,12 @@
                 }
               }
             },
-            "description": "IAM realm creation accepted."
+            "description": "IAM realm creation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2296,7 +2348,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2306,7 +2363,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -2316,7 +2378,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -2326,7 +2393,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -2336,7 +2408,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -2346,7 +2423,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -2356,7 +2438,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -2366,7 +2453,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -2418,7 +2510,12 @@
                 }
               }
             },
-            "description": "IAM realm deletion accepted."
+            "description": "IAM realm deletion accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2428,7 +2525,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2438,7 +2540,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -2448,7 +2555,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -2458,7 +2570,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -2468,7 +2585,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -2478,7 +2600,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -2488,7 +2615,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -2498,7 +2630,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -2508,7 +2645,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -2555,7 +2697,12 @@
                 }
               }
             },
-            "description": "IAM realm returned."
+            "description": "IAM realm returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2565,7 +2712,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2575,7 +2727,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -2585,7 +2742,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -2595,7 +2757,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -2605,7 +2772,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -2615,7 +2787,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -2625,7 +2802,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -2685,7 +2867,12 @@
                 }
               }
             },
-            "description": "IAM realm update accepted."
+            "description": "IAM realm update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2695,7 +2882,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2705,7 +2897,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -2715,7 +2912,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -2725,7 +2927,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -2735,7 +2942,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -2745,7 +2957,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -2755,7 +2972,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -2765,7 +2987,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -2775,7 +3002,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -2839,7 +3071,12 @@
                 }
               }
             },
-            "description": "IAM client page returned."
+            "description": "IAM client page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2849,7 +3086,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2859,7 +3101,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -2869,7 +3116,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -2879,7 +3131,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -2889,7 +3146,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -2899,7 +3161,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -2959,7 +3226,12 @@
                 }
               }
             },
-            "description": "IAM client creation accepted."
+            "description": "IAM client creation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -2969,7 +3241,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -2979,7 +3256,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -2989,7 +3271,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -2999,7 +3286,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3009,7 +3301,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3019,7 +3316,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3029,7 +3331,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3039,7 +3346,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3094,7 +3406,12 @@
                 }
               }
             },
-            "description": "IAM client deletion accepted."
+            "description": "IAM client deletion accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3104,7 +3421,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3114,7 +3436,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -3124,7 +3451,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -3134,7 +3466,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -3144,7 +3481,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3154,7 +3496,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3164,7 +3511,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3174,7 +3526,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3184,7 +3541,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3234,7 +3596,12 @@
                 }
               }
             },
-            "description": "IAM client returned."
+            "description": "IAM client returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3244,7 +3611,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3254,7 +3626,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -3264,7 +3641,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3274,7 +3656,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3284,7 +3671,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3294,7 +3686,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3304,7 +3701,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3367,7 +3769,12 @@
                 }
               }
             },
-            "description": "IAM client update accepted."
+            "description": "IAM client update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3377,7 +3784,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3387,7 +3799,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -3397,7 +3814,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -3407,7 +3829,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -3417,7 +3844,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3427,7 +3859,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3437,7 +3874,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3447,7 +3889,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3457,7 +3904,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3522,7 +3974,12 @@
                 }
               }
             },
-            "description": "IAM client status change accepted."
+            "description": "IAM client status change accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3532,7 +3989,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3542,7 +4004,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -3552,7 +4019,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -3562,7 +4034,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -3572,7 +4049,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3582,7 +4064,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3592,7 +4079,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3602,7 +4094,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3612,7 +4109,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3670,7 +4172,12 @@
                 }
               }
             },
-            "description": "IAM group page returned."
+            "description": "IAM group page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3680,7 +4187,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3690,7 +4202,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3700,7 +4217,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3710,7 +4232,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3720,7 +4247,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3730,7 +4262,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3790,7 +4327,12 @@
                 }
               }
             },
-            "description": "IAM group creation accepted."
+            "description": "IAM group creation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3800,7 +4342,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3810,7 +4357,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -3820,7 +4372,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -3830,7 +4387,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3840,7 +4402,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3850,7 +4417,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3860,7 +4432,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3870,7 +4447,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -3928,7 +4510,12 @@
                 }
               }
             },
-            "description": "IAM group member page returned."
+            "description": "IAM group member page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -3938,7 +4525,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -3948,7 +4540,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -3958,7 +4555,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -3968,7 +4570,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -3978,7 +4585,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -3988,7 +4600,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4047,7 +4664,12 @@
                 }
               }
             },
-            "description": "IAM role page returned."
+            "description": "IAM role page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4057,7 +4679,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4067,7 +4694,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4077,7 +4709,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4087,7 +4724,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4097,7 +4739,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4107,7 +4754,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4167,7 +4819,12 @@
                 }
               }
             },
-            "description": "IAM role creation accepted."
+            "description": "IAM role creation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4177,7 +4834,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4187,7 +4849,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4197,7 +4864,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4207,7 +4879,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4217,7 +4894,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4227,7 +4909,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4237,7 +4924,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4247,7 +4939,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4302,7 +4999,12 @@
                 }
               }
             },
-            "description": "IAM role deletion accepted."
+            "description": "IAM role deletion accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4312,7 +5014,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4322,7 +5029,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -4332,7 +5044,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4342,7 +5059,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4352,7 +5074,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4362,7 +5089,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4372,7 +5104,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4382,7 +5119,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4392,7 +5134,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4442,7 +5189,12 @@
                 }
               }
             },
-            "description": "IAM role returned."
+            "description": "IAM role returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4452,7 +5204,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4462,7 +5219,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -4472,7 +5234,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4482,7 +5249,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4492,7 +5264,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4502,7 +5279,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4512,7 +5294,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4575,7 +5362,12 @@
                 }
               }
             },
-            "description": "IAM role update accepted."
+            "description": "IAM role update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4585,7 +5377,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4595,7 +5392,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -4605,7 +5407,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4615,7 +5422,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4625,7 +5437,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4635,7 +5452,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4645,7 +5467,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4655,7 +5482,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4665,7 +5497,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4726,7 +5563,12 @@
                 }
               }
             },
-            "description": "IAM scope page returned."
+            "description": "IAM scope page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4736,7 +5578,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4746,7 +5593,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4756,7 +5608,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4766,7 +5623,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4776,7 +5638,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4786,7 +5653,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4846,7 +5718,12 @@
                 }
               }
             },
-            "description": "IAM scope creation accepted."
+            "description": "IAM scope creation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4856,7 +5733,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -4866,7 +5748,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -4876,7 +5763,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -4886,7 +5778,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -4896,7 +5793,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -4906,7 +5808,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -4916,7 +5823,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -4926,7 +5838,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -4981,7 +5898,12 @@
                 }
               }
             },
-            "description": "IAM scope deletion accepted."
+            "description": "IAM scope deletion accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -4991,7 +5913,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5001,7 +5928,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5011,7 +5943,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5021,7 +5958,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5031,7 +5973,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5041,7 +5988,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5051,7 +6003,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5061,7 +6018,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5071,7 +6033,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5121,7 +6088,12 @@
                 }
               }
             },
-            "description": "IAM scope returned."
+            "description": "IAM scope returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5131,7 +6103,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5141,7 +6118,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5151,7 +6133,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5161,7 +6148,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5171,7 +6163,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5181,7 +6178,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5191,7 +6193,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5254,7 +6261,12 @@
                 }
               }
             },
-            "description": "IAM scope update accepted."
+            "description": "IAM scope update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5264,7 +6276,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5274,7 +6291,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5284,7 +6306,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5294,7 +6321,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5304,7 +6336,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5314,7 +6351,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5324,7 +6366,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5334,7 +6381,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5344,7 +6396,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5406,7 +6463,12 @@
                 }
               }
             },
-            "description": "IAM realm status change accepted."
+            "description": "IAM realm status change accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5416,7 +6478,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5426,7 +6493,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5436,7 +6508,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5446,7 +6523,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5456,7 +6538,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5466,7 +6553,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5476,7 +6568,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5486,7 +6583,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5496,7 +6598,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5557,7 +6664,12 @@
                 }
               }
             },
-            "description": "IAM user page returned."
+            "description": "IAM user page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5567,7 +6679,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5577,7 +6694,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5587,7 +6709,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5597,7 +6724,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5607,7 +6739,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5617,7 +6754,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5677,7 +6819,12 @@
                 }
               }
             },
-            "description": "IAM user creation accepted."
+            "description": "IAM user creation accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5687,7 +6834,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5697,7 +6849,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5707,7 +6864,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5717,7 +6879,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5727,7 +6894,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5737,7 +6909,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5747,7 +6924,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5757,7 +6939,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5812,7 +6999,12 @@
                 }
               }
             },
-            "description": "IAM user deletion accepted."
+            "description": "IAM user deletion accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5822,7 +7014,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5832,7 +7029,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5842,7 +7044,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -5852,7 +7059,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -5862,7 +7074,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5872,7 +7089,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -5882,7 +7104,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -5892,7 +7119,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -5902,7 +7134,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -5952,7 +7189,12 @@
                 }
               }
             },
-            "description": "IAM user returned."
+            "description": "IAM user returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -5962,7 +7204,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -5972,7 +7219,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -5982,7 +7234,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -5992,7 +7249,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6002,7 +7264,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6012,7 +7279,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6022,7 +7294,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6085,7 +7362,12 @@
                 }
               }
             },
-            "description": "IAM user update accepted."
+            "description": "IAM user update accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6095,7 +7377,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6105,7 +7392,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6115,7 +7407,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6125,7 +7422,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6135,7 +7437,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6145,7 +7452,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6155,7 +7467,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6165,7 +7482,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6175,7 +7497,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6240,7 +7567,12 @@
                 }
               }
             },
-            "description": "IAM user credential reset accepted."
+            "description": "IAM user credential reset accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6250,7 +7582,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6260,7 +7597,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6270,7 +7612,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6280,7 +7627,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6290,7 +7642,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6300,7 +7657,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6310,7 +7672,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6320,7 +7687,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6330,7 +7702,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6382,7 +7759,12 @@
                 }
               }
             },
-            "description": "Assigned IAM group page returned."
+            "description": "Assigned IAM group page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6392,7 +7774,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6402,7 +7789,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6412,7 +7804,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6422,7 +7819,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6432,7 +7834,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6442,7 +7849,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6501,7 +7913,12 @@
                 }
               }
             },
-            "description": "IAM user group membership removal accepted."
+            "description": "IAM user group membership removal accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6511,7 +7928,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6521,7 +7943,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6531,7 +7958,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6541,7 +7973,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6551,7 +7988,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6561,7 +8003,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6571,7 +8018,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6581,7 +8033,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6591,7 +8048,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6648,7 +8110,12 @@
                 }
               }
             },
-            "description": "IAM user group membership addition accepted."
+            "description": "IAM user group membership addition accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6658,7 +8125,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6668,7 +8140,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6678,7 +8155,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6688,7 +8170,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6698,7 +8185,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6708,7 +8200,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6718,7 +8215,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6728,7 +8230,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6794,7 +8301,12 @@
                 }
               }
             },
-            "description": "IAM user role removal accepted."
+            "description": "IAM user role removal accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6804,7 +8316,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6814,7 +8331,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -6824,7 +8346,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6834,7 +8361,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6844,7 +8376,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6854,7 +8391,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -6864,7 +8406,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -6874,7 +8421,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -6884,7 +8436,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -6948,7 +8505,12 @@
                 }
               }
             },
-            "description": "IAM user role assignment accepted."
+            "description": "IAM user role assignment accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -6958,7 +8520,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -6968,7 +8535,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -6978,7 +8550,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -6988,7 +8565,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -6998,7 +8580,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7008,7 +8595,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7018,7 +8610,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7028,7 +8625,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7081,7 +8683,12 @@
                 }
               }
             },
-            "description": "Assigned IAM role page returned."
+            "description": "Assigned IAM role page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7091,7 +8698,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7101,7 +8713,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7111,7 +8728,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7121,7 +8743,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7131,7 +8758,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7141,7 +8773,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7207,7 +8844,12 @@
                 }
               }
             },
-            "description": "IAM user status change accepted."
+            "description": "IAM user status change accepted.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7217,7 +8859,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7227,7 +8874,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7237,7 +8889,12 @@
                 }
               }
             },
-            "description": "The requested IAM resource was not found."
+            "description": "The requested IAM resource was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -7247,7 +8904,12 @@
                 }
               }
             },
-            "description": "The IAM request conflicts with current provider or business validation state."
+            "description": "The IAM request conflicts with current provider or business validation state.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -7257,7 +8919,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7267,7 +8934,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7277,7 +8949,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7287,7 +8964,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7297,7 +8979,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7349,7 +9036,12 @@
                 }
               }
             },
-            "description": "Custom role page returned."
+            "description": "Custom role page returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7359,7 +9051,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7369,7 +9066,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7379,7 +9081,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7389,7 +9096,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7399,7 +9111,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7409,7 +9126,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7466,7 +9188,12 @@
                 }
               }
             },
-            "description": "Custom role created."
+            "description": "Custom role created.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7476,7 +9203,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7486,7 +9218,12 @@
                 }
               }
             },
-            "description": "The custom role grants an action the caller does not hold or a platform-scoped action."
+            "description": "The custom role grants an action the caller does not hold or a platform-scoped action.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "409": {
             "content": {
@@ -7496,7 +9233,12 @@
                 }
               }
             },
-            "description": "A custom role with the same name already exists in this scope."
+            "description": "A custom role with the same name already exists in this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -7506,7 +9248,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "422": {
             "content": {
@@ -7516,7 +9263,12 @@
                 }
               }
             },
-            "description": "The custom role name is missing the custom: prefix or collides with a reserved role name."
+            "description": "The custom role name is missing the custom: prefix or collides with a reserved role name.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7526,7 +9278,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7536,7 +9293,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7546,7 +9308,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7556,7 +9323,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7601,7 +9373,12 @@
         ],
         "responses": {
           "204": {
-            "description": "Custom role soft-deleted; effective-permissions recalculation triggered."
+            "description": "Custom role soft-deleted; effective-permissions recalculation triggered.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7611,7 +9388,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7621,7 +9403,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7631,7 +9418,12 @@
                 }
               }
             },
-            "description": "The requested custom role was not found in the caller's tenant."
+            "description": "The requested custom role was not found in the caller's tenant.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -7641,7 +9433,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7651,7 +9448,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7661,7 +9463,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7671,7 +9478,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7681,7 +9493,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7728,7 +9545,12 @@
                 }
               }
             },
-            "description": "Custom role returned."
+            "description": "Custom role returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7738,7 +9560,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7748,7 +9575,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this IAM scope."
+            "description": "The caller is authenticated but not authorized for this IAM scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7758,7 +9590,12 @@
                 }
               }
             },
-            "description": "The requested custom role was not found in the caller's tenant."
+            "description": "The requested custom role was not found in the caller's tenant.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7768,7 +9605,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7778,7 +9620,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7788,7 +9635,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7798,7 +9650,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -7858,7 +9715,12 @@
                 }
               }
             },
-            "description": "Custom role updated."
+            "description": "Custom role updated.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -7868,7 +9730,12 @@
                 }
               }
             },
-            "description": "The IAM request is malformed or contextually inconsistent."
+            "description": "The IAM request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -7878,7 +9745,12 @@
                 }
               }
             },
-            "description": "The custom role grants an action the caller does not hold or a platform-scoped action."
+            "description": "The custom role grants an action the caller does not hold or a platform-scoped action.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -7888,7 +9760,12 @@
                 }
               }
             },
-            "description": "The requested custom role was not found in the caller's tenant."
+            "description": "The requested custom role was not found in the caller's tenant.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "413": {
             "content": {
@@ -7898,7 +9775,12 @@
                 }
               }
             },
-            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family."
+            "description": "Gateway rejected the request because the body exceeded the configured size budget for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "422": {
             "content": {
@@ -7908,7 +9790,12 @@
                 }
               }
             },
-            "description": "The custom role name is missing the custom: prefix or collides with a reserved role name."
+            "description": "The custom role name is missing the custom: prefix or collides with a reserved role name.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -7918,7 +9805,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -7928,7 +9820,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -7938,7 +9835,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream IAM adapter response."
+            "description": "Gateway timed out while waiting for the downstream IAM adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -7948,7 +9850,12 @@
                 }
               }
             },
-            "description": "Unexpected IAM control-plane error."
+            "description": "Unexpected IAM control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8060,7 +9967,12 @@
                 }
               }
             },
-            "description": "Tenant IAM activity returned."
+            "description": "Tenant IAM activity returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8070,7 +9982,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8080,7 +9997,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8090,7 +10012,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8100,7 +10027,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8110,7 +10042,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8120,7 +10057,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8130,7 +10072,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [
@@ -8243,7 +10190,12 @@
                 }
               }
             },
-            "description": "Workspace IAM activity returned."
+            "description": "Workspace IAM activity returned.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "400": {
             "content": {
@@ -8253,7 +10205,12 @@
                 }
               }
             },
-            "description": "The request is malformed or contextually inconsistent."
+            "description": "The request is malformed or contextually inconsistent.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "403": {
             "content": {
@@ -8263,7 +10220,12 @@
                 }
               }
             },
-            "description": "The caller is authenticated but not authorized for this scope."
+            "description": "The caller is authenticated but not authorized for this scope.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "404": {
             "content": {
@@ -8273,7 +10235,12 @@
                 }
               }
             },
-            "description": "The requested entity was not found."
+            "description": "The requested entity was not found.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "429": {
             "content": {
@@ -8283,7 +10250,12 @@
                 }
               }
             },
-            "description": "Gateway QoS policy rejected the request rate for this route family."
+            "description": "Gateway QoS policy rejected the request rate for this route family.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "431": {
             "content": {
@@ -8293,7 +10265,12 @@
                 }
               }
             },
-            "description": "Gateway rejected one or more invalid or oversized request headers."
+            "description": "Gateway rejected one or more invalid or oversized request headers.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "504": {
             "content": {
@@ -8303,7 +10280,12 @@
                 }
               }
             },
-            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response."
+            "description": "Gateway timed out while waiting for the downstream control-plane or adapter response.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           },
           "default": {
             "content": {
@@ -8313,7 +10295,12 @@
                 }
               }
             },
-            "description": "Unexpected control-plane error."
+            "description": "Unexpected control-plane error.",
+            "headers": {
+              "X-Correlation-Id": {
+                "$ref": "#/components/headers/XCorrelationId"
+              }
+            }
           }
         },
         "security": [

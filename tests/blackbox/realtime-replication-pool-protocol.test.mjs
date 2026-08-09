@@ -105,7 +105,12 @@ test('bbx-626-05: realtime SSE error frame includes the underlying error message
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
   try {
-    const res = await fetch(`${baseUrl}/v1/realtime/workspaces/ws_rt/data/capdb/collections/default/changes?apikey=flc_anon_test`);
+    const res = await fetch(`${baseUrl}/v1/realtime/workspaces/ws_rt/data/capdb/collections/default/changes?apikey=flc_anon_test`, {
+      headers: {
+        'x-api-version': '2026-03-26',
+        'x-correlation-id': 'corr-bbx-realtime-protocol',
+      },
+    });
     assert.equal(res.status, 200, 'SSE route opens with 200 before streaming the error');
     const text = await res.text();
     const errLine = text.split('\n').find((l) => l.startsWith('data:') && l.includes('08P01'));

@@ -93,7 +93,7 @@ export function buildConsoleBackendWorkflowInvocation(context = {}, actionRef, p
         method: representativeOperation.method,
         path: representativeOperation.path.replace('{workspaceId}', payload.workspaceId ?? context.workspaceId),
         headers: {
-          'X-API-Version': payload.apiVersion ?? '2026-03-25',
+          'X-API-Version': payload.apiVersion ?? '2026-03-26',
           'X-Correlation-Id': context.correlationId,
           'Idempotency-Key': payload.idempotencyKey ?? `idem:${context.correlationId}:${actionName}`
         }

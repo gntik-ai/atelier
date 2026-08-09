@@ -18,6 +18,8 @@ const TEN = 'ten_emb_get';
 const WS = 'ws_emb_get';
 const authHeaders = {
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-embedding-get',
   'x-tenant-id': TEN,
   'x-workspace-id': WS,
   'x-auth-subject': 'admin',
@@ -77,7 +79,7 @@ test('bbx-emb-get-03: APISIX routes /v1/workspaces/{id}/embedding-provider to th
   const src = readFileSync(fileURLToPath(new URL('../../deploy/kind/apisix/apisix.yaml', import.meta.url)), 'utf8');
   const idx = src.indexOf('2003-embedding');
   assert.ok(idx > -1, 'a dedicated 2003-embedding route exists in apisix.yaml');
-  const block = src.slice(idx, idx + 700);
+  const block = src.slice(idx, idx + 1200);
   assert.match(block, /embedding-provider/, 'route matches the embedding-provider subpath');
   assert.match(block, /falcone-control-plane-executor/, 'route forwards to the executor, not the control-plane');
 });

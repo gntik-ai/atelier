@@ -168,11 +168,10 @@ function collectApiAlignmentViolations(strategy, dataset, openapiDocument) {
     }
 
     const correlationHeader = parameters.find(
-      (parameter) => parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id' && parameter?.required === true
+      (parameter) => parameter?.in === 'header' && parameter?.name === 'X-Correlation-Id'
     );
-
-    if (!correlationHeader) {
-      violations.push(`${label} in OpenAPI must require X-Correlation-Id.`);
+    if (!correlationHeader || correlationHeader.required === true) {
+      violations.push(`${label} in OpenAPI must declare X-Correlation-Id optional/generated.`);
     }
 
     const exactValue = extractExactHeaderValue(versionHeader);

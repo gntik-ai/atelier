@@ -9,7 +9,16 @@
 // DDL family (schema/table/column/index); other OpenAPI families plug into the same table.
 import http from 'node:http';
 import https from 'node:https';
-import { normalizeErrorResponse } from '../../../../apps/shared/error-envelope.mjs';
+import { readFileSync } from 'node:fs';
+import {
+  normalizeErrorResponse,
+  PUBLIC_API_VERSION,
+  PUBLIC_CORS_ALLOW_HEADERS,
+  PUBLIC_CORS_EXPOSE_HEADERS,
+  resolveCorrelationId,
+  validatePublicRequestHeaders,
+  withCorrelationResponseHeader
+} from '../../../../apps/shared/error-envelope.mjs';
 import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
 import { executePostgresData } from './postgres-data-executor.mjs';
 import { executePostgresDdl } from './postgres-ddl-executor.mjs';
@@ -27,9 +36,52 @@ import { WRITE_CAPABLE_ADMIN_ROLES, hasWriteCapableRole } from './auth-roles.mjs
 const MCP_SUPERADMIN_ROLES = new Set(['superadmin', 'platform_admin']);
 
 const META_QUERY_KEYS = new Set(['select', 'order', 'page[size]', 'page[after]', 'countMode']);
+const PUBLIC_CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+  'access-control-allow-headers': PUBLIC_CORS_ALLOW_HEADERS.join(','),
+  'access-control-expose-headers': PUBLIC_CORS_EXPOSE_HEADERS.join(','),
+  'access-control-max-age': '600'
+};
+const PUBLIC_ROUTE_CATALOG = JSON.parse(readFileSync(
+  new URL('../../../../packages/internal-contracts/src/public-route-catalog.json', import.meta.url),
+  'utf8'
+));
+
+function compilePublishedPath(pathTemplate) {
+  const expression = pathTemplate
+    .replace(/[.+^${}()|[\]\\]/g, (character) => `\\${character}`)
+    .replace(/\\\{[A-Za-z0-9_]+\\\}/g, '[^/]+');
+  return new RegExp(`^${expression}/?$`);
+}
+
+const PUBLISHED_ROUTES = PUBLIC_ROUTE_CATALOG.routes.map((route) => ({
+  ...route,
+  expression: compilePublishedPath(route.path)
+}));
+
+function matchPublishedRoute(method, path) {
+  return PUBLISHED_ROUTES.find((route) => route.method === method && route.expression.test(path)) ?? null;
+}
+
+function matchPublishedPreflight(headers, path) {
+  const requestedMethod = String(headers['access-control-request-method'] ?? '').trim().toUpperCase();
+  if (requestedMethod) return matchPublishedRoute(requestedMethod, path);
+  return PUBLISHED_ROUTES.find((route) => route.expression.test(path)) ?? null;
+}
+
+function matchRegisteredPreflight(routes, headers, path) {
+  const requestedMethod = String(headers['access-control-request-method'] ?? '').trim().toUpperCase();
+  return routes.find(([method, expression]) =>
+    (!requestedMethod || method === requestedMethod) && expression.test(path)
+  ) ?? null;
+}
 
 function sendJson(res, statusCode, body, headers = {}) {
-  const responseHeaders = { ...headers };
+  const responseHeaders = withCorrelationResponseHeader(
+    { ...PUBLIC_CORS, ...headers },
+    res._errorContext?.correlationId
+  );
   delete responseHeaders['content-type'];
   delete responseHeaders['Content-Type'];
   delete responseHeaders['content-length'];
@@ -60,10 +112,14 @@ function sendJson(res, statusCode, body, headers = {}) {
 // hostile request-target (absolute- or protocol-relative form, e.g. `//169.254.169.254/…`)
 // therefore cannot redirect the proxy off the configured control-plane host.
 const PROXY_TIMEOUT_MS = 30000;
-function proxyRequest(req, res, upstream, logger) {
+function proxyRequest(req, res, upstream, logger, correlationId) {
   const incoming = new URL(req.url, 'http://upstream.invalid');
   const client = upstream.protocol === 'https:' ? https : http;
-  const headers = { ...req.headers, host: upstream.host };
+  // The caller has already passed authentication and trace-header validation at
+  // the executor boundary. Always overwrite the forwarded value with the one
+  // resolved there so an untrusted or duplicated ingress value can never cross
+  // this proxy seam.
+  const headers = { ...req.headers, host: upstream.host, 'x-correlation-id': correlationId };
   delete headers.connection;
   const upstreamReq = client.request(
     {
@@ -75,13 +131,18 @@ function proxyRequest(req, res, upstream, logger) {
       headers,
     },
     (upstreamRes) => {
-      res.writeHead(upstreamRes.statusCode ?? 502, upstreamRes.headers);
+      // One logical request keeps one correlation even if an upstream omits or
+      // attempts to replace its response header with different casing.
+      res.writeHead(
+        upstreamRes.statusCode ?? 502,
+        withCorrelationResponseHeader({ ...PUBLIC_CORS, ...upstreamRes.headers }, correlationId)
+      );
       upstreamRes.pipe(res);
     },
   );
   upstreamReq.setTimeout(PROXY_TIMEOUT_MS, () => upstreamReq.destroy(Object.assign(new Error('upstream timeout'), { code: 'ETIMEDOUT' })));
   upstreamReq.on('error', (err) => {
-    logger.error?.('[control-plane] upstream proxy failed:', err);
+    logger.error?.('[control-plane] upstream proxy failed:', { correlationId, error: err });
     if (!res.headersSent) sendJson(res, 502, { code: 'UPSTREAM_UNAVAILABLE', message: 'Control-plane upstream unavailable' });
     else res.destroy();
   });
@@ -804,6 +865,8 @@ async function runPlatformMcp(c, upstream, config) {
       headers: {
         ...(c.authorization ? { authorization: c.authorization } : {}),
         'content-type': 'application/json',
+        'x-api-version': PUBLIC_API_VERSION,
+        'x-correlation-id': c.correlationId,
       },
       body: body !== undefined && body !== null ? JSON.stringify(body) : undefined,
     });
@@ -840,7 +903,9 @@ async function runFlowMonitoringSse(flowMonitoringExecutor, target, c) {
     if (started) return;
     started = true;
     res.writeHead(200, {
+      ...PUBLIC_CORS,
       'content-type': 'text/event-stream',
+      'x-correlation-id': res._errorContext?.correlationId,
       'cache-control': 'no-cache',
       connection: 'keep-alive',
       'x-accel-buffering': 'no', // ask proxies (nginx/APISIX) not to buffer the stream
@@ -919,7 +984,9 @@ async function runRealtimeSse(realtimeExecutor, target, c) {
   if (!realtimeExecutor) throw Object.assign(new Error('Realtime is not enabled'), { statusCode: 501, code: 'REALTIME_DISABLED' });
   const { req, res, identity } = c;
   res.writeHead(200, {
+    ...PUBLIC_CORS,
     'content-type': 'text/event-stream',
+    'x-correlation-id': res._errorContext?.correlationId,
     'cache-control': 'no-cache',
     connection: 'keep-alive',
     'x-accel-buffering': 'no', // ask proxies (nginx/APISIX) not to buffer the stream
@@ -1084,7 +1151,9 @@ async function runLlmComplete(llmExecutor, { workspaceId, tenantId }, c) {
     return sendJson(res, statusCode, { code: err.code ?? 'LLM_PROVIDER_ERROR', message: statusCode >= 500 ? 'Internal server error' : err.message });
   }
   res.writeHead(200, {
+    ...PUBLIC_CORS,
     'content-type': 'text/event-stream',
+    'x-correlation-id': res._errorContext?.correlationId,
     'cache-control': 'no-cache',
     connection: 'keep-alive',
     'x-accel-buffering': 'no',
@@ -1169,14 +1238,55 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
     res.on('finish', () => recordHttp({ ...metric, status: res.statusCode, durationSeconds: Number(process.hrtime.bigint() - startNs) / 1e9 }));
     try {
       const url = new URL(req.url, 'http://control-plane.local');
-      res._errorContext = { requestId: req.headers['x-request-id'], correlationId: req.headers['x-correlation-id'], resource: url.pathname };
+      res._errorContext = { requestId: req.headers['x-request-id'], correlationId: resolveCorrelationId(req.headers['x-correlation-id']), resource: url.pathname };
       metric.route = normalizeRoute(url.pathname);
+
+      if (method === 'OPTIONS') {
+        if (!matchPublishedPreflight(req.headers, url.pathname)
+            && !matchRegisteredPreflight(routes, req.headers, url.pathname)) {
+          return sendJson(res, 404, { code: 'NO_ROUTE', message: `No route for ${method} ${url.pathname}` });
+        }
+        res.writeHead(204, {
+          ...PUBLIC_CORS,
+          'x-correlation-id': res._errorContext.correlationId
+        });
+        return res.end();
+      }
 
       const match = routes.find(([m, re]) => m === method && re.test(url.pathname));
       if (!match) {
         // Not part of the executor's data-plane/DDL slice → fall through to the control-plane
         // (browse/inventory/management routes under the same prefixes) when an upstream is set.
-        if (upstream) return proxyRequest(req, res, upstream, logger);
+        // Deployment routing sends only protected data-family paths through this seam. Preserve
+        // authentication precedence, then enforce the same trace boundary as locally handled
+        // executor routes before forwarding any header or body downstream. With no upstream the
+        // executor still returns its historical unmatched 404 before either decision.
+        if (upstream) {
+          const publishedRoute = matchPublishedRoute(method, url.pathname);
+          if (!publishedRoute) {
+            return sendJson(res, 404, { code: 'NO_ROUTE', message: `No route for ${method} ${url.pathname}` });
+          }
+          const proxyWorkspaceId = workspaceIdFromPath(url.pathname);
+          if (publishedRoute.authRequired !== false) {
+            const identity = await resolveIdentity(
+              req.headers,
+              proxyWorkspaceId,
+              apiKeyStore,
+              jwtVerifier,
+              undefined,
+              gatewaySharedSecret
+            );
+            metric.tenantId = identity.tenantId ?? '';
+            metric.workspaceId = identity.workspaceId ?? proxyWorkspaceId ?? '';
+            if (!identity.tenantId) {
+              return sendJson(res, 401, { code: 'UNAUTHENTICATED', message: 'Missing tenant identity' });
+            }
+          }
+          const traceHeaders = validatePublicRequestHeaders(req.headers);
+          if (!traceHeaders.ok) return sendJson(res, traceHeaders.status, { code: traceHeaders.code });
+          res._errorContext.correlationId = traceHeaders.correlationId;
+          return proxyRequest(req, res, upstream, logger, traceHeaders.correlationId);
+        }
         return sendJson(res, 404, { code: 'NO_ROUTE', message: `No route for ${method} ${url.pathname}` });
       }
       const [, re, handler, opts] = match;
@@ -1188,6 +1298,14 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
       metric.tenantId = identity.tenantId ?? '';
       if (!opts?.noAuth && !identity.tenantId) {
         return sendJson(res, 401, { code: 'UNAUTHENTICATED', message: 'Missing tenant identity' });
+      }
+      if (!/^\/(?:healthz|readyz)$/.test(url.pathname)) {
+        const traceHeaders = validatePublicRequestHeaders(req.headers);
+        if (!traceHeaders.ok) return sendJson(res, traceHeaders.status, { code: traceHeaders.code });
+        res._errorContext.correlationId = traceHeaders.correlationId;
+        // Make the listener-owned value authoritative for every local adapter,
+        // even when it was generated because the request omitted the header.
+        req.headers['x-correlation-id'] = traceHeaders.correlationId;
       }
       const workspaceInPath = workspaceIdFromPath(url.pathname);
       const structuralWrite = !opts?.noAuth && isStructuralWriteRequest(method, url.pathname);
@@ -1303,11 +1421,25 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
       // `authorization` is threaded through for handlers that must call the control-plane on the
       // caller's behalf (the platform MCP JSON-RPC route forwards the bearer token to the upstream,
       // the only credential the control-plane accepts).
-      const { status, body: out, headers } = await handler(groups, { method, url, identity, body, registry, headers: req.headers, authorization: req.headers.authorization });
+      const { status, body: out, headers } = await handler(groups, {
+        method,
+        url,
+        identity,
+        body,
+        registry,
+        headers: req.headers,
+        authorization: req.headers.authorization,
+        correlationId: res._errorContext?.correlationId
+      });
       return sendJson(res, status, out, headers);
     } catch (err) {
       const statusCode = err.statusCode ?? 500;
-      if (statusCode >= 500) logger.error?.('[control-plane] request failed:', err);
+      if (statusCode >= 500) {
+        logger.error?.('[control-plane] request failed:', {
+          correlationId: res._errorContext?.correlationId,
+          error: err
+        });
+      }
       const envelope = {
         code: err.code ?? 'CONTROL_PLANE_ERROR',
         message: statusCode >= 500 ? 'Internal server error' : err.message,

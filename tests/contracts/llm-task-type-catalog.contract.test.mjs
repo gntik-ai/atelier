@@ -31,7 +31,8 @@ test('ctr-llm-cat-03: APISIX routes the LLM subpaths to the executor', () => {
   const src = readFileSync(fileURLToPath(new URL('../../deploy/kind/apisix/apisix.yaml', import.meta.url)), 'utf8');
   const idx = src.indexOf('2003-llm');
   assert.ok(idx > -1, 'a dedicated 2003-llm route exists in apisix.yaml');
-  const block = src.slice(idx, idx + 800);
+  const nextRoute = src.indexOf('\n  - id:', idx);
+  const block = src.slice(idx, nextRoute === -1 ? undefined : nextRoute);
   assert.match(block, /llm-provider\|llm\/completions\|llm-usage/, 'route matches the three LLM subpaths');
   assert.match(block, /falcone-control-plane-executor/, 'route forwards to the executor, not the control-plane');
 });

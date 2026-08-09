@@ -89,7 +89,13 @@ async function withServer(registry, fn) {
   finally { await new Promise((r) => server.close(r)); await registry.end().catch(() => {}); }
 }
 
-const ddlHeaders = (tenantId, workspaceId) => ({ 'content-type': 'application/json', 'x-tenant-id': tenantId, ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}) });
+const ddlHeaders = (tenantId, workspaceId) => ({
+  'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-ddl-ownership',
+  'x-tenant-id': tenantId,
+  ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}),
+});
 
 test('bbx-ddl-guard-04: trust-header DDL targeting another tenant\'s workspace → 403 CROSS_TENANT_VIOLATION', async () => {
   await withServer(neverConnectRegistry(), async (baseUrl) => {

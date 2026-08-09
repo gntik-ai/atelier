@@ -14,7 +14,7 @@ test('GET docs returns payload matching schema', async () => {
   const result = await main({
     method: 'GET',
     path: '/v1/workspaces/wrk-1/docs',
-    headers: { 'X-API-Version': '2026-03-01', 'X-Correlation-Id': 'corr-1' },
+    headers: { 'X-API-Version': '2026-03-26', 'X-Correlation-Id': 'corr-1' },
     auth: { tenantId: 'ten-1', workspaceId: 'wrk-1', actorId: 'actor-1', roles: ['workspace_viewer'] },
     db,
     kafkaProducer: { send: async () => {} },
@@ -30,6 +30,11 @@ test('GET docs returns payload matching schema', async () => {
 
 test('GET docs returns 400 on unsupported version', async () => {
   const result = await main({ method: 'GET', path: '/v1/workspaces/wrk-1/docs', headers: { 'X-API-Version': '2026-03-99' }, auth: { tenantId: 'ten-1', workspaceId: 'wrk-1', actorId: 'actor-1', roles: ['workspace_viewer'] }, db: { query: async () => ({ rows: [] }) } })
+  assert.equal(result.statusCode, 400)
+})
+
+test('GET docs rejects the retired pre-C-03 version', async () => {
+  const result = await main({ method: 'GET', path: '/v1/workspaces/wrk-1/docs', headers: { 'X-API-Version': '2026-03-01' }, auth: { tenantId: 'ten-1', workspaceId: 'wrk-1', actorId: 'actor-1', roles: ['workspace_viewer'] }, db: { query: async () => ({ rows: [] }) } })
   assert.equal(result.statusCode, 400)
 })
 
@@ -97,7 +102,7 @@ test('GET docs returns stale 200 body when assembler degrades upstream', async (
   const result = await main({
     method: 'GET',
     path: '/v1/workspaces/wrk-1/docs',
-    headers: { 'X-API-Version': '2026-03-01', 'X-Correlation-Id': 'corr-1' },
+    headers: { 'X-API-Version': '2026-03-26', 'X-Correlation-Id': 'corr-1' },
     auth: { tenantId: 'ten-1', workspaceId: 'wrk-1', actorId: 'actor-1', roles: ['workspace_viewer'] },
     db,
     kafkaProducer: { send: async () => {} },

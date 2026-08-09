@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { publicApiFetch } from '@/lib/http';
 
 function defaultFetcher(workspaceId: string) {
-  return fetch(`/v1/workspaces/${workspaceId}/capability-catalog`).then((response) => {
+  return publicApiFetch(`/v1/workspaces/${workspaceId}/capability-catalog`).then((response) => {
     if (!response.ok) {
       throw new Error(`La solicitud falló con estado ${response.status}`);
     }

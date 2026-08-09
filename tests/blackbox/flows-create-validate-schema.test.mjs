@@ -32,6 +32,8 @@ import { createFlowExecutor, createFlowStore } from '../../apps/control-plane-ex
 
 const authHeaders = {
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flows-schema',
   'x-tenant-id': 'ten_bbx_schema',
   'x-workspace-id': 'ws_bbx_schema',
   'x-auth-subject': 'admin-schema',

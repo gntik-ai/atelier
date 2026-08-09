@@ -1,7 +1,66 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { normalizeErrorResponse } from '../../apps/shared/error-envelope.mjs';
+import {
+  PUBLIC_API_VERSION,
+  normalizeErrorResponse,
+  resolveCorrelationId,
+  validatePublicRequestHeaders,
+  withCorrelationResponseHeader
+} from '../../apps/shared/error-envelope.mjs';
+
+test('public trace boundary enforces the version and classifies correlation safely', () => {
+  assert.equal(PUBLIC_API_VERSION, '2026-03-26');
+  assert.deepEqual(validatePublicRequestHeaders({}), {
+    ok: false,
+    status: 400,
+    code: 'API_VERSION_REQUIRED'
+  });
+  assert.deepEqual(validatePublicRequestHeaders({ 'x-api-version': '2025-01-01' }), {
+    ok: false,
+    status: 400,
+    code: 'UNSUPPORTED_API_VERSION'
+  });
+
+  for (const correlation of ['', 'short', 'bad value', 'corr-valid-001, corr-valid-002']) {
+    assert.deepEqual(
+      validatePublicRequestHeaders({
+        'x-api-version': PUBLIC_API_VERSION,
+        'x-correlation-id': correlation
+      }),
+      { ok: false, status: 400, code: 'INVALID_CORRELATION_ID' }
+    );
+  }
+
+  const preserved = validatePublicRequestHeaders({
+    'x-api-version': PUBLIC_API_VERSION,
+    'x-correlation-id': 'corr-valid-001'
+  });
+  assert.deepEqual(preserved, {
+    ok: true,
+    correlationId: 'corr-valid-001',
+    apiVersion: PUBLIC_API_VERSION
+  });
+
+  const generated = validatePublicRequestHeaders({ 'x-api-version': PUBLIC_API_VERSION });
+  assert.equal(generated.ok, true);
+  assert.match(generated.correlationId, /^[A-Za-z0-9._:-]{8,128}$/);
+  assert.notEqual(resolveCorrelationId('bad attacker value'), 'bad attacker value');
+});
+
+test('response correlation normalization removes case-variant upstream values', () => {
+  assert.deepEqual(
+    withCorrelationResponseHeader({
+      'content-type': 'application/json',
+      'X-Correlation-Id': 'upstream-one',
+      'x-CORRELATION-id': 'upstream-two'
+    }, 'corr-resolved-001'),
+    {
+      'content-type': 'application/json',
+      'x-correlation-id': 'corr-resolved-001'
+    }
+  );
+});
 
 test('canonical envelope sanitizes ids, code, details and 5xx message', () => {
   const out = normalizeErrorResponse(500, { code: 'SQLSTATE 42P01', message: 'select password from users', detail: 'https://db/internal' }, { requestId: 'bad id', correlationId: 'corr-1', resource: '/v1/workspaces/acme/items' });

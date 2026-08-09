@@ -78,11 +78,15 @@ async function withServer(fn) {
 const completions = (ws = WS) => `/v1/workspaces/${ws}/llm/completions`;
 // A non-streaming completion request (no stream:true → runLlmComplete calls executor.complete()).
 const body = JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'user', content: 'hi' }] });
+const TRACE_HEADERS = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-llm-scope',
+};
 
 test('bbx-662-01: a data:read-only api-key cannot drive billable completions -> 403 (provider not reached)', async () => {
   await withServer(async ({ baseUrl, completeCalls }) => {
     const res = await fetch(`${baseUrl}${completions()}`, {
-      method: 'POST', headers: { apikey: 'flc_service_read', 'content-type': 'application/json' }, body,
+      method: 'POST', headers: { ...TRACE_HEADERS, apikey: 'flc_service_read', 'content-type': 'application/json' }, body,
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);
     const json = await res.json();
@@ -95,7 +99,7 @@ test('bbx-662-01: a data:read-only api-key cannot drive billable completions -> 
 test('bbx-662-02: an anon (scopeless) api-key cannot drive billable completions -> 403 (provider not reached)', async () => {
   await withServer(async ({ baseUrl, completeCalls }) => {
     const res = await fetch(`${baseUrl}${completions()}`, {
-      method: 'POST', headers: { apikey: 'flc_anon_readonly', 'content-type': 'application/json' }, body,
+      method: 'POST', headers: { ...TRACE_HEADERS, apikey: 'flc_anon_readonly', 'content-type': 'application/json' }, body,
     });
     assert.equal(res.status, 403, `expected 403, got ${res.status}: ${await res.clone().text()}`);
     assert.equal(completeCalls.length, 0, 'a denied completion must not reach provider resolution');
@@ -105,7 +109,7 @@ test('bbx-662-02: an anon (scopeless) api-key cannot drive billable completions 
 test('bbx-662-03: a write-capable service api-key may drive completions -> 200 (no regression)', async () => {
   await withServer(async ({ baseUrl, completeCalls }) => {
     const res = await fetch(`${baseUrl}${completions()}`, {
-      method: 'POST', headers: { apikey: 'flc_service_full', 'content-type': 'application/json' }, body,
+      method: 'POST', headers: { ...TRACE_HEADERS, apikey: 'flc_service_full', 'content-type': 'application/json' }, body,
     });
     assert.notEqual(res.status, 403, `expected NOT 403, got 403: ${await res.clone().text()}`);
     assert.equal(res.status, 200, `expected 200 from the stub, got ${res.status}: ${await res.clone().text()}`);

@@ -107,7 +107,12 @@ async function withServer(fn) {
 }
 
 function authHeader(key) {
-  return { authorization: `Bearer ${key}`, 'content-type': 'application/json' };
+  return {
+    authorization: `Bearer ${key}`,
+    'content-type': 'application/json',
+    'x-api-version': '2026-03-26',
+    'x-correlation-id': 'corr-bbx-credential-binding',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +247,7 @@ test('bbx-cred-ws-07: JWT with workspace_id=ws_B targeting functions on ws_A pat
   try {
     const res = await fetch(
       `${baseUrl}/v1/functions/workspaces/${WS_A}/actions`,
-      { headers: { authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.stub.stub', 'content-type': 'application/json' } },
+      { headers: authHeader('eyJhbGciOiJSUzI1NiJ9.stub.stub') },
     );
     assert.equal(res.status, 403, `expected 403, got ${res.status}`);
     const body = await res.json();
@@ -288,7 +293,7 @@ test('bbx-cred-ws-08: JWT with no workspace_id claim (tenant-only token) targeti
   try {
     const res = await fetch(
       `${baseUrl}/v1/functions/workspaces/${WS_A}/actions`,
-      { headers: { authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.stub.stub', 'content-type': 'application/json' } },
+      { headers: authHeader('eyJhbGciOiJSUzI1NiJ9.stub.stub') },
     );
     // Should NOT be 403 (no workspace binding → check doesn't apply)
     // The functions executor is a stub so we'll get 200 (empty list from neverCalledExecutor... wait,

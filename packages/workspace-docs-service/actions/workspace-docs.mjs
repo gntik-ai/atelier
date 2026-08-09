@@ -4,7 +4,7 @@ import { sanitise } from '../src/note-sanitiser.mjs'
 import { insertNote, updateNote, softDeleteNote } from '../src/note-repository.mjs'
 import { INTERNAL_API_BASE_URL } from '../src/config.mjs'
 
-const SUPPORTED_API_VERSIONS = new Set(['2026-03-01', '2026-03-26'])
+const SUPPORTED_API_VERSIONS = new Set(['2026-03-26'])
 const ADMIN_ROLES = new Set(['workspace_admin', 'workspace_owner'])
 const VIEWER_ROLES = new Set([
   'tenant_owner',

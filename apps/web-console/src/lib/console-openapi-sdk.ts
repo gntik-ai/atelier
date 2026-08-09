@@ -1,4 +1,4 @@
-import { requestJson } from '@/lib/http'
+import { publicApiFetch, requestJson } from '@/lib/http'
 
 export interface WorkspaceOpenApiSpec {
   specVersion: string
@@ -23,7 +23,7 @@ export async function fetchWorkspaceSpec(workspaceId: string, format: 'json' | '
   const headers = new Headers()
   if (ifNoneMatch) headers.set('If-None-Match', ifNoneMatch)
 
-  const response = await fetch(`/v1/workspaces/${workspaceId}/openapi?format=${format}`, {
+  const response = await publicApiFetch(`/v1/workspaces/${workspaceId}/openapi?format=${format}`, {
     headers: {
       Accept: format === 'yaml' ? 'application/x-yaml' : 'application/json',
       ...(ifNoneMatch ? { 'If-None-Match': ifNoneMatch } : {})

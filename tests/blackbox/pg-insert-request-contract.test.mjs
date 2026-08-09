@@ -88,7 +88,12 @@ async function withServer({ captured } = {}, fn) {
 function postRows(baseUrl, key, body) {
   return fetch(`${baseUrl}${ROWS_PATH}`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    headers: {
+      authorization: `Bearer ${key}`,
+      'content-type': 'application/json',
+      'x-api-version': '2026-03-26',
+      'x-correlation-id': 'corr-bbx-pg-insert',
+    },
     body: JSON.stringify(body),
   });
 }

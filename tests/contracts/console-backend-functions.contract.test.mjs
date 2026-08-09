@@ -24,6 +24,8 @@ test('console backend invocation envelope stays aligned with the governed invoca
   assert.equal(typeof envelope.invocationRequest.responseMode, 'string');
   assert.equal(envelope.invocationRequest.triggerContext.kind, 'direct');
   assert.equal(typeof envelope.invocationRequest.body.publicApiCall.path, 'string');
+  assert.equal(envelope.invocationRequest.body.publicApiCall.headers['X-API-Version'], '2026-03-26');
+  assert.equal(envelope.invocationRequest.body.publicApiCall.headers['X-Correlation-Id'], 'corr_console_backend_01');
 });
 
 test('console backend activation annotations satisfy the authorization propagation contract', () => {

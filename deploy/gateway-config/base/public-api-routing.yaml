@@ -7,10 +7,11 @@ spec:
   uriPrefix: /v1
   versionHeader:
     name: X-API-Version
+    required: true
     currentValue: 2026-03-26
   correlationHeader:
     name: X-Correlation-Id
-    required: true
+    required: false
     format: trace_token
     generateWhenMissing: true
     responseHeader: X-Correlation-Id
@@ -502,6 +503,14 @@ spec:
     - X-API-Version
     - X-Correlation-Id
     - X-Requested-With
+    - apikey
+    - X-Api-Key
+    - Last-Event-ID
+    - X-Request-Id
+    - Range
+    - If-Match
+    - If-None-Match
+    - X-Origin-Surface
   propagatedHeaders: *a1
   corsProfiles:
     product_api:
@@ -521,6 +530,8 @@ spec:
         - X-RateLimit-Limit
         - X-RateLimit-Remaining
         - X-RateLimit-Reset
+        - Content-Range
+        - Accept-Ranges
       allowCredentials: true
       maxAgeSeconds: 3600
   plugins:

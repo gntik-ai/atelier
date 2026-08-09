@@ -144,6 +144,8 @@ describe('anon-key embeds', () => {
   it('buildFrontendSnippet uses the apikey header (the gateway routes by it, not Authorization)', () => {
     const snippet = buildFrontendSnippet(params)
     expect(snippet).toContain("apikey: 'flc_anon_abc'")
+    expect(snippet).toContain("'X-API-Version': '2026-03-26'")
+    expect(snippet).toContain("'X-Correlation-Id': crypto.randomUUID()")
     expect(snippet).not.toContain('Authorization')
     expect(snippet).toContain(rowsUrl)
   })
@@ -151,6 +153,8 @@ describe('anon-key embeds', () => {
   it('buildCurlSnippet sends the apikey header', () => {
     const snippet = buildCurlSnippet(params)
     expect(snippet).toContain("-H 'apikey: flc_anon_abc'")
+    expect(snippet).toContain("-H 'X-API-Version: 2026-03-26'")
+    expect(snippet).toContain("-H 'X-Correlation-Id: corr-client-0001'")
     expect(snippet).toContain(rowsUrl)
   })
 

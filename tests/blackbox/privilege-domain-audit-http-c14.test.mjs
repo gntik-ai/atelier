@@ -25,6 +25,7 @@ const WORKSPACE_A = 'wrk-c14-a';
 const UNKNOWN_WORKSPACE = 'wrk-c14-unknown';
 const JWT_SECRET = Buffer.from('c14-hermetic-http-verifier-secret', 'utf8');
 const REQUEST_HEADERS = {
+  'x-api-version': '2026-03-26',
   'x-request-id': 'req-c14-blackbox-0001',
   'x-correlation-id': 'corr-c14-blackbox-0001'
 };

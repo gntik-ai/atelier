@@ -2,6 +2,8 @@
  * API client for tenant functional configuration export endpoints.
  */
 
+import { publicApiFetch } from '@/lib/http'
+
 const API_BASE = (typeof process !== 'undefined' && process.env?.CONFIG_EXPORT_API_URL) || '/api'
 
 export class ConfigExportApiError extends Error {
@@ -58,7 +60,7 @@ export interface ExportDomainsResponse {
 // --- API functions ---
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, options)
+  const res = await publicApiFetch(url, options)
   const data = await res.json().catch(() => ({} as Record<string, unknown>))
   if (!res.ok) {
     const message = (data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? `HTTP ${res.status}`
@@ -78,7 +80,7 @@ export async function exportTenantConfig(
   req: ExportRequest = {}
 ): Promise<{ artifact: ExportArtifact; status: 200 | 207 }> {
   const url = `${API_BASE}/v1/admin/tenants/${encodeURIComponent(tenantId)}/config/export`
-  const res = await fetch(url, {
+  const res = await publicApiFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),

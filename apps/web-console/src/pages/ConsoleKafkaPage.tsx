@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useConsoleContext } from '@/lib/console-context'
 import { describeConsoleError, getConsoleErrorStatus } from '@/lib/console-errors'
+import { publicApiFetch } from '@/lib/http'
 import { readConsoleShellSession, requestConsoleSessionJson } from '@/lib/console-session'
 
 type KafkaNamingPolicy = {
@@ -515,7 +516,7 @@ export function ConsoleKafkaPage() {
     streamEventTimesRef.current = []
 
     try {
-      const response = await fetch(`/v1/events/topics/${resourceId}/stream`, {
+      const response = await publicApiFetch(`/v1/events/topics/${resourceId}/stream`, {
         headers: { Authorization: `Bearer ${token}` },
         signal: controller.signal
       })

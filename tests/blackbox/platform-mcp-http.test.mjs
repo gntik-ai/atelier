@@ -30,7 +30,14 @@ function startUpstream() {
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
-      calls.push({ method: req.method, path: req.url, authorization: req.headers.authorization, body });
+      calls.push({
+        method: req.method,
+        path: req.url,
+        authorization: req.headers.authorization,
+        apiVersion: req.headers['x-api-version'],
+        correlationId: req.headers['x-correlation-id'],
+        body
+      });
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ items: [{ id: 'wrk_1', name: 'app-staging' }] }));
     });
@@ -62,6 +69,8 @@ function rpc(message, { scopes = [], bearer } = {}) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
+      'x-api-version': '2026-03-26',
+      'x-correlation-id': 'corr-bbx-platform-mcp',
       'x-tenant-id': TENANT_A,
       'x-auth-subject': 'user:platform-admin',
       ...(scopes.length ? { 'x-actor-scopes': scopes.join(' ') } : {}),
@@ -100,6 +109,8 @@ test('bbx-607-call-read: a read tool with the base scope proxies to the control-
   assert.equal(call.method, 'GET');
   assert.equal(call.path, '/v1/workspaces');
   assert.equal(call.authorization, 'Bearer tok-abc', 'caller bearer forwarded to the control-plane');
+  assert.equal(call.apiVersion, '2026-03-26', 'internal MCP call pins the public API version');
+  assert.equal(call.correlationId, 'corr-bbx-platform-mcp', 'internal MCP call preserves request correlation');
 });
 
 test('bbx-607-call-mutate-scope: a mutating tool without its scope is refused (no upstream call)', async () => {

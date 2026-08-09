@@ -415,8 +415,12 @@ describe('ConsoleKafkaPage', () => {
     await user.click(screen.getByRole('button', { name: /iniciar flujo/i }))
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/v1/events/topics/res_topic_1/stream', expect.objectContaining({ headers: { Authorization: 'Bearer token-123' } }))
+      expect(fetchMock).toHaveBeenCalledWith('/v1/events/topics/res_topic_1/stream', expect.any(Object))
     })
+    const headers = new Headers(fetchMock.mock.calls.at(-1)?.[1]?.headers)
+    expect(headers.get('authorization')).toBe('Bearer token-123')
+    expect(headers.get('x-api-version')).toBe('2026-03-26')
+    expect(headers.get('x-correlation-id')).toMatch(/^[A-Za-z0-9._:-]{8,128}$/)
     expect(await screen.findByText(/conexión activa|inactivo/i)).toBeInTheDocument()
     expect(await screen.findByText(/crudo:/i)).toBeInTheDocument()
     expect(await screen.findByText(/"id": 1/i)).toBeInTheDocument()
@@ -425,7 +429,7 @@ describe('ConsoleKafkaPage', () => {
 
   it('muestra error aislado en stream sin reconexión infinita', async () => {
     queueHappyPath()
-    // [#743] the SSE endpoint fails via a raw `fetch`, so the response's raw `message` must
+    // [#743] the SSE endpoint returns a raw Response, so the response's raw `message` must
     // never be echoed — only the shared localized copy (here, the network/unmapped-status
     // fallback, since the mock carries no explicit `status`).
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({ message: 'SSE no disponible' }) } as Response)

@@ -26,7 +26,11 @@ export async function fetchAuditEvents(
   if (filters.cursor) params.set('cursor', filters.cursor)
 
   const res = await fetch(`${BASE_URL}/v1/backup/audit?${params}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-API-Version': '2026-03-26',
+      'X-Correlation-Id': crypto.randomUUID(),
+    },
   })
 
   if (!res.ok) {

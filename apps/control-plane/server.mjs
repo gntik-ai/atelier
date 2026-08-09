@@ -44,7 +44,14 @@ import { withPostgresSsl } from './transport-security.mjs';
 import { normalizeJsonBody } from './request-body.mjs';
 import { buildActionParams } from './action-params.mjs';
 import { createControlPlaneMetricAttribution } from './request-metric-scope.mjs';
-import { normalizeErrorResponse } from '../shared/error-envelope.mjs';
+import {
+  normalizeErrorResponse,
+  PUBLIC_CORS_ALLOW_HEADERS,
+  PUBLIC_CORS_EXPOSE_HEADERS,
+  resolveCorrelationId,
+  validatePublicRequestHeaders,
+  withCorrelationResponseHeader
+} from '../shared/error-envelope.mjs';
 import { startFunctionAuditOutboxPublisher } from './function-audit-outbox.mjs';
 
 const { Pool } = pg;
@@ -139,14 +146,17 @@ function readBody(req) {
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization,content-type,x-correlation-id,idempotency-key',
+  'Access-Control-Allow-Headers': PUBLIC_CORS_ALLOW_HEADERS.join(','),
+  'Access-Control-Expose-Headers': PUBLIC_CORS_EXPOSE_HEADERS.join(','),
   'Access-Control-Max-Age': '600'
 };
 function sendJson(res, statusCode, body, extra = {}) {
   const normalized = statusCode >= 400 ? normalizeErrorResponse(statusCode, body, { ...(res._errorContext ?? {}), resource: res._errorContext?.resource }) : body;
   const payload = statusCode >= 400 ? JSON.stringify(normalized) : (body == null ? '' : JSON.stringify(body));
-  res.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8',
-    'content-length': Buffer.byteLength(payload), ...CORS, ...extra });
+  const correlationId = res._errorContext?.correlationId;
+  res.writeHead(statusCode, withCorrelationResponseHeader({ 'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(payload), ...CORS,
+    ...extra }, correlationId));
   res.end(payload);
 }
 
@@ -335,7 +345,7 @@ export function createControlPlaneHttpServer({
     const parsed = new URL(req.url, `http://localhost:${port}`);
     const path = parsed.pathname;
     const headers = lowercaseHeaders(req.headers);
-    res._errorContext = { requestId: headers['x-request-id'], correlationId: headers['x-correlation-id'], resource: path };
+    res._errorContext = { requestId: headers['x-request-id'], correlationId: resolveCorrelationId(headers['x-correlation-id']), resource: path };
     metric.route = normalizeRoute(path);
 
     if (method === 'GET' && path === '/livez') {
@@ -374,7 +384,14 @@ export function createControlPlaneHttpServer({
       return sendJson(res, 200, body, { 'x-correlation-id': correlationId });
     }
 
-    if (method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
+    if (method === 'OPTIONS') {
+      const requestedMethod = String(headers['access-control-request-method'] ?? '').trim().toUpperCase();
+      if (!requestedMethod || !matchRoute(requestedMethod, path)) {
+        return sendJson(res, 404, { code: 'NO_ROUTE', message: `No action mapped for ${requestedMethod || method} ${path}` });
+      }
+      res.writeHead(204, withCorrelationResponseHeader(CORS, res._errorContext.correlationId));
+      return res.end();
+    }
     if (method === 'GET' && path === '/readyz') {
       const correlationId = runtimeHealth.createCorrelationId(headers['x-correlation-id']);
       const notReady = schemaReadiness.responseForReadyProbe();
@@ -400,23 +417,30 @@ export function createControlPlaneHttpServer({
       res._errorContext.resource = route.path.replace(/\{[^}/]+\}/g, '{id}');
       metric.route = route.path;
     }
-    const schemaUnavailable = schemaReadiness.responseForMappedRoute();
-    if (schemaUnavailable) {
-      return sendJson(res, schemaUnavailable.statusCode, schemaUnavailable.body);
-    }
-
-    const correlationId = headers['x-correlation-id'] ?? null;
-
     let identity = null;
     if (route.auth !== 'public') {
       try { identity = await authenticate(headers, jwtVerifier); }
       catch (e) {
-        logger?.error?.('[control-plane] token verification failed:', e);
+        logger?.error?.('[control-plane] token verification failed:', {
+          correlationId: res._errorContext?.correlationId,
+          error: e
+        });
         return sendJson(res, 401, { code: 'INVALID_TOKEN', message: 'Token verification failed' });
       }
       if (!identity) return sendJson(res, 401, { code: 'UNAUTHENTICATED', message: 'Missing or invalid Bearer token' });
-      if (!authzOk(route, identity)) return sendJson(res, 403, { code: 'FORBIDDEN', message: `requires ${route.auth}` });
     }
+    const traceHeaders = validatePublicRequestHeaders(headers);
+    if (!traceHeaders.ok) return sendJson(res, traceHeaders.status, { code: traceHeaders.code });
+    res._errorContext.correlationId = traceHeaders.correlationId;
+    const correlationId = traceHeaders.correlationId;
+    // All downstream action adapters receive the canonical listener-owned value,
+    // including when it was generated because the caller omitted the header.
+    headers['x-correlation-id'] = correlationId;
+    const schemaUnavailable = schemaReadiness.responseForMappedRoute();
+    if (schemaUnavailable) {
+      return sendJson(res, schemaUnavailable.statusCode, schemaUnavailable.body);
+    }
+    if (identity && !authzOk(route, identity)) return sendJson(res, 403, { code: 'FORBIDDEN', message: `requires ${route.auth}` });
     metricAttribution.bindAuthenticatedRoute(identity, matched.params);
 
     const query = Object.fromEntries(parsed.searchParams.entries());
@@ -463,7 +487,7 @@ export function createControlPlaneHttpServer({
         markWorkspaceScopeResolutionAttempted: metricAttribution.markWorkspaceResolutionAttempted,
         req,
         res,
-        cors: CORS,
+        cors: withCorrelationResponseHeader(CORS, correlationId),
         sendJson: (statusCode, payload, extraHeaders = {}) => sendJson(res, statusCode, payload, extraHeaders)
       };
       ctx.beginFunctionRouteAudit = (auditRoute, auditCtx) =>
@@ -537,7 +561,10 @@ export function createControlPlaneHttpServer({
   } catch (err) {
     // Log the full error (incl. stack) server-side only; never echo an exception's
     // message/stack to the client (stack-trace exposure). Return the stable code.
-    logger?.error?.('[control-plane] request failed:', err);
+    logger?.error?.('[control-plane] request failed:', {
+      correlationId: res._errorContext?.correlationId,
+      error: err
+    });
     const statusCode = err?.statusCode ?? (err?.code === 'FORBIDDEN' ? 403 : 500);
     // Never surface a backend-specific code (e.g. a raw Postgres SQLSTATE like "23505") on a 5xx —
     // those are unmapped internal errors and the SQLSTATE leaks the storage engine (#634). Only echo

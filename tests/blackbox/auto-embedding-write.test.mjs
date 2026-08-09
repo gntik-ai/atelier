@@ -24,6 +24,8 @@ const TEN = 'ten_bbx_auto';
 const WS = 'ws_bbx_auto';
 const authHeaders = {
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-auto-embedding',
   'x-tenant-id': TEN,
   'x-workspace-id': WS,
   'x-auth-subject': 'admin-1',

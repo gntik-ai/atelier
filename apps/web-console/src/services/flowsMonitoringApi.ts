@@ -1,15 +1,15 @@
 // Flow execution-monitoring API client for the console (change: add-console-flow-monitoring / #366).
 //
 // Two layers, mirroring how realtimeApi.ts and flowsApi.ts split:
-//   1. SSE subscription — `flowExecutionEventsUrl` + `subscribeFlowExecution` wrap a browser
-//      EventSource exactly like realtimeApi.ts::subscribeRealtimeChanges. A browser EventSource
-//      cannot set headers, so the (low-privilege, read-only) anon key is passed as ?apikey=; the
-//      gateway routes it to the executor, which verifies the key and enforces tenant isolation.
+//   1. SSE subscription — `flowExecutionEventsUrl` + `subscribeFlowExecution` use the shared
+//      fetch/ReadableStream adapter. The (low-privilege, read-only) anon key remains as ?apikey=;
+//      the gateway routes it to the executor, which verifies the key and enforces tenant isolation.
 //      The hook reconnects with Last-Event-ID; `stream-end` signals the run is terminal → close().
 //   2. REST control — list/detail executions + cancel/retry/signal actions over the #361 flow API,
 //      threaded through requestConsoleSessionJson (bearer token + refresh) like flowsApi.ts.
 import { requestConsoleSessionJson } from '@/lib/console-session'
 import type { JsonValue } from '@/lib/http'
+import { subscribeSse } from '@/lib/sse'
 
 const enc = encodeURIComponent
 
@@ -58,8 +58,8 @@ export interface FlowExecutionSubscription {
 // The named SSE events the executor emits (server.mjs::runFlowMonitoringSse).
 const EXECUTION_EVENTS = ['node-status', 'log-line', 'stream-end'] as const
 
-// Build the SSE endpoint URL with the anon key as ?apikey= (EventSource can't set headers). The
-// URL matches the executor's SSE route exactly: GET .../executions/{executionId}/events.
+// Build the SSE endpoint URL with the anon key as ?apikey=. The URL matches the executor's SSE
+// route exactly: GET .../executions/{executionId}/events.
 export function flowExecutionEventsUrl(params: {
   workspaceId: string
   executionId: string
@@ -72,7 +72,7 @@ export function flowExecutionEventsUrl(params: {
 
 // Subscribe to a single execution's SSE stream. Registers a listener per named event and forwards
 // the parsed frame to onEvent. `stream-end` is forwarded too so the caller can close on terminal.
-// Returns { close } so the hook can release the EventSource on unmount. Mirrors realtimeApi.ts.
+// Returns { close } so the hook can abort the fetch stream on unmount. Mirrors realtimeApi.ts.
 export function subscribeFlowExecution(params: {
   workspaceId: string
   executionId: string
@@ -81,19 +81,10 @@ export function subscribeFlowExecution(params: {
   onError?: (event: Event) => void
   origin?: string
 }): FlowExecutionSubscription {
-  const source = new EventSource(flowExecutionEventsUrl(params))
-  for (const type of EXECUTION_EVENTS) {
-    source.addEventListener(type, (event) => {
-      try {
-        const data = JSON.parse((event as MessageEvent).data) as FlowExecutionEvent
-        params.onEvent(data)
-      } catch {
-        /* ignore malformed frame */
-      }
-    })
-  }
-  if (params.onError) source.addEventListener('error', params.onError)
-  return { close: () => source.close() }
+  const handlers = Object.fromEntries(EXECUTION_EVENTS.map((type) => [type, (data: string) => {
+    try { params.onEvent(JSON.parse(data) as FlowExecutionEvent) } catch { /* ignore malformed frame */ }
+  }]))
+  return subscribeSse(flowExecutionEventsUrl(params), handlers, params.onError)
 }
 
 // ---- REST control: execution list / detail / actions (#361) --------------------------------

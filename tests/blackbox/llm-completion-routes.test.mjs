@@ -17,7 +17,14 @@ import {
 
 const WS = 'ws_llm';
 const FAKE_KEY = 'placeholder-not-a-real-key'; // clearly non-provider placeholder (push protection)
-const headersFor = (tenant) => ({ 'content-type': 'application/json', 'x-tenant-id': tenant, 'x-workspace-id': WS, 'x-auth-subject': 'admin' });
+const headersFor = (tenant) => ({
+  'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-llm-routes',
+  'x-tenant-id': tenant,
+  'x-workspace-id': WS,
+  'x-auth-subject': 'admin',
+});
 
 function makeRegistry() {
   return createConnectionRegistry({ resolveConnection: () => ({ dsn: 'postgres://unused/none' }) });

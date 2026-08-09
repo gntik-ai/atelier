@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import { createControlPlaneServer } from '../../apps/control-plane-executor/src/runtime/server.mjs';
 
 const identityHeaders = {
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-c03-unit-mcp-console',
   'x-tenant-id': 'ten-a',
   'x-auth-subject': 'usr-a',
   'x-actor-roles': 'tenant_owner',

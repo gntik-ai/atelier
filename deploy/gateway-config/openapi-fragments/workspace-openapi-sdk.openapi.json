@@ -2,13 +2,13 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Workspace OpenAPI & SDK API Fragment",
-    "version": "2026-03-30"
+    "version": "2026-03-26"
   },
   "paths": {
     "/v1/workspaces/{workspaceId}/openapi": {
       "get": {
         "summary": "Get workspace OpenAPI specification",
-        "description": "Accepted X-API-Version: 2026-03-30 | auth: openid-connect or key-auth | rate-limit: 60/min/workspace | cache: 60s",
+        "description": "Accepted X-API-Version: 2026-03-26 | auth: openid-connect or key-auth | rate-limit: 60/min/workspace | cache: 60s",
         "x-gateway-auth-mode": "bearer_oidc_or_key_auth",
         "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
       }
@@ -16,7 +16,7 @@
     "/v1/workspaces/{workspaceId}/sdks/generate": {
       "post": {
         "summary": "Generate workspace SDK",
-        "description": "Accepted X-API-Version: 2026-03-30 | auth: openid-connect or key-auth | rate-limit: 10/min/workspace",
+        "description": "Accepted X-API-Version: 2026-03-26 | auth: openid-connect or key-auth | rate-limit: 10/min/workspace",
         "x-gateway-auth-mode": "bearer_oidc_or_key_auth",
         "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
       }
@@ -24,7 +24,7 @@
     "/v1/workspaces/{workspaceId}/sdks/{language}/status": {
       "get": {
         "summary": "Get workspace SDK generation status",
-        "description": "Accepted X-API-Version: 2026-03-30 | auth: openid-connect or key-auth | rate-limit: 60/min/workspace",
+        "description": "Accepted X-API-Version: 2026-03-26 | auth: openid-connect or key-auth | rate-limit: 60/min/workspace",
         "x-gateway-auth-mode": "bearer_oidc_or_key_auth",
         "x-context-headers": ["X-Tenant-Id", "X-Workspace-Id", "X-Actor-Id", "X-Actor-Roles"]
       }

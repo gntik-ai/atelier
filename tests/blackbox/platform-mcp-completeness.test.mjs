@@ -57,6 +57,8 @@ function rpc(message, { scopes, roles, bearer } = {}) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
+      'x-api-version': '2026-03-26',
+      'x-correlation-id': 'corr-bbx-mcp-completeness',
       'x-tenant-id': TENANT_A,
       'x-auth-subject': 'user:op',
       ...(scopes ? { 'x-actor-scopes': scopes.join(' ') } : {}),

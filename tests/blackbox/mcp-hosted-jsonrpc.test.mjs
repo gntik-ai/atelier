@@ -68,6 +68,8 @@ test.after(async () => { await new Promise((r) => cp.close(r)); });
 function rpc(message, { tenantId = A.tenantId, workspaceId = A.workspaceId, sid = serverId, auth = true, scopes = [BASE_SCOPE] } = {}) {
   const headers = { 'content-type': 'application/json' };
   if (auth) {
+    headers['x-api-version'] = '2026-03-26';
+    headers['x-correlation-id'] = 'corr-bbx-hosted-mcp';
     headers['x-tenant-id'] = tenantId;
     headers['x-workspace-id'] = workspaceId;
     headers['x-auth-subject'] = 'user:agent';

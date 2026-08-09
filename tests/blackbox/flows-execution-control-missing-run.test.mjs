@@ -26,6 +26,8 @@ const TEN = 'ten_bbx_exec_ctl';
 const WS = 'ws_bbx_exec_ctl';
 const authHeaders = {
   'content-type': 'application/json',
+  'x-api-version': '2026-03-26',
+  'x-correlation-id': 'corr-bbx-flows-control',
   'x-tenant-id': TEN,
   'x-workspace-id': WS,
   'x-auth-subject': 'admin-exec-ctl',

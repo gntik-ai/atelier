@@ -139,11 +139,21 @@ async function withServer(fn) {
 }
 
 function headers(token) {
-  return { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  return {
+    authorization: `Bearer ${token}`,
+    'content-type': 'application/json',
+    'x-api-version': '2026-03-26',
+    'x-correlation-id': 'corr-bbx-structural-role',
+  };
 }
 
 function apiKeyHeaders() {
-  return { apikey: SERVICE_KEY, 'content-type': 'application/json' };
+  return {
+    apikey: SERVICE_KEY,
+    'content-type': 'application/json',
+    'x-api-version': '2026-03-26',
+    'x-correlation-id': 'corr-bbx-structural-apikey',
+  };
 }
 
 async function jsonFetch(baseUrl, path, { method = 'PUT', token = 'viewer', body = {} } = {}) {

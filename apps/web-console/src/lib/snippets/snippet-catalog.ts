@@ -100,7 +100,7 @@ export const SNIPPET_CATALOG: Record<ResourceType, SnippetTemplate[]> = {
     {
       id: 'function-curl',
       label: 'cURL',
-      codeTemplate: 'curl -X POST "{RESOURCE_EXTRA_B}" -H "Content-Type: application/json" -H "Authorization: Bearer <API_TOKEN>" -d \'{"ping":true}\'' ,
+      codeTemplate: 'curl -X POST "{RESOURCE_EXTRA_B}" -H "Content-Type: application/json" -H "Authorization: Bearer <API_TOKEN>" -H "X-API-Version: 2026-03-26" -H "X-Correlation-Id: corr-function-0001" -d \'{"ping":true}\'' ,
       fallbackNotes: ['Si la exposición HTTP está deshabilitada, la URL se mantiene como marcador temporal hasta activar el punto de conexión.'],
       secretTokens: ['<API_TOKEN>'],
       secretPlaceholderRef: FUNCTION_SECRET_REF
@@ -108,14 +108,14 @@ export const SNIPPET_CATALOG: Record<ResourceType, SnippetTemplate[]> = {
     {
       id: 'function-node-fetch',
       label: 'Node.js — fetch',
-      codeTemplate: `const response = await fetch('{RESOURCE_EXTRA_B}', {\n  method: 'POST',\n  headers: {\n    'content-type': 'application/json',\n    authorization: 'Bearer <API_TOKEN>'\n  },\n  body: JSON.stringify({ ping: true })\n})\n\nconsole.log(await response.json())`,
+      codeTemplate: `const response = await fetch('{RESOURCE_EXTRA_B}', {\n  method: 'POST',\n  headers: {\n    'content-type': 'application/json',\n    authorization: 'Bearer <API_TOKEN>',\n    'X-API-Version': '2026-03-26',\n    'X-Correlation-Id': crypto.randomUUID()\n  },\n  body: JSON.stringify({ ping: true })\n})\n\nconsole.log(response.headers.get('X-Correlation-Id'), await response.json())`,
       secretTokens: ['<API_TOKEN>'],
       secretPlaceholderRef: FUNCTION_SECRET_REF
     },
     {
       id: 'function-python-requests',
       label: 'Python — requests',
-      codeTemplate: `import requests\n\nresponse = requests.post(\n    '{RESOURCE_EXTRA_B}',\n    headers={\n        'content-type': 'application/json',\n        'authorization': 'Bearer <API_TOKEN>'\n    },\n    json={'ping': True}\n)\n\nprint(response.json())`,
+      codeTemplate: `import uuid\nimport requests\n\nresponse = requests.post(\n    '{RESOURCE_EXTRA_B}',\n    headers={\n        'content-type': 'application/json',\n        'authorization': 'Bearer <API_TOKEN>',\n        'X-API-Version': '2026-03-26',\n        'X-Correlation-Id': str(uuid.uuid4())\n    },\n    json={'ping': True}\n)\n\nprint(response.headers.get('X-Correlation-Id'), response.json())`,
       secretTokens: ['<API_TOKEN>'],
       secretPlaceholderRef: FUNCTION_SECRET_REF
     }

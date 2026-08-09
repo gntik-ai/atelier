@@ -17,8 +17,10 @@ test('gateway hardening contract covers QoS, uniform errors, idempotency, and co
     assert.equal(typeof route.gatewayQosProfile, 'string');
     assert.equal(typeof route.gatewayRequestValidationProfile, 'string');
     assert.equal(route.errorEnvelope, 'ErrorResponse');
-    assert.equal(route.correlationIdRequired, true);
+    assert.equal(route.correlationIdRequired, false);
     assert.equal(route.correlationIdGeneratedWhenMissing, true);
+    assert.equal(route.requiredHeaders.includes('X-API-Version'), true);
+    assert.equal(route.requiredHeaders.includes('X-Correlation-Id'), false);
     assert.equal(route.internalRequestMode, 'validated_attestation');
     assert.ok(route.maxRequestBodyBytes > 0);
 

@@ -296,7 +296,7 @@ export function buildFrontendSnippet(params: EmbedSnippetParams): string {
   return [
     `const res = await fetch(`,
     `  '${embedRowsUrl(params)}',`,
-    `  { headers: { apikey: '${params.apiKey}' } }`,
+    `  { headers: { apikey: '${params.apiKey}', 'X-API-Version': '2026-03-26', 'X-Correlation-Id': crypto.randomUUID() } }`,
     `)`,
     `const { items } = await res.json()`
   ].join('\n')
@@ -304,7 +304,10 @@ export function buildFrontendSnippet(params: EmbedSnippetParams): string {
 
 // A copy-paste curl snippet (same apikey-header contract).
 export function buildCurlSnippet(params: EmbedSnippetParams): string {
-  return [`curl -H 'apikey: ${params.apiKey}' \\`, `  '${embedRowsUrl(params)}'`].join('\n')
+  return [
+    `curl -H 'apikey: ${params.apiKey}' -H 'X-API-Version: 2026-03-26' \\`,
+    `  -H 'X-Correlation-Id: corr-client-0001' '${embedRowsUrl(params)}'`
+  ].join('\n')
 }
 
 // Run a live, read-only preview AS the anon/service key: a bare request carrying only the
