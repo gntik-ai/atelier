@@ -15,6 +15,26 @@ test('observability business metrics contract remains internally consistent', ()
   assert.deepEqual(violations, []);
 });
 
+test('MCP counter policy validation rejects platform scope, outcome drift, and source drift', () => {
+  const contract = structuredClone(readObservabilityBusinessMetrics());
+  const family = contract.metric_families
+    .find((entry) => entry.id === 'mcp_tool_invocations_total');
+  family.supported_scopes.unshift('platform');
+  family.emission_policy.allowed_status_classes.push('timeout');
+  family.emission_policy.canonical_source_policy.tool_name = 'caller_request';
+
+  const violations = collectObservabilityBusinessMetricViolations(contract);
+  assert.equal(violations.includes(
+    'MCP business metric supported_scopes must be exactly tenant and workspace.'
+  ), true);
+  assert.equal(violations.includes(
+    'MCP business metric status classes must be exactly success, error, and denied.'
+  ), true);
+  assert.equal(violations.includes(
+    'MCP business metric canonical label-source policy must remain exact.'
+  ), true);
+});
+
 test('summarizeObservabilityBusinessMetrics returns the complete business-metrics summary', () => {
   const summary = summarizeObservabilityBusinessMetrics();
   const contract = readObservabilityBusinessMetrics();

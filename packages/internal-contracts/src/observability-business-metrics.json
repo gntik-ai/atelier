@@ -587,7 +587,6 @@
       "kind": "counter",
       "producer": "mcp",
       "supported_scopes": [
-        "platform",
         "tenant",
         "workspace"
       ],
@@ -599,13 +598,81 @@
         "domain",
         "metric_type",
         "feature_area",
-        "operation_family"
+        "operation_family",
+        "tenant_id",
+        "server",
+        "tool_name",
+        "status_class"
       ],
       "allowed_optional_labels": [
-        "tenant_id",
-        "workspace_id"
+        "workspace_id",
+        "oauth_client"
       ],
       "safe_attribution_policy": "workspace_safe_when_oauth_client_context_is_attributable_to_a_known_tenant_workspace",
+      "emission_policy": {
+        "exact_label_keys": [
+          "environment",
+          "subsystem",
+          "metric_scope",
+          "collection_mode",
+          "domain",
+          "metric_type",
+          "feature_area",
+          "operation_family",
+          "tenant_id",
+          "workspace_id",
+          "server",
+          "tool_name",
+          "oauth_client",
+          "status_class"
+        ],
+        "fixed_labels": {
+          "subsystem": "mcp",
+          "collection_mode": "push",
+          "domain": "mcp_tool_usage",
+          "metric_type": "usage",
+          "feature_area": "mcp",
+          "operation_family": "execute"
+        },
+        "allowed_status_classes": [
+          "success",
+          "error",
+          "denied"
+        ],
+        "conditional_labels": {
+          "workspace_id": {
+            "required_when": {
+              "metric_scope": "workspace"
+            },
+            "forbidden_when": {
+              "metric_scope": "tenant"
+            },
+            "source": "tenant_scoped_resolved_server_workspace"
+          },
+          "oauth_client": {
+            "allowed_when": "verified_non_secret_oauth_client_id_available",
+            "otherwise": "omit",
+            "source": "credential_verified_oauth_client_id"
+          }
+        },
+        "canonical_source_policy": {
+          "metric_scope": "verified_tenant_or_tenant_resolved_workspace",
+          "tenant_id": "credential_verified_tenant_identity",
+          "workspace_id": "tenant_scoped_resolved_server_workspace",
+          "server": "tenant_scoped_canonical_server_record",
+          "tool_name": "active_published_manifest_canonical_tool",
+          "oauth_client": "credential_verified_non_secret_oauth_client_id",
+          "status_class": "internal_completed_invocation_outcome_class"
+        },
+        "forbidden_sources": [
+          "caller_scope_hint",
+          "json_rpc_params",
+          "tool_arguments",
+          "raw_path_or_query",
+          "unverified_identity_claim",
+          "result_or_error_content"
+        ]
+      },
       "downstream_uses": [
         "quota",
         "metering",

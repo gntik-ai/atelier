@@ -26,6 +26,7 @@ import { applyCuration, publishManifest } from '../mcp-curation.mjs';
 import { createRegistry, registerVersion, getServer, listVersions, activateVersion } from '../mcp-registry.mjs';
 import { MCP_QUOTA_DEFAULTS, evaluateServerCountQuota, evaluateToolCallRate, rateLimitKey } from '../mcp-quota.mjs';
 import { mcpToolCallTelemetry, mcpAuditEvent, filterAuditRecordsForTenant } from '../mcp-observability.mjs';
+import { recordMcpToolCallPair } from './metrics-registry.mjs';
 
 const SAMPLE_POSTGRES = { database: 'default', name: 'public', tables: [{ name: 'items', columns: [{ name: 'id', type: 'int' }, { name: 'label', type: 'text' }] }] };
 
@@ -70,6 +71,8 @@ export function createMcpEngine({
   fetchImpl = globalThis.fetch,
   clock = () => Date.now(),
   store,
+  metricsSink = recordMcpToolCallPair,
+  telemetryShaper = mcpToolCallTelemetry,
 } = {}) {
   const registry = createRegistry();
   const servers = new Map(); // `${tenantId}::${serverId}` -> { serverId, name, source, tenantId, workspaceId, draft, curated }
@@ -157,6 +160,19 @@ export function createMcpEngine({
     if (!decision.allowed) throw httpError(decision.httpStatus, decision.code, decision.message, { dimension: decision.dimension, retryAfterSeconds: decision.retryAfterSeconds });
   }
 
+  // actorId is a verified subject, but it is not necessarily an OAuth client id (it may identify
+  // a person or an API key). Metrics use only a client id explicitly marked as verified by the
+  // identity boundary and never fall back to actorId.
+  function verifiedOAuthClientId(identity) {
+    const candidate = identity?.verifiedOAuthClientId
+      ?? (identity?.oauthClientIdVerified === true ? identity.oauthClientId : undefined);
+    if (typeof candidate !== 'string') return undefined;
+    // Verification/provenance, not character guessing, establishes that this is a non-secret
+    // inventory id. Preserve the canonical value (Prometheus escaping happens in the registry).
+    if (!candidate.trim() || candidate.length > 256 || candidate.includes('\0')) return undefined;
+    return candidate;
+  }
+
   function viewServer(identity, entry) {
     const registered = getServer(registry, identity.tenantId, entry.serverId);
     const activeVersion = registered?.activeVersion ?? null;
@@ -237,22 +253,52 @@ export function createMcpEngine({
 
   // Mediate a tool call: resolve the tool in the active published manifest, enforce its scope, and
   // self-call the runtime using the tool's REAL executor/control-plane route (workspace from the
-  // credential context, NEVER from args). Returns an MCP-style result envelope (tool-level errors
-  // live in content).
+  // credential context, NEVER from args). The outer envelope is internal; `result` retains the
+  // exact caller-visible MCP shape while outcome/canonical attribution stay private.
   async function invokeTool(identity, entry, registered, toolName, args = {}) {
     const activeRecord = registered.versions.find((v) => v.version === registered.activeVersion);
     const tool = (activeRecord?.tools ?? []).find((t) => t.name === toolName);
-    if (!tool) return { content: [{ type: 'text', text: `unknown tool: ${toolName}` }], isError: true };
+    if (!tool) {
+      return {
+        result: { content: [{ type: 'text', text: `unknown tool: ${toolName}` }], isError: true },
+        outcomeClass: null,
+        canonicalToolName: null,
+      };
+    }
     // Hosted MCP calls must enforce the caller's actual granted scopes. The server owner controls
     // what tools are published, but publication must not synthesize authority for a later caller.
     const toolScope = tool.scope ?? tool.suggestedScope ?? null;
     const granted = new Set(Array.isArray(identity.scopes) ? identity.scopes : []);
-    if (!granted.has(BASE_SCOPE)) return { content: [{ type: 'text', text: `missing required scope: ${BASE_SCOPE}` }], isError: true };
-    if (tool.mutates && !toolScope) return { content: [{ type: 'text', text: 'mutating tool is missing an explicit required scope' }], isError: true };
-    if (tool.mutates && toolScope && !granted.has(toolScope)) return { content: [{ type: 'text', text: `mutating tool requires scope: ${toolScope}` }], isError: true };
+    if (!granted.has(BASE_SCOPE)) {
+      return {
+        result: { content: [{ type: 'text', text: `missing required scope: ${BASE_SCOPE}` }], isError: true },
+        outcomeClass: 'denied',
+        canonicalToolName: tool.name,
+      };
+    }
+    if (tool.mutates && !toolScope) {
+      return {
+        result: { content: [{ type: 'text', text: 'mutating tool is missing an explicit required scope' }], isError: true },
+        outcomeClass: 'error',
+        canonicalToolName: tool.name,
+      };
+    }
+    if (tool.mutates && toolScope && !granted.has(toolScope)) {
+      return {
+        result: { content: [{ type: 'text', text: `mutating tool requires scope: ${toolScope}` }], isError: true },
+        outcomeClass: 'denied',
+        canonicalToolName: tool.name,
+      };
+    }
 
     const call = resolveCall(entry, tool, args);
-    if (call.error) return { content: [{ type: 'text', text: call.error }], isError: true };
+    if (call.error) {
+      return {
+        result: { content: [{ type: 'text', text: call.error }], isError: true },
+        outcomeClass: 'error',
+        canonicalToolName: tool.name,
+      };
+    }
     const headers = {
       'x-tenant-id': identity.tenantId,
       'x-workspace-id': entry.workspaceId,
@@ -268,9 +314,20 @@ export function createMcpEngine({
     try {
       const res = await fetchImpl(`${selfBaseUrl}${call.path}`, init);
       let body; try { body = await res.json(); } catch { body = null; }
-      return { content: [{ type: 'text', text: typeof body === 'string' ? body : JSON.stringify(body) }], status: res.status };
+      return {
+        result: {
+          content: [{ type: 'text', text: typeof body === 'string' ? body : JSON.stringify(body) }],
+          status: res.status,
+        },
+        outcomeClass: res.status >= 200 && res.status < 300 ? 'success' : 'error',
+        canonicalToolName: tool.name,
+      };
     } catch (err) {
-      return { content: [{ type: 'text', text: `tool backend unavailable: ${err.message}` }], isError: true };
+      return {
+        result: { content: [{ type: 'text', text: `tool backend unavailable: ${err.message}` }], isError: true },
+        outcomeClass: 'error',
+        canonicalToolName: tool.name,
+      };
     }
   }
 
@@ -356,13 +413,58 @@ export function createMcpEngine({
         const entry = requireServer(identity, serverId);
         const registered = getServer(registry, tid, serverId);
         if (!registered?.activeVersion) throw httpError(409, 'MCP_SERVER_NOT_CONNECTABLE', 'Server has no active published version.');
-        const oauthClientId = identity.actorId ?? 'mcp';
-        enforceRate(identity, serverId, 'server', oauthClientId);
-        enforceRate(identity, serverId, 'oauth_client', oauthClientId);
+        const rateLimitClientId = identity.actorId ?? 'mcp';
+        enforceRate(identity, serverId, 'server', rateLimitClientId);
+        enforceRate(identity, serverId, 'oauth_client', rateLimitClientId);
         const started = clock();
-        const result = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {});
-        const telemetry = mcpToolCallTelemetry({ tenantId: tid, workspaceId: entry.workspaceId, serverId, toolName: body.name, oauthClientId, latencyMs: clock() - started, status: result.isError ? 'error' : 'ok' });
-        recordAudit({ ...mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() }), action: { category: 'tool_invocation', id: `mcp.tool_call.${body.name}` }, detail: telemetry.log });
+        const invocation = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {});
+        const latencyMs = clock() - started;
+        let telemetry = null;
+        if (invocation.outcomeClass != null) {
+          // Telemetry is best effort: the entire shaping + sink path is contained. Failure is not
+          // retried and cannot replace or mutate the already-completed tool result.
+          try {
+            telemetry = telemetryShaper({
+              tenantId: tid,
+              workspaceId: entry.workspaceId,
+              serverId,
+              toolName: invocation.canonicalToolName,
+              oauthClientId: verifiedOAuthClientId(identity),
+              latencyMs,
+              status: invocation.outcomeClass,
+            });
+          } catch {
+            telemetry = null;
+          }
+          if (telemetry) {
+            try {
+              metricsSink?.({ counter: telemetry.metric, histogram: telemetry.latency });
+            } catch {
+              // The structured audit detail remains available even if the metrics sink fails.
+            }
+          }
+        }
+        const auditEvent = mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId: rateLimitClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() });
+        const auditDetail = telemetry?.log
+          ? { ...telemetry.log, oauth_client: rateLimitClientId }
+          : {
+              message: 'mcp.tool_call',
+              tenant_id: tid,
+              workspace_id: entry.workspaceId ?? null,
+              server: serverId,
+              tool: body.name,
+              oauth_client: rateLimitClientId,
+              latency_ms: Math.max(0, Number(latencyMs) || 0),
+              status: invocation.outcomeClass ?? 'error',
+            };
+        recordAudit({
+          ...auditEvent,
+          action: { category: 'tool_invocation', id: `mcp.tool_call.${body.name}` },
+          // Audit attribution remains independent of metrics shaping/sink health and retains the
+          // legacy actorId attribution. Only metric oauth_client uses verified client provenance.
+          detail: auditDetail,
+        });
+        const result = invocation.result;
         return changed({ result, content: result.content, toolName: body.name });
       }
 

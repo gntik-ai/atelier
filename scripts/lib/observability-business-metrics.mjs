@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import { readJson } from './quality-gates.mjs';
 
 export const OBSERVABILITY_BUSINESS_METRICS_PATH = 'packages/internal-contracts/src/observability-business-metrics.json';
@@ -37,6 +39,50 @@ const REQUIRED_METRIC_FAMILY_IDS = [
 const REQUIRED_SCOPES = ['platform', 'tenant', 'workspace'];
 const REQUIRED_BASE_LABELS = ['environment', 'subsystem', 'metric_scope', 'collection_mode'];
 const REQUIRED_FORBIDDEN_LABELS = ['user_id', 'request_id', 'raw_path', 'object_key', 'email', 'api_key_id'];
+const MCP_REQUIRED_LABELS = [
+  'environment', 'subsystem', 'metric_scope', 'collection_mode', 'domain', 'metric_type',
+  'feature_area', 'operation_family', 'tenant_id', 'server', 'tool_name', 'status_class',
+];
+const MCP_OPTIONAL_LABELS = ['workspace_id', 'oauth_client'];
+const MCP_EXACT_LABEL_KEYS = [
+  'environment', 'subsystem', 'metric_scope', 'collection_mode', 'domain', 'metric_type',
+  'feature_area', 'operation_family', 'tenant_id', 'workspace_id', 'server', 'tool_name',
+  'oauth_client', 'status_class',
+];
+const MCP_FIXED_LABELS = {
+  subsystem: 'mcp',
+  collection_mode: 'push',
+  domain: 'mcp_tool_usage',
+  metric_type: 'usage',
+  feature_area: 'mcp',
+  operation_family: 'execute',
+};
+const MCP_STATUS_CLASSES = ['success', 'error', 'denied'];
+const MCP_CONDITIONAL_LABELS = {
+  workspace_id: {
+    required_when: { metric_scope: 'workspace' },
+    forbidden_when: { metric_scope: 'tenant' },
+    source: 'tenant_scoped_resolved_server_workspace',
+  },
+  oauth_client: {
+    allowed_when: 'verified_non_secret_oauth_client_id_available',
+    otherwise: 'omit',
+    source: 'credential_verified_oauth_client_id',
+  },
+};
+const MCP_CANONICAL_SOURCE_POLICY = {
+  metric_scope: 'verified_tenant_or_tenant_resolved_workspace',
+  tenant_id: 'credential_verified_tenant_identity',
+  workspace_id: 'tenant_scoped_resolved_server_workspace',
+  server: 'tenant_scoped_canonical_server_record',
+  tool_name: 'active_published_manifest_canonical_tool',
+  oauth_client: 'credential_verified_non_secret_oauth_client_id',
+  status_class: 'internal_completed_invocation_outcome_class',
+};
+const MCP_FORBIDDEN_SOURCES = [
+  'caller_scope_hint', 'json_rpc_params', 'tool_arguments', 'raw_path_or_query',
+  'unverified_identity_claim', 'result_or_error_content',
+];
 
 export function readObservabilityBusinessMetrics() {
   return readJson(OBSERVABILITY_BUSINESS_METRICS_PATH);
@@ -60,6 +106,76 @@ export function readPackageJson() {
 
 function indexBy(items = [], keyField = 'id') {
   return new Map(items.map((item) => [item?.[keyField], item]));
+}
+
+function hasFamilyScopeLabelPolicy(family, label) {
+  return (family?.required_labels ?? []).includes(label)
+    || (family?.allowed_optional_labels ?? []).includes(label)
+    || Object.hasOwn(family?.emission_policy?.conditional_labels ?? {}, label);
+}
+
+function sameMembers(actual = [], expected = []) {
+  return actual.length === expected.length
+    && expected.every((entry) => actual.includes(entry));
+}
+
+export function collectMcpBusinessMetricDescriptorViolations(
+  descriptor,
+  businessMetrics = readObservabilityBusinessMetrics()
+) {
+  const violations = [];
+  const family = (businessMetrics?.metric_families ?? [])
+    .find((entry) => entry.id === 'mcp_tool_invocations_total');
+  const labels = descriptor?.labels;
+
+  if (descriptor?.name !== family?.name) {
+    violations.push('MCP counter descriptor name must match the business-metrics family name.');
+  }
+  if (descriptor?.kind !== family?.kind) {
+    violations.push('MCP counter descriptor kind must be counter.');
+  }
+  if (descriptor?.value !== 1) {
+    violations.push('MCP counter descriptor value must equal 1.');
+  }
+  if (!labels || typeof labels !== 'object' || Array.isArray(labels)) {
+    violations.push('MCP counter descriptor labels must be an object.');
+    return violations;
+  }
+
+  const scope = labels.metric_scope;
+  const expectedKeys = [...MCP_REQUIRED_LABELS];
+  if (scope === 'workspace') expectedKeys.push('workspace_id');
+  if (Object.hasOwn(labels, 'oauth_client')) expectedKeys.push('oauth_client');
+  if (!sameMembers(Object.keys(labels), expectedKeys)) {
+    violations.push('MCP counter descriptor must use the exact required and conditional label keys.');
+  }
+  if (!(family?.supported_scopes ?? []).includes(scope)) {
+    violations.push('MCP counter descriptor metric_scope must be tenant or workspace.');
+  }
+  for (const [key, value] of Object.entries(MCP_FIXED_LABELS)) {
+    if (labels[key] !== value) violations.push(`MCP counter descriptor label ${key} must equal ${value}.`);
+  }
+  if (!MCP_STATUS_CLASSES.includes(labels.status_class)) {
+    violations.push('MCP counter descriptor status_class must be success, error, or denied.');
+  }
+  for (const key of ['tenant_id', 'server', 'tool_name']) {
+    if (typeof labels[key] !== 'string' || labels[key].length === 0) {
+      violations.push(`MCP counter descriptor label ${key} must be a non-empty string.`);
+    }
+  }
+  if (scope === 'workspace'
+    && (typeof labels.workspace_id !== 'string' || labels.workspace_id.length === 0)) {
+    violations.push('MCP workspace counter descriptor must include a non-empty workspace_id.');
+  }
+  if (scope === 'tenant' && Object.hasOwn(labels, 'workspace_id')) {
+    violations.push('MCP tenant counter descriptor must omit workspace_id.');
+  }
+  if (Object.hasOwn(labels, 'oauth_client')
+    && (typeof labels.oauth_client !== 'string' || labels.oauth_client.length === 0)) {
+    violations.push('MCP counter descriptor oauth_client must be non-empty when present.');
+  }
+
+  return violations;
 }
 
 export function collectObservabilityBusinessMetricViolations(
@@ -168,11 +284,11 @@ export function collectObservabilityBusinessMetricViolations(
       }
     }
 
-    if ((family.supported_scopes ?? []).includes('tenant') && !(family.allowed_optional_labels ?? []).includes('tenant_id')) {
+    if ((family.supported_scopes ?? []).includes('tenant') && !hasFamilyScopeLabelPolicy(family, 'tenant_id')) {
       violations.push(`Observability business metric family ${familyId} must allow tenant_id when tenant scope is supported.`);
     }
 
-    if ((family.supported_scopes ?? []).includes('workspace') && !(family.allowed_optional_labels ?? []).includes('workspace_id')) {
+    if ((family.supported_scopes ?? []).includes('workspace') && !hasFamilyScopeLabelPolicy(family, 'workspace_id')) {
       violations.push(`Observability business metric family ${familyId} must allow workspace_id when workspace scope is supported.`);
     }
 
@@ -184,6 +300,38 @@ export function collectObservabilityBusinessMetricViolations(
   const quotaFamily = familyMap.get('quota_utilization_ratio');
   if (quotaFamily && !(quotaFamily.required_labels ?? []).includes('quota_metric_key')) {
     violations.push('Observability business metric family quota_utilization_ratio must require quota_metric_key.');
+  }
+
+  const mcpFamily = familyMap.get('mcp_tool_invocations_total');
+  if (mcpFamily) {
+    const policy = mcpFamily.emission_policy ?? {};
+    if (!isDeepStrictEqual(mcpFamily.supported_scopes, ['tenant', 'workspace'])) {
+      violations.push('MCP business metric supported_scopes must be exactly tenant and workspace.');
+    }
+    if (!isDeepStrictEqual(mcpFamily.required_labels, MCP_REQUIRED_LABELS)) {
+      violations.push('MCP business metric required_labels must match the exact counter contract.');
+    }
+    if (!isDeepStrictEqual(mcpFamily.allowed_optional_labels, MCP_OPTIONAL_LABELS)) {
+      violations.push('MCP business metric optional labels must be exactly workspace_id and oauth_client.');
+    }
+    if (!isDeepStrictEqual(policy.exact_label_keys, MCP_EXACT_LABEL_KEYS)) {
+      violations.push('MCP business metric emission policy must declare the exact label-key allowlist.');
+    }
+    if (!isDeepStrictEqual(policy.fixed_labels, MCP_FIXED_LABELS)) {
+      violations.push('MCP business metric emission policy must declare the exact fixed labels.');
+    }
+    if (!isDeepStrictEqual(policy.allowed_status_classes, MCP_STATUS_CLASSES)) {
+      violations.push('MCP business metric status classes must be exactly success, error, and denied.');
+    }
+    if (!isDeepStrictEqual(policy.conditional_labels, MCP_CONDITIONAL_LABELS)) {
+      violations.push('MCP business metric conditional workspace/OAuth label policy must remain exact.');
+    }
+    if (!isDeepStrictEqual(policy.canonical_source_policy, MCP_CANONICAL_SOURCE_POLICY)) {
+      violations.push('MCP business metric canonical label-source policy must remain exact.');
+    }
+    if (!isDeepStrictEqual(policy.forbidden_sources, MCP_FORBIDDEN_SOURCES)) {
+      violations.push('MCP business metric forbidden source policy must remain exact.');
+    }
   }
 
   for (const field of ['actor_id', 'metric_family_id', 'correlation_id']) {

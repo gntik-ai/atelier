@@ -22,29 +22,25 @@ const COLLECTION_MODE = 'push';
 
 // Labels the metrics-stack / business-metrics contracts forbid (cardinality + PII). MCP telemetry
 // must never carry these; oauth_client is a bounded client *id*, which is allowed.
-const FORBIDDEN_LABELS = new Set(['user_id', 'request_id', 'raw_path', 'object_key', 'email', 'api_key_id']);
+const FORBIDDEN_LABELS = new Set([
+  'user_id', 'request_id', 'session_id', 'email', 'api_key_id', 'authorization_header',
+  'raw_path', 'raw_query', 'object_key', 'workspace_slug', 'tenant_slug', 'arguments',
+  'result', 'error', 'token', 'secret',
+]);
 
-const OUTCOME_BY_STATUS = {
-  ok: 'succeeded',
-  success: 'succeeded',
-  succeeded: 'succeeded',
-  error: 'failed',
-  failed: 'failed',
-  timeout: 'failed',
-  denied: 'denied',
-  forbidden: 'denied',
-  unauthorized: 'denied',
-};
+const OUTCOME_CLASSES = new Set(['success', 'error', 'denied']);
 
 function statusClass(status) {
-  const outcome = OUTCOME_BY_STATUS[String(status ?? '').toLowerCase()] ?? 'failed';
-  return outcome === 'succeeded' ? 'success' : outcome === 'denied' ? 'denied' : 'error';
+  if (!OUTCOME_CLASSES.has(status)) {
+    throw new Error('MCP telemetry status must be exactly success, error, or denied.');
+  }
+  return status;
 }
 
 function metricScope(tenantId, workspaceId) {
+  if (!tenantId) throw new Error('MCP telemetry requires a verified tenant scope.');
   if (workspaceId) return 'workspace';
-  if (tenantId) return 'tenant';
-  return 'platform';
+  return 'tenant';
 }
 
 function assertNoForbiddenLabels(labels) {
@@ -62,12 +58,16 @@ function compact(labels) {
 /**
  * Build the telemetry for a single MCP tool call: a usage-counter increment, a latency observation,
  * and a structured log line — attributed to tenant/workspace/server/tool/oauth-client.
- * @param {{tenantId?:string, workspaceId?:string, serverId:string, toolName:string,
- *          oauthClientId:string, latencyMs:number, status?:string, environment?:string}} input
+ * @param {{tenantId:string, workspaceId?:string, serverId:string, toolName:string,
+ *          oauthClientId?:string, latencyMs:number, status:'success'|'error'|'denied', environment?:string}} input
  */
-export function mcpToolCallTelemetry({ tenantId, workspaceId, serverId, toolName, oauthClientId, latencyMs, status = 'ok', environment = 'production' } = {}) {
+export function mcpToolCallTelemetry({ tenantId, workspaceId, serverId, toolName, oauthClientId, latencyMs, status, environment = 'production' } = {}) {
   const scope = metricScope(tenantId, workspaceId);
   const sc = statusClass(status);
+  if (typeof serverId !== 'string' || !serverId) throw new Error('MCP telemetry requires a canonical server id.');
+  if (typeof toolName !== 'string' || !toolName) throw new Error('MCP telemetry requires a canonical tool name.');
+  if (typeof environment !== 'string' || !environment) throw new Error('MCP telemetry requires an environment.');
+  if (!Number.isFinite(latencyMs) || latencyMs < 0) throw new Error('MCP telemetry latencyMs must be finite and non-negative.');
   const baseLabels = compact({
     environment,
     subsystem: SUBSYSTEM,
@@ -98,7 +98,7 @@ export function mcpToolCallTelemetry({ tenantId, workspaceId, serverId, toolName
   const latency = {
     name: 'in_falcone_component_operation_duration_seconds',
     kind: 'histogram',
-    observedSeconds: Math.max(0, Number(latencyMs) || 0) / 1000,
+    observedSeconds: latencyMs / 1000,
     labels: assertNoForbiddenLabels({ ...baseLabels, operation: 'tool_call' }),
   };
 
@@ -109,7 +109,7 @@ export function mcpToolCallTelemetry({ tenantId, workspaceId, serverId, toolName
     server: serverId,
     tool: toolName,
     oauth_client: oauthClientId,
-    latency_ms: Math.max(0, Number(latencyMs) || 0),
+    latency_ms: latencyMs,
     status: sc,
   };
 
