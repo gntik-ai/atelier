@@ -26,9 +26,28 @@ non-JSON content type, in which case the exact request bytes are stored.
 | `{ contentBase64, contentType, … }` | The decoded bytes are stored exactly. This is the contract-conformant form. |
 | `{ content, encoding: "base64", contentType }` | **Legacy fallback**, still accepted (the web console ships it). Same bytes. |
 | `{ content, contentType }` (no `encoding`) | **Legacy fallback**: the string is stored as UTF-8. |
-| `contentBase64` present but not valid base64 | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| A raw/binary request body (any non-JSON content type) | The exact request bytes are stored. |
+| `contentBase64` present but not a string | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| `contentBase64` present but not unambiguous base64 | `400 STORAGE_INVALID_BODY` — nothing is written. |
 | No `contentBase64` and no `content` | `400 STORAGE_INVALID_BODY` — nothing is written. |
-| `contentBase64: ""` | `201` with `sizeBytes: 0` — an explicitly empty object. |
+| `contentBase64: ""`, `{ content: "" }`, or a **zero-length request body** | `201` with `sizeBytes: 0` — an explicitly empty object. |
+
+Both `400`s are raised **before** any storage-backend call, and both come **after** the
+bucket-ownership and role gates — so a caller who does not own the bucket still gets
+`404 BUCKET_NOT_FOUND` whatever the body looks like, and an unusable body never reveals that a
+bucket exists.
+
+`contentBase64` is accepted in any form that decodes to exactly one byte string, which is wider
+than RFC 4648 §3.2's canonical encoding on purpose: the contract-*mandated* field must not be
+stricter than the legacy `content` field it replaces. ASCII whitespace is stripped first (so
+newline-wrapped output from `openssl base64` or Python's `base64.encodebytes()` is fine), padding is
+optional (Go's `RawStdEncoding` and JWT-style encoders omit it) but must complete its 4-character
+quantum when present, and either the standard (`+/`) or URL-safe (`-_`) alphabet is accepted — but
+not a mix of the two, which is valid in neither and is the signal a payload is corrupt. Anything
+else is a `400`, because `Buffer.from(x, 'base64')` silently **drops** out-of-alphabet characters
+and would otherwise store a truncated object under a `201`. A non-string `contentBase64` is refused
+on its type: `String(true)` is `"true"`, which is valid base64, so coercion would store 3 bytes the
+client never sent.
 
 `contentBase64` **wins whenever both fields are present**, which is what makes GET → PUT lossless:
 the read envelope carries `contentBase64` + `encoding: "base64"`, so a read response replayed
@@ -46,6 +65,16 @@ Before this was fixed (#994, the write half; #966, the read half) the handler re
 **0 bytes and returned 201**, and replaying a read response as a write body base64-decoded the lossy
 `content` while ignoring the exact `contentBase64`. Both halves are one envelope contract, which is
 why they are documented and tested together (`tests/blackbox/storage-object-write-envelope.test.mjs`).
+
+### Operator note: objects a pre-fix deployment stored empty
+
+The fix cannot recover bytes the platform never received. Any object a client wrote with a
+contract-conformant `{contentBase64}` body against a **pre-fix** deployment is **0 bytes on disk**,
+and the client was told `201`. There is nothing to back-fill: the payload was discarded at the
+handler before the backend call. Affected objects are identifiable by
+`sizeBytes: 0` / `etag: d41d8cd98f00b204e9800998ecf8427e` (the MD5 of the empty string) in
+`GET /v1/storage/buckets/{bucketId}/objects` — though a deliberately empty object looks identical,
+so the list is a candidate set, not a defect list. Only the writing client can re-upload.
 
 ## Range / partial reads (HTTP 206)
 

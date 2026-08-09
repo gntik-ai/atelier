@@ -22,7 +22,7 @@ import crypto from 'node:crypto';
 
 import { STORAGE_HANDLERS, resolveObjectBody } from '../../apps/control-plane/storage-handlers.mjs';
 
-const { storagePutObject, storageGetObject } = STORAGE_HANDLERS;
+const { storagePutObject, storageGetObject, storageMultipartUploadPart } = STORAGE_HANDLERS;
 
 const TENANT_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const WS_A = 'ws-aaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -184,6 +184,68 @@ test('bbx-stor-env-05: a malformed contentBase64 is 400, not a silently truncate
   });
 });
 
+// A non-string contentBase64 must be refused on its TYPE, before any decode. String() coercion
+// turns `true` into "true" and `["SEVMTE8="]` into its element — both valid base64 — so a coerced
+// value would be stored as bytes the client never sent: the same class of defect as the 0-byte
+// write, and reachable through the very field this fix made authoritative.
+test('bbx-stor-env-05b: a non-string contentBase64 is 400, never coerced into phantom bytes', async () => {
+  const pool = makeMockPool();
+  for (const value of [true, false, 1234, 0, ['SEVMTE8='], { v: 'SEVMTE8=' }]) {
+    await withFakeS3(async ({ puts }) => {
+      const res = await storagePutObject(ctxFor({ bucketId: BUCKET_A, objectKey: 'typed.bin' }, {
+        pool, body: { contentType: 'application/octet-stream', contentBase64: value }
+      }));
+      assert.equal(res.statusCode, 400, `contentBase64: ${JSON.stringify(value)} must be 400, got ${res.statusCode} ${JSON.stringify(res.body)}`);
+      assert.equal(res.body.code, 'STORAGE_INVALID_BODY');
+      assert.equal(puts.length, 0, 'nothing is written for a non-string contentBase64');
+    });
+  }
+});
+
+// The contract-mandated field must not be STRICTER than the schema-forbidden `content` one: every
+// encoding below decodes to exactly one byte string, and each is what a mainstream encoder emits.
+test('bbx-stor-env-05c: contentBase64 accepts every unambiguous base64 encoding of the same bytes', () => {
+  const expected = [...Buffer.from('HELLO')];
+  for (const [label, value] of [
+    ['canonical padded', 'SEVMTE8='],
+    ['unpadded (Go RawStdEncoding, JWT-style)', 'SEVMTE8'],
+    ['newline-wrapped (openssl base64, Python encodebytes)', 'SEVM\nTE8='],
+    ['surrounding whitespace', '  SEVMTE8=\n'],
+    ['unpadded + wrapped', 'SEVM\nTE8']
+  ]) {
+    const { bytes, error } = resolveObjectBody({ body: { contentBase64: value } });
+    assert.equal(error, undefined, `${label} must be accepted, got ${JSON.stringify(error?.body)}`);
+    assert.deepEqual([...bytes], expected, `${label} decodes to the same bytes`);
+  }
+  // URL-safe alphabet decodes unambiguously too; a MIX of the two alphabets is valid in neither.
+  const urlSafe = resolveObjectBody({ body: { contentBase64: '-_8=' } });
+  assert.equal(urlSafe.error, undefined, 'URL-safe alphabet is accepted');
+  assert.deepEqual([...urlSafe.bytes], [0xfb, 0xff]);
+  for (const mixed of ['-+8=', 'a/b_c']) {
+    assert.equal(resolveObjectBody({ body: { contentBase64: mixed } }).error?.statusCode, 400, `${mixed} mixes alphabets and is refused`);
+  }
+  // A length ≡ 1 (mod 4) cannot be a base64 sequence, and padding must complete its quantum.
+  for (const impossible of ['SEVMT', 'SEVMTE8==', 'SEVM=', 'A=']) {
+    assert.equal(resolveObjectBody({ body: { contentBase64: impossible } }).error?.statusCode, 400, `${impossible} is refused`);
+  }
+});
+
+// server.mjs only sets rawBodyIsBinary when the body is NON-empty (`if (rawBody.length)`), so a
+// zero-length upload reaches the resolver as body `{}` whatever its content type. That is an
+// explicit "store nothing", not an unusable envelope, and it must not be swept up by the new 400.
+test('bbx-stor-env-05d: a zero-length request body still writes an empty object (201), not 400', async () => {
+  const pool = makeMockPool();
+  await withFakeS3(async ({ store }) => {
+    const res = await storagePutObject({
+      ...ctxFor({ bucketId: BUCKET_A, objectKey: 'touch.bin' }, { pool }),
+      rawBody: Buffer.alloc(0), contentType: 'application/octet-stream'
+    });
+    assert.equal(res.statusCode, 201, `expected 201, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
+    assert.equal(res.body.sizeBytes, 0);
+    assert.equal(store.get(`/${BUCKET_A}/touch.bin`).body.length, 0);
+  });
+});
+
 test('bbx-stor-env-06: an explicitly empty contentBase64 is an explicit empty object (201)', async () => {
   const pool = makeMockPool();
   await withFakeS3(async () => {
@@ -223,6 +285,51 @@ test('bbx-stor-env-08: the legacy plain-text {content} envelope still stores UTF
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.sizeBytes, 5);
     assert.equal(store.get(`/${BUCKET_A}/legacy.txt`).body.toString('utf8'), 'HELLO');
+  });
+});
+
+// ===========================================================================
+// The multipart part upload is the second resolveObjectBody caller — same envelope, same guard.
+// Pre-fix, a part sent as {contentBase64} uploaded an EMPTY part under a 200, so a completed
+// multipart object could be 0 bytes with success statuses throughout.
+// ===========================================================================
+test('bbx-stor-env-12: a multipart part sent as contentBase64 uploads the decoded bytes', async () => {
+  const pool = makeMockPool();
+  const part = crypto.randomBytes(32);
+  await withFakeS3(async ({ puts }) => {
+    const res = await storageMultipartUploadPart(ctxFor(
+      { bucketId: BUCKET_A, objectKey: 'mp.bin', uploadId: 'upload-1', partNumber: '1' },
+      { pool, body: { contentType: 'application/octet-stream', contentBase64: part.toString('base64') } }
+    ));
+    assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
+    assert.equal(res.body.sizeBytes, part.length, 'the part is not empty');
+    assert.deepEqual([...puts.at(-1).body], [...part], 'the backend received the decoded part bytes');
+  });
+});
+
+test('bbx-stor-env-13: an unusable multipart part body is 400 before any backend call', async () => {
+  const pool = makeMockPool();
+  await withFakeS3(async ({ puts }) => {
+    const res = await storageMultipartUploadPart(ctxFor(
+      { bucketId: BUCKET_A, objectKey: 'mp.bin', uploadId: 'upload-1', partNumber: '1' },
+      { pool, body: { contentType: 'application/octet-stream' } }
+    ));
+    assert.equal(res.statusCode, 400, `expected 400, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
+    assert.equal(res.body.code, 'STORAGE_INVALID_BODY');
+    assert.equal(puts.length, 0);
+  });
+});
+
+test('bbx-stor-env-14: a zero-length multipart part body is still accepted (unchanged)', async () => {
+  const pool = makeMockPool();
+  await withFakeS3(async ({ puts }) => {
+    const res = await storageMultipartUploadPart({
+      ...ctxFor({ bucketId: BUCKET_A, objectKey: 'mp.bin', uploadId: 'upload-1', partNumber: '1' }, { pool }),
+      rawBody: Buffer.alloc(0), contentType: 'application/octet-stream'
+    });
+    assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
+    assert.equal(res.body.sizeBytes, 0);
+    assert.equal(puts.length, 1);
   });
 });
 

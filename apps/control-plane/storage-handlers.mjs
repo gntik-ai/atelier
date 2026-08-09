@@ -390,24 +390,57 @@ function decodeObjectKey(rawKey) {
 // base64-decoded the lossy `content` and ignored the exact `contentBase64`, corrupting the object
 // on a success status. contentBase64 now wins whenever present; the legacy { content, encoding? }
 // envelope stays accepted (the web console and existing clients ship it) but is the fallback.
-// A body with no readable payload field is a 400 — never a silent empty object on a 201.
-const BASE64_STRICT = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// A JSON envelope with no readable payload field is a 400 — never a silent empty object on a 201.
+//
+// Decode `contentBase64` only when it is UNAMBIGUOUSLY base64, and return null otherwise, because
+// Buffer.from(x, 'base64') silently DROPS every character outside the alphabet: an unusable value
+// would be stored as a truncated object under a 201, which is the failure mode this issue is about.
+// "Unambiguously" is deliberately wider than RFC 4648 §3.2's canonical form — every input accepted
+// here decodes to exactly one byte string, and rejecting a payload that decodes losslessly would
+// make the contract-MANDATED field stricter than the schema-forbidden `content` one:
+//   - ASCII whitespace is stripped first: `openssl base64` and Python's base64.encodebytes() emit
+//     newline-wrapped base64.
+//   - Padding is optional (Go's RawStdEncoding and JWT-style encoders omit it) but, when present,
+//     must complete its 4-character quantum.
+//   - Either alphabet, standard (`+/`) or URL-safe (`-_`), but not a mix of the two — a mixed
+//     string is not valid in either and is exactly the corruption signal worth refusing.
+// A length ≡ 1 (mod 4) cannot be a base64 sequence at all.
+function decodeBase64Exact(raw) {
+  const compact = raw.replace(/\s+/g, '');
+  const body = compact.replace(/={1,2}$/, '');
+  const padding = compact.length - body.length;
+  if (!/^(?:[A-Za-z0-9+/]*|[A-Za-z0-9_-]*)$/.test(body)) return null;
+  const remainder = body.length % 4;
+  if (remainder === 1) return null;
+  if (padding > 0 && (remainder === 0 || remainder + padding !== 4)) return null;
+  return Buffer.from(body, 'base64');
+}
 export function resolveObjectBody(ctx) {
   // Raw binary upload: the server kept the exact request bytes (non-JSON content-type).
   if (ctx.rawBodyIsBinary && Buffer.isBuffer(ctx.rawBody)) {
     return { bytes: ctx.rawBody, contentType: ctx.contentType || 'application/octet-stream' };
   }
   const env = ctx.body ?? {};
-  const contentType = env.contentType ?? 'application/octet-stream';
-  // The contract-mandated field. Validated strictly: Buffer.from(x, 'base64') silently DROPS
-  // characters outside the alphabet, so an unusable value would otherwise be stored as a
-  // truncated object under a 201 — exactly the failure mode this issue is about.
+  const contentType = env.contentType ?? ctx.contentType ?? 'application/octet-stream';
+  // An EMPTY request body is an explicit "store nothing" (the S3 `touch` idiom), not an unusable
+  // envelope — so it stays a 201 with 0 bytes. server.mjs only sets rawBodyIsBinary when the body
+  // is non-empty (`if (rawBody.length)`), so a zero-length raw upload arrives here with body `{}`
+  // and would otherwise be refused as if it were a malformed JSON envelope.
+  if (Buffer.isBuffer(ctx.rawBody) && ctx.rawBody.length === 0) {
+    return { bytes: ctx.rawBody, contentType };
+  }
+  // The contract-mandated field. Typed before it is decoded: String() coercion would turn `true`
+  // into "true" and `["SEVMTE8="]` into its element, both of which are valid base64, so a
+  // non-string would be stored as bytes the client never sent.
   if (env.contentBase64 != null) {
-    const encoded = String(env.contentBase64);
-    if (!BASE64_STRICT.test(encoded)) {
-      return { error: err(400, STORAGE_INVALID_BODY, 'contentBase64 must be valid base64') };
+    if (typeof env.contentBase64 !== 'string') {
+      return { error: err(400, STORAGE_INVALID_BODY, 'contentBase64 must be a base64-encoded string') };
     }
-    return { bytes: Buffer.from(encoded, 'base64'), contentType };
+    const bytes = decodeBase64Exact(env.contentBase64);
+    if (bytes === null) {
+      return { error: err(400, STORAGE_INVALID_BODY, 'contentBase64 is not valid base64') };
+    }
+    return { bytes, contentType };
   }
   // Legacy envelope: { content, contentType, encoding? }. base64 decodes to exact bytes; otherwise
   // the string is stored as UTF-8 (the existing text/JSON-blob behavior).
@@ -419,7 +452,7 @@ export function resolveObjectBody(ctx) {
   }
   return {
     error: err(400, STORAGE_INVALID_BODY,
-      'object write body must carry contentBase64 (base64-encoded payload); a body with no readable payload field is never stored as an empty object')
+      'object write body must carry contentBase64 (a base64-encoded payload string); an empty object is written with an empty request body or an empty contentBase64, never by omitting the field')
   };
 }
 // Sum the CURRENT stored bytes across every bucket of the workspace that owns `bucket`
