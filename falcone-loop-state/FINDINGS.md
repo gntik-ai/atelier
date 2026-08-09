@@ -1552,3 +1552,76 @@ deployment stored empty are unrecoverable, because the payload was discarded at 
 the backend call, and only the writing client can re-upload. The temporary pre-fix module both
 passes materialized in `apps/control-plane/` is removed; `git status` is clean apart from this run's
 own changes.
+
+---
+
+# F0-6 candidate verification — 2026-08-09/10
+
+The eleven PENDING-VERIFIER candidates (see the table above, ~line 889) were finally taken to
+verifiers, after being deferred through three consecutive fix runs. Four independent falcone-verifier
+agents, grouped so their cluster work did not collide. Verdicts below as they returned.
+
+## A1-2 · `functions:sandbox:unrestricted-require-and-no-egress-policy`
+
+Verified alone, because its dedupe was the deliverable and it was the most safety-sensitive item.
+**Per claim, not blended** — the candidate bundled three, and they resolved three different ways.
+
+| Claim | Verdict | Disposition |
+|---|---|---|
+| 1 · module surface (`new Function` + full `createRequire`) | **CONFIRMED — high** | **genuinely uncovered → filed #1007** |
+| 2 · no NetworkPolicy selects function pods | **CONFIRMED** | **duplicate of #972** — folded, nothing filed |
+| 3 · blast radius beside Postgres/Kafka/Keycloak/Temporal | **SPLITS, and as written OVERSTATES** | Kafka leg → `falcone-charts#16` · Keycloak leg → already in #972 · **Temporal leg REFUTED** · Postgres/pgvector leg unfiled but weak alone |
+
+The probe ran against the **deployed, digest-pinned** `in-falcone-fn-runtime@sha256:4fe7a77b…` (read
+off `FN_RUNTIME_IMAGE` on the live control plane), so this is proof against what runs, not repo source.
+`child_process` and `fs` were not merely resolvable but **exercised** — `execSync('id -u')` returned a
+uid, `readdirSync('/etc')` returned 39 entries. `envKeyCount: 21` reproduced the finder's number
+exactly. `net` was proven by constructing a `Socket` and **never calling `connect()`**; the
+NetworkPolicy absence was proven by label-matching every pod against every policy, not by sending
+traffic. One throwaway ksvc, deleted; policy count unchanged at 4.
+
+**Why claim 1 is not #972.** #972's exploit is `fetch` — HTTP. An unrestricted `require` adds
+**arbitrary TCP**, which is what speaking the Postgres or Kafka wire protocol needs and which `fetch`
+cannot do, plus local process execution. Neither of #972's acceptance scenarios is satisfied by a
+module allow-list, and a complete fix for #972 leaves claim 1 open. Complementary, not duplicates.
+
+**Bug, not enhancement, on precedent.** **#659** (CLOSED) was the same class — tenant-influenced code
+resolving arbitrary host surface (`process.env[name]`) — and was fixed with a prefix allow-list rather
+than deferred. So the requirement is already accepted by the platform and fn-runtime is an unfixed
+instance of it. **#948 is the wrong home**: `docs/track-f/falcone-gap-analysis.md:34` scopes
+GAP-FAL-009 to "a dedicated worker runtime coordinated by Flows, **not ordinary function
+invocations**", so folding a shipped defect there would defer it behind a future capability.
+
+**Severity high, not critical** — uncontained execution is by design in a FaaS product, and inside the
+pod the surface yields no platform credential (#972's `hasPgPassword:false` holds; the SA token is
+mounted but **inert** — namespace `default` SA has no RoleBinding/ClusterRoleBinding, `can-i` on
+secrets/pods/ksvc all `no`). But it **raises the effective severity of #972 and charts#16 in
+composition**: the critical composite is tenant code speaking the Kafka wire protocol to any tenant's
+topics with no credential, and that needs all three legs. Not tested, and should not be.
+
+### Two corrections to #972's evidence — posted to #972, and independently re-checked here
+
+1. **`in-falcone.function=true` is on the ksvc, not the pod.** I verified this myself before posting:
+   `apps/control-plane/function-executor.mjs:136-171` puts it in `metadata.labels` while
+   `spec.template.metadata.labels` gets **only** `ownershipLabels`. Measured live with a function
+   running: `kubectl get pods -l in-falcone.function=true` → `No resources found`. **Consequence: the
+   obvious fix — `podSelector: {in-falcone.function: "true"}` — selects ZERO pods.** It would apply
+   cleanly, report success, leave the hole fully open, and satisfy every future audit that greps for a
+   function NetworkPolicy. Matchable pod labels today are `serving.knative.dev/service`,
+   `in-falcone.io/tenant`, `in-falcone.io/function-resource`. This is the single most valuable thing
+   this verification produced.
+2. **#972's "public internet and kube-apiserver egress is blocked" is not explicable by policy.**
+   Confirmed live: 4 policies in the namespace, **0** whose podSelector matches a function pod, and no
+   alternative policy CRD (core `networking.k8s.io/v1` only — no Cilium/Calico/AdminNetworkPolicy). So
+   that mitigation needs re-verification; if it is a CNI default it is outside the chart's control.
+
+Also worth keeping: four components named or implied by claim 3 **are** already protected —
+`falcone-temporal-frontend`, `ferretdb`, `seaweedfs` and `mcp-server` each carry an ingress policy that
+does not admit function pods. Postgres/pgvector, Kafka and Keycloak are the ones that are not. That
+narrows #972's real scope and the verifier was right to refuse to blend it.
+
+## New candidate found during verification — PENDING VERIFIER, not filed
+
+| ID | Fingerprint | Guess | Summary | What must be settled first |
+|---|---|---|---|---|
+| **E1** | `executor:functions:in-process-worker-backend-runs-tenant-code` | high (if reachable) | `apps/control-plane-executor/src/runtime/functions-executor.mjs:37` runs tenant source in a `worker_threads` worker whose own comment says *"NOT a security sandbox — production uses Knative pods"*. But `main.mjs:182` reads `process.env.FN_BACKEND === 'off' ? undefined : createFunctionsExecutor()`, `createFunctionsExecutor()` defaults to `localWorkerBackend()`, **`FN_BACKEND` is not set on the deployed executor**, and the executor is wired into the module registry at `main.mjs:386`. Withholding `require` from that `new Function` is not a boundary either — ambient `process` and dynamic `import()` remain. If a tenant can route a function invoke here, tenant code executes **in-process in the pod that does hold DB credentials and the gateway shared secret** — the inverse of the Knative path's blast radius. | **Reachability.** The verifier explicitly did NOT establish it (the known routing defects #981/#980/#985 make it non-obvious) and did not test it. Reachability is the whole question: unreachable makes this latent, reachable makes it worse than #1007. Needs its own explorer/verifier pass — it was correctly flagged rather than folded into A1-2. |
