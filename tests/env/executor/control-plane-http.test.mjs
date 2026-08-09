@@ -8,6 +8,7 @@ import pg from 'pg';
 import { createConnectionRegistry } from '../../../apps/control-plane-executor/src/runtime/connection-registry.mjs';
 import { createControlPlaneServer } from '../../../apps/control-plane-executor/src/runtime/server.mjs';
 import { createApiKeyStore } from '../../../apps/control-plane-executor/src/runtime/api-keys.mjs';
+import { PUBLIC_API_VERSION } from '../../../apps/shared/error-envelope.mjs';
 
 const { Pool } = pg;
 
@@ -35,7 +36,8 @@ function probeUrl(role, pw) {
 }
 
 const rowsPath = `/v1/postgres/workspaces/${WS_A}/data/appdb/schemas/public/tables/notes/rows`;
-const authHeaders = { 'content-type': 'application/json', 'x-tenant-id': TEN_A, 'x-workspace-id': WS_A, 'x-auth-subject': 'user-1' };
+const publicTraceHeaders = { 'x-api-version': PUBLIC_API_VERSION };
+const authHeaders = { ...publicTraceHeaders, 'content-type': 'application/json', 'x-tenant-id': TEN_A, 'x-workspace-id': WS_A, 'x-auth-subject': 'user-1' };
 const adminAuthHeaders = { ...authHeaders, 'x-actor-roles': 'tenant_owner' };
 
 before(async () => {
@@ -159,7 +161,7 @@ test('API-key lifecycle over HTTP: issue (201) → list → anon-key cannot mana
 
   // an API key may NOT manage API keys
   const escalate = await fetch(`${baseUrl}/v1/workspaces/${WS_A}/api-keys`, {
-    method: 'POST', headers: { 'content-type': 'application/json', authorization: `ApiKey ${issued.key}` }, body: JSON.stringify({ keyType: 'service' }),
+    method: 'POST', headers: { ...publicTraceHeaders, 'content-type': 'application/json', authorization: `ApiKey ${issued.key}` }, body: JSON.stringify({ keyType: 'service' }),
   });
   assert.equal(escalate.status, 403);
 
