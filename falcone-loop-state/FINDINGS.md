@@ -1275,6 +1275,29 @@ verifier looked at it and CLAUDE.md rule 3 says it cannot be filed until one doe
 route it: a committed private key that renders whenever an operator flips one value is the shape of
 #976 (execution tokens signed with a committed constant), and that one was CONFIRMED.
 
+## Rollout is documented, not performed
+
+`docs/reference/architecture/workspace-id-claim-rollout.md` — the operator runbook CLAUDE.md's
+Definition of Done requires. **Nothing was deployed and no cluster resource was mutated in this
+run**; the merge is human-review gated (rule 7) and the operator decision was to write the runbook
+rather than roll anything out.
+
+The runbook's load-bearing point is that "deploy" is three steps, not one: image roll (reaches only
+*future* realms) → back-fill (reaches existing realm *configuration*) → per-user re-stamp (reaches
+existing attribute *values*). It also records the two pre-flight hazards found while scoping the
+deploy, both of which belong to the deployment rather than to this fix:
+
+- The running control-plane pod (`sha256:0c6aeff8…`) does **not** match the digest Helm pins
+  (`sha256:27aedb…`). Any `helm upgrade` silently reverts whatever another track patched in — the
+  same class of finding as #965's `runAsUser` masking, and further evidence for FINDINGS.md:411-419
+  that this deployment is not reproducible from the charts repo.
+- Helm revisions **17 and 18 both FAILED** on pre-upgrade hooks (`eso-preflight`, then
+  `falcone-temporal-schema`) before 19/20 succeeded, so an upgrade here needs `--atomic` or it can
+  wedge the release.
+
+Staging also runs `0.3.1` against a `v0.6.4` release line. That gap is not this fix's to close, but
+it is the context any rollout of this fix lands in.
+
 ## Cleanup
 
 `tests/env` Keycloak 26 torn down (`docker compose down -v`, container and network removed). No
