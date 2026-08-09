@@ -45,6 +45,7 @@ export const GOVERNANCE_MIGRATIONS = [
   'packages/workspace-docs-service/migrations/087-workspace-doc-notes.sql',
   'packages/provisioning-orchestrator/src/migrations/114-backup-scope-deployment-profiles.sql',
   'packages/provisioning-orchestrator/src/migrations/121-flow-quota-dimensions.sql',
+  'packages/provisioning-orchestrator/src/migrations/122-knative-runtime-cleanup.sql',
 ];
 
 // The control-plane action modules resolve under /repo in the image; allow override

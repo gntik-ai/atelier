@@ -223,6 +223,29 @@
         ],
         "type": "string"
       },
+      "CleanupObligation": {
+        "additionalProperties": false,
+        "properties": {
+          "resourceId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "resourceType": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "const": "pending",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "resourceId",
+          "status"
+        ],
+        "type": "object"
+      },
       "ConsoleInvitationWriteRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1488,6 +1511,23 @@
         ],
         "type": "string"
       },
+      "RuntimeTeardownUnavailable": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "RUNTIME_TEARDOWN_UNAVAILABLE"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
       "StorageCapabilityBaseline": {
         "additionalProperties": false,
         "properties": {
@@ -1788,6 +1828,31 @@
           "labels",
           "quotaProfile",
           "governance"
+        ],
+        "type": "object"
+      },
+      "TenantCleanupPending": {
+        "additionalProperties": false,
+        "properties": {
+          "obligations": {
+            "items": {
+              "$ref": "#/components/schemas/CleanupObligation"
+            },
+            "type": "array"
+          },
+          "status": {
+            "const": "cleanup_pending",
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenantId",
+          "status",
+          "obligations"
         ],
         "type": "object"
       },
@@ -2783,34 +2848,81 @@
         ],
         "type": "string"
       },
-      "TenantPurgeAccepted": {
+      "TenantPurgeCompleted": {
         "additionalProperties": false,
         "properties": {
-          "acceptedAt": {
-            "format": "date-time",
-            "type": "string"
+          "purged": {
+            "const": true
           },
-          "approvalTicket": {
-            "maxLength": 128,
-            "minLength": 6,
-            "type": "string"
-          },
-          "commandId": {
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "consistencyCheckpoint": {
-            "maxLength": 128,
-            "minLength": 8,
-            "type": "string"
-          },
-          "status": {
-            "enum": [
-              "accepted",
-              "queued"
+          "removed": {
+            "additionalProperties": false,
+            "properties": {
+              "buckets": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "databases": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mongoDatabases": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mongoDatabasesRetained": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "realm": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "topics": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "workspaces": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "workspaces",
+              "databases",
+              "realm",
+              "buckets",
+              "topics",
+              "mongoDatabases",
+              "mongoDatabasesRetained"
             ],
-            "type": "string"
+            "type": "object"
+          },
+          "residual": {
+            "additionalProperties": false,
+            "properties": {
+              "knativeServices": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "knativeServices"
+            ],
+            "type": "object"
           },
           "tenantId": {
             "pattern": "^ten_[0-9a-z]+$",
@@ -2818,11 +2930,10 @@
           }
         },
         "required": [
-          "commandId",
           "tenantId",
-          "status",
-          "acceptedAt",
-          "approvalTicket"
+          "purged",
+          "removed",
+          "residual"
         ],
         "type": "object"
       },
@@ -4320,7 +4431,7 @@
                 }
               }
             },
-            "description": "Tenant mutation accepted."
+            "description": "Tenant mutation accepted; cleanup.pending is returned while owner-verified runtime resources remain."
           },
           "400": {
             "content": {
@@ -6123,15 +6234,25 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantPurgeCompleted"
+                }
+              }
+            },
+            "description": "Tenant purge completed."
+          },
           "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TenantPurgeAccepted"
+                  "$ref": "#/components/schemas/TenantCleanupPending"
                 }
               }
             },
-            "description": "Tenant mutation accepted."
+            "description": "Tenant mutation accepted; cleanup.pending is returned while owner-verified runtime resources remain."
           },
           "400": {
             "content": {
@@ -6193,6 +6314,16 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
+                }
+              }
+            },
+            "description": "Runtime teardown coordinator unavailable."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -6230,6 +6361,19 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
         "x-resource-type": "tenant_purge",
+        "x-runtime-aggregate-teardown": {
+          "adjacentTenantEffect": "none",
+          "durableObligations": "owner_scoped",
+          "ownedCapabilities": [
+            "functions",
+            "hosted_mcp"
+          ],
+          "ownershipVerification": "required_before_delete",
+          "readyCompletion": "only_after_owned_resources_absent",
+          "retainOwnershipMetadata": true,
+          "retry": "idempotent_after_readiness",
+          "unavailableStatus": "cleanup_pending"
+        },
         "x-scope": "tenant",
         "x-visibility": "public"
       }

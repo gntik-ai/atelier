@@ -241,6 +241,29 @@
         ],
         "type": "string"
       },
+      "CleanupObligation": {
+        "additionalProperties": false,
+        "properties": {
+          "resourceId": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "resourceType": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "const": "pending",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resourceType",
+          "resourceId",
+          "status"
+        ],
+        "type": "object"
+      },
       "DurationString": {
         "description": "Compact duration string used by in-falcone lifecycle policies.",
         "pattern": "^[0-9]+(?:s|m|h|d)$",
@@ -2296,6 +2319,23 @@
         ],
         "type": "string"
       },
+      "RuntimeTeardownUnavailable": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "const": "RUNTIME_TEARDOWN_UNAVAILABLE"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
       "ServiceAccount": {
         "additionalProperties": false,
         "properties": {
@@ -3108,6 +3148,36 @@
         ],
         "type": "object"
       },
+      "WorkspaceCleanupPending": {
+        "additionalProperties": false,
+        "properties": {
+          "obligations": {
+            "items": {
+              "$ref": "#/components/schemas/CleanupObligation"
+            },
+            "type": "array"
+          },
+          "status": {
+            "const": "cleanup_pending",
+            "type": "string"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "tenantId",
+          "status",
+          "obligations"
+        ],
+        "type": "object"
+      },
       "WorkspaceCloneAccepted": {
         "allOf": [
           {
@@ -3251,6 +3321,88 @@
         "required": [
           "page",
           "items"
+        ],
+        "type": "object"
+      },
+      "WorkspaceDeleteCompleted": {
+        "additionalProperties": false,
+        "properties": {
+          "deleted": {
+            "const": true
+          },
+          "removed": {
+            "additionalProperties": false,
+            "properties": {
+              "buckets": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "databases": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mongoDatabases": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "mongoDatabasesRetained": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "topics": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "databases",
+              "buckets",
+              "topics",
+              "mongoDatabases",
+              "mongoDatabasesRetained"
+            ],
+            "type": "object"
+          },
+          "residual": {
+            "additionalProperties": false,
+            "properties": {
+              "knativeServices": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "knativeServices"
+            ],
+            "type": "object"
+          },
+          "tenantId": {
+            "pattern": "^ten_[0-9a-z]+$",
+            "type": "string"
+          },
+          "workspaceId": {
+            "pattern": "^wrk_[0-9a-z]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspaceId",
+          "tenantId",
+          "deleted",
+          "removed",
+          "residual"
         ],
         "type": "object"
       },
@@ -4183,15 +4335,25 @@
           }
         ],
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDeleteCompleted"
+                }
+              }
+            },
+            "description": "Workspace deletion completed."
+          },
           "202": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MutationAccepted"
+                  "$ref": "#/components/schemas/WorkspaceCleanupPending"
                 }
               }
             },
-            "description": "Workspace deletion accepted."
+            "description": "Workspace deletion accepted; cleanup.pending is returned while owner-verified runtime resources remain."
           },
           "400": {
             "content": {
@@ -4253,6 +4415,16 @@
             },
             "description": "Gateway rejected one or more invalid or oversized request headers."
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTeardownUnavailable"
+                }
+              }
+            },
+            "description": "Runtime teardown coordinator unavailable."
+          },
           "504": {
             "content": {
               "application/json": {
@@ -4294,6 +4466,19 @@
         "x-owning-service": "control_api",
         "x-rate-limit-class": "control-write",
         "x-resource-type": "workspace",
+        "x-runtime-aggregate-teardown": {
+          "adjacentTenantEffect": "none",
+          "durableObligations": "owner_scoped",
+          "ownedCapabilities": [
+            "functions",
+            "hosted_mcp"
+          ],
+          "ownershipVerification": "required_before_delete",
+          "readyCompletion": "only_after_owned_resources_absent",
+          "retainOwnershipMetadata": true,
+          "retry": "idempotent_after_readiness",
+          "unavailableStatus": "cleanup_pending"
+        },
         "x-scope": "workspace",
         "x-visibility": "public"
       },

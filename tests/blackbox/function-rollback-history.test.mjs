@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { FN_HANDLERS } from '../../apps/control-plane/fn-handlers.mjs';
+import { KNATIVE_RUNTIME_HANDLERS } from '../../apps/control-plane/knative-runtime-handlers.mjs';
 import { syntheticFnVersionId } from '../../apps/control-plane/tenant-store.mjs';
 
 const TENANT_ID = 'ten_alpha';
@@ -18,8 +19,8 @@ const OWNER = {
   sub: 'user_alpha_owner',
   tenantId: TENANT_ID,
   workspaceId: WORKSPACE_ID,
-  actorType: 'tenant_owner',
-  roles: ['tenant_owner']
+  actorType: 'workspace_owner',
+  roles: ['workspace_owner']
 };
 const MEMBER = {
   sub: 'user_alpha_member',
@@ -28,11 +29,20 @@ const MEMBER = {
   actorType: 'tenant_member',
   roles: ['tenant_member']
 };
+const WRONG_WORKSPACE_OWNER = {
+  sub: 'user_alpha_other_workspace_owner',
+  tenantId: TENANT_ID,
+  workspaceId: 'wrk_other',
+  credentialWorkspaceId: 'wrk_other',
+  actorType: 'workspace_owner',
+  roles: ['workspace_owner']
+};
 
 function makePool() {
   let tick = 0;
   const actions = new Map();
   const versions = new Map();
+  const activations = new Map();
   const counters = { versionActivations: 0, actionUpdates: 0 };
   const workspace = {
     id: WORKSPACE_ID,
@@ -75,6 +85,7 @@ function makePool() {
   return {
     actions,
     versions,
+    activations,
     counters,
     seedAction(overrides = {}) {
       const now = iso();
@@ -97,6 +108,24 @@ function makePool() {
         ...overrides
       };
       actions.set(row.resource_id, row);
+      return row;
+    },
+    seedActivation(overrides = {}) {
+      const row = {
+        activation_id: 'act_933_workspace_scope',
+        resource_id: 'fn_933_workspace_scope',
+        tenant_id: TENANT_ID,
+        workspace_id: WORKSPACE_ID,
+        status: 'success',
+        status_code: 200,
+        result: { secret: 'owner-only-result' },
+        logs: ['owner-only-log'],
+        duration_ms: 12,
+        started_at: iso(),
+        finished_at: iso(),
+        ...overrides,
+      };
+      activations.set(row.activation_id, row);
       return row;
     },
     async query(sql, params = []) {
@@ -151,7 +180,8 @@ function makePool() {
 
       if (s.includes('from fn_actions') && s.includes('where resource_id=$1 and tenant_id=$2')) {
         const row = actions.get(params[0]);
-        return { rows: row && row.tenant_id === params[1] ? [clone(row)] : [] };
+        const workspaceMatches = !s.includes('workspace_id=') || params.includes(row?.workspace_id);
+        return { rows: row && row.tenant_id === params[1] && workspaceMatches ? [clone(row)] : [] };
       }
 
       if (s.includes('from fn_actions') && s.includes('where resource_id=$1')) {
@@ -273,6 +303,20 @@ function makePool() {
         return { rows: [clone(row)] };
       }
 
+      if (s.includes('from fn_activations') && s.includes('activation_id')) {
+        const row = activations.get(params.find((value) => activations.has(value)));
+        const workspaceMatches = !s.includes('workspace_id') || params.includes(row?.workspace_id);
+        return { rows: row && workspaceMatches ? [clone(row)] : [] };
+      }
+
+      if (s.includes('from fn_activations') && s.includes('resource_id')) {
+        const rows = [...activations.values()].filter((row) => (
+          row.resource_id === params[0]
+          && (!s.includes('workspace_id') || params.includes(row.workspace_id))
+        ));
+        return { rows: rows.map(clone) };
+      }
+
       if (s.includes('from fn_activations')) return { rows: [] };
 
       return { rows: [] };
@@ -300,13 +344,32 @@ function deployBody(inlineCode) {
   };
 }
 
-function ctx(pool, { params = {}, body = {}, identity = OWNER, deployKnativeService = async () => {} } = {}) {
+const READY_RUNTIME = {
+  functionsEnabled: true,
+  status: () => ({ mode: 'managed', state: 'ready', reason: 'READY' }),
+  canServeWorkloads: () => true,
+};
+
+const OUTAGE_RUNTIME = {
+  functionsEnabled: true,
+  status: () => ({ mode: 'managed', state: 'degraded', reason: 'CONTROL_PLANE_NOT_READY' }),
+  canServeWorkloads: () => false,
+};
+
+function ctx(pool, {
+  params = {},
+  body = {},
+  identity = OWNER,
+  deployKnativeService = async () => {},
+  knativeRuntime = READY_RUNTIME,
+} = {}) {
   return {
     pool,
     params,
     body,
     identity,
     callerContext: { correlationId: 'corr_786_rollback', actor: { id: identity.sub, type: identity.actorType }, tenantId: identity.tenantId },
+    knativeRuntime,
     deployKnativeService
   };
 }
@@ -319,7 +382,9 @@ test('bbx-786-01: owner deploys two versions, rolls back to retained prior versi
   const codeV2 = 'module.exports=async()=>({version:"two"})';
 
   const create = await FN_HANDLERS.fnDeploy(ctx(pool, { body: deployBody(codeV1), deployKnativeService: fakeDeploy }));
-  assert.equal(create.statusCode, 201);
+  assert.equal(create.statusCode, 202);
+  assert.equal(create.body.family, 'functions');
+  assert.equal(create.body.resourceType, 'function_action');
   const resourceId = create.body.resourceId;
 
   const update = await FN_HANDLERS.fnDeploy(ctx(pool, {
@@ -327,7 +392,9 @@ test('bbx-786-01: owner deploys two versions, rolls back to retained prior versi
     body: deployBody(codeV2),
     deployKnativeService: fakeDeploy
   }));
-  assert.equal(update.statusCode, 200);
+  assert.equal(update.statusCode, 202);
+  assert.equal(update.body.family, 'functions');
+  assert.equal(update.body.resourceType, 'function_action');
 
   const detailBefore = await FN_HANDLERS.fnActionDetail(ctx(pool, { params: { actionId: resourceId } }));
   assert.equal(detailBefore.statusCode, 200);
@@ -404,7 +471,9 @@ test('bbx-786-02: first post-upgrade update of a legacy action retains the pre-u
     body: deployBody(updatedCode),
     deployKnativeService: fakeDeploy
   }));
-  assert.equal(update.statusCode, 200);
+  assert.equal(update.statusCode, 202);
+  assert.equal(update.body.family, 'functions');
+  assert.equal(update.body.resourceType, 'function_action');
 
   const listed = await FN_HANDLERS.fnVersions(ctx(pool, { params: { actionId: legacy.resource_id } }));
   assert.equal(listed.statusCode, 200);
@@ -503,4 +572,219 @@ test('bbx-786-04: legacy active rows without retained history list only active s
   }));
   assert.equal(rollback.statusCode, 404);
   assert.equal(rollback.body.code, 'VERSION_NOT_FOUND');
+});
+
+/**
+ * bbx-933-src-fn-mutation-roles-13 | fn-function-workspace-authorization
+ * OpenSpec #### Scenario: Version and rollback preserve Function semantics
+ */
+test('bbx-933-src-fn-mutation-roles-13: target-bound workspace owner/admin/developer can reach Function mutation', async () => {
+  const roles = ['workspace_owner', 'workspace_admin', 'workspace_developer'];
+  const observed = {};
+
+  for (const role of roles) {
+    const response = await FN_HANDLERS.fnDeploy(ctx(makePool(), {
+      identity: {
+        sub: `user_${role}`,
+        tenantId: TENANT_ID,
+        workspaceId: WORKSPACE_ID,
+        actorType: role,
+        roles: [role],
+      },
+      body: { ...deployBody(`module.exports=async()=>({role:${JSON.stringify(role)}})`), actionName: `fn-${role}` },
+    }));
+    observed[role] = response.statusCode;
+  }
+
+  assert.deepEqual(observed, {
+    workspace_owner: 202,
+    workspace_admin: 202,
+    workspace_developer: 202,
+  });
+});
+
+/**
+ * bbx-933-src-fn-mutation-deny-14 | fn-function-workspace-authorization
+ * OpenSpec #### Scenario: Deploy fails explicitly while managed runtime is degraded
+ * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
+ */
+test('bbx-933-src-fn-mutation-deny-14: non-workspace roles are denied before Knative outage disclosure', async () => {
+  const denied = {
+    tenant_owner: {
+      sub: 'tenant_owner_only', tenantId: TENANT_ID, workspaceId: WORKSPACE_ID,
+      actorType: 'tenant_owner', roles: ['tenant_owner'],
+    },
+    tenant_admin: {
+      sub: 'tenant_admin_only', tenantId: TENANT_ID, workspaceId: WORKSPACE_ID,
+      actorType: 'tenant_admin', roles: ['tenant_admin'],
+    },
+    platform_operator: {
+      sub: 'platform_operator_only', tenantId: TENANT_ID, workspaceId: WORKSPACE_ID,
+      actorType: 'platform_operator', roles: ['platform_operator'], trust: { kind: 'platform' },
+    },
+    internal_actor: {
+      sub: 'internal_actor_only', tenantId: null, workspaceId: null,
+      actorType: 'internal', roles: [], trust: { kind: 'internal' },
+    },
+    actor_type_superadmin: {
+      sub: 'actor_type_superadmin', tenantId: null, workspaceId: null,
+      actorType: 'superadmin', roles: [], trust: { kind: 'platform' },
+    },
+  };
+  const observed = {};
+
+  for (const [name, identity] of Object.entries(denied)) {
+    const pool = makePool();
+    const response = await FN_HANDLERS.fnDeploy(ctx(pool, {
+      identity,
+      knativeRuntime: OUTAGE_RUNTIME,
+      body: { ...deployBody('module.exports=async()=>({denied:true})'), actionName: `denied-${name}` },
+    }));
+    observed[name] = {
+      statusCode: response.statusCode,
+      disclosedDependency: JSON.stringify(response.body).includes('KNATIVE'),
+      persistedActions: pool.actions.size,
+    };
+  }
+
+  assert.deepEqual(observed, Object.fromEntries(
+    Object.keys(denied).map((name) => [name, {
+      statusCode: 403,
+      disclosedDependency: false,
+      persistedActions: 0,
+    }]),
+  ));
+});
+
+/**
+ * bbx-933-src-fn-wrong-workspace-read-15 | fn-function-workspace-isolation
+ * OpenSpec #### Scenario: Degraded metadata read remains honest
+ * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
+ */
+test('bbx-933-src-fn-wrong-workspace-read-15: same-tenant wrong-workspace identity cannot read, invoke, or inspect Function evidence', async () => {
+  const pool = makePool();
+  const action = pool.seedAction({
+    resource_id: 'fn_933_workspace_scope',
+    action_name: 'workspace-private-fn',
+    version: 1,
+    source_code: 'module.exports=async()=>({secret:"owner-only"})',
+  });
+  const activation = pool.seedActivation({ resource_id: action.resource_id });
+  const request = (body = {}) => ctx(pool, {
+    params: { actionId: action.resource_id, activationId: activation.activation_id },
+    body,
+    identity: WRONG_WORKSPACE_OWNER,
+    knativeRuntime: OUTAGE_RUNTIME,
+  });
+  const responses = {
+    detail: await FN_HANDLERS.fnActionDetail(request()),
+    invoke: await FN_HANDLERS.fnInvoke(request({ parameters: { probe: true } })),
+    versions: await FN_HANDLERS.fnVersions(request()),
+    activations: await FN_HANDLERS.fnActivations(request()),
+    activation: await FN_HANDLERS.fnActivation(request()),
+    logs: await FN_HANDLERS.fnActivationLogs(request()),
+    result: await FN_HANDLERS.fnActivationResult(request()),
+  };
+
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(responses).map(([name, response]) => [name, {
+      statusCode: response.statusCode,
+      disclosedDependency: JSON.stringify(response.body).includes('KNATIVE'),
+    }])),
+    Object.fromEntries(Object.keys(responses).map((name) => [name, {
+      statusCode: 404,
+      disclosedDependency: false,
+    }])),
+  );
+});
+
+/**
+ * bbx-933-src-fn-wrong-workspace-mutate-16 | fn-function-workspace-isolation
+ * OpenSpec #### Scenario: Deploy fails explicitly while managed runtime is degraded
+ * OpenSpec #### Scenario: Adjacent tenant cannot use dependency status to enumerate workloads
+ */
+test('bbx-933-src-fn-wrong-workspace-mutate-16: same-tenant wrong-workspace Function mutation is concealed before runtime disclosure', async () => {
+  const pool = makePool();
+  const action = pool.seedAction({
+    resource_id: 'fn_933_workspace_mutation',
+    action_name: 'workspace-private-mutation',
+    version: 1,
+  });
+  const response = await FN_HANDLERS.fnDeploy(ctx(pool, {
+    params: { actionId: action.resource_id },
+    body: { ...deployBody('module.exports=async()=>({blocked:true})'), actionName: action.action_name },
+    identity: WRONG_WORKSPACE_OWNER,
+    knativeRuntime: OUTAGE_RUNTIME,
+  }));
+
+  assert.ok([403, 404].includes(response.statusCode), JSON.stringify(response.body));
+  assert.equal(JSON.stringify(response.body).includes('KNATIVE'), false);
+  assert.equal(pool.counters.actionUpdates, 0);
+});
+
+const KNATIVE_STATUS = {
+  mode: 'managed',
+  owner: 'falcone',
+  version: '1.22.1',
+  compatibility: 'compatible',
+  state: 'ready',
+  stage: 'ready',
+  reason: 'READY',
+  lastTransitionAt: '2026-08-07T00:00:00.000Z',
+};
+
+function runtimeStatusCtx(identity) {
+  return {
+    identity,
+    callerContext: { correlationId: 'corr_933_platform_trust' },
+    knativeRuntime: { status: () => KNATIVE_STATUS },
+  };
+}
+
+/**
+ * bbx-933-src-runtime-platform-trust-17 | fn-managed-knative-runtime-status
+ * OpenSpec #### Scenario: Read-only status does not grant mutation
+ * OpenSpec #### Scenario: Adjacent tenant cannot observe or mutate the runtime
+ */
+test('bbx-933-src-runtime-platform-trust-17: tenant-realm identity cannot copy a platform role to read Knative status', async () => {
+  const response = await KNATIVE_RUNTIME_HANDLERS.getKnativeRuntimeStatus(runtimeStatusCtx({
+    sub: 'tenant_copied_platform_operator',
+    tenantId: TENANT_ID,
+    workspaceId: WORKSPACE_ID,
+    actorType: 'platform_operator',
+    roles: ['platform_operator'],
+    trust: { kind: 'tenant', realm: TENANT_ID },
+  }));
+
+  assert.equal(response.statusCode, 403, JSON.stringify(response.body));
+  assert.equal(response.body.code, 'FORBIDDEN');
+  assert.equal(response.body.state, undefined, 'authorization failure must not disclose runtime state');
+});
+
+/**
+ * bbx-933-src-runtime-platform-role-18 | fn-managed-knative-runtime-status
+ * OpenSpec #### Scenario: Read-only status does not grant mutation
+ */
+test('bbx-933-src-runtime-platform-role-18: platform-trusted identity still needs an exact platform observer role', async () => {
+  const trustedObserver = await KNATIVE_RUNTIME_HANDLERS.getKnativeRuntimeStatus(runtimeStatusCtx({
+    sub: 'platform_auditor',
+    tenantId: null,
+    workspaceId: null,
+    actorType: 'platform_auditor',
+    roles: ['platform_auditor'],
+    trust: { kind: 'platform', realm: 'in-falcone-platform' },
+  }));
+  const trustedWithoutRole = await KNATIVE_RUNTIME_HANDLERS.getKnativeRuntimeStatus(runtimeStatusCtx({
+    sub: 'platform_roleless',
+    tenantId: null,
+    workspaceId: null,
+    actorType: 'platform_user',
+    roles: [],
+    trust: { kind: 'platform', realm: 'in-falcone-platform' },
+  }));
+
+  assert.equal(trustedObserver.statusCode, 200, JSON.stringify(trustedObserver.body));
+  assert.equal(trustedObserver.body.state, 'ready');
+  assert.equal(trustedWithoutRole.statusCode, 403, JSON.stringify(trustedWithoutRole.body));
+  assert.equal(trustedWithoutRole.body.state, undefined);
 });

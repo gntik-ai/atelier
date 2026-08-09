@@ -19,11 +19,11 @@ test('isPinnedImage: digest or concrete tag = pinned; latest/none = unpinned', (
 test('valid image -> ksvc: mcp-server label, min-scale 0, non-root securityContext', () => {
   const { manifest, violations } = buildCustomServerDeployment({
     tenantId: 'ten_A', serverId: 's1', image: 'localhost:30500/byo:v1',
-    namespace: 'mcp-ten_A', allowedRegistries: ['localhost:30500'],
+    namespace: 'mcp-ten-a', allowedRegistries: ['localhost:30500'],
   });
   assert.deepEqual(violations, []);
   assert.equal(manifest.kind, 'Service');
-  assert.equal(manifest.metadata.namespace, 'mcp-ten_A');
+  assert.equal(manifest.metadata.namespace, 'mcp-ten-a');
   assert.equal(manifest.metadata.labels['in-falcone.io/component'], 'mcp-server');
   const tmpl = manifest.spec.template;
   assert.equal(tmpl.metadata.annotations['autoscaling.knative.dev/min-scale'], '0');
@@ -56,7 +56,9 @@ test('missing required fields -> violations', () => {
 });
 
 test('no allow-list -> any pinned image accepted', () => {
-  const { manifest, violations } = buildCustomServerDeployment({ tenantId: 't', serverId: 's', image: 'ghcr.io/acme/srv:1.2.3' });
+  const { manifest, violations } = buildCustomServerDeployment({
+    tenantId: 't', serverId: 's', namespace: 'mcp-t', image: 'ghcr.io/acme/srv:1.2.3',
+  });
   assert.deepEqual(violations, []);
   assert.equal(manifest.spec.template.spec.containers[0].image, 'ghcr.io/acme/srv:1.2.3');
 });

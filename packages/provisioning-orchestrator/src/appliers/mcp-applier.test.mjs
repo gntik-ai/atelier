@@ -73,6 +73,27 @@ test('teardown: a real failure surfaces as counts.errors>0 / status error', asyn
   assert.equal(res.status, 'error');
 });
 
+test('teardown: Knative outage persists tenant cleanup and keeps aggregate + metadata pending', async () => {
+  const db = fakeDb({ mcp_servers: 2 });
+  const deferred = [];
+  const res = await teardown('ten_A', {}, {
+    credentials: {
+      db,
+      correlationId: 'corr-purge-a',
+      deleteTenantMcpServers: async () => { throw Object.assign(new Error('runtime unavailable'), { code: 'KNATIVE_UNAVAILABLE' }); },
+      deferTenantMcpServers: async (input) => {
+        deferred.push(input);
+        return { status: 'deletion_pending', correlationId: input.correlationId };
+      },
+    },
+  });
+  assert.equal(res.status, 'error');
+  assert.match(res.message, /deletion_pending/);
+  assert.deepEqual(deferred, [{ tenantId: 'ten_A', correlationId: 'corr-purge-a' }]);
+  assert.equal(db.calls.length, 0, 'metadata must remain until runtime cleanup completes');
+  assert.ok(res.resource_results.some((item) => item.message.includes('corr-purge-a')));
+});
+
 test('teardown: works with no injected credentials (safe no-ops)', async () => {
   const res = await teardown('ten_A', {}, {});
   assert.equal(res.status, 'applied');

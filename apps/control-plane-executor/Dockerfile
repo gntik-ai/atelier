@@ -29,6 +29,10 @@ RUN npm install --omit=dev --no-package-lock
 #   - packages/webhook-engine/src/ (webhook signing)
 #   - packages/workspace-docs-service/ (console workspace docs route)
 COPY apps/control-plane-executor/src /app/apps/control-plane-executor/src
+COPY apps/control-plane/knative-runtime.mjs /app/apps/control-plane/knative-runtime.mjs
+COPY apps/control-plane/audit-store.mjs /app/apps/control-plane/audit-store.mjs
+COPY apps/control-plane/audit-hash.mjs /app/apps/control-plane/audit-hash.mjs
+COPY apps/control-plane/runtime-cleanup-repository.mjs /app/apps/control-plane/runtime-cleanup-repository.mjs
 COPY packages/adapters/src /app/packages/adapters/src
 COPY packages/internal-contracts/src /app/packages/internal-contracts/src
 # Realtime executor (add-ferretdb-realtime-cdc-remediation #460) imports the shared logical-
@@ -43,7 +47,10 @@ COPY packages/workspace-docs-service/actions /app/packages/workspace-docs-servic
 COPY packages/workspace-docs-service/src /app/packages/workspace-docs-service/src
 
 ENV NODE_ENV=production \
-    PORT=8080
+    PORT=8080 \
+    KNATIVE_RUNTIME_MODE=disabled \
+    KNATIVE_RUNTIME_STATUS_FILE=/var/run/falcone/knative/status.json \
+    FUNCTIONS_ENABLED=true
 
 EXPOSE 8080
 # Numeric UID, not `USER node` (#965). Kubernetes resolves `runAsNonRoot: true` against the

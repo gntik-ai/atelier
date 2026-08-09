@@ -76,6 +76,13 @@ const consoleNavigationGroupOrder = Object.keys(consoleNavigationGroupLabels) as
 const consoleNavigationItems = [
   {
     group: 'main',
+    label: 'Runtime de funciones',
+    to: '/console/runtime',
+    icon: Activity,
+    description: 'Estado de solo lectura del runtime gestionado por la plataforma.'
+  },
+  {
+    group: 'main',
     label: 'Vista general',
     to: '/console/overview',
     icon: LayoutDashboard,

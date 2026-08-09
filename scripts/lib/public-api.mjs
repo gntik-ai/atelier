@@ -249,6 +249,21 @@ export function buildRouteCatalog(
         correlationIdGeneratedWhenMissing: gatewayRouting?.spec?.correlationHeader?.generateWhenMissing === true,
         tenantBinding: operation['x-tenant-binding'] ?? routing.tenantBinding ?? null,
         workspaceBinding: operation['x-workspace-binding'] ?? routing.workspaceBinding ?? null,
+        ...(operation['x-authorized-role-claims'] !== undefined
+          ? { authorizedRoleClaims: operation['x-authorized-role-claims'] }
+          : {}),
+        ...(operation['x-actor-type-authorization'] !== undefined
+          ? { actorTypeAuthorization: operation['x-actor-type-authorization'] }
+          : {}),
+        ...(operation['x-runtime-cleanup-ownership'] !== undefined
+          ? { runtimeCleanupOwnership: operation['x-runtime-cleanup-ownership'] }
+          : {}),
+        ...(operation['x-workspace-mutation-authorization'] !== undefined
+          ? { workspaceMutationAuthorization: operation['x-workspace-mutation-authorization'] }
+          : {}),
+        ...(operation['x-runtime-success-contract'] !== undefined
+          ? { runtimeSuccessContract: operation['x-runtime-success-contract'] }
+          : {}),
         planCapabilityAnyOf: routing.planCapabilityAnyOf ?? [],
         requiredPlanFlags: operation['x-plan-flags'] ?? [],
         adminChannel: operation['x-admin-channel'] ?? null,
@@ -268,6 +283,9 @@ export function buildRouteCatalog(
         consoleDelegationMode: operation['x-console-delegation-mode'] ?? null,
         consoleStatusOperationIds: operation['x-console-status-operation-ids'] ?? [],
         consoleDiscoverySurface: operation['x-console-discovery-surface'] === true,
+        ...(operation['x-runtime-aggregate-teardown'] ? {
+          runtimeAggregateTeardown: operation['x-runtime-aggregate-teardown']
+        } : {}),
         tags: operation.tags ?? [],
         deprecated: operation.deprecated === true,
         discoveryRoute: taxonomy.versioning.discovery_route

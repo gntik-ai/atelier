@@ -26,6 +26,9 @@ interface McpServerPlaygroundProps {
     toolName: string,
     args: Record<string, JsonValue>
   ) => Promise<InvokeMcpToolResult>
+  disabledReason?: string
+  runtimeReady?: boolean
+  runtimeDependency?: { state: string; reason: string } | null
 }
 
 const invalidJsonMessage = 'Los argumentos deben ser JSON válido.'
@@ -35,7 +38,9 @@ export function McpServerPlayground({
   serverId,
   tools,
   endpoint,
-  invoke = invokeMcpTool
+  invoke = invokeMcpTool,
+  disabledReason,
+  runtimeReady = true
 }: McpServerPlaygroundProps) {
   const [toolName, setToolName] = useState<string>(tools[0]?.name ?? '')
   const [argsText, setArgsText] = useState<string>('{}')
@@ -58,7 +63,8 @@ export function McpServerPlayground({
     [toolName, tools]
   )
   const argsInvalid = error === invalidJsonMessage
-  const disabled = !endpoint || !toolName || busy
+  const effectiveDisabledReason = disabledReason ?? (runtimeReady === false ? 'Runtime no disponible: el runtime Hosted MCP no está disponible; la invocación está deshabilitada.' : undefined)
+  const disabled = !endpoint || !toolName || busy || Boolean(effectiveDisabledReason)
 
   async function handleInvoke(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -164,6 +170,7 @@ export function McpServerPlayground({
           <AlertDescription>El área de pruebas se habilitará cuando el servidor MCP tenga un punto de conexión publicado.</AlertDescription>
         </Alert>
       ) : null}
+      {effectiveDisabledReason ? <p className="text-sm text-muted-foreground" role="status">{effectiveDisabledReason}</p> : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button

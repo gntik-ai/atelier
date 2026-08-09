@@ -10,6 +10,9 @@ import * as store from './tenant-store.mjs';
 import { deployKnativeService, deleteKnativeService, invokeKnative, waitKsvcReady, ksvcNameForWorkspace, ksvcHost } from './function-executor.mjs';
 import { vaultStoreFromEnv } from './vault-secrets.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
+import { functionsDisabledResponse, knativeUnavailableResponse } from './knative-runtime.mjs';
+import { createRuntimeCleanupRepository } from './runtime-cleanup-repository.mjs';
+import { recordKnativeDependencyEvent } from './metrics-registry.mjs';
 
 // Scope-validation builder for function definition import (#683). It lives in apps/control-plane-executor
 // (vendored into the CP image at /repo/apps/control-plane-executor, alongside packages/internal-contracts
@@ -128,6 +131,106 @@ function callerTenantId(identity) {
   return identity.tenantId ?? null;
 }
 
+const FUNCTION_WORKSPACE_MUTATION_ROLES = new Set([
+  'workspace_owner',
+  'workspace_admin',
+  'workspace_developer',
+]);
+
+// Function writes are workspace mutations, not merely same-tenant operations. Tenant/platform
+// control-plane identities retain their existing administrative bypass, while ordinary principals
+// must carry both a write-capable workspace role and a verified binding for the target workspace.
+// The workspace is always resolved from persisted state (or the create target), never trusted from
+// a caller-supplied Function body alone.
+export function canMutateFunctionWorkspace(identity, workspace) {
+  if (!identity || !workspace?.id || !workspace?.tenant_id) return false;
+  const roles = new Set(Array.isArray(identity.roles) ? identity.roles : []);
+  if (identity.tenantId !== workspace.tenant_id) return false;
+  if (![...roles].some((role) => FUNCTION_WORKSPACE_MUTATION_ROLES.has(role))) return false;
+
+  const claimedWorkspaceIds = new Set(
+    [identity.workspaceId, ...(Array.isArray(identity.workspaceIds) ? identity.workspaceIds : [])]
+      .filter(Boolean)
+      .map(String),
+  );
+  return claimedWorkspaceIds.has(String(workspace.id));
+}
+
+const FUNCTION_READ_ROLES = new Set([
+  'workspace_owner', 'workspace_admin', 'workspace_developer', 'workspace_operator',
+  'workspace_viewer', 'workspace_auditor', 'service_account', 'developer_external',
+]);
+const FUNCTION_PLATFORM_READ_ROLES = new Set([
+  'platform_operator', 'platform_auditor', 'platform_admin', 'superadmin',
+]);
+const FUNCTION_INVOKE_ROLES = new Set([
+  'workspace_owner', 'workspace_admin', 'workspace_developer', 'workspace_operator',
+  'service_account', 'developer_external',
+]);
+function hasFunctionWorkspaceClaim(identity, workspaceId) {
+  return new Set([identity?.workspaceId, ...(identity?.workspaceIds ?? [])].filter(Boolean).map(String))
+    .has(String(workspaceId));
+}
+export function canAccessFunctionWorkspace(identity, workspace, mode = 'read') {
+  if (!identity || !workspace?.id || !workspace?.tenant_id) return false;
+  const roles = new Set(Array.isArray(identity.roles) ? identity.roles : []);
+  const trustedPlatformReader = (identity.trustKind ?? identity.trust?.kind) === 'platform'
+    && [...roles].some((role) => FUNCTION_PLATFORM_READ_ROLES.has(role));
+  if (mode === 'read' && trustedPlatformReader) return true;
+  if (identity.tenantId !== workspace.tenant_id) return false;
+  if (mode === 'read' && (roles.has('tenant_owner') || roles.has('tenant_admin'))) return true;
+  const allowed = mode === 'invoke' ? FUNCTION_INVOKE_ROLES : FUNCTION_READ_ROLES;
+  return [...roles].some((role) => allowed.has(role)) && hasFunctionWorkspaceClaim(identity, workspace.id);
+}
+
+function functionVisible(ctx, row, mode = 'read') {
+  return row && canAccessFunctionWorkspace(ctx.identity, { id: row.workspace_id, tenant_id: row.tenant_id }, mode);
+}
+
+function functionAuditScope(row) {
+  return { tenantId: row.tenant_id, workspaceId: row.workspace_id, resourceId: row.resource_id };
+}
+
+function auditedFunctionOk(statusCode, body, row) {
+  return { ...ok(statusCode, body), auditScope: functionAuditScope(row) };
+}
+
+// Public dispatch always injects this source. Requiring it at the handler boundary prevents a
+// direct call from silently bypassing the dependency gate; focused tests inject a deterministic
+// ready/unavailable source explicitly.
+function runtimeFor(ctx) {
+  if (!ctx.knativeRuntime || typeof ctx.knativeRuntime.status !== 'function'
+      || typeof ctx.knativeRuntime.canServeWorkloads !== 'function') {
+    throw new Error('knativeRuntime dependency is required');
+  }
+  return ctx.knativeRuntime;
+}
+
+function functionDependencyGate(ctx, operation, scope) {
+  const runtime = runtimeFor(ctx);
+  const correlationId = ctx.callerContext?.correlationId ?? randomUUID();
+  if (!runtime.functionsEnabled) {
+    return { statusCode: 501, body: functionsDisabledResponse(correlationId), auditScope: scope };
+  }
+  const status = runtime.status();
+  if (!runtime.canServeWorkloads(status)) {
+    (ctx.recordKnativeDependencyEvent ?? recordKnativeDependencyEvent)({
+      capability: 'function', operation, mode: status.mode, state: status.state,
+      reason: status.reason, result: 'unavailable',
+    });
+    return {
+      statusCode: 503,
+      body: knativeUnavailableResponse(status, correlationId),
+      auditScope: scope,
+      knativeEvidence: {
+        capability: 'function', operation, mode: status.mode, state: status.state,
+        reason: status.reason, result: 'unavailable',
+      },
+    };
+  }
+  return null;
+}
+
 function activationOut(r) {
   return {
     activationId: r.activation_id, resourceId: r.resource_id,
@@ -227,15 +330,19 @@ function activeVersionNumber(versions, action) {
   return Number(active?.version_number ?? action?.version ?? 1) || 1;
 }
 
-function actionOut(r, latest, versionState = null) {
+function actionOut(r, latest, versionState = null, runtimeStatus = null) {
   const effectiveVersionState = versionState ?? {
     activeVersionId: store.syntheticFnVersionId(r),
     versionCount: 1,
     rollbackAvailable: false
   };
+  const deletionPending = r.lifecycle_status === 'deletion_pending';
+  const runtimeReady = runtimeStatus?.state === 'ready';
+  const publicState = deletionPending ? 'deletion_pending'
+    : (runtimeStatus && !runtimeReady ? 'unavailable' : 'active');
   return {
     resourceId: r.resource_id, tenantId: r.tenant_id, workspaceId: r.workspace_id,
-    actionName: r.action_name, namespaceName: r.workspace_id, status: 'active',
+    actionName: r.action_name, namespaceName: r.workspace_id, status: publicState,
     activeVersionId: effectiveVersionState.activeVersionId,
     rollbackAvailable: Boolean(effectiveVersionState.rollbackAvailable),
     versionCount: Number(effectiveVersionState.versionCount ?? 1),
@@ -244,7 +351,17 @@ function actionOut(r, latest, versionState = null) {
     activationPolicy: activationPolicyOut(),
     secretReferences: [],
     unresolvedSecretRefs: 0,
-    provisioning: { state: 'active' },
+    provisioning: { state: publicState },
+    ...(runtimeStatus ? {
+      // Deliberately omit owner/version/cluster identity from tenant-scoped metadata. Developers
+      // need an honest dependency state, while operator-only detail remains on the platform route.
+      runtimeDependency: {
+        mode: runtimeStatus.mode,
+        state: runtimeStatus.state,
+        reason: runtimeStatus.reason,
+        ready: runtimeReady,
+      },
+    } : {}),
     timestamps: { createdAt: r.created_at, updatedAt: r.updated_at },
     latestActivation: latest ? activationOut(latest) : undefined
   };
@@ -254,20 +371,51 @@ function actionOut(r, latest, versionState = null) {
 // PATCH matches the published `updateFunctions` contract (public-route-catalog.json,
 // control-plane.openapi.json); the console's "Actualizar función" submits PATCH (#785).
 async function fnDeploy(ctx) {
+  const st = ctx.store ?? store;
   const b = ctx.body ?? {};
-  const workspaceId = b.workspaceId ?? ctx.params.workspaceId;
+  const actionId = ctx.params.actionId ?? ctx.params.resourceId ?? null;
   const actionName = b.actionName ?? b.name;
-  if (!workspaceId || !actionName) return err(400, 'VALIDATION_ERROR', 'workspaceId and actionName are required');
+  if (!actionName) return err(400, 'VALIDATION_ERROR', 'workspaceId and actionName are required');
+  // Preserve the create/update no-oracle behavior for an explicitly supplied foreign or unknown
+  // workspace before looking up the Function path id. The persisted Function still remains the
+  // authoritative update scope below.
+  const requestedWorkspace = actionId && b.workspaceId != null
+    ? await ownedWorkspace(ctx, b.workspaceId)
+    : null;
+  if (actionId && b.workspaceId != null && !requestedWorkspace) {
+    return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  }
+  // On update, the persisted Function determines the authorization workspace. A body.workspaceId
+  // cannot move an existing Function or substitute a same-tenant workspace the caller does own.
+  const existing = actionId
+    ? await st.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity))
+    : null;
+  if (actionId && !existing) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
+  const workspaceId = existing?.workspace_id ?? b.workspaceId ?? ctx.params.workspaceId;
+  if (!workspaceId) return err(400, 'VALIDATION_ERROR', 'workspaceId and actionName are required');
+  if (existing && b.workspaceId != null && String(b.workspaceId) !== String(existing.workspace_id)) {
+    return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  }
   // Tenant isolation (#869, the write twin of #784): resolve + own-check the workspace BEFORE any
   // write or Knative deploy side effect. ownedWorkspace returns null for a foreign or unknown
   // workspace (no existence oracle) → 403; the check is skipped for superadmin/internal callers
   // (callerTenantId → null), preserving the cross-tenant deploy bypass.
-  const ws = await ownedWorkspace(ctx, workspaceId);
+  const ws = requestedWorkspace?.id === workspaceId
+    ? requestedWorkspace
+    : await ownedWorkspace(ctx, workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
+  if (!canMutateFunctionWorkspace(ctx.identity, ws)) {
+    return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
+  }
   const code = b.source?.inlineCode ?? b.source?.code;
   if (!code) return err(400, 'VALIDATION_ERROR', 'source.inlineCode is required');
-  const existing = ctx.params.actionId ? await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity)) : null;
-  const resourceId = existing?.resource_id ?? ctx.params.actionId ?? `fn_${randomUUID().slice(0, 12)}`;
+  // Ownership and validation precede dependency status, but the gate precedes secret resolution,
+  // registry writes, and every Kubernetes call. An adjacent tenant therefore gets no status oracle.
+  const dependencyError = functionDependencyGate(ctx, ctx.params.actionId ? 'update' : 'deploy', {
+    tenantId: ws.tenant_id, workspaceId: ws.id,
+  });
+  if (dependencyError) return dependencyError;
+  const resourceId = existing?.resource_id ?? `fn_${randomUUID().slice(0, 12)}`;
   const limits = b.execution?.limits ?? {};
   const memoryMb = Number(limits.memoryMb) || 256;
   const timeoutMs = Number(limits.timeoutMs) || 60000;
@@ -286,24 +434,32 @@ async function fnDeploy(ctx) {
   }
   // Deploy/update the function's Knative Service (new revision on code change).
   try {
-    await (ctx.deployKnativeService ?? deployKnativeService)(name, code, { memoryMb, timeoutMs, secretEnv });
+    await (ctx.deployKnativeService ?? deployKnativeService)(name, code, {
+      tenantId: ws.tenant_id,
+      functionResourceId: resourceId,
+      memoryMb,
+      timeoutMs,
+      secretEnv,
+    });
   } catch (e) {
     return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DEPLOY_FAILED', String(e.message ?? e));
   }
-  const rec = await store.upsertFnAction(ctx.pool, {
+  const rec = await st.upsertFnAction(ctx.pool, {
     resourceId, workspaceId: ws.id, tenantId: ws.tenant_id, actionName,
     runtime: b.execution?.runtime ?? 'nodejs:22', entrypoint: b.execution?.entrypoint ?? 'main',
     sourceCode: code, parameters: b.execution?.parameters ?? null, memoryMb, timeoutMs,
     ksvcName: name, createdBy: ctx.identity?.sub
   });
-  return ok(existing ? 200 : 201, {
+  return auditedFunctionOk(202, {
     requestId: randomUUID(), correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
+    family: 'functions', resourceType: 'function_action',
     resourceId: rec.resource_id, status: 'accepted', acceptedAt: new Date().toISOString()
-  });
+  }, rec);
 }
 
 // GET /v1/functions/workspaces/{workspaceId}/inventory
 async function fnInventory(ctx) {
+  const st = ctx.store ?? store;
   // Tenant isolation (#784): resolve + own-check the workspace before listing. ownedWorkspace returns
   // null for a foreign or unknown workspace (the caller's tenant does not own it) → 403, with no body
   // that distinguishes "not yours" from "does not exist" (no existence oracle). For superadmin/internal
@@ -311,68 +467,120 @@ async function fnInventory(ctx) {
   // preserving the cross-tenant read. The tenant predicate on listFnActions is defense-in-depth.
   const ws = await ownedWorkspace(ctx, ctx.params.workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
-  const rows = await store.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const rows = await st.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const runtimeStatus = runtimeFor(ctx).status();
   const actions = [];
   for (const r of rows) {
     actions.push(actionOut(
       r,
-      await store.latestFnActivation(ctx.pool, r.resource_id),
-      await store.getFnActionVersionSummary(ctx.pool, r)
+      await st.latestFnActivation(ctx.pool, r.resource_id),
+      await st.getFnActionVersionSummary(ctx.pool, r),
+      runtimeStatus
     ));
   }
   return ok(200, { workspaceId: ws.id, actions, counts: { actions: actions.length, packages: 0, rules: 0, triggers: 0, httpExposures: 0 } });
 }
 // GET /v1/functions/workspaces/{workspaceId}/actions
 async function fnListActions(ctx) {
+  const st = ctx.store ?? store;
   const ws = await ownedWorkspace(ctx, ctx.params.workspaceId);
   if (!ws) return err(403, 'FORBIDDEN', 'not authorized for this workspace');
-  const rows = await store.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const rows = await st.listFnActions(ctx.pool, ws.id, callerTenantId(ctx.identity));
+  const runtimeStatus = runtimeFor(ctx).status();
   const items = [];
-  for (const r of rows) items.push(actionOut(r, null, await store.getFnActionVersionSummary(ctx.pool, r)));
+  for (const r of rows) items.push(actionOut(r, null, await st.getFnActionVersionSummary(ctx.pool, r), runtimeStatus));
   return ok(200, { items, page: { total: rows.length } });
 }
 // GET /v1/functions/actions/{actionId}
 async function fnActionDetail(ctx) {
-  const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  const st = ctx.store ?? store;
+  const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  if (!functionVisible(ctx, r, 'read')) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
   return ok(200, actionOut(
     r,
-    await store.latestFnActivation(ctx.pool, r.resource_id),
-    await store.getFnActionVersionSummary(ctx.pool, r)
+    await st.latestFnActivation(ctx.pool, r.resource_id),
+    await st.getFnActionVersionSummary(ctx.pool, r),
+    runtimeFor(ctx).status()
   ));
 }
 // DELETE /v1/functions/actions/{actionId}
 async function fnDelete(ctx) {
+  const st = ctx.store ?? store;
   const actionId = ctx.params.actionId ?? ctx.params.resourceId;
-  const r = await store.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
-  if (!canManageTenant(ctx.identity, r.tenant_id)) {
-    return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  const r = await st.getFnAction(ctx.pool, actionId, callerTenantId(ctx.identity));
+  if (!functionVisible(ctx, r, 'read')) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
+  if (!canMutateFunctionWorkspace(ctx.identity, { id: r.workspace_id, tenant_id: r.tenant_id })) {
+    return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
+  }
+
+  const runtime = runtimeFor(ctx);
+  const correlationId = ctx.callerContext?.correlationId ?? randomUUID();
+  if (!runtime.functionsEnabled) {
+    return { statusCode: 501, body: functionsDisabledResponse(correlationId) };
+  }
+  const runtimeStatus = runtime.status();
+  if (!runtime.canServeWorkloads(runtimeStatus)) {
+    // One SQL statement marks the logical Function and inserts/reuses its durable cleanup
+    // obligation. No Kubernetes request is attempted while the source-of-truth gate is closed.
+    const repository = ctx.runtimeCleanupRepository ?? createRuntimeCleanupRepository(ctx.pool);
+    const obligation = await repository.deferFunctionDeletion({
+      tenantId: r.tenant_id,
+      workspaceId: r.workspace_id,
+      resourceId: r.resource_id,
+      runtimeResourceName: r.ksvc_name ?? null,
+      correlationId,
+    });
+    (ctx.recordKnativeDependencyEvent ?? recordKnativeDependencyEvent)({
+      capability: 'function', operation: 'delete', mode: runtimeStatus.mode,
+      state: runtimeStatus.state, reason: runtimeStatus.reason, result: 'deferred',
+    });
+    return {
+      ...ok(202, {
+        requestId: randomUUID(),
+        correlationId: obligation.correlationId,
+        resourceId: r.resource_id,
+        status: 'deletion_pending',
+        acceptedAt: obligation.createdAt ?? new Date().toISOString(),
+      }),
+      auditScope: { tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id },
+      knativeEvidence: {
+        capability: 'function', operation: 'delete', mode: runtimeStatus.mode,
+        state: runtimeStatus.state, reason: runtimeStatus.reason, result: 'deferred',
+      },
+    };
   }
 
   if (r.ksvc_name) {
     try {
-      await (ctx.deleteKnativeService ?? deleteKnativeService)(r.ksvc_name);
+      await (ctx.deleteKnativeService ?? deleteKnativeService)(r.ksvc_name, {
+        tenantId: r.tenant_id,
+        functionResourceId: r.resource_id,
+      });
     } catch (e) {
       return err(e.statusCode && e.statusCode < 500 ? e.statusCode : 502, 'FN_DELETE_FAILED', String(e.message ?? e));
     }
   }
 
-  const deleted = await store.deleteFnAction(ctx.pool, r);
+  const deleted = await st.deleteFnAction(ctx.pool, r);
   if (!deleted) return err(404, 'ACTION_NOT_FOUND', `action ${actionId} not found`);
 
-  return ok(202, {
+  return auditedFunctionOk(202, {
     requestId: randomUUID(),
-    correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
+    correlationId,
     resourceId: deleted.resource_id,
     status: 'accepted',
     acceptedAt: new Date().toISOString()
-  });
+  }, deleted);
 }
 // POST /v1/functions/actions/{actionId}/invocations  — REAL execution
 async function fnInvoke(ctx) {
-  const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  const st = ctx.store ?? store;
+  const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  if (!functionVisible(ctx, r, 'invoke')) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  const dependencyError = functionDependencyGate(ctx, 'invoke', {
+    tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id,
+  });
+  if (dependencyError) return dependencyError;
   const params = invocationInput(ctx.body);
   const startedAt = new Date().toISOString();
   let run;
@@ -391,59 +599,73 @@ async function fnInvoke(ctx) {
       roles: ctx.identity?.roles ?? [],
     };
     // Cold start: the cluster-local DNS only resolves once the ksvc is Ready.
-    const ready = await waitKsvcReady(r.ksvc_name, 90000);
+    const ready = await (ctx.waitKsvcReady ?? waitKsvcReady)(r.ksvc_name, 90000);
     run = ready
-      ? await invokeKnative(ksvcHost(r.ksvc_name), params, { timeoutMs: (r.timeout_ms || 60000) + 30000, caller })
+      ? await (ctx.invokeKnative ?? invokeKnative)(ksvcHost(r.ksvc_name), params, { timeoutMs: (r.timeout_ms || 60000) + 30000, caller })
       : { status: 'failure', result: { error: 'function (Knative service) is not ready' }, logs: [], durationMs: 0, statusCode: 503 };
   }
   const activationId = `act_${randomUUID().slice(0, 12)}`;
-  await store.insertFnActivation(ctx.pool, {
+  await st.insertFnActivation(ctx.pool, {
     activationId, resourceId: r.resource_id, workspaceId: r.workspace_id,
     status: run.status, statusCode: run.statusCode, result: run.result, logs: run.logs,
     durationMs: run.durationMs, startedAt, finishedAt: new Date().toISOString()
   });
-  return ok(202, {
+  return auditedFunctionOk(202, {
     invocationId: activationId, resourceId: r.resource_id,
     status: run.status === 'success' ? 'completed' : 'failed', acceptedAt: startedAt
-  });
+  }, r);
 }
 // GET /v1/functions/actions/{actionId}/activations
 async function fnActivations(ctx) {
   // Verify the action exists and belongs to the caller's tenant before listing its activations.
   const action = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTION_NOT_FOUND', `action ${ctx.params.actionId} not found`);
   const rows = await store.listFnActivations(ctx.pool, ctx.params.actionId);
   return ok(200, { items: rows.map(activationOut), page: { total: rows.length } });
 }
 // GET /v1/functions/actions/{actionId}/activations/{activationId}
 async function fnActivation(ctx) {
-  const r = await store.getFnActivation(ctx.pool, ctx.params.activationId);
-  if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const st = ctx.store ?? store;
+  const r = await st.getFnActivation(ctx.pool, ctx.params.activationId);
+  if (!r || r.resource_id !== ctx.params.actionId) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   // Verify the parent function belongs to the caller's tenant (fail-closed, no existence leak).
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   return ok(200, activationOut(r));
 }
 // GET .../activations/{activationId}/logs
 async function fnActivationLogs(ctx) {
-  const r = await store.getFnActivation(ctx.pool, ctx.params.activationId);
-  if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const st = ctx.store ?? store;
+  const r = await st.getFnActivation(ctx.pool, ctx.params.activationId);
+  if (!r || r.resource_id !== ctx.params.actionId) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
-  return ok(200, { activationId: r.activation_id, lines: Array.isArray(r.logs) ? r.logs : [], truncated: false });
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  return ok(200, { activationId: r.activation_id, lines: Array.isArray(r.logs) ? r.logs : [], truncated: false, policy: activationPolicyOut() });
 }
 // GET .../activations/{activationId}/result
 async function fnActivationResult(ctx) {
-  const r = await store.getFnActivation(ctx.pool, ctx.params.activationId);
-  if (!r) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const st = ctx.store ?? store;
+  const r = await st.getFnActivation(ctx.pool, ctx.params.activationId);
+  if (!r || r.resource_id !== ctx.params.actionId) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
   const action = await store.getFnAction(ctx.pool, r.resource_id, callerTenantId(ctx.identity));
-  if (!action) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
-  return ok(200, { activationId: r.activation_id, status: r.status === 'success' ? 'succeeded' : 'failed', result: r.result ?? {}, contentType: 'application/json' });
+  if (!functionVisible(ctx, action, 'read')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  return ok(200, { activationId: r.activation_id, status: 'available', result: r.result ?? {}, contentType: 'application/json', policy: activationPolicyOut() });
+}
+async function fnActivationRerun(ctx) {
+  const st = ctx.store ?? store;
+  const source = await st.getFnActivation(ctx.pool, ctx.params.activationId);
+  if (!source || source.resource_id !== ctx.params.actionId) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const action = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  if (!functionVisible(ctx, action, 'invoke')) return err(404, 'ACTIVATION_NOT_FOUND', 'activation not found');
+  const invoked = await fnInvoke({ ...ctx, store: st, params: { ...ctx.params, actionId: ctx.params.actionId }, body: ctx.body ?? {} });
+  if (!invoked || invoked.statusCode !== 202) return invoked;
+  const body = invoked.body ?? {};
+  return { ...invoked, body: { activationId: source.activation_id, rerunInvocationId: body.invocationId, status: 'accepted', acceptedAt: body.acceptedAt } };
 }
 // GET /v1/functions/actions/{actionId}/versions
 async function fnVersions(ctx) {
   const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
-  if (!r) return err(404, 'ACTION_NOT_FOUND', 'action not found');
+  if (!functionVisible(ctx, r, 'read')) return err(404, 'ACTION_NOT_FOUND', 'action not found');
   const rows = await store.listFnActionVersions(ctx.pool, r.resource_id);
   const items = rows.length
     ? rows.map((row) => versionOut(row, activeVersionNumber(rows, r)))
@@ -452,17 +674,22 @@ async function fnVersions(ctx) {
 }
 // POST /v1/functions/actions/{actionId}/rollback
 async function fnRollback(ctx) {
-  const r = await store.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
+  const st = ctx.store ?? store;
+  const r = await st.getFnAction(ctx.pool, ctx.params.actionId, callerTenantId(ctx.identity));
   if (!r) return err(404, 'ACTION_NOT_FOUND', 'action not found');
-  if (!canManageTenant(ctx.identity, r.tenant_id)) {
-    return err(403, 'FORBIDDEN', 'requires superadmin or tenant owner/admin');
+  if (!canMutateFunctionWorkspace(ctx.identity, { id: r.workspace_id, tenant_id: r.tenant_id })) {
+    return err(403, 'FORBIDDEN', 'requires a write-capable role bound to this workspace');
   }
+  const dependencyError = functionDependencyGate(ctx, 'rollback', {
+    tenantId: r.tenant_id, workspaceId: r.workspace_id, resourceId: r.resource_id,
+  });
+  if (dependencyError) return dependencyError;
   const versionId = ctx.body?.versionId;
   if (typeof versionId !== 'string' || !/^fnv_[0-9a-z]+$/.test(versionId)) {
     return err(400, 'VALIDATION_ERROR', 'versionId is required and must match fnv_[0-9a-z]+');
   }
 
-  const rows = await store.listFnActionVersions(ctx.pool, r.resource_id);
+  const rows = await st.listFnActionVersions(ctx.pool, r.resource_id);
   const target = rows.find((row) => row.version_id === versionId && row.tenant_id === r.tenant_id && row.workspace_id === r.workspace_id);
   if (!target) return err(404, 'VERSION_NOT_FOUND', 'function version not found');
 
@@ -476,6 +703,8 @@ async function fnRollback(ctx) {
   if (deployName) {
     try {
       await (ctx.deployKnativeService ?? deployKnativeService)(deployName, target.source_code, {
+        tenantId: r.tenant_id,
+        functionResourceId: r.resource_id,
         memoryMb: target.memory_mb,
         timeoutMs: target.timeout_ms,
         secretEnv: []
@@ -485,16 +714,16 @@ async function fnRollback(ctx) {
     }
   }
 
-  const updated = await store.activateFnActionVersion(ctx.pool, r, target);
+  const updated = await st.activateFnActionVersion(ctx.pool, r, target);
   if (!updated) return err(409, 'ROLLBACK_STATE_CONFLICT', 'function version could not be activated');
-  return ok(202, {
+  return auditedFunctionOk(202, {
     requestId: randomUUID(),
     resourceId: r.resource_id,
     requestedVersionId: versionId,
     status: 'accepted',
     correlationId: ctx.callerContext?.correlationId ?? randomUUID(),
     acceptedAt: new Date().toISOString()
-  });
+  }, r);
 }
 
 // ---- Workspace secrets (add-vault-secret-consumption, #612; console convergence,
@@ -767,7 +996,7 @@ async function fnPackageDefinitionImport(ctx) { return importDefinitions(ctx, { 
 
 export const FN_HANDLERS = {
   fnDeploy, fnInventory, fnListActions, fnActionDetail, fnDelete, fnInvoke,
-  fnActivations, fnActivation, fnActivationLogs, fnActivationResult, fnVersions, fnRollback,
+  fnActivations, fnActivation, fnActivationLogs, fnActivationResult, fnActivationRerun, fnVersions, fnRollback,
   secretSet, secretReplace, secretList, secretGet, secretDelete,
   fnDefinitionExport, fnPackageDefinitionExport, fnDefinitionImport, fnPackageDefinitionImport
 };

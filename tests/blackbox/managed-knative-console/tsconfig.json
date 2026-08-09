@@ -1,0 +1,9 @@
+{
+  "extends": "../../../apps/web-console/tsconfig.app.json",
+  "compilerOptions": {
+    "composite": false,
+    "baseUrl": "../../../apps/web-console"
+  },
+  "include": ["./*.test-d.ts"],
+  "exclude": []
+}

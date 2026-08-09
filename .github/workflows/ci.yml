@@ -13,7 +13,7 @@ permissions:
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '10.0.0'
-  FALCONE_CHARTS_REF: '8237a209bf7c2ff187c2d25cd496cbc9787502e7'
+  FALCONE_CHARTS_REF: '62c3975b4964fedfc821db5d8787e697e2f7af94'
 
 jobs:
   quality:

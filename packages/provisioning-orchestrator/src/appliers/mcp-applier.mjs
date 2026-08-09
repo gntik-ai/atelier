@@ -44,6 +44,7 @@ const POSTGRES_TARGETS = [
  * @param {Object} [options.credentials]
  *        - db: { query(sql, params) } — Postgres client for the MCP metadata rows
  *        - deleteTenantMcpServers(tenantId): Promise<{deleted:number}> — Knative ksvc bulk-delete
+ *        - deferTenantMcpServers({tenantId, correlationId}): atomically persists hosted cleanup
  * @param {Console} [options.log]
  * @returns {Promise<import('../reprovision/types.mjs').DomainResult>}
  */
@@ -55,12 +56,20 @@ export async function teardown(tenantId, domainData = {}, options = {}) {
 
   const db = credentials.db ?? null;
   const deleteTenantMcpServers = credentials.deleteTenantMcpServers ?? null;
+  const deferTenantMcpServers = credentials.deferTenantMcpServers ?? null;
+  let cleanupPending = false;
 
   // 1. Delete the tenant's MCP-server ksvcs (reuse-Knative model). No orphaned compute.
   try {
     let deleted = 0;
     if (!dryRun && typeof deleteTenantMcpServers === 'function') {
       const r = await deleteTenantMcpServers(tenantId);
+      if (r?.status === 'deletion_pending') {
+        cleanupPending = true;
+        throw Object.assign(new Error('Hosted MCP cleanup is pending runtime recovery'), {
+          code: 'KNATIVE_UNAVAILABLE', correlationId: r.correlationId,
+        });
+      }
       deleted = Number(r?.deleted ?? 0);
     }
     resource_results.push({
@@ -73,6 +82,23 @@ export async function teardown(tenantId, domainData = {}, options = {}) {
       diff: null,
     });
   } catch (err) {
+    if (err?.code === 'KNATIVE_UNAVAILABLE' && !dryRun && typeof deferTenantMcpServers === 'function') {
+      const pending = await deferTenantMcpServers({
+        tenantId,
+        correlationId: err.correlationId ?? credentials.correlationId,
+      });
+      cleanupPending = true;
+      resource_results.push({
+        resource_type: 'mcp_servers_ksvc',
+        resource_name: `tenantId=${tenantId}`,
+        resource_id: tenantId,
+        action: 'error',
+        message: `deletion_pending correlationId=${pending?.correlationId ?? err.correlationId ?? 'unavailable'}`,
+        warnings: [],
+        diff: null,
+      });
+      counts.errors++;
+    } else {
     resource_results.push({
       resource_type: 'mcp_servers_ksvc',
       resource_name: `tenantId=${tenantId}`,
@@ -83,6 +109,14 @@ export async function teardown(tenantId, domainData = {}, options = {}) {
       diff: null,
     });
     counts.errors++;
+    }
+  }
+
+  // The tenant purge sweep interprets errors as retryable aggregate incompletion. Do not delete
+  // logical metadata while the durable runtime obligation is pending: doing so would make recovery
+  // lose the tenant/server ownership boundary needed for safe cleanup.
+  if (cleanupPending) {
+    return { domain_key, status: 'error', resource_results, counts, message: 'Hosted MCP teardown is deletion_pending.' };
   }
 
   // 2. Delete the tenant's MCP metadata rows. RLS does not apply here — the purge runs as a

@@ -9,12 +9,14 @@
 // DDL family (schema/table/column/index); other OpenAPI families plug into the same table.
 import http from 'node:http';
 import https from 'node:https';
-import { recordHttp, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
+import { randomUUID } from 'node:crypto';
+import { recordHttp, recordMcpDependency, renderMetrics, normalizeRoute, METRICS_CONTENT_TYPE } from './metrics-registry.mjs';
 import { executePostgresData } from './postgres-data-executor.mjs';
 import { executePostgresDdl } from './postgres-ddl-executor.mjs';
 import { handleMcpMessage } from '../mcp-official-server.mjs';
 import { BASE_SCOPE } from '../mcp-official-catalog.mjs';
 import { mcpConfigStore } from '../mcp-config.mjs';
+import { knativeUnavailableResponse } from '../../../../apps/control-plane/knative-runtime.mjs';
 import { main as workspaceDocsAction } from '../../../../packages/workspace-docs-service/actions/workspace-docs.mjs';
 // Shared write-capable admin role set — the single source of truth for both the API-key
 // management gate (here) and the flow-definition write gate (flow-executor.mjs, #760) so they
@@ -128,9 +130,14 @@ function identityFromHeaders(headers, pathWorkspaceId) {
   const workspaceIds = typeof rawWorkspaceIds === 'string'
     ? rawWorkspaceIds.split(/[ ,]+/).map((s) => s.trim()).filter(Boolean)
     : undefined;
+  const credentialWorkspaceId = headers['x-workspace-id'] || undefined;
   return {
     tenantId: headers['x-tenant-id'],
-    workspaceId: headers['x-workspace-id'] || pathWorkspaceId,
+    workspaceId: credentialWorkspaceId || pathWorkspaceId,
+    // A trusted gateway header is an explicit singular credential binding just like an API key or
+    // JWT workspace_id claim. Keeping this distinct from the path fallback prevents a caller whose
+    // verified header names workspace B from addressing workspace A through any hosted MCP route.
+    ...(credentialWorkspaceId ? { credentialWorkspaceId } : {}),
     actorId: headers['x-auth-subject'],
     roleName: headers['x-pg-role'] || 'falcone_app',
     ...(scopes ? { scopes } : {}),
@@ -149,6 +156,18 @@ function apiKeyFromHeaders(headers) {
   }
   const direct = headers['apikey'] || headers['x-api-key'];
   return typeof direct === 'string' && direct.startsWith('flc_') ? direct : undefined;
+}
+
+// Normalize only credentials that the control-plane authentication gate can re-verify. Hosted MCP
+// forwards this value through the managed runtime and never derives authority from x-* identity
+// headers alone. Direct API-key headers are converted to the control-plane's accepted scheme.
+function delegatedAuthorizationFromHeaders(headers) {
+  const authorization = headers['authorization'];
+  if (typeof authorization === 'string' && /^(?:Bearer|ApiKey)\s+\S+$/i.test(authorization.trim())) {
+    return authorization.trim();
+  }
+  const apiKey = headers['apikey'] || headers['x-api-key'];
+  return typeof apiKey === 'string' && apiKey.startsWith('flc_') ? `ApiKey ${apiKey}` : undefined;
 }
 
 // Extract a Bearer JWT (NOT an flc_ api-key, which apiKeyFromHeaders handles).
@@ -331,6 +350,14 @@ function workspaceIdFromPath(pathname) {
   return /\/workspaces\/([^/]+)/.exec(pathname)?.[1];
 }
 
+function isHostedMcpWorkspaceRequest(pathname) {
+  return /^\/v1\/mcp\/workspaces\/[^/]+\/servers(?:\/|$)/.test(pathname);
+}
+
+function isHostedMcpRpcRequest(pathname) {
+  return /^\/v1\/mcp\/workspaces\/[^/]+\/servers\/[^/]+\/rpc$/.test(pathname);
+}
+
 function isStructuralWriteRequest(method, pathname) {
   if (method === 'GET') return false;
   if (/^\/v1\/workspaces\/[^/]+\/api-keys(?:\/|$)/.test(pathname)) {
@@ -435,7 +462,7 @@ async function runWorkspaceDocs(workspaceDocsDb, c, capabilities, pathWorkspaceI
 
 // Route table: [method, RegExp(pathname) with capture groups, handler(groups, {url, identity, body, registry})].
 // Data routes are workspace/data-scoped; DDL routes are database-scoped (workspace via header).
-function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig, workspaceDocsDb) {
+function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig, workspaceDocsDb, knativeRuntime, mcpRuntimeCleaner) {
   const data = '^/v1/postgres/workspaces/([^/]+)/data/([^/]+)/schemas/([^/]+)/tables/([^/]+)';
   const ddl = '^/v1/postgres/databases/([^/]+)/schemas';
   const keys = '^/v1/workspaces/([^/]+)/api-keys';
@@ -728,30 +755,36 @@ function buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, funct
     // identity.tenantId so a cross-tenant read/call/audit resolves to 404 / empty.
     ...(mcpEngine ? [
       ['GET', new RegExp(`${mcp}$`), ([w], c) =>
-        runMcp(mcpEngine, { operation: 'list_servers', identity: c.identity, workspaceId: c.identity.workspaceId }, 200)],
+        runMcp(mcpEngine, { operation: 'list_servers', identity: c.identity, workspaceId: w }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}$`), ([w], c) =>
-        runMcp(mcpEngine, { operation: 'create_server', identity: c.identity, workspaceId: c.identity.workspaceId, body: c.body }, 201)],
+        runMcp(mcpEngine, { operation: 'create_server', identity: c.identity, workspaceId: w, body: c.body, correlationId: c.headers['x-correlation-id'] }, 202, knativeRuntime, mcpRuntimeCleaner)],
       ['GET', new RegExp(`${mcp}/([^/]+)$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'get_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200)],
+        runMcp(mcpEngine, { operation: 'get_server', identity: c.identity, workspaceId: w, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['DELETE', new RegExp(`${mcp}/([^/]+)$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'delete_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200)],
+        runMcp(mcpEngine, { operation: 'delete_server', identity: c.identity, workspaceId: w, serverId: s, correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/curations$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'curate_server', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body }, 200)],
+        runMcp(mcpEngine, { operation: 'curate_server', identity: c.identity, workspaceId: w, serverId: s, body: c.body }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/versions$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'publish_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: c.body.version, body: c.body }, 201)],
+        runMcp(mcpEngine, { operation: 'publish_version', identity: c.identity, workspaceId: w, serverId: s, version: c.body.version, body: { ...c.body, correlationId: c.headers['x-correlation-id'] }, correlationId: c.headers['x-correlation-id'] }, 201, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/versions/([^/]+)/approval$`), ([w, s, v], c) =>
-        runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, version: decodeURIComponent(v) }, 200)],
+        runMcp(mcpEngine, { operation: 'approve_version', identity: c.identity, workspaceId: w, serverId: s, version: decodeURIComponent(v), correlationId: c.headers['x-correlation-id'] }, 200, knativeRuntime, mcpRuntimeCleaner)],
       ['POST', new RegExp(`${mcp}/([^/]+)/tool-calls$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'call_tool', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, body: c.body }, 200)],
+        runMcp(mcpEngine, {
+          operation: 'call_tool', identity: c.identity, workspaceId: w, serverId: s,
+          body: c.body, correlationId: c.headers['x-correlation-id'], authorization: c.authorization,
+        }, 200, knativeRuntime, mcpRuntimeCleaner)],
       // Standard MCP wire protocol (JSON-RPC 2.0 over HTTP POST) for an external MCP client
       // (add-mcp-jsonrpc-protocol, #608). The request body is the JSON-RPC message; the server is
       // resolved from the credential-derived identity + the URL serverId (cross-tenant → 404 in the
       // engine). Distinct from the REST tool-calls route above; covered by the same gateway
       // /v1/mcp/* route, so no APISIX change is needed.
       ['POST', new RegExp(`${mcp}/([^/]+)/rpc$`), ([w, s], c) =>
-        runMcpRpc(mcpEngine, { identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s, message: c.body })],
+        runMcpRpc(mcpEngine, {
+          identity: c.identity, workspaceId: w, serverId: s, message: c.body,
+          correlationId: c.headers['x-correlation-id'], authorization: c.authorization,
+        }, knativeRuntime)],
       ['GET', new RegExp(`${mcp}/([^/]+)/audit$`), ([w, s], c) =>
-        runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: c.identity.workspaceId, serverId: s }, 200)],
+        runMcp(mcpEngine, { operation: 'list_audit', identity: c.identity, workspaceId: w, serverId: s }, 200, knativeRuntime, mcpRuntimeCleaner)],
     ] : []),
 
     // ---- Platform (first-party) MCP server — JSON-RPC over HTTP (add-platform-mcp-http-route;
@@ -885,20 +918,133 @@ async function runFlows(flowExecutor, params, successStatus) {
 // Dispatch an MCP management operation through the engine. Quota/rate-limit breaches throw with
 // { statusCode, code, dimension } — surfaced by the central error handler (which already echoes
 // err.dimension on the 429 envelope). Cross-tenant reads surface as 404 (MCP_SERVER_NOT_FOUND).
-async function runMcp(mcpEngine, params, successStatus) {
+const MCP_RUNTIME_OPERATION = Object.freeze({ publish_version: 'publish', approve_version: 'activate', call_tool: 'invoke', delete_server: 'delete' });
+
+function mcpRuntimeDependency(runtime) {
+  const status = runtime.status();
+  return { mode: status.mode, state: status.state, reason: status.reason, ready: runtime.canServeWorkloads(status) };
+}
+
+async function recordMcpUnavailable(mcpEngine, params, status, correlationId, operation, action = 'runtime_unavailable', outcome = 'failed') {
+  await mcpEngine.executeMcp({
+    operation: 'record_dependency_event',
+    identity: params.identity,
+    workspaceId: params.workspaceId,
+    serverId: params.serverId,
+    body: { action, outcome, operation, correlationId, runtime: status },
+  });
+  recordMcpDependency({ operation, outcome: action === 'cleanup_deferred' ? 'deferred' : 'unavailable', ...status });
+}
+
+async function runMcp(mcpEngine, params, successStatus, runtime, runtimeCleaner) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
+  const operation = MCP_RUNTIME_OPERATION[params.operation];
+  if (operation || params.serverId) await mcpEngine.assertOwnedServer(params);
+  const dependency = mcpRuntimeDependency(runtime);
+  if (!operation) {
+    const result = await mcpEngine.executeMcp({ ...params, runtimeDependency: dependency });
+    if (params.operation === 'create_server') {
+      const correlationId = params.correlationId ?? randomUUID();
+      return { status: 202, body: { acceptedAt: new Date().toISOString(), correlationId, family: 'mcp', requestId: correlationId, resourceId: result.serverId, resourceType: 'mcp_server', status: 'accepted' } };
+    }
+    return { status: successStatus, body: result };
+  }
+
+  // Server ownership is resolved before dependency status so adjacent tenants cannot use an outage
+  // to discover that a foreign hosted server exists.
+  if (!dependency.ready) {
+    const correlationId = params.correlationId ?? randomUUID();
+    if (params.operation === 'delete_server') {
+      const pending = await mcpEngine.deferServerDeletion({ ...params, correlationId, runtime: dependency });
+      recordMcpDependency({ operation: 'delete', outcome: 'deferred', ...dependency });
+      return { status: 202, body: pending };
+    }
+    await recordMcpUnavailable(mcpEngine, params, dependency, correlationId, operation);
+    return { status: 503, body: knativeUnavailableResponse(dependency, correlationId) };
+  }
+  if (params.operation === 'delete_server' && runtimeCleaner?.deleteOwnedRuntimeResources) {
+    try {
+      await runtimeCleaner.deleteOwnedRuntimeResources({
+        tenantId: params.identity.tenantId,
+        workspaceId: params.workspaceId,
+        resourceId: params.serverId,
+        runtimeResourceName: `mcp-${params.serverId}`,
+      });
+    } catch (cleanupError) {
+      // A Kubernetes authorization/transport error, unsafe object identity, replacement conflict,
+      // or failed absence verification must never remove the logical owner. Persist the same
+      // idempotent obligation used for outage deletion before acknowledging the request as pending.
+      const correlationId = params.correlationId ?? randomUUID();
+      try {
+        const pending = await mcpEngine.deferServerDeletion({
+          ...params,
+          correlationId,
+          runtime: {
+            ...dependency,
+            reason: cleanupError.code ?? 'MCP_RUNTIME_CLEANUP_UNVERIFIED',
+          },
+        });
+        recordMcpDependency({ operation: 'delete', outcome: 'deferred', ...dependency });
+        return { status: 202, body: pending };
+      } catch (storageError) {
+        cleanupError.cause = storageError;
+        throw cleanupError;
+      }
+    }
+  }
   const result = await mcpEngine.executeMcp(params);
-  return { status: successStatus, body: result };
+  if (params.operation === 'call_tool') return { status: successStatus, body: { content: result.content ?? [], isError: result.result?.isError === true } };
+  if (params.operation === 'create_server') {
+    const correlationId = params.correlationId ?? randomUUID();
+    return { status: 202, body: {
+      acceptedAt: new Date().toISOString(), correlationId,
+      family: 'mcp', requestId: correlationId, resourceId: result.serverId,
+      resourceType: 'mcp_server', status: 'accepted',
+    } };
+  }
+  return { status: result?.status === 'deletion_pending' ? 202 : successStatus, body: result };
 }
 
 // Hosted-server MCP JSON-RPC dispatcher (add-mcp-jsonrpc-protocol, #608). Always 200 at the HTTP
 // layer for a request (id present) — JSON-RPC carries success/errors in the envelope; a notification
 // (no id) is acknowledged with 202 and no body. Unauthenticated/cross-tenant access is rejected by
 // the dispatch identity gate (401) and the engine's per-tenant server lookup before reaching here.
-async function runMcpRpc(mcpEngine, params) {
+async function runMcpRpc(mcpEngine, params, runtime) {
   if (!mcpEngine) throw Object.assign(new Error('MCP hosting is not enabled'), { statusCode: 501, code: 'MCP_DISABLED' });
-  const result = await mcpEngine.executeMcpRpc(params);
-  if (result === null || result === undefined) return { status: 202, body: {} };
+  if (params.identity?.hostedMcpWorkspaceBindingDenied) {
+    // Preserve JSON-RPC's HTTP transport semantics while denying the singular workspace mismatch
+    // before server lookup, dependency probing, or tool dispatch. The response is tenant-safe and
+    // indistinguishable from another unavailable-to-this-principal server.
+    if (params.message?.id === undefined || params.message?.id === null) return { status: 202, body: null };
+    return {
+      status: 200,
+      body: {
+        jsonrpc: '2.0',
+        id: params.message.id,
+        error: { code: -32001, message: 'No such MCP server for this tenant/workspace.' },
+      },
+    };
+  }
+  const result = await mcpEngine.executeMcpRpc({
+    ...params,
+    beforeDispatch: async () => {
+      const dependency = mcpRuntimeDependency(runtime);
+      if (dependency.ready) return;
+      const correlationId = params.correlationId ?? randomUUID();
+      await recordMcpUnavailable(mcpEngine, params, dependency, correlationId, 'invoke');
+      throw Object.assign(new Error('Hosted MCP runtime is unavailable.'), {
+        rpcCode: -32005,
+        rpcMessage: 'Hosted MCP runtime is unavailable.',
+        rpcData: {
+          code: 'KNATIVE_UNAVAILABLE',
+          state: dependency.state,
+          reason: dependency.reason,
+          correlationId,
+        },
+      });
+    },
+  });
+  if (result === null || result === undefined) return { status: 202, body: null };
   return { status: 200, body: result };
 }
 
@@ -1135,7 +1281,7 @@ async function runEmbeddingMapping(mappingStore, action, params, successStatus) 
   return { status: successStatus, body: result };
 }
 
-export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig = mcpConfigStore, jwtVerifier, gatewaySharedSecret, resolveWorkspaceTenant, workspaceDocsDb, logger = console } = {}) {
+export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelfBaseUrl, mcpConfig = mcpConfigStore, jwtVerifier, gatewaySharedSecret, resolveWorkspaceTenant, workspaceDocsDb, knativeRuntime, mcpRuntimeCleaner, logger = console } = {}) {
   if (!registry) throw new TypeError('createControlPlaneServer requires a connection registry');
   // Parse + validate the upstream at startup (fail-fast). Host/port are fixed here so the
   // per-request proxy can never be steered to a different host (SSRF).
@@ -1143,7 +1289,13 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
   // The first-party MCP dispatches tool calls against this executor's own loopback base (so its
   // local routes + the control-plane fallthrough reach every family). Validate it once (SSRF).
   const mcpSelf = mcpSelfBaseUrl ? new URL(mcpSelfBaseUrl).toString() : undefined;
-  const routes = buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelf, mcpConfig, workspaceDocsDb);
+  // Production injects the chart-backed source. The ready fallback preserves direct/unit embedding
+  // of this server by callers that do not configure hosted-runtime lifecycle management.
+  const hostedRuntime = knativeRuntime ?? {
+    status: () => ({ mode: 'external', state: 'ready', reason: 'READY' }),
+    canServeWorkloads: () => true,
+  };
+  const routes = buildRoutes(registry, apiKeyStore, mongoExecutor, eventsExecutor, functionsExecutor, realtimeExecutor, pgRealtimeExecutor, embeddingExecutor, llmExecutor, mappingStore, flowExecutor, flowMonitoringExecutor, mcpEngine, controlPlaneUpstream, mcpSelf, mcpConfig, workspaceDocsDb, hostedRuntime, mcpRuntimeCleaner);
 
   return http.createServer(async (req, res) => {
     const method = (req.method ?? 'GET').toUpperCase();
@@ -1188,8 +1340,19 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
       // gateway-injected identity headers) are not subject to this check.
       if (!opts?.noAuth && identity.credentialWorkspaceId) {
         if (workspaceInPath && workspaceInPath !== identity.credentialWorkspaceId) {
-          return sendJson(res, 403, { code: 'FORBIDDEN', message: 'Credential workspace does not match the requested workspace' });
+          if (isHostedMcpRpcRequest(url.pathname)) {
+            identity.hostedMcpWorkspaceBindingDenied = true;
+          } else {
+            return sendJson(res, 403, { code: 'FORBIDDEN', message: 'Credential workspace does not match the requested workspace' });
+          }
         }
+      }
+      // Hosted MCP has both read and dispatch routes whose dependency status and stored metadata are
+      // sensitive. A verified plural workspace claim therefore binds every hosted MCP route, not
+      // just structural writes, and is enforced before the handler can inspect runtime readiness.
+      if (!opts?.noAuth && workspaceInPath && isHostedMcpWorkspaceRequest(url.pathname)
+          && Array.isArray(identity.workspaceIds) && !identity.workspaceIds.includes(workspaceInPath)) {
+        return sendJson(res, 403, { code: 'FORBIDDEN', message: 'Caller workspace scope does not include the requested workspace' });
       }
       let owningTenantId;
       let checkedWorkspaceTenant = false;
@@ -1280,7 +1443,10 @@ export function createControlPlaneServer({ registry, apiKeyStore, mongoExecutor,
       // `authorization` is threaded through for handlers that must call the control-plane on the
       // caller's behalf (the platform MCP JSON-RPC route forwards the bearer token to the upstream,
       // the only credential the control-plane accepts).
-      const { status, body: out, headers } = await handler(groups, { method, url, identity, body, registry, headers: req.headers, authorization: req.headers.authorization });
+      const { status, body: out, headers } = await handler(groups, {
+        method, url, identity, body, registry, headers: req.headers,
+        authorization: delegatedAuthorizationFromHeaders(req.headers),
+      });
       return sendJson(res, status, out, headers);
     } catch (err) {
       const statusCode = err.statusCode ?? 500;

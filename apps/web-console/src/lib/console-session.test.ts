@@ -60,6 +60,11 @@ describe('console-session', () => {
     expect(readConsoleShellSession()).toBeNull()
   })
 
+  it('preserva una sesión activa con statusView active para las rutas protegidas', () => {
+    persistConsoleShellSession({ ...baseSession, statusView: 'active' })
+    expect(readConsoleShellSession()?.statusView).toBe('active')
+  })
+
   it('refresca la sesión y persiste el nuevo token set', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-28T19:59:30.000Z'))

@@ -44,6 +44,17 @@ function slug(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'server';
 }
 
+function stripOwnershipArguments(args = {}) {
+  const {
+    tenantId: _tenantId,
+    tenant_id: _tenantIdSnake,
+    workspaceId: _workspaceId,
+    workspace_id: _workspaceIdSnake,
+    ...safeArgs
+  } = args ?? {};
+  return safeArgs;
+}
+
 /** Build a curation-ready DRAFT for the requested source (instant generators or the official catalog). */
 function draftForSource(serverId, source, resources) {
   if (source === 'official') {
@@ -70,12 +81,16 @@ export function createMcpEngine({
   fetchImpl = globalThis.fetch,
   clock = () => Date.now(),
   store,
+  cleanupRepository,
+  mcpRuntimeAdapter,
+  auditSink,
 } = {}) {
   const registry = createRegistry();
   const servers = new Map(); // `${tenantId}::${serverId}` -> { serverId, name, source, tenantId, workspaceId, draft, curated }
   const auditLog = []; // audit events (each carries scope.tenant_id)
   const rateWindows = new Map(); // rateKey -> { count, windowStart }
-  const pinnedImage = runtimeImageDigest ? `${runtimeImage}@${runtimeImageDigest}` : runtimeImage;
+  const pinnedImage = runtimeImageDigest ?? runtimeImage;
+  const registryImage = runtimeImageDigest ? `${runtimeImage}@${runtimeImageDigest}` : runtimeImage;
   const key = (tid, sid) => `${tid}::${sid}`;
   let loaded = false;
   let dirty = false;
@@ -87,6 +102,7 @@ export function createMcpEngine({
     'approve_version',
     'call_tool',
     'delete_server',
+    'record_dependency_event',
   ]);
 
   function snapshot() {
@@ -134,9 +150,9 @@ export function createMcpEngine({
     return [...servers.values()].filter((s) => s.tenantId === identity.tenantId && (!workspaceId || s.workspaceId === workspaceId));
   }
 
-  function requireServer(identity, serverId) {
+  function requireServer(identity, serverId, workspaceId) {
     const entry = servers.get(key(identity.tenantId, serverId));
-    if (!entry || entry.tenantId !== identity.tenantId) throw httpError(404, 'MCP_SERVER_NOT_FOUND', 'No such MCP server for this tenant.');
+    if (!entry || entry.tenantId !== identity.tenantId || (workspaceId && entry.workspaceId !== workspaceId)) throw httpError(404, 'MCP_SERVER_NOT_FOUND', 'No such MCP server for this tenant/workspace.');
     return entry;
   }
 
@@ -144,7 +160,16 @@ export function createMcpEngine({
     return `${gatewayBaseUrl}/v1/mcp/workspaces/${encodeURIComponent(workspaceId)}/servers/${encodeURIComponent(serverId)}`;
   }
 
-  function recordAudit(event) { auditLog.push(event); }
+  function recordAudit(event) {
+    auditLog.push(event);
+    if (auditSink) {
+      const sinkEvent = { ...event,
+        tenantId: event.scope?.tenant_id, workspaceId: event.scope?.workspace_id,
+        correlationId: event.correlation_id, actionType: event.action?.id,
+      };
+      void auditSink(sinkEvent);
+    }
+  }
 
   function enforceRate(identity, serverId, scope, oauthClientId) {
     const k = rateLimitKey({ tenantId: identity.tenantId, serverId, oauthClientId, scope });
@@ -157,17 +182,45 @@ export function createMcpEngine({
     if (!decision.allowed) throw httpError(decision.httpStatus, decision.code, decision.message, { dimension: decision.dimension, retryAfterSeconds: decision.retryAfterSeconds });
   }
 
-  function viewServer(identity, entry) {
+  function viewServer(identity, entry, runtimeDependency) {
     const registered = getServer(registry, identity.tenantId, entry.serverId);
     const activeVersion = registered?.activeVersion ?? null;
     const activeRecord = registered?.versions?.find((v) => v.version === activeVersion);
     const status = activeVersion ? 'published' : (entry.curated ? 'curated' : 'draft');
     const tools = activeRecord?.tools ?? entry.curated?.tools ?? entry.draft?.tools ?? [];
+    const dependency = runtimeDependency ? {
+      mode: runtimeDependency.mode,
+      state: runtimeDependency.state,
+      reason: runtimeDependency.reason,
+      ready: runtimeDependency.ready === true,
+    } : undefined;
     return {
       serverId: entry.serverId, name: entry.name, source: entry.source, status,
+      lifecycleStatus: entry.lifecycleStatus ?? 'active',
       endpoint: endpointFor(entry.workspaceId, entry.serverId), version: activeVersion, activeVersion,
       tools: tools.map((t) => ({ name: t.name, description: t.description ?? null, mutates: !!t.mutates, scope: t.scope ?? t.suggestedScope ?? null })),
+      ...(dependency ? { runtimeDependency: dependency, runtimeReady: dependency.ready } : {}),
     };
+  }
+
+  function runtimeAudit(identity, workspaceId, serverId, action, correlationId, runtime = {}, outcome = 'failed', operation) {
+    recordAudit(mcpAuditEvent({
+      tenantId: identity.tenantId,
+      workspaceId,
+      oauthClientId: identity.actorId ?? 'system',
+      action,
+      outcome,
+      serverId,
+      correlationId,
+      eventId: randomUUID(),
+      eventTimestamp: new Date(clock()).toISOString(),
+      detail: {
+        runtime_mode: runtime.mode,
+        runtime_state: runtime.state,
+        runtime_reason: runtime.reason,
+        runtime_operation: operation,
+      },
+    }));
   }
 
   // Resolve a tool's method/path/body for the real executor (data plane) or control-plane (proxied)
@@ -181,7 +234,7 @@ export function createMcpEngine({
     let path = String(tool.path ?? '').replace('{workspaceId}', ws);
     const method = tool.method ?? 'GET';
     // Defence in depth: a caller must not steer routing by smuggling tenant/workspace in args.
-    const { tenantId: _t, workspaceId: _w, ...safeArgs } = args ?? {};
+    const safeArgs = stripOwnershipArguments(args);
 
     switch (source.type) {
       case 'postgres': {
@@ -239,7 +292,7 @@ export function createMcpEngine({
   // self-call the runtime using the tool's REAL executor/control-plane route (workspace from the
   // credential context, NEVER from args). Returns an MCP-style result envelope (tool-level errors
   // live in content).
-  async function invokeTool(identity, entry, registered, toolName, args = {}) {
+  async function invokeTool(identity, entry, registered, toolName, args = {}, correlationId, authorization) {
     const activeRecord = registered.versions.find((v) => v.version === registered.activeVersion);
     const tool = (activeRecord?.tools ?? []).find((t) => t.name === toolName);
     if (!tool) return { content: [{ type: 'text', text: `unknown tool: ${toolName}` }], isError: true };
@@ -250,6 +303,23 @@ export function createMcpEngine({
     if (!granted.has(BASE_SCOPE)) return { content: [{ type: 'text', text: `missing required scope: ${BASE_SCOPE}` }], isError: true };
     if (tool.mutates && !toolScope) return { content: [{ type: 'text', text: 'mutating tool is missing an explicit required scope' }], isError: true };
     if (tool.mutates && toolScope && !granted.has(toolScope)) return { content: [{ type: 'text', text: `mutating tool requires scope: ${toolScope}` }], isError: true };
+
+    if (mcpRuntimeAdapter?.invoke) {
+      const hosted = await mcpRuntimeAdapter.invoke({
+        tenantId: entry.tenantId,
+        workspaceId: entry.workspaceId,
+        serverId: entry.serverId,
+        version: registered.activeVersion,
+        tool: toolName,
+        args: stripOwnershipArguments(args),
+        manifest: activeRecord.manifest ?? activeRecord,
+        correlationId,
+        roles: Array.isArray(identity.roles) ? identity.roles : [],
+        scopes: Array.isArray(identity.scopes) ? identity.scopes : [],
+        authorization,
+      });
+      return { content: hosted?.content ?? [], isError: hosted?.isError === true, ...hosted };
+    }
 
     const call = resolveCall(entry, tool, args);
     if (call.error) return { content: [{ type: 'text', text: call.error }], isError: true };
@@ -268,7 +338,15 @@ export function createMcpEngine({
     try {
       const res = await fetchImpl(`${selfBaseUrl}${call.path}`, init);
       let body; try { body = await res.json(); } catch { body = null; }
-      return { content: [{ type: 'text', text: typeof body === 'string' ? body : JSON.stringify(body) }], status: res.status };
+      const status = Number(res.status ?? res.statusCode);
+      const succeeded = typeof res.ok === 'boolean'
+        ? res.ok
+        : Number.isFinite(status) && status >= 200 && status < 300;
+      return {
+        content: [{ type: 'text', text: typeof body === 'string' ? body : JSON.stringify(body) }],
+        status,
+        isError: !succeeded,
+      };
     } catch (err) {
       return { content: [{ type: 'text', text: `tool backend unavailable: ${err.message}` }], isError: true };
     }
@@ -296,7 +374,7 @@ export function createMcpEngine({
       });
     }
     await ensureLoaded();
-    const { operation, identity, workspaceId, serverId, version, body = {} } = params;
+    const { operation, identity, workspaceId, serverId, version, body = {}, runtimeDependency } = params;
     const tid = identity?.tenantId;
     if (!tid) throw httpError(401, 'UNAUTHENTICATED', 'Missing tenant identity');
     const audit = (action, extra = {}) => recordAudit(mcpAuditEvent({
@@ -306,7 +384,10 @@ export function createMcpEngine({
 
     switch (operation) {
       case 'list_servers':
-        return { items: tenantServers(identity, workspaceId).map((s) => viewServer(identity, s)) };
+        return {
+          items: tenantServers(identity, workspaceId).map((s) => viewServer(identity, s, runtimeDependency)),
+          ...(runtimeDependency ? { runtimeDependency } : {}),
+        };
 
       case 'create_server': {
         const decision = evaluateServerCountQuota({ plan, currentServers: tenantServers(identity).length });
@@ -319,62 +400,158 @@ export function createMcpEngine({
       }
 
       case 'get_server':
-        return viewServer(identity, requireServer(identity, serverId));
+        return viewServer(identity, requireServer(identity, serverId, workspaceId), runtimeDependency);
 
       case 'curate_server': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         entry.curated = applyCuration(entry.draft, body ?? {});
         return changed({ serverId, status: 'curated', tools: entry.curated.tools, violations: entry.curated.violations });
       }
 
       case 'publish_version': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         const curated = body.curation || !entry.curated ? applyCuration(entry.draft, body.curation ?? {}) : entry.curated;
         entry.curated = curated;
         const pub = publishManifest(curated);
         if (!pub.ok) throw httpError(422, 'MCP_PUBLISH_REJECTED', 'Manifest failed the curation gate.', { errors: pub.violations });
         const v = version ?? body.version ?? `v${(listVersions(registry, tid, serverId).length || 0) + 1}`;
-        const reg = registerVersion(registry, { tenantId: tid, serverId, version: v, image: pinnedImage, manifest: pub.manifest, source: entry.source === 'official' ? 'official' : entry.source === 'custom' ? 'custom' : 'instant', signatureVerified: true });
+        const reg = registerVersion(registry, { tenantId: tid, serverId, version: v, image: registryImage, manifest: pub.manifest, source: entry.source === 'official' ? 'official' : entry.source === 'custom' ? 'custom' : 'instant', signatureVerified: true });
         if (!reg.ok) throw httpError(reg.violations?.[0]?.code === 'duplicate_version' ? 409 : 422, 'MCP_VERSION_REJECTED', reg.violations?.[0]?.message ?? 'Version rejected.', { errors: reg.violations });
         const record = reg.version;
+        // Retain the exact curated runtime contract so an approval reconciles precisely the version
+        // that was reviewed instead of rebuilding from a later mutable draft.
+        record.manifest = structuredClone(pub.manifest);
         let activated = false;
         if (!record.requiresReview) { activateVersion(registry, tid, serverId, v, { approved: false }); activated = true; }
+        if (!record.requiresReview && mcpRuntimeAdapter?.apply) {
+          await mcpRuntimeAdapter.apply({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
+            operation: 'publish', version: v, runtimeImage: pinnedImage, manifest: record.manifest,
+            correlationId: body.correlationId ?? randomUUID() });
+        }
         audit('server_published', { serverId });
         const active = getServer(registry, tid, serverId)?.activeVersion ?? null;
         return changed({ serverId, version: v, requiresReview: record.requiresReview, status: record.requiresReview ? 'requires_review' : 'active', activeVersion: active, activated });
       }
 
       case 'approve_version': {
-        requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         const result = activateVersion(registry, tid, serverId, version, { approved: true });
         if (!result.ok) throw httpError(404, 'MCP_VERSION_NOT_FOUND', result.violations?.[0]?.message ?? 'Version not found.', { errors: result.violations });
+        const approved = getServer(registry, tid, serverId)?.versions?.find((record) => record.version === version);
+        if (!approved) throw httpError(404, 'MCP_VERSION_NOT_FOUND', 'Version not found.');
+        // Versions persisted before the runtime-manifest field was introduced still retain their
+        // complete normalized tool contract. Reconstruct only for that upgrade-compatibility case;
+        // newly published versions always reconcile the exact reviewed manifest captured above.
+        const approvedManifest = approved.manifest ?? {
+          status: 'published',
+          tools: structuredClone(approved.tools ?? []),
+        };
+        if (mcpRuntimeAdapter?.apply) {
+          await mcpRuntimeAdapter.apply({
+            tenantId: tid,
+            workspaceId: entry.workspaceId,
+            serverId,
+            operation: 'approve',
+            version,
+            runtimeImage: pinnedImage,
+            manifest: approvedManifest,
+            correlationId: params.correlationId ?? randomUUID(),
+          });
+        }
         audit('scopes_changed', { serverId });
         return changed({ serverId, approvedVersion: version, activeVersion: getServer(registry, tid, serverId)?.activeVersion ?? null });
       }
 
       case 'call_tool': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
         const registered = getServer(registry, tid, serverId);
         if (!registered?.activeVersion) throw httpError(409, 'MCP_SERVER_NOT_CONNECTABLE', 'Server has no active published version.');
         const oauthClientId = identity.actorId ?? 'mcp';
         enforceRate(identity, serverId, 'server', oauthClientId);
         enforceRate(identity, serverId, 'oauth_client', oauthClientId);
         const started = clock();
-        const result = await invokeTool(identity, entry, registered, body.name, body.arguments ?? {});
+        const result = await invokeTool(
+          identity,
+          entry,
+          registered,
+          body.name,
+          body.arguments ?? {},
+          params.correlationId ?? randomUUID(),
+          params.authorization,
+        );
         const telemetry = mcpToolCallTelemetry({ tenantId: tid, workspaceId: entry.workspaceId, serverId, toolName: body.name, oauthClientId, latencyMs: clock() - started, status: result.isError ? 'error' : 'ok' });
         recordAudit({ ...mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() }), action: { category: 'tool_invocation', id: `mcp.tool_call.${body.name}` }, detail: telemetry.log });
         return changed({ result, content: result.content, toolName: body.name });
       }
 
       case 'list_audit': {
-        requireServer(identity, serverId);
+        requireServer(identity, serverId, workspaceId);
         const items = filterAuditRecordsForTenant(auditLog, tid)
           .filter((e) => (e.resource?.mcp_server_id ?? e.resource?.resource_id) === serverId || e.detail?.server === serverId);
-        return { items };
+        return { items, ...(runtimeDependency ? { runtimeDependency } : {}) };
+      }
+
+      case 'record_dependency_event': {
+        requireServer(identity, serverId, workspaceId);
+        runtimeAudit(
+          identity,
+          workspaceId,
+          serverId,
+          body.action ?? 'runtime_unavailable',
+          body.correlationId ?? randomUUID(),
+          body.runtime,
+          body.outcome ?? 'failed',
+          body.operation,
+        );
+        return changed({ recorded: true, correlationId: body.correlationId });
       }
 
       case 'delete_server': {
-        const entry = requireServer(identity, serverId);
+        const entry = requireServer(identity, serverId, workspaceId);
+        const retainForRetry = () => {
+          entry.lifecycleStatus = 'deletion_pending';
+          entry.deletionRequestedAt ??= new Date(clock()).toISOString();
+          return changed({
+            serverId,
+            status: 'deletion_pending',
+            correlationId: params.correlationId ?? randomUUID(),
+          });
+        };
+        if (mcpRuntimeAdapter?.listOwned && mcpRuntimeAdapter?.deleteOwned) {
+          let observed;
+          try {
+            observed = await mcpRuntimeAdapter.listOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId });
+          } catch {
+            return retainForRetry();
+          }
+          if (!Array.isArray(observed)) return retainForRetry();
+          for (const resource of observed ?? []) {
+            if (!resource?.uid || !resource?.resourceVersion) return retainForRetry();
+            let deleted;
+            try {
+              deleted = await mcpRuntimeAdapter.deleteOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId,
+                kind: resource.kind, namespace: resource.namespace, name: resource.name, uid: resource.uid, resourceVersion: resource.resourceVersion });
+            } catch {
+              return retainForRetry();
+            }
+            const status = Number(deleted?.status ?? deleted?.statusCode);
+            if (deleted?.code === 'PRECONDITION_CONFLICT' || status === 409) return retainForRetry();
+            if (status === 404) {
+              let remaining;
+              try {
+                remaining = await mcpRuntimeAdapter.listOwned({ tenantId: tid, workspaceId: entry.workspaceId, serverId });
+              } catch {
+                return retainForRetry();
+              }
+              if (!Array.isArray(remaining) || remaining.some((item) =>
+                item?.kind === resource.kind && item?.namespace === resource.namespace && item?.name === resource.name)) {
+                return retainForRetry();
+              }
+            } else if (!Number.isFinite(status) || status < 200 || status >= 300) {
+              return retainForRetry();
+            }
+          }
+        }
         servers.delete(key(tid, serverId));
         const reg = registry.servers[key(tid, serverId)];
         if (reg) delete registry.servers[key(tid, serverId)];
@@ -387,6 +564,84 @@ export function createMcpEngine({
     }
   }
 
+  async function assertOwnedServer({ identity, serverId, workspaceId } = {}) {
+    await ensureLoaded();
+    if (!identity?.tenantId) throw httpError(401, 'UNAUTHENTICATED', 'Missing tenant identity');
+    return requireServer(identity, serverId, workspaceId);
+  }
+
+  async function deferHostedServers({ identity, tenantId, workspaceId, serverId, correlationId, runtime = {}, reason = 'delete', allTenants = false } = {}) {
+    const tid = tenantId ?? identity?.tenantId;
+    if (!tid && !allTenants) throw httpError(401, 'UNAUTHENTICATED', 'Missing tenant identity');
+    if (!store?.withStateTransaction || !cleanupRepository?.deferMcpDeletion) {
+      throw httpError(503, 'MCP_CLEANUP_STORE_UNAVAILABLE', 'Hosted MCP cleanup storage is unavailable.');
+    }
+    return store.withStateTransaction(async (state, client) => {
+      hydrate(state ?? {});
+      loaded = true;
+      dirty = false;
+      const scopedIdentity = identity ?? { tenantId: tid, actorId: 'system' };
+      const targets = allTenants
+        ? [...servers.values()].filter((entry) => !workspaceId || entry.workspaceId === workspaceId)
+        : serverId
+          ? [requireServer(scopedIdentity, serverId, workspaceId)]
+          : tenantServers(scopedIdentity, workspaceId);
+      const pending = [];
+      for (const entry of targets) {
+        entry.lifecycleStatus = 'deletion_pending';
+        entry.deletionRequestedAt ??= new Date(clock()).toISOString();
+        const obligation = await cleanupRepository.deferMcpDeletion({
+          tenantId: entry.tenantId,
+          workspaceId: entry.workspaceId,
+          resourceId: entry.serverId,
+          runtimeResourceName: `mcp-${entry.serverId}`,
+          correlationId,
+        }, client);
+        runtimeAudit({ ...scopedIdentity, tenantId: entry.tenantId }, entry.workspaceId, entry.serverId, 'cleanup_deferred', obligation.correlationId, runtime, 'succeeded', reason);
+        pending.push({
+          serverId: entry.serverId,
+          status: 'deletion_pending',
+          correlationId: obligation.correlationId,
+          obligationId: obligation.obligationId,
+        });
+      }
+      dirty = false;
+      return { state: snapshot(), result: serverId ? pending[0] : { status: 'deletion_pending', items: pending } };
+    });
+  }
+
+  async function completeDeferredDeletion(obligation) {
+    if (!store?.withStateTransaction || !cleanupRepository?.completeMcpDeletion) {
+      throw new Error('Hosted MCP cleanup storage is unavailable.');
+    }
+    return store.withStateTransaction(async (state, client) => {
+      hydrate(state ?? {});
+      loaded = true;
+      const entry = servers.get(key(obligation.tenantId, obligation.resourceId));
+      if (entry && entry.lifecycleStatus !== 'deletion_pending') {
+        throw new Error('MCP server cleanup obligation does not match pending state.');
+      }
+      servers.delete(key(obligation.tenantId, obligation.resourceId));
+      delete registry.servers[key(obligation.tenantId, obligation.resourceId)];
+      await cleanupRepository.completeMcpDeletion({
+        obligationId: obligation.obligationId,
+        tenantId: obligation.tenantId,
+        resourceId: obligation.resourceId,
+      }, client);
+      runtimeAudit(
+        { tenantId: obligation.tenantId, actorId: 'system' },
+        obligation.workspaceId,
+        obligation.resourceId,
+        'cleanup_recovered',
+        obligation.correlationId,
+        { mode: 'managed', state: 'ready', reason: 'READY' },
+        'succeeded',
+        'cleanup',
+      );
+      return { state: snapshot(), result: { serverId: obligation.resourceId, deleted: true } };
+    });
+  }
+
   // Standard MCP wire protocol (JSON-RPC 2.0) for a HOSTED per-workspace server, so an external MCP
   // client can `initialize` → `tools/list` → `tools/call` against a tenant's published server. The
   // server is ALWAYS resolved from the credential-derived identity + the URL serverId (requireServer
@@ -397,16 +652,19 @@ export function createMcpEngine({
   // JSON-RPC error. Notifications (no id) are acknowledged with no body.
   //   Deferred (tracked, not in this change): Streamable-HTTP SSE transport, sessions, resources/*,
   //   prompts/* — a standard client can list+call tools over plain JSON-RPC POST without them.
-  async function executeMcpRpc({ identity, workspaceId, serverId, message } = {}) {
+  async function executeMcpRpc({ identity, workspaceId, serverId, message, beforeDispatch, authorization } = {}) {
     await ensureLoaded();
     const { id, method, params } = message ?? {};
     const isNotification = id === undefined || id === null;
     if (!identity?.tenantId) throw httpError(401, 'UNAUTHENTICATED', 'Missing tenant identity');
     const tid = identity.tenantId;
     try {
+      // Resolve the credential-scoped server before invoking the dependency hook. This preserves
+      // tenant-safe not-found behavior even when the shared Knative runtime is unavailable.
+      const entry = requireServer(identity, serverId, workspaceId);
+      if (beforeDispatch) await beforeDispatch({ entry, isNotification, method });
       switch (method) {
         case 'initialize': {
-          const entry = requireServer(identity, serverId);
           const registered = getServer(registry, tid, serverId);
           return rpc(id, {
             protocolVersion: PROTOCOL_VERSION,
@@ -420,7 +678,7 @@ export function createMcpEngine({
         case 'ping':
           return rpc(id, {});
         case 'tools/list': {
-          requireServer(identity, serverId);
+          requireServer(identity, serverId, workspaceId);
           const registered = getServer(registry, tid, serverId);
           const active = registered?.versions?.find((v) => v.version === registered.activeVersion);
           const tools = (active?.tools ?? []).map((t) => ({
@@ -435,6 +693,7 @@ export function createMcpEngine({
           const out = await executeMcp({
             operation: 'call_tool', identity, workspaceId, serverId,
             body: { name: params.name, arguments: params.arguments ?? {} },
+            authorization,
           });
           return rpc(id, { content: out.content ?? [], isError: !!out.result?.isError });
         }
@@ -443,10 +702,21 @@ export function createMcpEngine({
       }
     } catch (err) {
       if (isNotification) return null; // never answer a notification, even on error
-      const code = err.statusCode === 429 ? -32003 : -32001;
-      return rpcErr(id, code, err.message ?? 'MCP error');
+      const code = err.rpcCode ?? (err.statusCode === 429 ? -32003 : -32001);
+      const response = rpcErr(id, code, err.rpcMessage ?? err.message ?? 'MCP error');
+      if (err.rpcData) response.error.data = err.rpcData;
+      return response;
     }
   }
 
-  return { executeMcp, executeMcpRpc, ensureSchema: () => store?.ensureSchema?.() ?? Promise.resolve() };
+  return {
+    executeMcp,
+    executeMcpRpc,
+    assertOwnedServer,
+    deferServerDeletion: (params) => deferHostedServers(params),
+    deferTenantTeardown: (params) => deferHostedServers({ ...params, reason: 'tenant_teardown' }),
+    deferCapabilityDisable: (params) => deferHostedServers({ ...params, reason: 'capability_disable', allTenants: true }),
+    completeDeferredDeletion,
+    ensureSchema: () => store?.ensureSchema?.() ?? Promise.resolve(),
+  };
 }

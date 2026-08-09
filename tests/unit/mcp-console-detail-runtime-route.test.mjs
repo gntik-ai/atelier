@@ -14,6 +14,9 @@ function fakeMcpEngine() {
   const calls = [];
   return {
     calls,
+    async assertOwnedServer(params) {
+      calls.push({ operation: 'assert_owned_server', ...params });
+    },
     async executeMcp(params) {
       calls.push(params);
       if (params.operation === 'get_server') {
@@ -27,7 +30,7 @@ function fakeMcpEngine() {
         };
       }
       if (params.operation === 'call_tool') {
-        return { result: { content: [{ type: 'text', text: 'ok' }] }, toolName: params.body.name };
+        return { result: { content: [{ type: 'text', text: 'ok' }], isError: false }, content: [{ type: 'text', text: 'ok' }], toolName: params.body.name };
       }
       throw Object.assign(new Error(`unexpected operation ${params.operation}`), { statusCode: 500 });
     },
@@ -70,6 +73,12 @@ test('MCP console detail route returns server detail on the workspace-scoped pat
       },
       workspaceId: 'ws-a',
       serverId: 'srv-a',
+      runtimeDependency: {
+        mode: 'external',
+        state: 'ready',
+        reason: 'READY',
+        ready: true,
+      },
     });
   });
 });
@@ -84,8 +93,8 @@ test('MCP playground route invokes tools on the workspace-scoped tool-calls path
 
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.equal(body.toolName, 'list_orders');
-    assert.equal(body.result.content[0].text, 'ok');
+    assert.equal(body.isError, false);
+    assert.equal(body.content[0].text, 'ok');
     assert.equal(mcpEngine.calls.at(-1).operation, 'call_tool');
     assert.equal(mcpEngine.calls.at(-1).workspaceId, 'ws-a');
     assert.equal(mcpEngine.calls.at(-1).serverId, 'srv-a');
