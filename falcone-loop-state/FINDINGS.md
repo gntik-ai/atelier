@@ -915,3 +915,107 @@ but **that dedupe is itself unverified**. Severities are guesses by the finder.
 workspace-bound service account (the mechanism behind #973) · **charts#12** `falcone-ferretdb`
 still `Init:CreateContainerConfigError` · **#983** `falcone-postgresql-vector-0` still `Pending` ·
 #953, #980, #994, #966, #973, #992, #952, charts#20 all reproduced during the P26 walk.
+
+---
+
+# Fix run — 2026-08-09 · #965 (W0 order 1, portal-blocker)
+
+First fix run against the triaged board (`docs/track-f/triage.md`). One issue, per the
+one-issue-per-session rule. **#965** was selected as the highest-priority OPEN bug blocked by
+nothing: triage §3.3 ranks it order 1 and explicitly sequences it *before* #997 ("fixing the
+NetworkPolicy is pointless while the executor pod cannot start from a clean image").
+
+## What was wrong
+
+`apps/control-plane-executor` and `apps/workflow-worker` declared a **username** (`USER node`)
+rather than a numeric UID. Kubernetes resolves `runAsNonRoot: true` against the image config's
+numeric UID and will not read `/etc/passwd` inside the image to map a name, so both images were
+unschedulable under the chart's default security context — `CreateContainerConfigError`,
+*"container has runAsNonRoot and image has non-numeric user (node)"*.
+
+## The fix — commit `0ce0c41c`
+
+`USER node` → `USER 1000` in the two images named in the issue **plus
+`apps/mcp-runtime/Dockerfile`**, a third instance of the identical defect that the issue's own
+evidence grep missed. It is in contract: the issue's MODIFIED requirement is *"Every Falcone
+service image SHALL declare a numeric non-root UID"*, not just the two observed.
+
+`node` is UID 1000 in both `node:22-alpine` and `node:22-slim` (verified against the base
+images), so this is the same identity — no file-ownership or permission change.
+
+## Regression guard
+
+`tests/blackbox/nonroot-numeric-uid.test.mjs` (5 tests) + `collectNonRootUserViolations` in
+`scripts/lib/service-catalog.mjs`, wired into `collectServiceCatalogViolations` so
+`scripts/validate-structure.mjs` and CI fail on any reintroduction — not just this one file.
+The parser reads the **final** build stage only, since `USER` is stage-scoped and every `FROM`
+resets it.
+
+- On the **pre-fix** Dockerfiles: **4 of 5 fail**, naming all three images.
+- On the **fixed** Dockerfiles: **5 of 5 pass**.
+- Unit (80 fail) and contract (44 fail) suites are **byte-identical before and after** — those
+  are pre-existing, from `../falcone-charts` being absent in this workspace.
+
+Two adjacent corrections, both of which my change would otherwise have left contradicting the
+shipped contract: `tests/blackbox/flows-interpreter.test.mjs` asserted `/USER\s+node/` — it
+*encoded* the defect — and `apps/workflow-worker/README.md` documented `USER node` on
+`node:22-alpine` (the worker is `node:22-slim`).
+
+## Verifier verdict: CONFIRMED-FIXED
+
+| Candidate | Verdict | Evidence |
+|---|---|---|
+| #965 non-numeric `USER node` | **CONFIRMED-FIXED** | A/B pods in `$FALCONE_NS`, identical security context, image the only variable |
+
+The verifier did not trust the build handed to it — it rebuilt the executor and worker from the
+working tree itself, and built a **controlled pre-fix twin** differing only in the `USER` line.
+
+1. **The defect still reproduces, unmasked.** Two throwaway pods in `in-falcone-staging` with
+   the live control-plane's exact context (`runAsNonRoot: true`, `fsGroup: 1001`, **no**
+   `runAsUser`), same node, same command:
+   - `ghcr.io/gntik-ai/in-falcone-control-plane-executor:0.3.0` (`Config.User=node`) →
+     `CreateContainerConfigError`, original error verbatim.
+   - `ghcr.io/gntik-ai/in-falcone-control-plane:0.3.0` (`Config.User=1000`) → **Running**,
+     `uid=1000(node)`.
+2. **The fixed build carries the admitted value.** All three fixed images and both independent
+   rebuilds report `Config.User=1000` — byte-identical to the image this cluster's kubelet
+   demonstrably admitted.
+3. **Nothing else changed.** Full image-config diff against the pre-fix twin is one field:
+   `"User": "node"` → `"User": "1000"`. Both reach the same `pg-pool ECONNREFUSED`; runtime
+   identity `uid=1000(node) gid=1000(node)` before and after.
+
+This also re-confirms the FINDINGS.md:411-419 result that #965 was **masked, not fixed** in
+staging: `falcone-control-plane-executor` and `falcone-workflow-worker` are the *only two*
+Deployments in the namespace carrying `runAsUser: 1000`.
+
+**What the verdict does not cover** (verifier's own words, recorded rather than smoothed over):
+neither spec scenario was proved by running a *fixed* image on the cluster. There is no safe
+route — this host is not a cluster node, there is no in-cluster registry or `imagePullSecrets`,
+containerd sockets are root-only, and the verifier rejected the remaining routes (privileged pod
+mounting the node socket, pushing proprietary images to a public anonymous registry) as unsafe.
+Both scenarios are proved by **controlled substitution**: the kubelet's decision was measured
+empirically on the exact `.Config.User` values on this cluster, and the fixed artifacts carry the
+admitted value with no other config change. Since that check is a pure function of one field when
+`runAsUser` is nil, it determines the outcome. Post-admission behaviour of the new images
+on-cluster is untested, though the UID is unchanged.
+
+## Recorded, NOT fixed and NOT filed
+
+- `packages/mongo-cdc-bridge/Dockerfile` still declares `USER node`. It is `release: false`
+  (`evidenceOnly` non-release candidate) and no workload in `$FALCONE_NS` uses it, so it is
+  outside #965's scope and outside the `release: true` contract the new guard enforces — but it
+  would hit the identical failure if ever promoted. Surfaced by the verifier; left alone
+  deliberately rather than fixed unverified.
+- `tests/blackbox/flows-interp-007` fails on `apps/workflow-worker/Dockerfile must exist` —
+  **pre-existing and unrelated**: `SVC` resolves to `services/workflow-worker`, a root
+  `FORBIDDEN_OLD_ROOTS` deliberately forbids. Confirmed failing identically on a clean tree. The
+  stale `USER node` assertion inside it was corrected; the stale path was **not** repaired — that
+  is a separate defect, not this fix's scope.
+
+## Real-world effect is gated on a republish
+
+The fix is proven at build level. Staging will not exercise *"without the deployment supplying
+`runAsUser`"* until new images are published **and** the `runAsUser: 1000` workaround is removed
+from the two Deployments — that chart lives in `falcone-charts`, not this repo. Until then the
+workaround keeps masking any regression. The CI guard, not the cluster, is what prevents
+recurrence today.

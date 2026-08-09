@@ -170,6 +170,11 @@ the data plane that F0-1 recorded as entirely absent. `/v1/flows/...` went **503
 3. falcone **#965** — `control-plane-executor` and `workflow-worker` images use non-numeric
    `USER node`, so they can never start under `runAsNonRoot: true`. Worked around with
    `runAsUser: 1000`; the images still need `USER 1000`.
+   **[FIXED 2026-08-09 — see FINDINGS.md "Fix run — #965", verifier CONFIRMED-FIXED.]** Both
+   Dockerfiles now declare `USER 1000` (as does `mcp-runtime`, a third instance of the same
+   defect), guarded by `tests/blackbox/nonroot-numeric-uid.test.mjs`. The `runAsUser: 1000`
+   workaround on the two Deployments is still in place and still masks the defect — it can only
+   be removed after images built from this commit are published.
 4. falcone-charts **#11** — a failed upgrade leaves `falcone-control-plane` scaled to 0
    with no recovery path (hit twice; caused a ~3 min outage).
 
