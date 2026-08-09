@@ -41,7 +41,7 @@ environment deliberately does not deploy (chart ships them `false`).
 
 | Area | Tested | Total | Coverage | Notes |
 |---|---|---|---|---|
-| Identity & tenancy | 6 | 7 | 86% → **PARTIAL** | A1/A5/A6/A7 PASS live; A3 gap confirmed. A4 blocked by #953. **[DOWNGRADED 2026-08-09, triage batch]** Provisioning PASS, but the identity-claim and membership planes FAIL: **#961** (no principal ever receives a `workspace_id` claim), **#975** (invitations write-only, never read), **#979**/**#969** (no Keycloak client is ever materialized), **#960** (plan assignment discarded on the create-tenant path). |
+| Identity & tenancy | 6 | 7 | 86% → **PARTIAL** | A1/A5/A6/A7 PASS live; A3 gap confirmed. A4 blocked by #953. **[DOWNGRADED 2026-08-09, triage batch]** Provisioning PASS, but the identity-claim and membership planes FAIL: ~~**#961** (no principal ever receives a `workspace_id` claim)~~ **FIXED `01e966f2`, verifier CONFIRMED-FIXED — tenant realms now declare the attributes and `workspace-context` mints the claim; NOT yet true on staging, which runs the pre-fix image and needs the back-fill plus a per-user re-stamp**, **#975** (invitations write-only, never read), **#979**/**#969** (no Keycloak client is ever materialized), **#960** (plan assignment discarded on the create-tenant path). **Row stays PARTIAL**: the claim plane is repaired, the membership plane (#975 #979 #969) and #960 are not. |
 | Flows / durable execution | 1 | 5 | 20% | Only B5 (GAP-FAL-012, code) verifiable. B1-B4 need Temporal + worker — not deployed. |
 | Storage, events, realtime, webhooks, scheduling | 5 | 6 | 83% → **PARTIAL** | C3 → #955. C5 → #957. C6 → #952. C4 advertised but `features.realtime:false`. C2 executor-owned. **[DOWNGRADED 2026-08-09, triage batch]** 5 of 6 *exercised*, 1 of 6 *correct*: storage **#994**, events **#955**, webhooks **#957**, scheduling **#952** + **#985**. |
 | Secrets | 2 | 2 | 100% → **PARTIAL** | D1 backend off by chart config (ENVIRONMENT); D2 gap confirmed. **[DOWNGRADED 2026-08-09, triage batch]** 2 of 2 *surfaces* exercised; **0 of 4 lifecycle properties hold** — see the secrets row above (#970 #977 #984 #974). Coverage of a surface is not coverage of its lifecycle. |
@@ -112,12 +112,14 @@ printed evidence), up from 76% in F0-2 and 41% in F0-1.
 What the remaining ~15% is, precisely:
 - **4 rows blocked by falcone-charts#13** (E4/E6 and the LLM/embedding runtime) — the executor
   401-walls them. Note charts#13's root cause was **corrected this run**: adding the Keycloak env is
-  necessary but *not sufficient*; #961 (no `workspace_id` claim) is a second blocker.
+  necessary but *not sufficient*; #961 (no `workspace_id` claim) is a second blocker
+  (**#961 fixed in `01e966f2`** — the other two causes are chart-side and still stand).
   **Corrected again 2026-08-09 (triage batch): there are three mandatory causes, not two** —
   **#981** (executor receives no `KEYCLOAK_ISSUER`/`KEYCLOAK_JWKS_URL`, so `createJwtVerifier`
   returns `undefined`), **#980** (APISIX route `2006` forwards bearer `/v1/mongo/*` to the control
   plane, which owns no such route → `404 NO_ROUTE`) and **#961**. Fixing any two still leaves the
-  surface unreachable.
+  surface unreachable. **#961 is now fixed (`01e966f2`); #981 and #980 remain, and both live in
+  `falcone-charts`, so this surface stays unreachable from this repo.**
 - **1 row (B3) blocked by falcone-charts#20** — SSE monitoring needs an execution to exist, and none
   can.
 - **Provider-call rows** need an external LLM key that this campaign deliberately does not hold.
@@ -204,7 +206,7 @@ and marked **[DOWNGRADED 2026-08-09, triage batch]** — search that string to f
 |---|---|---|---|---|
 | F0-R1 | storage | PASS | **PARTIAL** | #994 (+#973, #998) |
 | F0-R1 | secrets (bonus) | PASS | **PARTIAL** | #970 #977 #984 #974 |
-| F0-2 | Identity & tenancy 86% | 86% | **PARTIAL** | #961 #975 #979 #969 #960 |
+| F0-2 | Identity & tenancy 86% | 86% | **PARTIAL** | ~~#961~~ (fixed `01e966f2`) #975 #979 #969 #960 |
 | F0-2 | Storage/events/realtime/webhooks/scheduling 83% | 83% | **PARTIAL** | #994 #955 #957 #952 #985 |
 | F0-2 | Secrets 2/2 100% | 100% | **PARTIAL** | #970 #977 #984 #974 |
 | F0-2 | Quotas/audit/backup/MCP 4/4 100% | 100% | **FAIL** | #962 #988 #963 #960 #964 · #978 #971 #974 #958 · #985 |
@@ -212,7 +214,7 @@ and marked **[DOWNGRADED 2026-08-09, triage batch]** — search that string to f
 | F0-5 | Flows definition plane "works" | PASS | **PARTIAL** | #991 #988 #976 |
 | F0-5 | "Storage is the strongest capability" | — | **withdrawn** | #994 #973 |
 | F0-5 | "Secret storage solid" | — | **qualified** | #984 #977 |
-| F0-5 | charts#13 has two causes | 2 | **3 mandatory** | #981 + #980 + #961 |
+| F0-5 | charts#13 has two causes | 2 | **3 mandatory** | #981 + #980 + ~~#961~~ (fixed `01e966f2`) |
 | F0-6 | P26 "works unaided: function deploy + invoke, storage reads" | partial-PASS | **downgraded further** | #972 #992 #994 |
 
 Also corrected in `CAPABILITIES.md`: the events-consume *"bounded poll by design"* note —

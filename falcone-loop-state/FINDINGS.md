@@ -1029,3 +1029,223 @@ The fix is proven at build level. Staging will not exercise *"without the deploy
 from the two Deployments — that chart lives in `falcone-charts`, not this repo. Until then the
 workaround keeps masking any regression. The CI guard, not the cluster, is what prevents
 recurrence today.
+
+---
+
+# Fix run — 2026-08-09 · #961 (W0 order 5, portal-blocker)
+
+Second fix run against the triaged board. One issue, per the one-issue-per-session rule.
+
+## Why #961 and not the three W0 issues ranked above it
+
+Triage §3.3 sequences #965 → **#997** → **#981 + #980** → **#961**. The three skipped issues
+all have their fix in `falcone-charts`:
+
+| # | Where the fix lives |
+|---|---|
+| #997 | `falcone-charts#20` — the Temporal-frontend NetworkPolicy admits `flows-api`/`flows-worker`, not `control-plane-executor` |
+| #981 | Helm values — the executor deployment renders no `KEYCLOAK_ISSUER`/`KEYCLOAK_JWKS_URL` |
+| #980 | The deployed standalone APISIX route table — route `2006` sends bearer `/v1/mongo/*` to the control plane |
+
+CLAUDE.md rule 6 makes `../llmwiki-contracts/openapi/falcone-ai/` the only thing outside this
+repo that may be edited, so none of the three can be fixed from here — and more decisively,
+none could earn a CONFIRMED-FIXED verdict on its *original* reproduction, which runs against the
+deployed chart. **#961 is the highest-priority W0 bug whose fix lands in this tree.** The three
+above it are not "deferred"; they are blocked on a repo this track may not touch, and that is a
+standing fact about the W0 set, not a fact about this run.
+
+## What was wrong
+
+Two independent breakages that combine, both in tenant-realm provisioning:
+
+1. **The attributes were never declared.** Keycloak 26's declarative user profile is always on
+   and unmanaged attributes are disabled by default, so an attribute the profile does not declare
+   is discarded at persist time — with no error to the caller. `createRealm` only called
+   `relaxUserProfile`, which declares nothing. `createUser` duly sent `tenant_id`/`workspace_id`
+   and the user came back `attributes: null`.
+2. **The context client scopes carried no protocol mappers.** `ensureClientScope` created
+   `tenant-context` and `workspace-context` mapper-less, so even a persisted attribute could not
+   reach a token. Both scopes appear in the token's `scope` string and contribute no claim.
+
+`tenant_id` survived only because `createTenant` installs a hardcoded *client* mapper.
+
+The sharpest fact found while fixing: **the chart already solved exactly this for the platform
+realm** (finding A4, `bootstrap.oneShot.keycloak.userProfile`, asserted by
+`tests/blackbox/platform-user-profile-tenant-attr.test.mjs` — `tenant_id`/`workspace_id`
+declared, `edit: [admin]`, and a `workspace-context` scope carrying the `workspace_id`
+user-attribute mapper). Tenant realms — where every end-user principal actually lives — never
+got the same treatment. This was drift between two realm kinds, not a missing design.
+
+## The fix — commit `01e966f2`
+
+`apps/control-plane/kc-admin.mjs`
+
+- `IDENTITY_PROFILE_ATTRIBUTES` — `tenant_id`/`workspace_id` declared in the realm user profile,
+  `permissions.edit: ['admin']`, `group: user-metadata`, `length ≤ 255`. **Field-for-field the
+  chart's platform-realm declaration**, so the two realm kinds now carry one identity contract.
+  `relaxUserProfile` merges them into the same idempotent read-merge-PUT it already did.
+- `CONTEXT_SCOPE_CLAIM_MAPPERS` + `ensureScopeClaimMapper` — `workspace-context` gets the
+  `workspace_id` `oidc-usermodel-attribute-mapper`. Idempotent on mapper *name* and kept separate
+  from `ensureClientScope` so a realm whose scopes already exist is retrofitted rather than
+  skipped by that function's early return.
+- `getUserProfile` / `listClientScopes` — read-only helpers for the back-fill's dry run.
+
+**`tenant-context` deliberately gets no mapper.** That is the one place tenant realms must differ
+from the platform realm: the platform realm hosts principals of many tenants, so there `tenant_id`
+can only come from a user attribute; a tenant realm's *name* is the tenant id and the hardcoded
+client mapper is un-forgeable. A second, user-attribute-sourced mapper for the same claim would
+make which value wins undefined — a downgrade of the A3 isolation property, not a fix.
+`bbx-wsid-04` pins the non-change so a later "symmetry" refactor cannot quietly undo it.
+
+`plan-context` and `workspace-roles` are left mapper-less on purpose too, and this is a stronger
+statement than "out of scope": nothing in the platform ever stamps a `plan_id` user attribute, so
+a `plan-context` mapper would map an attribute that is never set — it would manufacture the
+appearance of a working plan claim while the gateway keeps resolving entitlements from
+`ctx.scope_plan_entitlements`. And `workspace_roles` has **zero consumers** anywhere in
+`apps/`, `packages/` or `deploy/`.
+
+## Three things the issue did not mention, which the fix forced
+
+1. **Minting the claim would have opened an unauthenticated escalation.**
+   `POST /v1/auth/signups` is public (`CONSOLE_SIGNUP_SELF_SERVICE` defaults to `true`) and
+   stamped `body.workspaceId` with no validation whatsoever. That was inert only because Keycloak
+   discarded it. The moment the attribute persists and reaches a token, an unchecked value is
+   self-assignment of any workspace — and `workspace_id` is precisely what workspace-scoped
+   authorization binds to. Signup now resolves the workspace and requires it to belong to the
+   tenant being signed up for, answering unknown and foreign workspaces **identically** so the
+   public endpoint is not a workspace-existence oracle. `400 WORKSPACE_NOT_IN_TENANT` — 400
+   because `workspaceId` is caller payload like the handler's other `VALIDATION_ERROR`s, and
+   because 400 is already declared for this operation in the published contract while 422 is not.
+2. **`setDefaultClientScope` was documented "idempotent PUT" and was not.** Real Keycloak 26
+   answers `409 Duplicate resource error` when the scope is already a realm default. Nothing ever
+   hit it because `applyRequiredClientScopes` only ever ran on a freshly created realm; the
+   retrofit runs it on realms where every scope is already default, and it died on the first one.
+   Now swallowed, same idiom as `createRealmRole`.
+3. **The workspace lookup the new binding rests on was not safe to bind on.** `getWorkspace`
+   resolves `id = $1 OR slug = $1` with no tenant predicate and no ordering, but `workspaces.slug`
+   is only `UNIQUE (tenant_id, slug)`. Found by the verifier, not by me. New
+   `getWorkspaceInTenant` scopes by tenant *and* orders canonical ids first; the unscoped
+   `getWorkspace` and its ~18 other callers are untouched (see the candidate below). Two distinct
+   failures, both proved and both now guarded:
+   - **cross-tenant, fail-closed:** two tenants each owning a workspace slugged `default` — one of
+     them is refused *its own* workspace under an arbitrary `LIMIT 1`. `bbx-wsid-11`.
+   - **intra-tenant, fail-open:** `slugify` allows `[a-z0-9-]`, so a UUID survives it unchanged and
+     a tenant can own a workspace whose *slug* is another of its workspaces' *id*. Two rows then
+     match and physical order decides, so a signup addressed by a workspace's canonical id could be
+     bound to a different workspace — and `workspace_id` is the claim authorization binds to.
+     `bbx-wsid-12`.
+
+## Retrofit — `scripts/backfill-tenant-realm-identity-claims.mjs`
+
+`createRealm` only reaches realms provisioned from now on. The back-fill re-applies the same two
+idempotent helpers to existing realms (dry-run by default, `--apply` to write), and reports the
+tail it *cannot* fix: users created while the attributes were undeclared hold no stored
+`workspace_id`, and declaring an attribute cannot invent a value that was dropped at create time.
+Those principals need a per-user re-stamp. Only `b-handlers.createTenant` creates realms for real
+(`packages/adapters/src/keycloak-admin.mjs::createRealm` throws `NOT_YET_IMPLEMENTED`), so that
+is the whole surface.
+
+## Regression guard
+
+`tests/blackbox/workspace-id-claim-minting.test.mjs` — 12 tests against a fake Keycloak admin API
+installed at the **`fetch` boundary**, asserting the exact admin REST calls. This is deliberately
+not the shape of the coverage that missed the defect:
+`auth-signup-tenant-realm-placement.test.mjs:107-124` asserted only that the attributes were
+*passed to a fake `kcAdmin`*, so it passed while the capability did not exist.
+
+- **8 of 12 fail on the pre-fix code; 12 of 12 pass after.** The 4 that pass in both are the
+  non-regression guards `bbx-wsid-04` / `-06` / `-09`, plus `-12`, which passes pre-fix for a
+  reason worth naming: the pre-fix handler did no lookup at all, so it echoed the caller's string
+  back and "resolved" trivially. `-12` fails the moment a lookup exists and is unordered, which is
+  the state the containment passed through — so it guards the fix, not the defect.
+
+`tests/env/keycloak/workspace-id-claim.test.mjs` — 4 tests against a **real Keycloak 26**, because
+both breakages are claims about Keycloak behaviour and no fake can settle them. One deterministic
+run: a realm provisioned the pre-fix way (RED) and one provisioned by the fixed `createRealm`
+(GREEN), plus the account-API self-edit probe and the back-fill retrofit against the genuine
+pre-fix realm. Wired into `tests/env/keycloak/run.sh`.
+
+Full `tests/blackbox/run.sh` failure set and `test:unit` counts are **byte-identical to the
+clean-tree baseline** (475 pre-existing failures either side; 986 pass / 15 fail on unit).
+`lint:md` 0 errors, `validate:openapi` valid. `validate:repo` fails identically before and after —
+it wants a `../falcone-charts` checkout this workspace does not have at that path.
+
+## Fixture updates, not behaviour changes
+
+Three existing tests stubbed the Keycloak API or the pg pool at a level provisioning has now
+grown past, and would otherwise have failed on the new call: the fake Keycloak in
+`tests/unit/realm-brute-force-protection.test.mjs` (no `protocol-mappers/models` route), the
+helper stubs in `tests/blackbox/project-auth-config-api.test.mjs` (`ensureScopeClaimMapper` was
+unstubbed and reached the network), and the fake pool in
+`auth-signup-tenant-realm-placement.test.mjs` (signup now resolves the workspace).
+
+## Verifier verdicts: CONFIRMED-FIXED (two independent passes)
+
+| Candidate | Verdict | Evidence |
+|---|---|---|
+| #961 `workspace_id` claim never minted | **CONFIRMED-FIXED** | own probe harness, real Keycloak 26, RED baseline established first from `git show HEAD:kc-admin.mjs` |
+| `getWorkspaceInTenant` containment | **CONFIRMED-FIXED** | real Postgres, rows seeded so an unscoped `LIMIT 1` loses in **both** directions |
+
+The verifier declined to use either of this run's test files as evidence and built its own
+harness, pinning the source hashes it re-ran against (the tree moved mid-run).
+
+**Pass 1 — the fix.** All five of the issue's printed observations reproduce on the pre-fix code
+against the same Keycloak 26 (`attributes: null`; `declaredAttributes` without the two;
+all four scopes `mappers: []`; `workspace_id: null` in a decoded ROPC token) and all five invert
+after. Beyond the issue's own claims it also established:
+
+- **`tenant_id` is still un-forgeable.** It wrote a foreign `tenant_id` user attribute through the
+  admin API — it stored (204, so the probe was live, not vacuous) — and the re-minted token
+  ignored it. An exhaustive mapper sweep of the realm found exactly one source per claim.
+- **A principal with no workspace has no `workspace_id` property at all** — absent, not empty
+  string, so it cannot be read as allow-all by a downstream check.
+- **The escalation is closed at the IdP.** Account API, real holder token: rewriting the
+  attribute is refused `400 error-user-attribute-read-only`. It also probed the *clearing* case
+  (omitted / `{}`), which returns 204 and **preserves** the value — a silent wipe would have
+  re-armed the fail-open checks the issue lists.
+- **The 409 swallow is not too broad** — a bogus scope id and a missing realm both still throw
+  404, and after a swallowed 409 the scope is genuinely still a realm default.
+
+**Pass 2 — the containment.** Both tenants can sign up for their own same-slugged workspace and
+get their own id stamped; all five refusal cases stay byte-identical with `createUser` never
+called; the `[idOrSlug, tenantId]` → `$1`/`$2` binding was proved behaviourally rather than by
+inspection (reversed args return null, a swap would have returned a row); and no constructed input
+— foreign id, null/empty/undefined tenant id, `' OR '1'='1`, `%`/`_` globs, tenant slug as tenant
+id — reaches another tenant's row.
+
+## What the verdict does NOT cover
+
+Recorded rather than smoothed over:
+
+- **Staging is not fixed by this.** The deployed image is pre-fix, and even after a redeploy the
+  existing realms need the back-fill **and** a per-user re-stamp: the verifier confirmed a
+  retrofitted realm mints the claim for a *new* principal while the pre-existing user still gets
+  `workspace_id: null`. A declaration cannot invent a value that was dropped at create time. Two
+  steps, not one.
+- **No cluster evidence at all.** Both passes ran against a local Keycloak 26 and a local
+  Postgres; `kubectl` was never invoked. Single-node, no multi-replica or concurrent-back-fill
+  testing.
+- **Downstream consumers were not exercised** — realtime `hasWorkspaceAccess`, the webhook
+  handlers, the gateway Lua's `WORKSPACE_SCOPE_MISMATCH`, the executor's path↔credential binding
+  check. The issue itself listed those as code analysis rather than runtime-confirmed, and this
+  fix only restores the claim they read.
+- **The fail-open half of the issue's third scenario is NOT addressed here.** "A missing claim
+  causes a denial, never an implicit allow" spans the executor, the APISIX Lua plugin and the
+  console, and cannot be a blanket rule: a tenant-level principal legitimately has no
+  `workspace_id`, so denial requires workspace *membership*, which is #973's `workspace_members`
+  table. What this fix does change is the size of that surface — a workspace-bound principal now
+  carries the claim, so the executor's binding check actually binds for them instead of being
+  skipped. It **reduces** the fail-open surface; it does not close it.
+
+## Recorded, NOT fixed and NOT filed
+
+- **The unscoped `getWorkspace` keeps both hazards**, for ~18 callers across storage, pg, mongo,
+  fn, realtime, kafka, metrics and `b-handlers`. Its cross-tenant reach is strictly worse than the
+  signup case that was contained, and it is a candidate in its own right rather than part of this
+  fix. Adjacent to #973 but not the defect #973 was opened for — it needs its own decision.
+- **Neither lookup consults workspace `status`.** An `archived` workspace still yields a binding
+  (verifier-confirmed: `signup -> 201` against an archived row). Pre-existing, and unchanged by
+  this fix.
+- **`plan-context` / `workspace-roles` stay mapper-less** — see the rationale above. Not an
+  oversight, and deliberately not "fixed" by adding mappers for values nothing sets and nothing
+  reads.
