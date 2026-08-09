@@ -832,3 +832,55 @@ operator there. This is the same class of finding as #965's `runAsUser` masking.
   the workaround be removed — but removing it is another falcone-charts values change.
 - Objects a pre-fix deployment stored empty remain unrecoverable; only the writing client can
   re-upload.
+
+## #961 realm back-fill — 2026-08-09, runbook §5
+
+**Rule 4 pre-flight recorded before both the dry run and the mutating run:** context `default`,
+target `in-falcone-staging` only.
+
+Run as an **in-cluster Job**, which is what runbook §5 prefers, specifically so the Keycloak admin
+credentials never reach a workstation: they were pulled by `secretKeyRef` from the same Secrets the
+control plane already uses (`in-falcone-keycloak-admin`, `in-falcone-postgresql`), so no credential
+value appeared in any manifest, shell, or file on disk. The Job pinned the **same image digest the
+control-plane Deployment is running** (`sha256:26bb5ff1`), so `kc-admin.mjs` and its two idempotent
+helpers were byte-identical to the deployed code.
+
+The reviewed script was supplied via ConfigMap and its sha256 verified equal to the repo copy
+(`3696d072…`) before running — `/app` and `/tmp` are both read-only in that image, so the script ran
+from an `emptyDir` with symlinks reproducing the paths its own relative import expects. **The script
+was not edited**; what ran was the reviewed file unmodified.
+
+| Phase | Result |
+|---|---|
+| Dry run (attempt 1) | **FAILED** — `getaddrinfo ENOTFOUND undefined`. `PGHOST` etc. are *inline* env on the Deployment, not in the three ConfigMaps `envFrom` pulls. Useful failure: it proved the plumbing before any write |
+| Dry run (attempt 2) | 2 realms, 2 needing work, 0 failures |
+| `--apply` | **2 of 2 realms repaired, 0 failures** |
+| §7 verification | **PASS on both realms** |
+
+Both realms were missing exactly what #961 describes: the `tenant_id` and `workspace_id` user-profile
+declarations, and the `workspace-context/workspace_id` protocol mapper. Neither was missing a
+`tenant-context` mapper — consistent with that absence being deliberate.
+
+§7 verification was a separate **read-only** Job, because the dry run alone does not check the
+security property: it confirmed `permissions.edit == ["admin"]` (never `"user"`, which would let a
+holder rewrite its own claim and make workspace authorization self-service), the
+`oidc-usermodel-attribute-mapper` on `workspace-context`, and **zero** user-model mappers on
+`tenant-context` — the property `bbx-wsid-04` also pins.
+
+Run artifacts (3 Jobs + 1 ConfigMap) deleted afterwards; the namespace is clean.
+
+### The §6 re-stamp is NOT done, and should not be done mechanically
+
+`usersWithoutStoredWorkspaceId` = **1 principal**, `llmwiki-s2-e2e`, in realm
+`c5b17f04-e748-4425-8f54-9a946811d2c8`. Declaring an attribute cannot invent a value Keycloak
+discarded at create time, so this principal still holds no `workspace_id` and no realm-level change
+can supply one.
+
+Runbook §6 is explicit that this is **not mechanical**: `workspace_id` is what workspace-scoped
+authorization binds to, so a guessed binding is a *granted* authorization, and bulk-assigning a
+default workspace is forbidden. For this specific principal the name says it is the portal's S2 E2E
+user, which points at option 2 (re-create through the normal signup path, which now stamps a
+validated binding) — but that is the portal's call, not this track's, and the alternative reading is
+option 3: if it is a tenant-level principal, the absence is *correct* rather than a gap.
+
+**Left open deliberately.** One user, one decision, and the wrong decision grants access.
