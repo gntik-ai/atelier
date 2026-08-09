@@ -209,7 +209,14 @@ export const kcAdmin = {
     // the requiredRealmRoles applied by createRealmRoles (#568).
     await this.applyRequiredClientScopes(realm, TENANT_REALM_SCOPES);
   },
-  // Make email/firstName/lastName optional in the realm's KC26 user profile. Idempotent (PUT).
+  // Make email/firstName/lastName optional in the realm's KC26 user profile, and DECLARE the
+  // identity attributes the platform stamps on its principals. Idempotent (read-merge-PUT).
+  //
+  // #961: Keycloak 26's declarative user profile is always on and unmanaged attributes are
+  // disabled by default, so an attribute that is not declared here is silently DISCARDED at
+  // persist time — no error to the caller. `createUser` duly sent tenant_id/workspace_id and the
+  // user came back with `attributes: null`, which is why no principal on this platform ever
+  // received a workspace_id claim.
   async relaxUserProfile(realm) {
     const prof = (await kc('GET', `/realms/${encodeURIComponent(realm)}/users/profile`)).json;
     if (!prof || !Array.isArray(prof.attributes)) return;
@@ -219,6 +226,11 @@ export const kcAdmin = {
         delete attr.required;
         changed = true;
       }
+    }
+    for (const declaration of IDENTITY_PROFILE_ATTRIBUTES) {
+      if (prof.attributes.some((attr) => attr.name === declaration.name)) continue;
+      prof.attributes.push(structuredClone(declaration));
+      changed = true;
     }
     if (changed) await kc('PUT', `/realms/${encodeURIComponent(realm)}/users/profile`, prof);
   },
@@ -271,6 +283,15 @@ export const kcAdmin = {
   },
 
   // ---- client scopes + realm default scopes (template requiredClientScopes) ----
+  // Read-only views of the two things #961 turned out to depend on. Used by
+  // scripts/backfill-tenant-realm-identity-claims.mjs to report what a realm is missing before
+  // deciding to touch it (its dry run reads, never writes).
+  async getUserProfile(realm) {
+    return (await kc('GET', `/realms/${encodeURIComponent(realm)}/users/profile`)).json ?? null;
+  },
+  async listClientScopes(realm) {
+    return (await kc('GET', `/realms/${encodeURIComponent(realm)}/client-scopes`)).json ?? [];
+  },
   // Ensure a client scope exists (idempotent) and return its id.
   async ensureClientScope(realm, name) {
     const list = (await kc('GET', `/realms/${encodeURIComponent(realm)}/client-scopes`)).json ?? [];
@@ -283,17 +304,41 @@ export const kcAdmin = {
     const after = (await kc('GET', `/realms/${encodeURIComponent(realm)}/client-scopes`)).json ?? [];
     return after.find((s) => s.name === name)?.id;
   },
-  // Mark a client scope as a realm default client scope (idempotent PUT). New clients then
-  // get it automatically, so the realm carries the template's required client scopes.
+  // Mark a client scope as a realm default client scope. New clients then get it automatically,
+  // so the realm carries the template's required client scopes.
+  //
+  // Keycloak answers 409 "Duplicate resource error" when the scope is ALREADY a realm default, so
+  // this PUT was never actually idempotent despite the old comment saying so — it just never ran
+  // twice, because applyRequiredClientScopes only ever ran on a freshly created realm. Swallowing
+  // 409 (same idiom as createRealmRole) is what makes the #961 retrofit of existing realms
+  // possible at all.
   async setDefaultClientScope(realm, scopeId) {
     if (!scopeId) return;
-    await kc('PUT', `/realms/${encodeURIComponent(realm)}/default-default-client-scopes/${encodeURIComponent(scopeId)}`, {});
+    try {
+      await kc('PUT', `/realms/${encodeURIComponent(realm)}/default-default-client-scopes/${encodeURIComponent(scopeId)}`, {});
+    } catch (e) { if (e.kcStatus !== 409) throw e; }
   },
-  // Apply the template's required client scopes to a realm: ensure each exists and set it default.
+  // Ensure a client scope carries a protocol mapper (idempotent on mapper NAME: list first, POST
+  // only when absent). Kept separate from ensureClientScope so an ALREADY-EXISTING scope — every
+  // realm provisioned before #961 — is retrofitted on the next applyRequiredClientScopes, rather
+  // than skipped by ensureClientScope's early return.
+  async ensureScopeClaimMapper(realm, scopeId, mapper) {
+    if (!scopeId) return;
+    const base = `/realms/${encodeURIComponent(realm)}/client-scopes/${encodeURIComponent(scopeId)}/protocol-mappers/models`;
+    const existing = (await kc('GET', base)).json ?? [];
+    if (existing.some((m) => m.name === mapper.name)) return;
+    await kc('POST', base, mapper);
+  },
+  // Apply the template's required client scopes to a realm: ensure each exists, set it default,
+  // and give it the protocol mappers its claims need (#961 — a mapper-less context scope is
+  // decorative and mints no claim).
   async applyRequiredClientScopes(realm, scopeNames = []) {
     for (const name of scopeNames) {
       const id = await this.ensureClientScope(realm, name);
       await this.setDefaultClientScope(realm, id);
+      for (const mapper of CONTEXT_SCOPE_CLAIM_MAPPERS[name] ?? []) {
+        await this.ensureScopeClaimMapper(realm, id, mapper);
+      }
     }
   },
   async createRealmRole(realm, name) {
@@ -456,3 +501,70 @@ export const TENANT_REALM_ROLES = [
 export const TENANT_REALM_SCOPES = [
   'tenant-context', 'workspace-context', 'plan-context', 'workspace-roles'
 ];
+
+// The identity attributes the platform stamps on tenant principals, declared in the realm's KC26
+// user profile so Keycloak PERSISTS them instead of silently discarding them (#961).
+//
+// This is the SAME declaration the chart already applies to the platform realm (finding A4,
+// ../falcone-charts/charts/in-falcone values: bootstrap.oneShot.keycloak.userProfile — asserted by
+// tests/blackbox/platform-user-profile-tenant-attr.test.mjs). Only the platform realm ever got it;
+// tenant realms, which is where every end-user principal actually lives, never did. Keeping the
+// two shapes identical is the point — one identity contract, both realm kinds.
+//
+// `edit: ['admin']` — never `user`. The account console must not be able to rewrite these: a
+// self-editable workspace_id is a workspace_id the holder chooses, and workspace-scoped
+// authorization binds to exactly this claim. Writing them stays an admin-API operation, i.e. the
+// platform's own provisioning path. `view` includes `user` because the value is in the holder's
+// own token anyway, so hiding it from the account console buys nothing.
+//
+// Declaring the two attributes explicitly is deliberately narrower than flipping
+// `unmanagedAttributePolicy`, which would make the realm accept ANY attribute the admin API sends.
+// `user-metadata` is a group KC 26 ships in every realm's default profile.
+export const IDENTITY_PROFILE_ATTRIBUTES = [
+  {
+    name: 'tenant_id',
+    displayName: 'Tenant ID',
+    group: 'user-metadata',
+    validations: { length: { max: 255 } },
+    permissions: { view: ['admin', 'user'], edit: ['admin'] },
+    multivalued: false,
+  },
+  {
+    name: 'workspace_id',
+    displayName: 'Workspace ID',
+    group: 'user-metadata',
+    validations: { length: { max: 255 } },
+    permissions: { view: ['admin', 'user'], edit: ['admin'] },
+    multivalued: false,
+  },
+];
+
+// Protocol mappers the context client scopes must carry for the declared attributes to actually
+// reach a token (#961). A mapper-less scope is decorative: it shows up in the token's `scope`
+// string and contributes no claim, which is exactly what `tenant-context`/`workspace-context`
+// did — every principal's `workspace_id` came back null. Mirrors the chart's platform-realm
+// `workspace-context` scope field for field.
+//
+// `tenant-context` is deliberately ABSENT from this table, and that is the ONE place tenant realms
+// must differ from the platform realm. The platform realm hosts principals of many tenants, so
+// there tenant_id can only come from a user attribute. A tenant realm's NAME *is* the tenant id,
+// and createTenant stamps it with a hardcoded client mapper (addHardcodedClaimMapper) that a
+// tenant user cannot forge. Adding a second, user-attribute-sourced mapper for the same claim
+// would give tenant_id a weaker parallel source and make which one wins undefined — a downgrade
+// of the A3 isolation property, not a fix.
+export const CONTEXT_SCOPE_CLAIM_MAPPERS = {
+  'workspace-context': [{
+    name: 'workspace_id',
+    protocol: 'openid-connect',
+    protocolMapper: 'oidc-usermodel-attribute-mapper',
+    consentRequired: false,
+    config: {
+      'user.attribute': 'workspace_id',
+      'claim.name': 'workspace_id',
+      'jsonType.label': 'String',
+      'access.token.claim': 'true',
+      'id.token.claim': 'true',
+      'userinfo.token.claim': 'true',
+    },
+  }],
+};

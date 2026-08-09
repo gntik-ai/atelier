@@ -874,6 +874,26 @@ export async function getWorkspace(pool, idOrSlug) {
        FROM workspaces WHERE id = $1 OR slug = $1 LIMIT 1`, [idOrSlug]);
   return rows[0] ?? null;
 }
+// Same lookup, scoped to ONE tenant and resolved deterministically. Used where the resolved
+// workspace becomes an authorization binding, so "some matching row" is not good enough.
+//
+// Two hazards, both real, both from `id = $1 OR slug = $1`:
+//   - `id` is a PRIMARY KEY but `slug` is only `UNIQUE (tenant_id, slug)`, so the unscoped variant
+//     above resolves a slug like `default` to an ARBITRARY tenant's row under its `LIMIT 1` — a
+//     caller acting for tenant B gets tenant A's workspace (same reasoning as
+//     getServiceAccountInRealm below). `tenant_id = $2` closes that.
+//   - `slugify` allows `[a-z0-9-]`, so a UUID survives it unchanged: a tenant can own a workspace
+//     whose SLUG equals another of its workspaces' ID. Two rows then match inside one tenant and a
+//     bare `LIMIT 1` picks by physical order, so addressing a workspace by its own canonical id
+//     could resolve to the impostor. `ORDER BY (id = $1) DESC` makes the id row win, so canonical
+//     ids are exact and a slug only resolves when it is nobody's id.
+export async function getWorkspaceInTenant(pool, tenantId, idOrSlug) {
+  const { rows } = await pool.query(
+    `SELECT id, tenant_id, slug, display_name, status, environment, created_at, created_by
+       FROM workspaces WHERE tenant_id = $2 AND (id = $1 OR slug = $1)
+       ORDER BY (id = $1) DESC LIMIT 1`, [idOrSlug, tenantId]);
+  return rows[0] ?? null;
+}
 export async function insertInvitation(pool, invitation) {
   const { rows } = await pool.query(
     `INSERT INTO tenant_invitations (

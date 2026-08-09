@@ -178,13 +178,19 @@ test('bbx-568-07: createRealm applies the template required client scopes (no dr
   const defaulted = [];
   const origEnsure = kcAdmin.ensureClientScope;
   const origDefault = kcAdmin.setDefaultClientScope;
+  // applyRequiredClientScopes also attaches the context scopes' claim mappers (#961); stub that
+  // third helper too so this test stays network-free. Its own coverage is
+  // tests/blackbox/workspace-id-claim-minting.test.mjs.
+  const origMapper = kcAdmin.ensureScopeClaimMapper;
   try {
     kcAdmin.ensureClientScope = async (_realm, name) => { ensured.push(name); return `id-${name}`; };
     kcAdmin.setDefaultClientScope = async (_realm, scopeId) => { defaulted.push(scopeId); };
+    kcAdmin.ensureScopeClaimMapper = async () => {};
     await kcAdmin.applyRequiredClientScopes('acme-test-realm', TENANT_REALM_SCOPES);
   } finally {
     kcAdmin.ensureClientScope = origEnsure;
     kcAdmin.setDefaultClientScope = origDefault;
+    kcAdmin.ensureScopeClaimMapper = origMapper;
   }
   for (const s of TENANT_REALM_SCOPES) {
     assert.ok(ensured.includes(s), `scope ${s} not ensured`);

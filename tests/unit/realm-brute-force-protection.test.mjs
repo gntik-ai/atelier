@@ -92,6 +92,11 @@ function makeFakeKeycloak() {
     if (/\/admin\/realms\/[^/]+\/default-default-client-scopes\/[^/]+$/.test(u) && method === 'PUT') {
       return ok(204, null);
     }
+    // applyRequiredClientScopes also gives the context scopes their claim mappers (#961):
+    // list (empty) then create. Asserted properly in tests/blackbox/workspace-id-claim-minting.
+    if (/\/admin\/realms\/[^/]+\/client-scopes\/[^/]+\/protocol-mappers\/models$/.test(u)) {
+      return method === 'GET' ? ok(200, []) : ok(201, null);
+    }
 
     throw new Error(`unexpected fetch in fake Keycloak: ${method} ${u}`);
   }

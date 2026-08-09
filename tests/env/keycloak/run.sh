@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Real-Keycloak-26 runner for the auth/ROPC user-profile proof (fix-auth-as-a-service-login #496).
+# Real-Keycloak-26 runner for the proofs that can only be settled against a real Keycloak:
+#   - auth/ROPC user-profile relaxation (fix-auth-as-a-service-login #496)
+#   - workspace_id attribute persistence + claim minting (#961)
 # Brings up ONLY the tests/env Keycloak 26 service, waits for health, runs the suite.
 #
 #   bash tests/env/keycloak/run.sh
@@ -22,5 +24,5 @@ if [ -z "${KC_BASE_URL:-}" ]; then
   export KC_BASE_URL=http://localhost:8081
 fi
 
-echo "==> running auth/ROPC user-profile tests against Keycloak 26"
-node --test "$HERE"/auth-ropc-user-profile.test.mjs
+echo "==> running real-Keycloak-26 identity tests"
+node --test "$HERE"/*.test.mjs
