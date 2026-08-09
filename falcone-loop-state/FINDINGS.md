@@ -1311,3 +1311,244 @@ nothing reached git. The verifier's probe harness (`probe*.mjs`, plus the pinned
 `kc-admin` copies) is **kept deliberately** — it is the reusable independent repro for this defect
 class. Four credential-pattern matches elsewhere under `/tmp/claude-1000` belong to *other*
 sessions' scratchpad copies of the charts repo and were left untouched.
+
+---
+
+# Fix run — 2026-08-09 · #994 + #966 (W0 order 6+7, portal-blocker)
+
+Third fix run against the triaged board. **One issue** — #994 is the parent and #966 the read half
+of the same envelope contract, and triage §3.6 records them as one fix ("the GET→PUT corruption is
+the two halves combined"). Fixing either alone leaves the other's failure mode live, so they are one
+unit of work, not two.
+
+## Why #994 and not the W0 issues ranked above it
+
+Unchanged from the #961 run, and worth restating because it is a standing property of the W0 set
+rather than a fact about any one run. Triage §3.3 sequences #965 → #997 → #981 + #980 → #961 →
+**#994 + #966**. #965 and #961 are closed. The three between them all have their fix in
+`falcone-charts` (Temporal-frontend NetworkPolicy · executor Helm env · deployed APISIX route
+`2006`), which CLAUDE.md rule 6 puts outside what this track may edit — and, more decisively, none
+could earn a CONFIRMED-FIXED verdict on its *original* reproduction, which runs against the deployed
+chart. **#994 is the highest-priority W0 bug whose fix lands in this tree.**
+
+## What was wrong
+
+Three mutually incompatible definitions of one envelope, and **the polarity is inverted between the
+two sides** — that is the whole trap:
+
+| | contract | writer | reader |
+|---|---|---|---|
+| payload field | `contentBase64` **required**, `additionalProperties: false` | `content` / `encoding` only | `content` **and** `contentBase64` **and** `encoding` |
+
+So `contentBase64` was the *right* field to read and the *ignored* field to write. Consequences:
+
+1. The only contract-conformant write stored **0 bytes and returned 201** — etag
+   `d41d8cd98f00b204e9800998ecf8427e`, the MD5 of the empty string. The fields that did work,
+   `content`/`encoding`, are the ones the schema **forbids**.
+2. Replaying a read response as a write body — copy, backup, restore — base64-decoded the **lossy**
+   `content` and discarded the exact `contentBase64`: 7 bytes `[0,1,2,255,254,72,73]` came back as
+   1 byte `[28]` under a 201. Only `HI` survived as valid base64 alphabet.
+3. The read envelope emitted `content = buffer.toString('utf8')` beside the exact field, on an HTTP
+   200 — 44% U+FFFD on a 2 KB random payload. `StorageObjectPayload` forbids it too.
+
+Nothing validated any of it: APISIX route `2009` carries only `cors`, and **the control plane has no
+request- or response-validation layer at all** (verifier-confirmed).
+
+## What the fix does
+
+`contentBase64` wins whenever present, which is exactly the shape a replayed read response has, so
+GET→PUT is byte-identical. An unusable body is `400 STORAGE_INVALID_BODY` before any backend call.
+`content` is gone from the read envelope and `getObject()` no longer computes it. The legacy
+`{ content, encoding? }` envelope stays accepted, deliberately — see the consumer note below.
+
+**No contract change, so nothing to hand over under rule 6.** But the commit's claim that the
+implementation "moves TO the published schema" **overstated it, and the verifier was right to
+push back**: it moves *one field*. See the residual-gap section.
+
+## The consumer that decided the backward-compatibility question
+
+`../llmwiki/packages/shared/src/falcone/storage.ts` — the portal's S1 adapter, the actual downstream
+consumer of this contract:
+
+- **Read**: types `content?: string` as **optional** and uses only `contentBase64`. Removing
+  `content` breaks nothing. This is what makes the removal safe rather than merely defensible.
+- **Write**: sends `{ content, encoding: 'base64' }` — the legacy shape. **Had the legacy path been
+  removed, S1 would have broken immediately.** Keeping it was not conservatism; it was required.
+- Its own comment says it "keeps this adapter localized for the eventual contract correction". This
+  fix *is* that correction, and the portal can now migrate to `contentBase64` at its own pace.
+
+## Verifier verdicts: CONFIRMED-FIXED (both issues)
+
+Three verifier passes, because each of the first two found defects in the fix. The verdicts below
+were **re-earned at each HEAD** — the verifier re-ran the original reproductions after every reshuffle
+rather than assuming they survived, which is the right instinct: the fix moved code three times.
+
+| Issue | Verdict | Earned at | Evidence |
+|---|---|---|---|
+| **#994** storage write ignores `contentBase64` | **CONFIRMED-FIXED** | `192c8cd0`, re-confirmed `09399391` and `dac6d1d5` | own harness at the `fetch`/`s3()` seam, request driver transcribed from `server.mjs:394-414`; RED first from `192c8cd0^` |
+| **#966** lossy `content` on read | **CONFIRMED-FIXED** | `192c8cd0`, re-confirmed `09399391` and `dac6d1d5` | same harness; no caveats |
+
+The verifier declined to use this run's test file as evidence and built its own, then re-pointed
+this run's suite at the pre-fix module to check it was non-vacuous. **Zero cluster commands** were
+run in either pass, so rule 4's gate was never engaged; both verdicts are earned by an A/B on the
+code, per the #961 precedent.
+
+It reproduced the issues' fingerprints independently and to the byte — the same empty-string etag,
+the same `[28]`, 44% U+FFFD against the issue's 43% — then inverted all of them. Beyond the issues'
+own claims it established: precedence proven behaviourally with divergent decodes (`{content:"AAAA",
+contentBase64:"QkJCQg=="}` → `BBBB`); **all 28 rejecting cases made zero backend calls of any kind**;
+the gate ordering is correct, so a cross-tenant caller still gets `404 BUCKET_NOT_FOUND` on a good
+body, an unusable body *and* an invalid-base64 body; 206 partial reads keep `sizeBytes` at the
+partial length; no `content` consumer survives anywhere (exhaustive sweep incl. all 239 JSON+YAML
+and `musematic-deploy`); and no ReDoS in the validator (1 MiB adversarial input, 8 ms, linear).
+
+**The relaxation in D3 was settled by evidence, not argument.** Pass 2 wrote an **independent
+base64 decoder** (hand-rolled 6-bit regrouping, no `Buffer.from(…, 'base64')` anywhere in it) and
+differentially fuzzed the resolver against it — 589 inputs across every length 0–40 in
+standard-padded / unpadded / URL-safe / wrapped-at-4 / wrapped-at-76 / whitespace-surrounded, plus
+per-length mutations (truncate by one; inject `!`, `=`, NBSP, BOM or `é` mid-string; stray and
+doubled padding; deliberate alphabet mixing). **Zero divergence**: every accepted input stored
+exactly the bytes it encodes, every rejected input was genuinely ambiguous. Against the first guard
+the same corpus produced **245 rejections of losslessly-decodable input** — that number is the
+measure of D3. No ReDoS: 4 MB worst case, 71 ms, linear.
+
+It also confirmed the URL-safe question has no ambiguity to it: the alphabets differ only at values
+62/63, so a string valid in *both* uses only `[A-Za-z0-9]` and decodes identically either way, and a
+mix is refused. No input's meaning depends on guessing the alphabet.
+
+It also found **two RED facts the issues never claimed**: `{"data":…}`/`{"body":…}`/`{}`/no-body all
+returned 201 with 0 bytes, and **a multipart part sent as `{contentBase64}` uploaded an empty part
+under a 200** — so a completed multipart object could be 0 bytes with success statuses throughout.
+
+## Three defects the verifier found in the fix — closed in `09399391`
+
+All three sat inside #994's own spec delta ("an unusable body SHALL be rejected"), which is exactly
+why maker ≠ checker earns its keep here: the first commit passed its own 11 tests and still shipped a
+new instance of the defect it was fixing.
+
+1. **Coercion before validation.** `contentBase64` was `String()`-coerced *then* pattern-matched, so
+   `{"contentBase64": true}` → **201 with 3 phantom bytes** `[182,187,158]` (`String(true)` is
+   `"true"`, which is valid base64), `1234` → 3 bytes, `["SEVMTE8="]` → `"HELLO"`. `null`/`false`/
+   `123`/`{}` did 400 — but only because their coerced strings happened to fail the regex. Luck, not
+   typing. Now refused on the type.
+2. **An undocumented break on empty bodies.** A zero-length request body became 400 where it was
+   201, on both the object PUT and multipart part upload — the S3 `touch` idiom, in neither issue's
+   spec delta. Root cause is `server.mjs:402`: `if (rawBody.length)` means `rawBodyIsBinary` is
+   false for an empty raw body, which then arrives as `body {}` and looked like a malformed envelope.
+   An empty request body is an explicit "store nothing" again. The 400's message also claimed an
+   empty object could not be written, which was never true (`{"content":""}` → 201) — reworded.
+3. **The mandated field was stricter than the forbidden one.** `{"contentBase64":"SEVMTE8"}` → 400
+   while `{"content":"SEVMTE8","encoding":"base64"}` → 201 `HELLO`; same for newline-wrapped base64.
+   Unpadded is what Go's `RawStdEncoding` and JWT-style encoders emit; newline-wrapped is what
+   `openssl base64` and Python's `base64.encodebytes()` emit. Both decode losslessly under Node, so
+   a client *following the contract* got a 400 while the field the schema forbids worked.
+   `decodeBase64Exact()` now accepts anything decoding to exactly one byte string — whitespace
+   stripped, padding optional but quantum-completing, either alphabet but never a mix — and refuses
+   the rest, because `Buffer.from(x,'base64')` silently **drops** out-of-alphabet characters.
+
+## One regression the fix introduced, and two calls it got wrong — closed in `dac6d1d5`
+
+Pass 2 verified the three D-fixes inverted, then found that the empty-body fix had carried a
+**regression on the happy path, unrelated to either issue's subject**. This is the second time a
+commit in this run passed its own tests and shipped a new defect; recording it because the pattern is
+the finding, not just the bug.
+
+- **N1 (regression, mine).** `env.contentType ?? ctx.contentType ?? '…'` applied the request-header
+  fallback to the **whole function** instead of the empty-body branch it was added for. A JSON
+  envelope's `Content-Type` describes the *envelope*, not the payload, so a binary object uploaded
+  without an explicit `contentType` was stored as `application/json` — which is then what a later GET
+  reports and what a browser receives from a presigned URL. The bodyless case also degraded to `""`,
+  because `??` was used where the `rawBodyIsBinary` branch two lines above deliberately uses `||`.
+  It hit precisely the undocumented clients the legacy path was kept for; the console always sends
+  `contentType` and was unaffected, and **no test pinned the stored content type**, which is how it
+  slipped. Header fallback now lives only in the empty-body return, with `||`.
+- **N2 (judgement, corrected).** The empty-body rule fired for any content type, so an explicit
+  `application/json` with a zero-length body returned 201/0 bytes — a client that declares an
+  envelope and sends nothing failed to serialize, and a success with no data is the exact shape #994
+  is about. Now 400. `declaresJsonBody()` deliberately diverges from `server.mjs`'s `isJsonBody` on
+  one case: server.mjs treats an *absent* `Content-Type` as JSON for backward compatibility, but an
+  absent header is not a declaration, so a bodyless `curl -X PUT` keeps its touch semantics.
+- **N4 (accuracy).** The whitespace strip is ASCII-only now, so the code matches its own comment —
+  `\s` also strips NBSP, BOM, U+2028 and U+3000, which no base64 encoder emits.
+
+Left as-is on the verifier's own reasoning: `{"contentBase64":"   "}` stays 201/0 bytes (consistent
+with `""` by design), and non-canonical trailing bits still normalize (`QQ==`, `QR==`, `QS==`, `QQ`,
+`QR` all store `[65]`) — deterministic, nothing dropped, and refusing it would mean re-encoding and
+comparing for no data-integrity gain.
+
+**The suite now fails against every one of its own predecessors**, which is the property that matters
+after three rounds of edits: 13 fail vs `192c8cd0^`, 5 vs `192c8cd0`, 3 vs `09399391`. 19 cases,
+19 pass at HEAD. Both coverage gaps the verifier named are pinned — `bbx-stor-env-05e` asserts the
+stored content type in all three shapes, and `05c` gained an out-of-alphabet character in the
+**middle** of otherwise-valid base64, the highest-value case for the silent-drop hazard (a naive
+filter-then-decode guard passes every other case and still fails that one).
+
+**Pass 3 confirmed all of N1/N2/N4 invert and found nothing new.** It re-ran the original
+reproductions at HEAD a third time (storage suites 305 pass / 0 fail), re-ran the 589-input fuzz
+against an oracle parameterised on whitespace policy — 298 accepted / 291 rejected, **zero
+divergence**, and the accept set shrank by *exactly* the 74 NBSP/BOM-injected mutations and nothing
+else — and re-checked the gate ordering across six body kinds × two unauthorised principals with
+**zero backend calls in all twelve**. It also confirmed one consequence not in the commit message:
+an empty *multipart part* is now content-type dependent the same way the object PUT is.
+
+One probe row showed a CRLF-bearing envelope `contentType` stored verbatim; the verifier correctly
+identified it as a **fake-S3 artifact**, not a finding — a real `Headers` throws on an invalid header
+value, so production returns `502 STORAGE_PUT_FAILED`, and that line is unchanged since `192c8cd0^`.
+
+## Two hand-synchronised predicates — collapsed in `cf4f8a45`
+
+`declaresJsonBody` and `server.mjs`'s inline `isJsonBody` were two lists of content-type substrings
+differing by one intentional clause. The verifier differentially evaluated both across 22 content
+types and confirmed `""` is the only divergence — but two lists drift, and if server.mjs's ever grew
+(say `text/json`) an empty body of that type would be a touch while a non-empty body of it parses as
+JSON. `isJsonBody` now lives in `request-body.mjs` — the module that exists precisely so this
+decision has one definition exercised verbatim by both the server and its tests — and storage defines
+`declaresJsonBody = isJsonBody(ct) && ct !== ''`.
+
+The verifier's justification for keeping them different is stronger than the one first committed and
+is now the comment in the code: **for an empty body `isJsonBody` has no observable effect at all**,
+because `server.mjs` guards its entire parse block with `if (rawBody.length)`. The two answer
+different questions, and forcing them to agree would break the touch idiom for the most common
+bodyless PUT there is.
+
+Four test-quality notes were acted on in the same commit. The one worth remembering: `05c` encoded
+NBSP, BOM and U+2028 as **literal invisible characters**. The verifier extracted the code points
+rather than trusting the diff and pointed out that a formatter or a "strip non-ASCII" lint fix
+normalising that NBSP to a plain space would turn the case into a *legitimately decodable* payload —
+the test would then fail claiming a silent shortening that never happened. They are `\u` escapes now.
+Two assertions that were missing are added, and the bodyless content-type default is **mutation-
+tested**: reverting `||` to `??` fails `05f` and only `05f`, which is how N1's second half got in.
+
+## Residual contract gap — recorded here rather than left in a commit message
+
+The verifier's scope objection is upheld. Against the published schemas the read response is still
+non-conformant on **every** count — flat instead of `{metadata, payload}`, both required members
+absent, required `disposition` never emitted, every emitted field barred by
+`additionalProperties: false` — and on the write side `StorageObjectWriteRequest` also requires
+`tenantId`/`workspaceId` (unenforced) while `uploadStorageObject`'s **only declared success is 202**
+where the handler returns 201. **A portal client generated from the published OpenAPI still breaks.**
+Reshaping any of that is a breaking change neither issue's spec delta asks for, so it is out of this
+fix's scope — but it is a real defect on a portal-consumed route and belongs on the board, not in a
+commit message. **Filed → #1005.**
+
+Separately and **not** a defect in this fix: `ErrorResponse.code` carries `pattern: ^GW_[A-Z0-9_]+$`,
+which no control-plane error code matches, and the emitted envelope omits all seven other required
+`ErrorResponse` fields. Systemic, pre-existing, and not a reason to rename `STORAGE_INVALID_BODY`.
+
+## New candidates found during this run
+
+| Fingerprint | Verdict | Disposition |
+|---|---|---|
+| `storage:import:inline-base64-unvalidated` — `POST …/buckets/{b}/imports` with `inlineBase64: "!!!!not-base64!!!!"` returns 200 / `status: "imported"` and stores **7 phantom bytes**; an entry with no body field at all returns 200 / `"imported"` with `sizeBytes: 0` | **CONFIRMED** (verifier-reproduced, identical pre and post — pre-existing, not caused by this fix) | Same defect class as #994 on the **export/import path**, which is the copy/backup/restore path #994's own rationale cites. `storage-handlers.mjs:1127-1128` (the verifier cited 1095; the actual decode is at 1127-1128, confirmed) does the unvalidated `Buffer.from(String(ref.inlineBase64 ?? ''), 'base64')`. **Filed → #1004.** |
+| `storage:contract:object-envelope-nonconformant` — read response is not `StorageObjectDownload`; write success is 201 where only 202 is declared; `tenantId`/`workspaceId` required and unenforced | **CONFIRMED** (verified against the published schemas) | The residual gap above. Blocks rule 6 handover and any generated client. **Filed → #1005.** |
+| `mcp:storage:write-uses-legacy-lossy-field` — `mcp-engine.mjs:255` and `apps/mcp-runtime/server.mjs:97` both send `{ content: safeArgs.content ?? '' }`, never `contentBase64`, so the platform's own MCP write path stays UTF-8-lossy for binary and a coerced `''` lands on 201/0 bytes | **candidate — NOT filed** | Reachability depends on MCP argument validation, which the verifier explicitly did not test, and the tool's `inputSchema` marks `content` required. Needs a slice before it is filed. **Next run.** |
+
+## Cleanup
+
+No kubectl call in either pass; no namespace touched. The deployed staging release still runs the
+pre-fix image, so **neither issue is fixed on staging** — see the operator note in
+`docs/reference/architecture/storage-object-io.md`. There is nothing to back-fill: objects a pre-fix
+deployment stored empty are unrecoverable, because the payload was discarded at the handler before
+the backend call, and only the writing client can re-upload. The temporary pre-fix module both
+passes materialized in `apps/control-plane/` is removed; `git status` is clean apart from this run's
+own changes.

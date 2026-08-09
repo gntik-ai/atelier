@@ -13,6 +13,78 @@ and the physical bucket path are never echoed to the caller.
 
 All routes ride the gateway under `/v1/storage/*` and require an authenticated principal.
 
+## Single-object body envelope (write and read)
+
+The JSON body of `PUT /v1/storage/buckets/{bucketId}/objects/{objectKey}` is
+`StorageObjectWriteRequest`: `contentBase64` is **required** and the schema is
+`additionalProperties: false`, so **`contentBase64` is the field to write** and it carries the
+payload base64-encoded. An upload may alternatively send a raw/binary request body under any
+non-JSON content type, in which case the exact request bytes are stored.
+
+| Body | Behaviour |
+| --- | --- |
+| `{ contentBase64, contentType, … }` | The decoded bytes are stored exactly. This is the contract-conformant form. |
+| `{ content, encoding: "base64", contentType }` | **Legacy fallback**, still accepted (the web console ships it). Same bytes. |
+| `{ content, contentType }` (no `encoding`) | **Legacy fallback**: the string is stored as UTF-8. |
+| A raw/binary request body (any non-JSON content type) | The exact request bytes are stored. |
+| `contentBase64` present but not a string | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| `contentBase64` present but not unambiguous base64 | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| No `contentBase64` and no `content` | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| `contentBase64: ""`, `{ content: "" }`, or a **zero-length request body** | `201` with `sizeBytes: 0` — an explicitly empty object. |
+| A zero-length body under an **explicit** `application/json` (or `+json`) content type | `400 STORAGE_INVALID_BODY` — a client that declares an envelope and sends nothing failed to serialize. An *absent* content type is not a declaration, so a bodyless `curl -X PUT` still writes an empty object. |
+
+The stored content type is the envelope's `contentType`, defaulting to `application/octet-stream`.
+The request's `Content-Type` header is **not** a fallback for it: that header describes the
+*envelope*, not the payload, so honouring it would store a binary object as `application/json` — and
+that is what a later `GET` reports and what a browser receives from a presigned URL. A raw/binary
+upload has no envelope, so there the request header *is* the payload's type.
+
+Both `400`s are raised **before** any storage-backend call, and both come **after** the
+bucket-ownership and role gates — so a caller who does not own the bucket still gets
+`404 BUCKET_NOT_FOUND` whatever the body looks like, and an unusable body never reveals that a
+bucket exists.
+
+`contentBase64` is accepted in any form that decodes to exactly one byte string, which is wider
+than RFC 4648 §3.2's canonical encoding on purpose: the contract-*mandated* field must not be
+stricter than the legacy `content` field it replaces. ASCII whitespace — tab, newline, form feed,
+carriage return, space, and nothing else — is stripped first (so newline-wrapped output from
+`openssl base64` or Python's `base64.encodebytes()` is fine, while a stray NBSP or BOM is still a
+`400`, since no base64 encoder emits one). Padding is
+optional (Go's `RawStdEncoding` and JWT-style encoders omit it) but must complete its 4-character
+quantum when present, and either the standard (`+/`) or URL-safe (`-_`) alphabet is accepted — but
+not a mix of the two, which is valid in neither and is the signal a payload is corrupt. Anything
+else is a `400`, because `Buffer.from(x, 'base64')` silently **drops** out-of-alphabet characters
+and would otherwise store a truncated object under a `201`. A non-string `contentBase64` is refused
+on its type: `String(true)` is `"true"`, which is valid base64, so coercion would store 3 bytes the
+client never sent.
+
+`contentBase64` **wins whenever both fields are present**, which is what makes GET → PUT lossless:
+the read envelope carries `contentBase64` + `encoding: "base64"`, so a read response replayed
+verbatim as a write body reproduces the object byte-identically (the copy/backup/restore pattern).
+
+The read envelope of `GET …/objects/{objectKey}` carries exactly one payload representation —
+`contentBase64` — plus `encoding`, `contentType`, `sizeBytes` and the object/bucket identifiers.
+It deliberately does **not** carry a `content` text field: a UTF-8 view of arbitrary stored bytes is
+a lossy conversion (every invalid sequence becomes U+FFFD) and returning it next to the exact field,
+on an HTTP 200, was silent corruption for any client that read the obvious field first (#966). A
+representation that cannot reproduce the stored bytes is omitted rather than degraded.
+
+Before this was fixed (#994, the write half; #966, the read half) the handler read only
+`content`/`encoding` — the fields the schema forbids — so the only contract-conformant write stored
+**0 bytes and returned 201**, and replaying a read response as a write body base64-decoded the lossy
+`content` while ignoring the exact `contentBase64`. Both halves are one envelope contract, which is
+why they are documented and tested together (`tests/blackbox/storage-object-write-envelope.test.mjs`).
+
+### Operator note: objects a pre-fix deployment stored empty
+
+The fix cannot recover bytes the platform never received. Any object a client wrote with a
+contract-conformant `{contentBase64}` body against a **pre-fix** deployment is **0 bytes on disk**,
+and the client was told `201`. There is nothing to back-fill: the payload was discarded at the
+handler before the backend call. Affected objects are identifiable by
+`sizeBytes: 0` / `etag: d41d8cd98f00b204e9800998ecf8427e` (the MD5 of the empty string) in
+`GET /v1/storage/buckets/{bucketId}/objects` — though a deliberately empty object looks identical,
+so the list is a candidate set, not a defect list. Only the writing client can re-upload.
+
 ## Range / partial reads (HTTP 206)
 
 `GET /v1/storage/buckets/{bucketId}/objects/{objectKey}` honours an HTTP `Range` request header.
@@ -132,8 +204,9 @@ The console storage page (`Storage`) surfaces most of this object-I/O surface di
 - **Upload an object**: the Objetos tab's "Subir objeto" control opens a form (an optional object-key
   override + a file picker) that reads the selected file in-browser and calls
   `PUT /v1/storage/buckets/{bucketId}/objects/{objectKey}` with the JSON envelope
-  `{ content: <base64>, contentType, encoding: "base64" }` (the same envelope
-  `resolveObjectBody` accepts server-side), so binary content round-trips byte-faithfully. An empty
+  `{ content: <base64>, contentType, encoding: "base64" }` — the legacy form `resolveObjectBody`
+  still accepts (see "Single-object body envelope" above; new clients should send `contentBase64`),
+  so binary content round-trips byte-faithfully. An empty
   bucket's object list renders an actionable "Subir el primer objeto" empty state that opens the same
   form. A 409 (per-workspace byte-quota reached) is surfaced through `describeConsoleError`.
 - **Delete a bucket** (per-row **Eliminar** action): this is a **CRITICAL, confirmation-gated**

@@ -11,6 +11,7 @@ import * as store from './tenant-store.mjs';
 import { issueBucketIdentity, revokeBucketIdentity, revokeIdentityByName, workspaceIdentityName } from './seaweedfs-identity.mjs';
 import { checkBucketQuota, checkByteQuota, usageLimits, dimensionStatus, STORAGE_QUOTA_EXCEEDED } from './storage-quota.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
+import { isJsonBody } from './request-body.mjs';
 
 // Provider-neutral S3 endpoint/credentials (SeaweedFS S3 gateway port 8333, or any
 // S3-compatible backend). Legacy MINIO_* names remain as backward-compatible fallbacks;
@@ -45,6 +46,8 @@ if (!process.env.STORAGE_S3_ENDPOINT && process.env.MINIO_ENDPOINT) {
 
 const ok = (statusCode, body) => ({ statusCode, body });
 const err = (statusCode, code, message) => ({ statusCode, body: { code, message } });
+// An object write whose body carries no usable payload (#994) — rejected before any backend call.
+export const STORAGE_INVALID_BODY = 'STORAGE_INVALID_BODY';
 const nowIso = () => new Date().toISOString();
 
 // Map an S3-backend failure thrown by `s3()` to a CLEAN, tenant-facing error — never echoing
@@ -262,7 +265,10 @@ export async function putObject(bucket, key, body, contentType = 'application/oc
   await s3('PUT', `/${bucket}/${key}`, { headers: { 'content-type': contentType }, body });
 }
 // Download an object's body (add-wire-advertised-public-routes, #500 — object I/O was NO_ROUTE).
-// Returns the exact bytes plus a best-effort UTF-8 view; callers needing binary fidelity use `bytes`.
+// Returns the exact bytes only. It used to also return `content: buffer.toString('utf8')`, a
+// best-effort UTF-8 view that the handlers emitted as a first-class response field — a lossy
+// conversion replacing every invalid sequence with U+FFFD on an HTTP 200 (#966). Callers use
+// `bytes` (or its base64 encoding on the wire), which is always exact.
 // When `range` is set (an HTTP Range header value, e.g. 'bytes=0-3'), it is forwarded to the S3
 // backend (#676 partial reads): SeaweedFS replies 206 with only the requested bytes plus a
 // Content-Range header. `status`/`contentRange` are surfaced so the handler can emit 206. An
@@ -272,7 +278,6 @@ export async function getObject(bucket, key, { range } = {}) {
   const headersIn = range ? { range } : {};
   const { buffer, headers, status } = await s3('GET', `/${bucket}/${key}`, { headers: headersIn });
   return {
-    content: buffer.toString('utf8'),
     bytes: buffer,
     contentType: headers.get('content-type') ?? 'application/octet-stream',
     sizeBytes: Number(headers.get('content-length') ?? buffer.length),
@@ -375,22 +380,100 @@ function decodeObjectKey(rawKey) {
 // ---- handlers (ctx = { params, query, body, identity, pool, callerContext }) ----
 // Object I/O — upload/download/delete a single object (#500). Tenant-scoped via the bucket owner
 // gate. Objects are stored byte-faithfully: an upload may carry EITHER a raw/binary request body
-// (any non-JSON content-type → ctx.rawBody) OR the JSON envelope { content, contentType, encoding }
-// where encoding:'base64' carries binary inside JSON. Download returns the UTF-8 view plus
-// contentBase64 so binary round-trips byte-identically over the JSON API.
+// (any non-JSON content-type → ctx.rawBody) OR a JSON envelope. Download returns contentBase64,
+// so binary round-trips byte-identically over the JSON API.
+//
+// #994 — the JSON write envelope. The published contract (StorageObjectWriteRequest) declares
+// `contentBase64` REQUIRED with `additionalProperties: false`, so contentBase64 is THE mandated
+// write field and content/encoding are forbidden by the schema. This resolver read only
+// content/encoding, which made the only contract-conformant write store 0 bytes and return 201 —
+// and because the read envelope carried BOTH fields, replaying a GET response as a PUT body
+// base64-decoded the lossy `content` and ignored the exact `contentBase64`, corrupting the object
+// on a success status. contentBase64 now wins whenever present; the legacy { content, encoding? }
+// envelope stays accepted (the web console and existing clients ship it) but is the fallback.
+// A JSON envelope with no readable payload field is a 400 — never a silent empty object on a 201.
+//
+// Decode `contentBase64` only when it is UNAMBIGUOUSLY base64, and return null otherwise, because
+// Buffer.from(x, 'base64') silently DROPS every character outside the alphabet: an unusable value
+// would be stored as a truncated object under a 201, which is the failure mode this issue is about.
+// "Unambiguously" is deliberately wider than RFC 4648 §3.2's canonical form — every input accepted
+// here decodes to exactly one byte string, and rejecting a payload that decodes losslessly would
+// make the contract-MANDATED field stricter than the schema-forbidden `content` one:
+//   - ASCII whitespace is stripped first: `openssl base64` and Python's base64.encodebytes() emit
+//     newline-wrapped base64. Deliberately ASCII-only (`\s` would also strip NBSP, BOM, U+2028 and
+//     U+3000, which no base64 encoder emits — accepting those would be leniency nothing asked for).
+//   - Padding is optional (Go's RawStdEncoding and JWT-style encoders omit it) but, when present,
+//     must complete its 4-character quantum.
+//   - Either alphabet, standard (`+/`) or URL-safe (`-_`), but not a mix of the two — a mixed
+//     string is not valid in either and is exactly the corruption signal worth refusing.
+// A length ≡ 1 (mod 4) cannot be a base64 sequence at all.
+// Did the CLIENT explicitly DECLARE a JSON request body? Deliberately one clause away from
+// `isJsonBody`, which answers "should this be parsed as JSON?" and counts an ABSENT Content-Type for
+// backward compatibility. An absent header is not a declaration, so a bodyless `curl -X PUT` keeps
+// the touch semantics it has always had. Defining this in terms of the shared predicate keeps the
+// divergence a single explicit clause instead of two lists to hand-synchronise — if server.mjs's
+// list ever grows, both move together.
+//
+// The divergence is unobservable on the parse path: server.mjs guards its whole parse block with
+// `if (rawBody.length)`, so for an empty body `isJsonBody` is never consulted at all.
+const declaresJsonBody = (contentType) => isJsonBody(contentType) && String(contentType ?? '') !== '';
+function decodeBase64Exact(raw) {
+  const compact = raw.replace(/[\t\n\f\r ]+/g, '');
+  const body = compact.replace(/={1,2}$/, '');
+  const padding = compact.length - body.length;
+  if (!/^(?:[A-Za-z0-9+/]*|[A-Za-z0-9_-]*)$/.test(body)) return null;
+  const remainder = body.length % 4;
+  if (remainder === 1) return null;
+  if (padding > 0 && (remainder === 0 || remainder + padding !== 4)) return null;
+  return Buffer.from(body, 'base64');
+}
 export function resolveObjectBody(ctx) {
   // Raw binary upload: the server kept the exact request bytes (non-JSON content-type).
   if (ctx.rawBodyIsBinary && Buffer.isBuffer(ctx.rawBody)) {
     return { bytes: ctx.rawBody, contentType: ctx.contentType || 'application/octet-stream' };
   }
-  // JSON envelope: { content, contentType, encoding? }. base64 decodes to exact bytes; otherwise the
-  // string is stored as UTF-8 (the existing text/JSON-blob behavior).
   const env = ctx.body ?? {};
+  // The envelope's own contentType describes the PAYLOAD. The request's Content-Type header
+  // describes the ENVELOPE, so it must NOT be used as a fallback here: a JSON envelope carrying a
+  // binary payload with no explicit contentType would be stored as `application/json` — which is
+  // then what a later GET reports and what a browser receives from a presigned URL.
   const contentType = env.contentType ?? 'application/octet-stream';
-  const bytes = env.encoding === 'base64'
-    ? Buffer.from(String(env.content ?? ''), 'base64')
-    : Buffer.from(String(env.content ?? ''), 'utf8');
-  return { bytes, contentType };
+  // An EMPTY request body is an explicit "store nothing" (the S3 `touch` idiom), not an unusable
+  // envelope — so it stays a 201 with 0 bytes. server.mjs only sets rawBodyIsBinary when the body
+  // is non-empty (`if (rawBody.length)`), so a zero-length raw upload arrives here with body `{}`
+  // and would otherwise be refused as if it were a malformed JSON envelope. Its content type comes
+  // from the request header, exactly as the rawBodyIsBinary branch above does it — there is no
+  // envelope to read one from. An explicitly declared JSON body is excluded: a client that says it
+  // is sending an envelope and sends nothing failed to serialize, and handing it back a 201 with no
+  // data is the very shape this issue is about.
+  if (Buffer.isBuffer(ctx.rawBody) && ctx.rawBody.length === 0 && !declaresJsonBody(ctx.contentType)) {
+    return { bytes: ctx.rawBody, contentType: ctx.contentType || 'application/octet-stream' };
+  }
+  // The contract-mandated field. Typed before it is decoded: String() coercion would turn `true`
+  // into "true" and `["SEVMTE8="]` into its element, both of which are valid base64, so a
+  // non-string would be stored as bytes the client never sent.
+  if (env.contentBase64 != null) {
+    if (typeof env.contentBase64 !== 'string') {
+      return { error: err(400, STORAGE_INVALID_BODY, 'contentBase64 must be a base64-encoded string') };
+    }
+    const bytes = decodeBase64Exact(env.contentBase64);
+    if (bytes === null) {
+      return { error: err(400, STORAGE_INVALID_BODY, 'contentBase64 is not valid base64') };
+    }
+    return { bytes, contentType };
+  }
+  // Legacy envelope: { content, contentType, encoding? }. base64 decodes to exact bytes; otherwise
+  // the string is stored as UTF-8 (the existing text/JSON-blob behavior).
+  if (env.content != null) {
+    const bytes = env.encoding === 'base64'
+      ? Buffer.from(String(env.content), 'base64')
+      : Buffer.from(String(env.content), 'utf8');
+    return { bytes, contentType };
+  }
+  return {
+    error: err(400, STORAGE_INVALID_BODY,
+      'object write body must carry contentBase64 (a base64-encoded payload string); an empty object is written with an empty request body or an empty contentBase64, never by omitting the field')
+  };
 }
 // Sum the CURRENT stored bytes across every bucket of the workspace that owns `bucket`
 // (#674 byte-quota admission). Mirrors storageWorkspaceUsage's per-bucket listObjects scan;
@@ -412,7 +495,7 @@ async function workspaceCurrentBytes(ctx, bucket) {
 async function storagePutObject(ctx) {
   const { key, error } = decodeObjectKey(ctx.params.objectKey); if (error) return error;
   const bucket = ctx.params.bucketId; const gate = await requireOwnedBucketForStructuralWrite(ctx, bucket); if (gate.error) return gate.error;
-  const { bytes, contentType } = resolveObjectBody(ctx);
+  const { bytes, contentType, error: bodyError } = resolveObjectBody(ctx); if (bodyError) return bodyError;
   // Per-workspace total-bytes quota admission (#674). Enforced ONLY when STORAGE_MAX_BYTES is
   // configured (default unlimited) — usageLimits().maxBytes == null short-circuits BEFORE any
   // usage scan, so the upload hot-path is unchanged unless an operator opts in. The body is
@@ -449,10 +532,10 @@ async function storageGetObject(ctx) {
       return {
         statusCode: 206,
         headers: { 'content-range': o.contentRange ?? undefined, 'accept-ranges': 'bytes' },
-        body: { objectKey: key, bucketName: bucket, content: o.content, contentBase64: o.bytes.toString('base64'), encoding: 'base64', contentType: o.contentType, sizeBytes: o.bytes.length, contentRange: o.contentRange, partial: true }
+        body: { objectKey: key, bucketName: bucket, contentBase64: o.bytes.toString('base64'), encoding: 'base64', contentType: o.contentType, sizeBytes: o.bytes.length, contentRange: o.contentRange, partial: true }
       };
     }
-    return { statusCode: 200, headers: { 'accept-ranges': 'bytes' }, body: { objectKey: key, bucketName: bucket, content: o.content, contentBase64: o.bytes.toString('base64'), encoding: 'base64', contentType: o.contentType, sizeBytes: o.sizeBytes } };
+    return { statusCode: 200, headers: { 'accept-ranges': 'bytes' }, body: { objectKey: key, bucketName: bucket, contentBase64: o.bytes.toString('base64'), encoding: 'base64', contentType: o.contentType, sizeBytes: o.sizeBytes } };
   } catch (e) {
     // A 416 from the backend is a malformed/unsatisfiable Range — return a clean 416, not a 502.
     if (e?.statusCode === 416) return err(416, 'STORAGE_RANGE_NOT_SATISFIABLE', 'The requested range is not satisfiable for this object.');
@@ -792,7 +875,7 @@ async function storageMultipartUploadPart(ctx) {
   if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > 10000) {
     return err(400, 'INVALID_PART_NUMBER', 'partNumber must be an integer in 1..10000');
   }
-  const { bytes } = resolveObjectBody(ctx);
+  const { bytes, error: bodyError } = resolveObjectBody(ctx); if (bodyError) return bodyError;
   try {
     const part = await uploadPart(bucket, key, uploadId, partNumber, bytes);
     return ok(200, { partNumber: part.partNumber, etag: part.etag, sizeBytes: bytes.length });

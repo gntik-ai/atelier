@@ -713,3 +713,71 @@ Unchanged from F0-6, with one addition ahead of it:
 2. Settle O1 and O2 (gate corrections to row C1d).
 3. §19 criteria 9–15, never re-rated. Criterion 10 (deletion + restore) is the long-deferred one.
 4. The function-secrets surface, and P26 step 6's secrets leg.
+
+---
+
+# Fix run F0-T2 — 2026-08-09 — #994 + #966 (storage object body envelope)
+
+Third fix run against the triaged board. **No kubectl call was made in this run or in any of the
+three verifier passes, and no namespace was touched** — the whole run was local, and the deployed
+staging release still runs the pre-fix image.
+
+## Issue selection
+
+Triage §3.3 sequences the W0 set #965 → #997 → #981 + #980 → #961 → **#994 + #966** → #998 → … .
+#965 and #961 are closed from earlier runs. The three between them (#997 #981 #980) have their fix in
+`falcone-charts`, outside what rule 6 lets this track edit, and none could earn a CONFIRMED-FIXED
+verdict on its *original* reproduction because that runs against the deployed chart. So #994 is the
+highest-priority W0 bug whose fix lands in this tree — the same standing constraint the #961 run
+recorded, unchanged.
+
+#994 and #966 were taken as **one** issue: triage §3.6 makes #994 the parent and records them as one
+envelope contract, and fixing either alone leaves the other's failure mode live.
+
+## Outcome
+
+**Both CLOSED, verifier CONFIRMED-FIXED**, `192c8cd0`…`cf4f8a45` (4 commits).
+
+Two verifier-confirmed defects found during the run were **filed, not folded in** — #1004 (the same
+defect class on the export/import path) and #1005 (the object envelope still does not conform to its
+published contract; a generated client still breaks). Details and evidence in FINDINGS.md.
+
+## The finding that is not about storage
+
+**Two of the four commits shipped a new defect that the previous commit's own tests passed.** The
+first guard re-introduced the failure mode it was fixing — `{"contentBase64": true}` → 201 with three
+phantom bytes, because validation ran *after* `String()` coercion — and the second mislabelled binary
+objects as `application/json` by applying a request-header fallback function-wide instead of to the
+one branch that needed it. Both were caught only by the independent checker, both were inside or
+adjacent to the requirement being implemented, and in both cases the maker's tests were green.
+
+That is the argument for CLAUDE.md rule 3 stated as evidence rather than as policy, and it is worth
+carrying forward: **a fix for a silent-data-corruption defect is itself a likely site of silent data
+corruption**, because the same reasoning that missed the original case tends to miss its neighbours.
+
+The verifier's method is worth reusing: it built its harness at the `fetch`/`s3()` seam with the
+request driver transcribed verbatim from `server.mjs`, so "did anything reach the backend?" was
+answerable rather than assumed; it wrote an **independent base64 decoder** and differentially fuzzed
+the validator against it (589 inputs, zero divergence); and it re-ran the original reproductions at
+every HEAD rather than carrying a verdict forward across a reshuffle.
+
+## Ledger effect
+
+Four COVERAGE.md rows restored in place with the new evidence (F0-R1 `storage`; the
+storage/events/realtime/webhooks/scheduling area row; the F0-5 "strongest capability" row; P26), plus
+the four matching rows in the triage-downgrade table — **all four stay downgraded**, because every one
+of them was downgraded by more than #994 and the rest (#973 #998 #955 #957 #952 #985 #972 #992) is
+untouched. One CAPABILITIES.md documentation-gap candidate closed. Two TEST-PLAN.md rows updated.
+No coverage % recomputed: one repaired capability out of many does not move a headline honestly, and
+the fix is not on staging yet.
+
+## Next run starts here
+
+1. **The eleven candidates still at PENDING VERIFIER from F0-6 are still pending** — three fix runs
+   have now passed without advancing them. They should go ahead of a fourth fix.
+2. #998 is next in the W0 order and is a fixture/provisioning contract, not a code defect.
+3. #1004 (import path) is the cheapest real follow-up and is the same class as what just closed —
+   the asymmetry is now sharp: the object PUT refuses exactly what the import route still swallows.
+4. The `mcp:storage:write-uses-legacy-lossy-field` candidate needs an MCP argument-validation slice
+   before it can be filed.
+5. Still unaddressed from F0-6: O1/O2, §19 criteria 9–15, and the function-secrets surface.
