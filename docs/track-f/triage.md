@@ -12,9 +12,9 @@ merge-group cross-references and ledger downgrades applied; see §5 for exactly 
 The instruction named `--label falcone-loop`, which returns **29** issues (#937–#965). The
 repository currently has **62** open issues. The remaining **33** carry `needs-triage`
 (26) or no labels at all (7: #981 #980 #979 #967 #966 #935 #933) — and they are the newer
-audit batch: the F0-5/F0-6 findings that `COVERAGE.md` already cites by number (#966, #967,
-#969, #973, #978, #983). Phase 2's instruction to *remove `needs-triage`* can only apply to
-them, since no `falcone-loop` issue carries that label.
+audit batch: the F0-5/F0-6 findings that `COVERAGE.md` already cites by number
+(#966, #967, #969, #973, #978, #983). Phase 2's instruction to *remove `needs-triage`* can
+only apply to them, since no `falcone-loop` issue carries that label.
 
 Triaging only the 29 would produce a W0 set with no `#997` (Flow execution plane down),
 no `#994` (the only contract-conformant storage write stores 0 bytes), no `#980`/`#981`
@@ -259,9 +259,9 @@ points are blocking relationships that were not previously recorded anywhere.
 | `add-763-superadmin-iam-access-management` | #954, #979, #956 | **independent** — add-763 covers `ConsoleIamAccessPage` (realm users/roles/groups). #954/#956 are `ConsoleAuthPage`; #979 is workspace IAM clients. Different pages and different routes; do not assume add-763 closes them |
 | `add-769-plan-limits-editor` | #963 | **independent** — add-769 edits *plan* limits; #963 is *tenant quota overrides*, a different table and route |
 
-Explicitly **not** merges: #978 with the audit-coverage family (integrity ≠ coverage);
-#982 with #986 (same subsystem, unrelated causes); #989 with #997 (recovery ≠ reachability);
-#975 with #952 (absent from the table ≠ mis-compiled in the table — the issue argues this
+Explicitly **not** merges: #978 with the audit-coverage family (integrity ≠ coverage); #982
+with #986 (same subsystem, unrelated causes); #989 with #997 (recovery ≠ reachability); #975
+with #952 (absent from the table ≠ mis-compiled in the table — the issue argues this
 correctly and folding them would lose the distinction).
 
 ---

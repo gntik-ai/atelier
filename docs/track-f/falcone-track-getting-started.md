@@ -6,7 +6,7 @@ v0.1 · 2026-08-04 · Executes §2 of `delivery-plan.md` (Track F) · Companions
 
 The workspace becomes three sibling folders with a hard ownership boundary:
 
-```
+```text
 workspace/
   llmwiki/               ← Codex only (portal). Claude Code never enters.
   llmwiki-contracts/     ← openapi/falcone-ai/* is now OWNED by this track (contract handover)
@@ -93,19 +93,19 @@ The authoritative gap analysis was **static** (no live deployment). F0 converts 
 2. `cd falcone && claude` → `/model opus`.
 3. Kick off with:
 
-```
-Run the falcone-testing loop. Slice for this campaign: verify every
-"Covered foundation" and "Partial" claim in
-docs/track-f/FALCONE_GAP_ANALYSIS_FOR_LLM_CODE_WIKI.md §4-§11, plus the
-§19 go/no-go items that can be checked on the cluster. Discovery on. For each
-claim, print the evidence (commands + output). Suspected defects go to
-falcone-verifier; file only CONFIRMED findings, deduped against
-FINDINGS.md and open gh issues, in the brief's OpenSpec format
-(bug = MODIFIED requirement, enhancement = ADDED requirement). For each
-of the 12 platform gaps (GAP-FAL-001..012 and the two GAP-AI items),
-confirm current state and open/refresh the corresponding enhancement
-issue named after its suggested OpenSpec change. Update the ledger.
-```
+   ```text
+   Run the falcone-testing loop. Slice for this campaign: verify every
+   "Covered foundation" and "Partial" claim in
+   docs/track-f/FALCONE_GAP_ANALYSIS_FOR_LLM_CODE_WIKI.md §4-§11, plus the
+   §19 go/no-go items that can be checked on the cluster. Discovery on. For each
+   claim, print the evidence (commands + output). Suspected defects go to
+   falcone-verifier; file only CONFIRMED findings, deduped against
+   FINDINGS.md and open gh issues, in the brief's OpenSpec format
+   (bug = MODIFIED requirement, enhancement = ADDED requirement). For each
+   of the 12 platform gaps (GAP-FAL-001..012 and the two GAP-AI items),
+   confirm current state and open/refresh the corresponding enhancement
+   issue named after its suggested OpenSpec change. Update the ledger.
+   ```
 
 4. Converge with the loop's goal mechanism, e.g. `/goal "every claim row from §4-§11 is marked verified/refuted in COVERAGE.md with printed evidence, every suspected defect has a falcone-verifier verdict printed, FINDINGS.md updated — or stop after N turns"`.
 5. **Exit criteria:** `COVERAGE.md` covers the claim list; the 15 suggested OpenSpec changes exist as tracked issues (or are marked as already covered by your pre-existing 14-item register); `CAPABILITIES.md` matches reality.
@@ -118,7 +118,7 @@ Per change, three session types:
 
 **Session A — spec (plan mode, effort high).** Prompt for FAL-001:
 
-```
+```text
 Draft the OpenSpec change add-multi-provider-connection-registry
 (GAP-FAL-001; serves FR-PROV-01/02/06, MOD-002/011/012/018, portal S3).
 Read first: docs/track-f/FALCONE_GAP_ANALYSIS_FOR_LLM_CODE_WIKI.md §8 +

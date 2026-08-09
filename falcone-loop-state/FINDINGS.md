@@ -953,8 +953,18 @@ resets it.
 
 - On the **pre-fix** Dockerfiles: **4 of 5 fail**, naming all three images.
 - On the **fixed** Dockerfiles: **5 of 5 pass**.
-- Unit (80 fail) and contract (44 fail) suites are **byte-identical before and after** — those
-  are pre-existing, from `../falcone-charts` being absent in this workspace.
+- The full CI quality job passes: `lint` · `test:unit` **1013/0 fail** · `test:adapters` 144/0 ·
+  `test:contracts` 260/0 · `test:e2e:console` · `test:e2e:deployment` · `test:resilience` 43/0,
+  plus both plan-enforcement steps.
+
+  **Correction to an earlier note in this run.** I first recorded large "pre-existing" failure
+  counts (80 unit / 44 contract) and attributed them to `../falcone-charts` being absent. Both
+  the number and the cause were wrong: I had installed with `npm install` in what is a **pnpm
+  workspace**, so workspace links were missing. After `pnpm install --frozen-lockfile` and a
+  `falcone-charts` checkout at the CI-pinned ref `62c3975b`, everything passes. The
+  before/after comparison the fix rested on was still sound — both sides were measured in the
+  same broken environment — but the "pre-existing failures" characterisation was an artifact of
+  my own setup and should not be read as a statement about the repository.
 
 Two adjacent corrections, both of which my change would otherwise have left contradicting the
 shipped contract: `tests/blackbox/flows-interpreter.test.mjs` asserted `/USER\s+node/` — it

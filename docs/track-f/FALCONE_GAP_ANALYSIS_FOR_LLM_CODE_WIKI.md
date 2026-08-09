@@ -171,7 +171,7 @@ These features materially reduce the implementation needed, but the current mode
 | Public/unlisted wiki access | **Application gap** | No wiki publication domain exists. | Product |
 | Per-project comments/reviews/approvals | **Application gap** | No relevant domain implementation evidenced. | Product |
 
-### Main conclusion
+### Main conclusion — identity, tenancy, and collaboration
 
 Falcone should remain authoritative for identity and workspace membership. The product should add a project-level authorization layer that stores project roles and always evaluates them together with the verified Falcone tenant/workspace identity.
 
@@ -201,7 +201,7 @@ Falcone should remain authoritative for identity and workspace membership. The p
 | Analysis sandbox | **Partial/architecture gap** | Functions exist, including a production Knative path, but no dedicated long-running source-analysis sandbox was evidenced. | Product worker runtime; possible Falcone reusable runtime |
 | Private-network Git connector | **Platform/application gap** | No secure connector agent/tunnel was evidenced. | Falcone platform or deployment-specific service |
 
-### Main conclusion
+### Main conclusion — repository connectivity and source acquisition
 
 Repository connectivity should be implemented as a dedicated product service first. It should use Falcone identity, secrets, storage, events, and audit, but should not be forced into a generic function invocation if large clones and analysis need stronger isolation, disk, and duration semantics.
 
@@ -316,7 +316,6 @@ The resolver must:
 - distinguish API key, OAuth token set, service account, and workload identity;
 - work consistently in the HTTP executor and Temporal activities.
 
-
 ## 9. Coverage matrix — code intelligence, wiki, diagrams, and synchronization
 
 | Capability | Status | Evidence / current limitation | Recommended ownership |
@@ -343,7 +342,7 @@ The resolver must:
 | Static HTML/Markdown export | **Application gap** | Object storage helps, but no exporter exists. | Product |
 | Hosted static wiki/custom domain | **Application gap / possibly external service** | No static-site hosting/custom-domain capability found. | Product or dedicated hosting component |
 
-### Main conclusion
+### Main conclusion — code intelligence, wiki, and synchronization
 
 These are not defects in a general BaaS; they are the core differentiating application. They should not all be added to Falcone. Falcone should expose stable primitives, while the code-wiki services own the domain and its algorithms.
 
@@ -1148,4 +1147,3 @@ This preserves Falcone’s role as a reusable BaaS while avoiding the mistake of
 - [OpenAI Batch reference](https://platform.openai.com/docs/api-reference/batch/object)
 - [Anthropic batch pricing](https://docs.anthropic.com/en/docs/about-claude/pricing)
 - [Gemini Batch API](https://ai.google.dev/gemini-api/docs/batch-api)
-
