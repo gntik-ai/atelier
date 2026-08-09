@@ -234,8 +234,15 @@ workflow-worker replicas poll task queue `flows-main`; `CountWorkflowExecutions`
 `falcone-flows` = 0. No PayloadCodec/DataConverter configured anywhere.
 
 **Documentation gap candidates added this run:**
-- `content` is returned on storage object reads but appears in no OpenAPI document and is
-  asserted by no test (→ #966).
+- ~~`content` is returned on storage object reads but appears in no OpenAPI document and is
+  asserted by no test (→ #966).~~ **No longer true — CLOSED by `192c8cd0`…`cf4f8a45`, verifier
+  CONFIRMED-FIXED.** The field is gone from the read envelope and `getObject()` no longer computes
+  it; `StorageObjectPayload` is `additionalProperties: false` and never declared it. The read
+  envelope now carries exactly one payload representation, `contentBase64`, and the write path
+  honours the same field (→ #994). Documented in
+  `docs/reference/architecture/storage-object-io.md` and pinned by
+  `tests/blackbox/storage-object-write-envelope.test.mjs`. **Not yet true on staging**, which runs
+  the pre-fix image.
 - There is no documented route for deleting a provisioned database because none exists (→ #967).
 - The `flc_` API-key authentication path is real and load-bearing but has no issuance path that
   works today (`workspace_api_keys` = 0 rows cluster-wide).
