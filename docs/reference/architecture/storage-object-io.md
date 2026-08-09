@@ -13,6 +13,40 @@ and the physical bucket path are never echoed to the caller.
 
 All routes ride the gateway under `/v1/storage/*` and require an authenticated principal.
 
+## Single-object body envelope (write and read)
+
+The JSON body of `PUT /v1/storage/buckets/{bucketId}/objects/{objectKey}` is
+`StorageObjectWriteRequest`: `contentBase64` is **required** and the schema is
+`additionalProperties: false`, so **`contentBase64` is the field to write** and it carries the
+payload base64-encoded. An upload may alternatively send a raw/binary request body under any
+non-JSON content type, in which case the exact request bytes are stored.
+
+| Body | Behaviour |
+| --- | --- |
+| `{ contentBase64, contentType, … }` | The decoded bytes are stored exactly. This is the contract-conformant form. |
+| `{ content, encoding: "base64", contentType }` | **Legacy fallback**, still accepted (the web console ships it). Same bytes. |
+| `{ content, contentType }` (no `encoding`) | **Legacy fallback**: the string is stored as UTF-8. |
+| `contentBase64` present but not valid base64 | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| No `contentBase64` and no `content` | `400 STORAGE_INVALID_BODY` — nothing is written. |
+| `contentBase64: ""` | `201` with `sizeBytes: 0` — an explicitly empty object. |
+
+`contentBase64` **wins whenever both fields are present**, which is what makes GET → PUT lossless:
+the read envelope carries `contentBase64` + `encoding: "base64"`, so a read response replayed
+verbatim as a write body reproduces the object byte-identically (the copy/backup/restore pattern).
+
+The read envelope of `GET …/objects/{objectKey}` carries exactly one payload representation —
+`contentBase64` — plus `encoding`, `contentType`, `sizeBytes` and the object/bucket identifiers.
+It deliberately does **not** carry a `content` text field: a UTF-8 view of arbitrary stored bytes is
+a lossy conversion (every invalid sequence becomes U+FFFD) and returning it next to the exact field,
+on an HTTP 200, was silent corruption for any client that read the obvious field first (#966). A
+representation that cannot reproduce the stored bytes is omitted rather than degraded.
+
+Before this was fixed (#994, the write half; #966, the read half) the handler read only
+`content`/`encoding` — the fields the schema forbids — so the only contract-conformant write stored
+**0 bytes and returned 201**, and replaying a read response as a write body base64-decoded the lossy
+`content` while ignoring the exact `contentBase64`. Both halves are one envelope contract, which is
+why they are documented and tested together (`tests/blackbox/storage-object-write-envelope.test.mjs`).
+
 ## Range / partial reads (HTTP 206)
 
 `GET /v1/storage/buckets/{bucketId}/objects/{objectKey}` honours an HTTP `Range` request header.
@@ -132,8 +166,9 @@ The console storage page (`Storage`) surfaces most of this object-I/O surface di
 - **Upload an object**: the Objetos tab's "Subir objeto" control opens a form (an optional object-key
   override + a file picker) that reads the selected file in-browser and calls
   `PUT /v1/storage/buckets/{bucketId}/objects/{objectKey}` with the JSON envelope
-  `{ content: <base64>, contentType, encoding: "base64" }` (the same envelope
-  `resolveObjectBody` accepts server-side), so binary content round-trips byte-faithfully. An empty
+  `{ content: <base64>, contentType, encoding: "base64" }` — the legacy form `resolveObjectBody`
+  still accepts (see "Single-object body envelope" above; new clients should send `contentBase64`),
+  so binary content round-trips byte-faithfully. An empty
   bucket's object list renders an actionable "Subir el primer objeto" empty state that opens the same
   form. A 409 (per-workspace byte-quota reached) is surfaced through `describeConsoleError`.
 - **Delete a bucket** (per-row **Eliminar** action): this is a **CRITICAL, confirmation-gated**
