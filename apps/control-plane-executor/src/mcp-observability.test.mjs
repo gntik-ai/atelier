@@ -92,7 +92,11 @@ test('mcpToolCallTelemetry: rejects a call with no verified tenant/workspace sco
 test('mcpToolCallTelemetry: rejects incomplete attribution and invalid observations', () => {
   assert.throws(() => mcpToolCallTelemetry({ ...call, serverId: '' }), /canonical server id/);
   assert.throws(() => mcpToolCallTelemetry({ ...call, toolName: '' }), /canonical tool name/);
-  assert.throws(() => mcpToolCallTelemetry({ ...call, environment: '' }), /environment/);
+  assert.equal(mcpToolCallTelemetry({ ...call, environment: 'test' }).metric.labels.environment, 'test');
+  assert.equal(mcpToolCallTelemetry({ ...call, environment: 'staging' }).latency.labels.environment, 'staging');
+  for (const environment of ['', ' leading', 'has space', 'x'.repeat(65), 'line\nbreak']) {
+    assert.throws(() => mcpToolCallTelemetry({ ...call, environment }), /bounded environment/);
+  }
   for (const latencyMs of [NaN, Infinity, -1, '42']) {
     assert.throws(() => mcpToolCallTelemetry({ ...call, latencyMs }), /finite and non-negative/);
   }

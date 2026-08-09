@@ -209,6 +209,274 @@ where the Prometheus target on `falcone-apisix:9080/apisix/prometheus/metrics` i
 that monitoring loss or prepare an alternative scrape path before rollback. This PR does not modify the
 external chart and does not change C-05 or C-07 behavior. No deployment is implied by this documentation.
 
+## MCP business-metric export (C-07)
+
+**Audience and outcome.** This runbook is for platform superadministrators (P1), platform
+operators/SREs (P3), security/compliance auditors (P4), workspace owners/administrators (P7),
+workspace operators/application DevOps users (P9), and scoped viewers/auditors (P10). It lets those
+roles read **truthful MCP tool-call usage and latency** from the existing scrape surface instead of
+reconstructing it from audit records. MCP OAuth clients and AI/service workloads (P12) are the
+activity *producers*, not new scrape consumers. A valid actor from another tenant (P13) is the
+isolation control. Documentation maintainers and operators (P17) get the production, troubleshooting,
+reset, and rollback contract below.
+
+**Status and scope.** This documents the runtime contract in builds containing
+`fix-c07-business-metric-export`. Validation is local/hermetic only; **this change was not deployed to
+or verified on a Kubernetes cluster.** It adds no route, listener, port, gateway mapping,
+authentication, dashboard, alert, OpenAPI/generated-client, or Helm/Kubernetes change, and it does not
+touch the public `/v1/metrics/*` API.
+
+**What changed.** The executor already shaped two signals for every completed MCP tool call
+(`apps/control-plane-executor/src/mcp-observability.mjs`) but discarded them — the scrape exposed only
+the five legacy `falcone_*` families and no `in_falcone_*` series. C-07 wires those two descriptors
+into the executor's process-local registry and renders them on the **same existing `GET /metrics`
+endpoint**. No other cataloged business family is exported.
+
+### The two exported families
+
+| Family | Type | Meaning |
+| --- | --- | --- |
+| `in_falcone_mcp_tool_invocations_total` | counter | MCP tool-invocation volume per verified tenant/workspace, server, tool, OAuth client, and outcome class |
+| `in_falcone_component_operation_duration_seconds` | histogram | Normalized component latency. **MCP tool-call latency is the `subsystem="mcp"`, `operation="tool_call"` slice of this shared family** — always select that slice in queries |
+
+Both are served by the **executor** process (the one hosting the MCP engine) at:
+
+```text
+GET /metrics
+```
+
+`GET /metrics/` is the existing trailing-slash alias. Both paths are `GET` only and return
+`Content-Type: text/plain; version=0.0.4; charset=utf-8`. The five legacy
+`falcone_*` families (`falcone_http_requests_total`,
+`falcone_http_request_duration_seconds_{bucket,sum,count}`, `falcone_process_uptime_seconds`) keep
+their exact names, labels, values, and meaning. The endpoint has **no authentication on the handler**;
+its reachability is governed by the existing network/topology controls, unchanged here. The separate
+control-plane process does **not** mirror these series.
+
+### What produces a sample — and what does not
+
+A sample exists only for a **real, completed, canonically-resolved** MCP tool invocation: the request
+had a credential-verified tenant, the server resolved within that tenant with an active published
+version, and the requested name resolved to a canonical tool in that manifest. The pair is recorded
+**once**, at the shared `call_tool` seam, whether the call arrived through the management HTTP
+operation or JSON-RPC `tools/call` — the two transports never double count.
+
+Each completed invocation carries an internal outcome class rendered as `status_class`:
+
+| Concrete path | `status_class` | Recorded? |
+| --- | --- | --- |
+| Backend returns HTTP 200–299 | `success` | one pair |
+| Caller lacks the MCP base scope | `denied` | one pair |
+| Caller lacks a mutating tool's declared scope | `denied` | one pair |
+| Mutating tool declares no required scope | `error` | one pair |
+| Argument/call-shape validation fails | `error` | one pair |
+| Backend returns outside HTTP 200–299 | `error` | one pair |
+| Backend is unavailable / throws | `error` | one pair |
+| Requested tool is not in the active manifest | — | **no pair** (pre-attribution) |
+
+The outcome class comes from the internal invocation result, **never** from parsing caller-visible
+error text, result content, or audit detail.
+
+Metric outcomes and historical audit status are separate compatibility contracts. The new metric
+uses the three-value class above, while the existing audit detail deliberately keeps its legacy
+two-value rule: a caller-visible result with `isError=true` is `error`; a result without `isError`
+is `success`. In particular:
+
+| Invocation | Metric `status_class` | Historical audit `detail.status` |
+| --- | --- | --- |
+| Missing base or declared mutation scope | `denied` | `error` |
+| Backend HTTP non-2xx without `isError` | `error` | `success` |
+| Unknown tool | no metric pair | `error` audit record |
+
+Do not reconcile Prometheus status buckets one-for-one with audit status buckets or total audit
+rows. Use the metrics for invocation outcome/latency and the tenant-scoped audit trail for the
+historical governance record; the intentionally different classifications are not evidence of a
+partial metric update.
+
+Requests rejected **before** the canonical invocation boundary create **no** sample and never turn the
+attempted value into a label: unauthenticated requests, a foreign/unknown/inactive server, a
+missing/unknown tool, a malformed message, and a rate limit hit before the invocation begins. There
+are no synthetic, pre-seeded, zero-valued, or back-filled series.
+
+### Labels
+
+`in_falcone_mcp_tool_invocations_total` (counter):
+
+| Label | Presence | Value / source |
+| --- | --- | --- |
+| `environment` | required | bounded `FALCONE_ENVIRONMENT`, falling back to `NODE_ENV` and then `production` |
+| `subsystem` | required, fixed `mcp` | static |
+| `collection_mode` | required, fixed `push` | static |
+| `metric_scope` | required | `tenant` or `workspace` from verified scope — **never `platform`** |
+| `domain` | required, fixed `mcp_tool_usage` | static |
+| `metric_type` | required, fixed `usage` | static |
+| `feature_area` | required, fixed `mcp` | static |
+| `operation_family` | required, fixed `execute` | static |
+| `tenant_id` | required | credential-verified tenant |
+| `server` | required | canonical id from tenant-scoped registry resolution (never a raw URL/path) |
+| `tool_name` | required | canonical name in the active published manifest (unknown names never appear) |
+| `status_class` | required | `success`, `error`, or `denied` |
+| `workspace_id` | workspace scope only | tenant-resolved server workspace; present iff `metric_scope="workspace"`, absent for tenant scope |
+| `oauth_client` | optional | a **verified non-secret** OAuth client id derived at the signed-JWT boundary; omitted when unavailable — never a token, secret, or subject |
+
+An authenticated actor id is not automatically an OAuth client id. For a signature-verified JWT,
+the identity boundary accepts a bounded printable client id from `azp`, then `client_id`, then
+`clientId`; it never uses `sub`. Header-only and API-key identities omit `oauth_client` unless a
+future trusted boundary explicitly supplies the verified field. If no valid client id exists,
+`oauth_client` is absent from both members of the pair; the exporter never falls back to
+`actorId`, a generic `system` value, a token, or an unverified claim.
+
+Set `FALCONE_ENVIRONMENT` to a stable 1–64 character label containing letters, digits, dot,
+underscore, or hyphen. When it is unset, the executor uses `NODE_ENV`, then `production`. Invalid
+values fail MCP engine construction instead of silently mislabelling a scrape.
+
+The MCP slice of `in_falcone_component_operation_duration_seconds` (histogram) carries the same
+attribution labels with the histogram discriminators instead of the counter-only business dimensions:
+it omits `domain`, `metric_type`, `feature_area`, and `operation_family`, and adds the required fixed
+`operation="tool_call"`. `tenant_id`, `server`, `tool_name`, and `status_class` are required;
+`workspace_id`/`oauth_client` follow the same conditional/optional rules; `metric_scope` is again only
+`tenant` or `workspace`. This slice policy grants those attribution labels to no other
+subsystem/operation slice of the shared histogram.
+
+No PII or high-cardinality field is ever a label: `user_id`, `request_id`, `session_id`, `email`,
+`api_key_id`, authorization headers, raw path/query, object keys, workspace/tenant slugs, raw tool
+arguments, error messages, result content, tokens, and secrets are all excluded. Canonical identifier
+values that contain a backslash, double quote, or line break are Prometheus-escaped at render and
+round-trip as one label value; they cannot inject a label, sample, `HELP`, or `TYPE` line.
+
+Latency buckets (cumulative `le`, seconds) for the MCP histogram slice:
+
+```text
+0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, +Inf
+```
+
+followed by `_sum` and `_count`; `le="+Inf"` equals `_count`.
+
+### Empty state and restart
+
+The aggregates are **process memory only**. Before the first real invocation in a process lifetime,
+`/metrics` contains **no** MCP counter/histogram sample line — and this build emits the two families'
+`HELP`/`TYPE` metadata only once a real sample exists, so an idle executor shows neither. That is the
+truthful empty state, **not** a zero. A label tuple that has never completed an invocation is likewise
+absent rather than rendered as a placeholder zero.
+
+A restart clears the in-memory aggregates. Values are monotonic within one process lifetime and reset
+(become absent until the next real call) on restart — a **normal Prometheus counter reset** that
+`rate()`/`increase()` interpret correctly. There is no persistence, replay, or backfill; **absence
+means "unknown / no post-start production," never "zero historical usage."**
+
+### Accounting is atomic and best-effort
+
+The counter increment and latency observation are recorded as **one pair** through a single registry
+operation (there is no separately callable counter-only or histogram-only mutation). The pair is
+validated and its next state computed detached from published state, then published in one commit — so
+any pre-commit failure leaves both families byte-for-byte unchanged and there is never a
+counter-only/histogram-only half-update. Telemetry is **best-effort**: a shaping or sink failure is
+contained, never retried, and can only leave an observability gap — it cannot change, fail, or
+duplicate the tool call, and the structured `mcp` audit record is emitted independently.
+
+### Authorization, isolation, and the scrape trust boundary
+
+Reading `/metrics` is governed by the **existing** scrape boundary; this change adds no new route,
+listener, port, credential, or per-tenant filtering, and does not claim the document is filtered per
+caller. A caller already inside that boundary keeps the same process-wide visibility.
+
+A cross-tenant caller (P13) cannot influence these series: `tenant_id`, `workspace_id`, and `server`
+come from credential verification and tenant-scoped resolution, never from JSON-RPC params, tool
+arguments, headers, or any caller-supplied hint. A tenant-B request for a tenant-A server keeps its
+existing non-enumerating `404` and emits no tenant-A/workspace-A/server/tool series or existence
+detail. An arbitrary tool string cannot become a `tool_name` label or inflate cardinality.
+
+### Reading the metrics (PromQL)
+
+Query the counter directly; **always constrain the histogram to the MCP slice** with
+`{subsystem="mcp",operation="tool_call"}` (it is one slice of a shared normalized family):
+
+```promql
+# Tool-call rate by server and tool
+sum by (server, tool_name) (rate(in_falcone_mcp_tool_invocations_total[5m]))
+
+# Error+denied share of MCP calls, per tenant
+sum by (tenant_id) (rate(in_falcone_mcp_tool_invocations_total{status_class=~"error|denied"}[5m]))
+  / sum by (tenant_id) (rate(in_falcone_mcp_tool_invocations_total[5m]))
+
+# Per-OAuth-client volume (only calls that carried a verified client id)
+sum by (oauth_client) (rate(in_falcone_mcp_tool_invocations_total{oauth_client!=""}[5m]))
+
+# p95 tool-call latency by tool (MCP slice only)
+histogram_quantile(0.95, sum by (le, server, tool_name) (
+  rate(in_falcone_component_operation_duration_seconds_bucket{subsystem="mcp",operation="tool_call"}[5m])))
+
+# Mean tool-call latency (MCP slice only)
+sum(rate(in_falcone_component_operation_duration_seconds_sum{subsystem="mcp",operation="tool_call"}[5m]))
+  / sum(rate(in_falcone_component_operation_duration_seconds_count{subsystem="mcp",operation="tool_call"}[5m]))
+```
+
+`rate()`/`increase()` absorb the restart reset automatically; do not `sum` raw counter values across a
+restart.
+
+### C-07 troubleshooting
+
+| Symptom | Likely cause | Action |
+| --- | --- | --- |
+| No MCP families at all, even after calls | MCP hosting is disabled | Confirm `MCP_ENABLED=true` on the executor; without it no `/v1/mcp` routes exist and no invocation can occur |
+| MCP enabled, families still absent | No canonical tool call has completed since process start | Complete one real tool call; the families appear only after the first real invocation (empty state, not zero) |
+| Series missing right after a deploy/restart | Executor is warming from an empty registry | Expected; new samples accumulate after the next real call — treat as a normal counter reset |
+| Legacy `falcone_*` present but never any `in_falcone_mcp_*` | Scrape is targeting the separate control-plane process, not the executor | Point the scrape at the executor process that hosts the MCP engine; the control-plane process never mirrors MCP series |
+| A specific call ran but no sample appeared | Telemetry shaping/sink was rejected (best-effort), or the call was a pre-attribution rejection (unknown tool, foreign/inactive server, rate limit) | Confirm the call reached a canonical tool; check executor logs for a contained telemetry error — the tool result itself is unaffected |
+| A parser rejects the exposition | Reading the wrong endpoint or content type | Verify you scraped the executor `GET /metrics` with `text/plain; version=0.0.4; charset=utf-8`; the render is deterministic and escapes label metacharacters |
+
+### Local verification
+
+To inspect a locally running executor, set its loopback base explicitly. This is not a Kubernetes
+Service address and must not be copied into a deployment scrape configuration:
+
+```bash
+FALCONE_EXECUTOR_LOCAL=http://127.0.0.1:8080
+
+# Confirm the handler, content type, legacy families, and any post-call MCP samples.
+curl -si "$FALCONE_EXECUTOR_LOCAL/metrics"
+curl -fsS "$FALCONE_EXECUTOR_LOCAL/metrics" \
+  | sed -n '/^# \(HELP\|TYPE\) in_falcone_/p;/^in_falcone_mcp_tool_invocations_total{/p;/^in_falcone_component_operation_duration_seconds_/p'
+```
+
+An empty second command is expected before the first real post-start canonical tool call. After
+one call, confirm that exactly one counter series and one histogram observation (`_count` increased
+by one, with matching attribution and `status_class`) appeared. A missing `oauth_client` is correct
+when the call identity did not contain an explicitly verified client id.
+
+Run the focused hermetic suites and contract validators from the repository root; these commands
+use in-memory fixtures and ephemeral loopback ports only:
+
+```bash
+node --test tests/blackbox/c07-mcp-business-metrics.test.mjs
+node --test tests/unit/metrics-registry.test.mjs
+node --test apps/control-plane-executor/src/mcp-observability.test.mjs
+node --test apps/control-plane-executor/src/runtime/mcp-engine.test.mjs
+node --test tests/contracts/observability-business-metrics.contract.test.mjs
+node --test tests/contracts/observability-metrics-stack.contract.test.mjs
+npm run validate:observability-business-metrics
+npm run validate:observability-metrics-stack
+openspec validate fix-c07-business-metric-export --strict
+```
+
+The black-box suite includes a deterministic Prometheus text parser, so exposition validation does
+not silently disappear when optional `promtool` is unavailable. **No command above deploys to,
+reads from, or mutates a cluster; C-07 has not been validated on a Kubernetes deployment.**
+
+### Rollback and limitations
+
+Rollback is **additive to remove**: revert the engine sink wiring, the two registry record/render
+blocks, the matching contract clarification, the focused tests, and this section. No datastore or
+migration cleanup is required, and the legacy `falcone_*` exposition and the existing `/metrics`
+boundary stay intact throughout. Rollback intentionally reintroduces the C-07 gap and must **not** be
+replaced with fake zero series.
+
+C-07 is limited to these two MCP families. Every other cataloged business/component family
+(tenant/workspace lifecycle, API, identity, function, data-service, storage, realtime, quota,
+component availability/error/probe, and collection-health) remains **unimplemented** until a separate
+change wires a real producer — do not treat its absence as zero.
+
 ## Audit
 
 Governed operations (function deployments, admin actions, rollbacks, quota enforcement) produce **query-safe audit records** (`domain-model.json`), retained for compliance and surfaced through the audit query/export/correlation surfaces.

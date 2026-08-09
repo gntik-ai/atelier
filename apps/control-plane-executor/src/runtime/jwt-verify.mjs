@@ -23,6 +23,21 @@ import crypto from 'node:crypto';
 const b64urlToBuf = (s) => Buffer.from(s, 'base64url');
 const b64urlToJson = (s) => JSON.parse(b64urlToBuf(s).toString('utf8'));
 const ALG_DIGEST = { RS256: 'sha256', RS384: 'sha384', RS512: 'sha512' };
+const MAX_OAUTH_CLIENT_ID_BYTES = 256;
+
+// OAuth/OIDC client attribution may come only from signed client-id claims. A Keycloak `sub` is a
+// subject (often a user) and is deliberately excluded. Keep the accepted identifier bounded and
+// printable so it is safe as a metrics dimension; invalid preferred claims fall through to the
+// next canonical alias rather than manufacturing an id.
+function verifiedOAuthClientIdFromClaims(claims = {}) {
+  for (const candidate of [claims.azp, claims.client_id, claims.clientId]) {
+    if (typeof candidate !== 'string') continue;
+    if (!candidate || Buffer.byteLength(candidate, 'utf8') > MAX_OAUTH_CLIENT_ID_BYTES) continue;
+    if (!/^[\x21-\x7e]+$/.test(candidate)) continue;
+    return candidate;
+  }
+  return undefined;
+}
 
 function workspaceIdsFromClaims(claims) {
   if (Array.isArray(claims.workspace_ids)) return claims.workspace_ids.map(String).filter(Boolean);
@@ -42,6 +57,7 @@ export function deriveIdentityFromClaims(claims, pathWorkspaceId) {
   // workspace-scoped and must not be rejected for addressing a specific workspace path).
   const credentialWorkspaceId = claims.workspace_id ?? undefined;
   const workspaceIds = workspaceIdsFromClaims(claims);
+  const verifiedOAuthClientId = verifiedOAuthClientIdFromClaims(claims);
   return {
     tenantId: claims.tenant_id ?? undefined,
     workspaceId: credentialWorkspaceId ?? pathWorkspaceId,
@@ -51,6 +67,7 @@ export function deriveIdentityFromClaims(claims, pathWorkspaceId) {
     roles,
     scopes,
     ...(workspaceIds !== undefined ? { workspaceIds } : {}),
+    ...(verifiedOAuthClientId !== undefined ? { verifiedOAuthClientId } : {}),
   };
 }
 

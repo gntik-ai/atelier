@@ -45,6 +45,13 @@ function slug(value) {
   return String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'server';
 }
 
+function boundedMetricsEnvironment(value) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value)) {
+    throw new Error('metricsEnvironment must be a bounded environment label (1-64 letters, digits, dot, underscore, or hyphen).');
+  }
+  return value;
+}
+
 /** Build a curation-ready DRAFT for the requested source (instant generators or the official catalog). */
 function draftForSource(serverId, source, resources) {
   if (source === 'official') {
@@ -73,7 +80,9 @@ export function createMcpEngine({
   store,
   metricsSink = recordMcpToolCallPair,
   telemetryShaper = mcpToolCallTelemetry,
+  metricsEnvironment = 'production',
 } = {}) {
+  const telemetryEnvironment = boundedMetricsEnvironment(metricsEnvironment);
   const registry = createRegistry();
   const servers = new Map(); // `${tenantId}::${serverId}` -> { serverId, name, source, tenantId, workspaceId, draft, curated }
   const auditLog = []; // audit events (each carries scope.tenant_id)
@@ -432,6 +441,7 @@ export function createMcpEngine({
               oauthClientId: verifiedOAuthClientId(identity),
               latencyMs,
               status: invocation.outcomeClass,
+              environment: telemetryEnvironment,
             });
           } catch {
             telemetry = null;
@@ -445,8 +455,12 @@ export function createMcpEngine({
           }
         }
         const auditEvent = mcpAuditEvent({ tenantId: tid, workspaceId: entry.workspaceId, oauthClientId: rateLimitClientId, action: 'scopes_changed', serverId, correlationId: randomUUID(), eventId: randomUUID(), eventTimestamp: new Date(clock()).toISOString() });
+        // Preserve the historical audit status contract independently of the new metric outcome:
+        // tool-level isError was `error`; every result without it (including legacy non-2xx) was
+        // `success`. Metrics still use the explicit denied/error/success classification above.
+        const legacyAuditStatus = invocation.result.isError ? 'error' : 'success';
         const auditDetail = telemetry?.log
-          ? { ...telemetry.log, oauth_client: rateLimitClientId }
+          ? { ...telemetry.log, oauth_client: rateLimitClientId, status: legacyAuditStatus }
           : {
               message: 'mcp.tool_call',
               tenant_id: tid,
@@ -455,7 +469,7 @@ export function createMcpEngine({
               tool: body.name,
               oauth_client: rateLimitClientId,
               latency_ms: Math.max(0, Number(latencyMs) || 0),
-              status: invocation.outcomeClass ?? 'error',
+              status: legacyAuditStatus,
             };
         recordAudit({
           ...auditEvent,

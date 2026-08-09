@@ -5,13 +5,14 @@ import { after, before, test } from 'node:test';
 
 import { createMcpEngine } from '../../apps/control-plane-executor/src/runtime/mcp-engine.mjs';
 import { createControlPlaneServer as createControlPlaneHttpServer } from '../../apps/control-plane-executor/src/runtime/server.mjs';
+import { deriveIdentityFromClaims } from '../../apps/control-plane-executor/src/runtime/jwt-verify.mjs';
 
 const API_VERSION = '2026-03-26';
 const TENANT_A = 'bbx-c07-tenant-a';
 const TENANT_B = 'bbx-c07-tenant-b';
 const WORKSPACE_A = 'bbx-c07-workspace-a';
 const WORKSPACE_B = 'bbx-c07-workspace-b';
-const SUCCESS_CLIENT = 'oauth\\client"line\nbreak';
+const SUCCESS_CLIENT = 'oauth\\client"escaped';
 const ERROR_CLIENT = 'bbx-c07-oauth-error';
 const DENIED_CLIENT = 'bbx-c07-oauth-denied';
 const FOREIGN_CLIENT = 'bbx-c07-oauth-foreign';
@@ -163,37 +164,38 @@ async function closeServer(server) {
 }
 
 async function startPublicFixture() {
-  const identities = new Map([
+  const verifiedClaimFixtures = new Map([
     ['tenant-a-success-token', {
-      tenantId: TENANT_A, workspaceId: WORKSPACE_A, credentialWorkspaceId: WORKSPACE_A,
-      actorId: SUCCESS_CLIENT, verifiedOAuthClientId: SUCCESS_CLIENT,
-      roles: ['tenant_admin'], workspaceIds: [WORKSPACE_A], scopes: [BASE_SCOPE],
+      tenant_id: TENANT_A, workspace_id: WORKSPACE_A, workspace_ids: [WORKSPACE_A],
+      sub: SUCCESS_CLIENT, azp: SUCCESS_CLIENT,
+      realm_access: { roles: ['tenant_admin'] }, scope: BASE_SCOPE,
     }],
     ['tenant-a-error-token', {
-      tenantId: TENANT_A, workspaceId: WORKSPACE_A, credentialWorkspaceId: WORKSPACE_A,
-      actorId: ERROR_CLIENT, verifiedOAuthClientId: ERROR_CLIENT,
-      roles: ['tenant_admin'], workspaceIds: [WORKSPACE_A], scopes: [BASE_SCOPE],
+      tenant_id: TENANT_A, workspace_id: WORKSPACE_A, workspace_ids: [WORKSPACE_A],
+      sub: ERROR_CLIENT, azp: ERROR_CLIENT,
+      realm_access: { roles: ['tenant_admin'] }, scope: BASE_SCOPE,
     }],
     ['tenant-a-denied-token', {
-      tenantId: TENANT_A, workspaceId: WORKSPACE_A, credentialWorkspaceId: WORKSPACE_A,
-      actorId: DENIED_CLIENT, verifiedOAuthClientId: DENIED_CLIENT,
-      roles: ['tenant_admin'], workspaceIds: [WORKSPACE_A], scopes: [BASE_SCOPE],
+      tenant_id: TENANT_A, workspace_id: WORKSPACE_A, workspace_ids: [WORKSPACE_A],
+      sub: DENIED_CLIENT, azp: DENIED_CLIENT,
+      realm_access: { roles: ['tenant_admin'] }, scope: BASE_SCOPE,
     }],
     ['tenant-b-token', {
-      tenantId: TENANT_B, workspaceId: WORKSPACE_B, credentialWorkspaceId: WORKSPACE_B,
-      actorId: FOREIGN_CLIENT, verifiedOAuthClientId: FOREIGN_CLIENT,
-      roles: ['tenant_admin'], workspaceIds: [WORKSPACE_B], scopes: [BASE_SCOPE],
+      tenant_id: TENANT_B, workspace_id: WORKSPACE_B, workspace_ids: [WORKSPACE_B],
+      sub: FOREIGN_CLIENT, azp: FOREIGN_CLIENT,
+      realm_access: { roles: ['tenant_admin'] }, scope: BASE_SCOPE,
     }],
   ]);
   const jwtVerifier = {
     async verify(token) {
-      const identity = identities.get(token);
-      return identity ? structuredClone(identity) : undefined;
+      const claims = verifiedClaimFixtures.get(token);
+      return claims ? deriveIdentityFromClaims(structuredClone(claims)) : undefined;
     },
   };
   let clockMs = 1_000;
   const mcpEngine = createMcpEngine({
     runtimeImageDigest: `sha256:${'c'.repeat(64)}`,
+    metricsEnvironment: 'test',
     clock: () => {
       clockMs += 5;
       return clockMs;
@@ -404,7 +406,7 @@ test('[bbx-c07-002] one management tool-call records one verified success pair',
   const count = onlySample(fixture.afterManagement.text, `${HISTOGRAM}_count`, expectedHistogram);
   assert.equal(counter.value, 1);
   assert.equal(count.value, 1);
-  assert.equal(counter.labels.environment.length > 0, true);
+  assert.equal(counter.labels.environment, 'test');
   assert.equal(count.labels.environment, counter.labels.environment);
   assert.deepEqual(Object.keys(counter.labels).sort(), COUNTER_LABEL_KEYS);
   assert.deepEqual(Object.keys(count.labels).sort(), HISTOGRAM_LABEL_KEYS);

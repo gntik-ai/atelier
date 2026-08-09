@@ -66,7 +66,9 @@ export function mcpToolCallTelemetry({ tenantId, workspaceId, serverId, toolName
   const sc = statusClass(status);
   if (typeof serverId !== 'string' || !serverId) throw new Error('MCP telemetry requires a canonical server id.');
   if (typeof toolName !== 'string' || !toolName) throw new Error('MCP telemetry requires a canonical tool name.');
-  if (typeof environment !== 'string' || !environment) throw new Error('MCP telemetry requires an environment.');
+  if (typeof environment !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(environment)) {
+    throw new Error('MCP telemetry requires a bounded environment label.');
+  }
   if (!Number.isFinite(latencyMs) || latencyMs < 0) throw new Error('MCP telemetry latencyMs must be finite and non-negative.');
   const baseLabels = compact({
     environment,

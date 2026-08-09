@@ -283,6 +283,7 @@ test('C07: management call submits one canonical counter/histogram pair and keep
     fetchImpl,
     runtimeImageDigest: TEST_DIGEST,
     metricsSink: (pair) => submissions.push(pair),
+    metricsEnvironment: 'staging',
     clock: () => { now += 10; return now; },
   });
   const { serverId, view } = await publishServer(e, { identity });
@@ -312,6 +313,7 @@ test('C07: management call submits one canonical counter/histogram pair and keep
     assert.equal(labels.oauth_client, 'oauth-client-verified');
     assert.equal(labels.status_class, 'success');
     assert.equal(labels.metric_scope, 'workspace');
+    assert.equal(labels.environment, 'staging');
     assert.equal(Object.values(labels).includes('ten-evil'), false);
     assert.equal(Object.values(labels).includes('ws-evil'), false);
     assert.equal(Object.values(labels).includes('do-not-label'), false);
@@ -322,6 +324,13 @@ test('C07: management call submits one canonical counter/histogram pair and keep
   assert.equal('canonicalToolName' in out, false);
   assert.equal('outcomeClass' in out.result, false);
   assert.equal('canonicalToolName' in out.result, false);
+});
+
+test('C07: metricsEnvironment defaults compatibly and rejects unbounded/unsafe labels', () => {
+  assert.doesNotThrow(() => createMcpEngine({ metricsSink: null }));
+  for (const metricsEnvironment of ['', ' leading', 'has space', 'x'.repeat(65), 'line\nbreak']) {
+    assert.throws(() => createMcpEngine({ metricsEnvironment, metricsSink: null }), /metricsEnvironment must be a bounded/);
+  }
 });
 
 test('C07: JSON-RPC tools/call converges on the same seam and submits exactly once', async () => {
@@ -363,6 +372,8 @@ test('C07 outcomes: missing BASE_SCOPE and missing declared mutating scope are d
     assert.match(out.result.content[0].text, /missing required scope/);
     assert.equal(submissions.length, 1);
     assert.equal(submissions[0].counter.labels.status_class, 'denied');
+    const audit = await e.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId });
+    assert.equal(audit.items.at(-1).detail.status, 'error', 'legacy audit derives status from result.isError');
     assert.equal(fetchImpl.calls.length, 0);
   }
 
@@ -435,6 +446,8 @@ test('C07 outcomes: non-2xx is error without changing the legacy caller-visible 
   assert.equal('canonicalToolName' in out.result, false);
   assert.equal(submissions.length, 1);
   assert.equal(submissions[0].counter.labels.status_class, 'error');
+  const audit = await e.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId });
+  assert.equal(audit.items.at(-1).detail.status, 'success', 'legacy non-2xx audit had no isError');
 });
 
 test('C07 outcomes: backend unavailability is error; a 2xx success stays success regardless of body text', async () => {
@@ -541,6 +554,8 @@ test('C07 best effort: null/throwing sink and throwing shaper do not alter succe
       metricsSink: null,
     });
     const expected = await control.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded', body: { name: tool.name } });
+    const controlAudit = await control.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded' });
+    assert.equal(controlAudit.items[0].detail.status, 'success', 'absent sink preserves legacy status, including 503');
 
     let sinkCalls = 0;
     const throwing = createMcpEngine({
@@ -556,6 +571,7 @@ test('C07 best effort: null/throwing sink and throwing shaper do not alter succe
     assert.equal(audit.items.length, 1);
     assert.equal(typeof audit.items[0].detail, 'object');
     assert.equal(audit.items[0].detail.message, 'mcp.tool_call', 'sink failure must not erase structured audit detail');
+    assert.equal(audit.items[0].detail.status, 'success', 'throwing sink must not replace legacy audit status');
   }
 
   let shaperCalls = 0;

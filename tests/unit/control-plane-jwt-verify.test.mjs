@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { createJwtVerifier } from '../../apps/control-plane-executor/src/runtime/jwt-verify.mjs';
+import { createJwtVerifier, deriveIdentityFromClaims } from '../../apps/control-plane-executor/src/runtime/jwt-verify.mjs';
 
 const b64url = (obj) => Buffer.from(JSON.stringify(obj)).toString('base64url');
 
@@ -41,6 +41,49 @@ test('valid RS256 token → identity derived from claims', async () => {
   assert.deepEqual(id.scopes, ['data:read', 'data:write']);
   assert.deepEqual(id.workspaceIds, ['ws-jwt']);
   assert.equal(id.dbRole, undefined); // a JWT is not an api-key → no RLS SET ROLE
+  assert.equal('verifiedOAuthClientId' in id, false, 'sub alone is not an OAuth client id');
+});
+
+test('signed canonical azp becomes the verified OAuth client id and takes precedence', async () => {
+  const id = await verifier.verify(signRs256({
+    ...baseClaims,
+    azp: 'client-from-azp',
+    client_id: 'client-from-snake-case',
+    clientId: 'client-from-camel-case',
+  }));
+  assert.equal(id.verifiedOAuthClientId, 'client-from-azp');
+  assert.equal(id.actorId, baseClaims.sub);
+});
+
+test('OAuth client claim aliases fall back only to valid bounded strings', () => {
+  assert.equal(deriveIdentityFromClaims({
+    ...baseClaims,
+    azp: 'invalid\ncontrol',
+    client_id: 'client-from-snake-case',
+    clientId: 'client-from-camel-case',
+  }).verifiedOAuthClientId, 'client-from-snake-case');
+
+  assert.equal(deriveIdentityFromClaims({
+    ...baseClaims,
+    azp: { id: 'not-a-string' },
+    client_id: 'x'.repeat(257),
+    clientId: 'client-from-camel-case',
+  }).verifiedOAuthClientId, 'client-from-camel-case');
+
+  assert.equal(deriveIdentityFromClaims({ ...baseClaims, azp: 'x'.repeat(256) }).verifiedOAuthClientId, 'x'.repeat(256));
+});
+
+test('invalid/missing client claims omit OAuth attribution without falling back to subject or tokens', () => {
+  for (const claims of [
+    { ...baseClaims },
+    { ...baseClaims, azp: '', client_id: null, clientId: 42 },
+    { ...baseClaims, azp: ' leading-space', client_id: 'tab\tvalue', clientId: 'x'.repeat(257) },
+    { ...baseClaims, access_token: 'secret-token', token: 'secret-token' },
+  ]) {
+    const id = deriveIdentityFromClaims(claims);
+    assert.equal('verifiedOAuthClientId' in id, false);
+    assert.equal(id.actorId, baseClaims.sub);
+  }
 });
 
 test('tampered payload → rejected (signature mismatch)', async () => {
