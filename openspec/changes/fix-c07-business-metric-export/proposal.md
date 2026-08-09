@@ -1,0 +1,13 @@
+## Why
+
+The internal Prometheus scrape of the executor process (P3 primary operator/SRE) exposes only five `falcone_*` HTTP/process families and zero `in_falcone_*` business series (E6 confirmed). Every MCP tool invocation already builds contract-shaped telemetry: `mcpToolCallTelemetry` (`apps/control-plane-executor/src/mcp-observability.mjs`) returns an `in_falcone_mcp_tool_invocations_total` counter and an `in_falcone_component_operation_duration_seconds` latency observation, both with bounded, forbidden-label-guarded dimensions. But the engine (`apps/control-plane-executor/src/runtime/mcp-engine.mjs`, `call_tool`) keeps only `telemetry.log` for the audit trail and discards `telemetry.metric` and `telemetry.latency`, while the fixed registry (`apps/control-plane-executor/src/runtime/metrics-registry.mjs`, `renderMetrics`) renders only HTTP/process families. As a result P1/P4/P7/P9/P10/P12 observability consumers cannot see MCP tool-usage or tool latency on the metrics plane, P13 (other-tenant actor) must gain no cross-tenant disclosure from the change, and P17 operators have no documentation for the families or their absence.
+
+## What Changes
+
+Wire the two already-produced, MCP-invocation-backed families into the **existing** executor `/metrics` exposition: forward `telemetry.metric` and `telemetry.latency` from every real, completed MCP tool invocation into the zero-dependency registry, and render them as valid Prometheus text — with correct `# HELP`/`# TYPE`, label escaping, and the contract histogram buckets — alongside and without altering the five legacy `falcone_*` families. Attribution (tenant/workspace/scope/oauth-client) is pinned from the credential-verified identity and the resolved server, carries no PII or high-cardinality label, and export is fail-safe so a telemetry error never changes the tool result. Series are additive and appear only after real activity; process restart is a normal counter reset.
+
+### Non-goals (explicitly out of scope; tracked elsewhere)
+
+- Synthesizing, back-filling, or emitting as fake/zero series **any other cataloged family** — tenant/workspace lifecycle, api/identity/function/data-service/storage/realtime/quota usage, the other `in_falcone_component_*` families, or collection-health/lag. Their continued absence is intentional in this change.
+- Any UI, OpenAPI/generated-client, gateway/APISIX, new endpoint/listener, authentication, or Kubernetes/cluster change.
+- The unauthenticated `/metrics` scrape trust boundary and the REST `/v1/metrics/*` API are unchanged (REST metric series are C04; the APISIX scrape route is C06).
