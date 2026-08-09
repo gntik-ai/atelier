@@ -346,12 +346,16 @@ const flowMonitoringExecutor = flowExecutor && process.env.FLOWS_ENABLED !== 'fa
 // store on the metadata pool and self-calls this runtime to mediate tool calls.
 // When unset, no /v1/mcp routes are registered and an MCP path falls through to 404 / upstream proxy.
 const mcpStateStore = createMcpPostgresStore({ pool: keyPool });
+const mcpMetricsEnvironment = process.env.FALCONE_ENVIRONMENT?.trim()
+  || process.env.NODE_ENV?.trim()
+  || 'production';
 const mcpEngine = process.env.MCP_ENABLED === 'true'
   ? createMcpEngine({
       selfBaseUrl: process.env.MCP_SELF_BASE_URL ?? `http://127.0.0.1:${PORT}`,
       gatewayBaseUrl: process.env.MCP_GATEWAY_BASE_URL,
       runtimeImage: process.env.MCP_RUNTIME_IMAGE,
       runtimeImageDigest: process.env.MCP_RUNTIME_IMAGE_DIGEST,
+      metricsEnvironment: mcpMetricsEnvironment,
       store: mcpStateStore,
     })
   : undefined;

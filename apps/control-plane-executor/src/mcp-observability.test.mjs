@@ -5,25 +5,39 @@ import {
   mcpToolCallTelemetry, mcpAuditEvent, buildTenantScopedMcpAuditQuery, filterAuditRecordsForTenant,
 } from './mcp-observability.mjs';
 
-const call = { tenantId: 'ten-a', workspaceId: 'ws-1', serverId: 'srv_acme', toolName: 'list_orders', oauthClientId: 'oac_123', latencyMs: 42, status: 'ok' };
+const call = { tenantId: 'ten-a', workspaceId: 'ws-1', serverId: 'srv_acme', toolName: 'list_orders', oauthClientId: 'oac_123', latencyMs: 42, status: 'success' };
+
+const COUNTER_LABEL_KEYS = [
+  'collection_mode', 'domain', 'environment', 'feature_area', 'metric_scope', 'metric_type',
+  'oauth_client', 'operation_family', 'server', 'status_class', 'subsystem', 'tenant_id',
+  'tool_name', 'workspace_id',
+];
+const HISTOGRAM_LABEL_KEYS = [
+  'collection_mode', 'environment', 'metric_scope', 'oauth_client', 'operation', 'server',
+  'status_class', 'subsystem', 'tenant_id', 'tool_name', 'workspace_id',
+];
 
 test('mcpToolCallTelemetry: tool-call metric attributed to tenant/workspace/server/tool/oauth-client', () => {
-  const { metric } = mcpToolCallTelemetry(call);
+  const { metric, latency } = mcpToolCallTelemetry(call);
   assert.equal(metric.name, 'in_falcone_mcp_tool_invocations_total');
-  assert.equal(metric.labels.subsystem, 'mcp');
-  assert.equal(metric.labels.domain, 'mcp_tool_usage');
-  assert.equal(metric.labels.metric_scope, 'workspace');
-  assert.equal(metric.labels.tenant_id, 'ten-a');
-  assert.equal(metric.labels.workspace_id, 'ws-1');
-  assert.equal(metric.labels.server, 'srv_acme');
-  assert.equal(metric.labels.tool_name, 'list_orders');
-  assert.equal(metric.labels.oauth_client, 'oac_123');
-  assert.equal(metric.labels.status_class, 'success');
+  assert.equal(metric.kind, 'counter');
+  assert.equal(metric.value, 1);
+  assert.deepEqual(metric.labels, {
+    environment: 'production', subsystem: 'mcp', metric_scope: 'workspace',
+    collection_mode: 'push', tenant_id: 'ten-a', workspace_id: 'ws-1', server: 'srv_acme',
+    tool_name: 'list_orders', oauth_client: 'oac_123', status_class: 'success',
+    domain: 'mcp_tool_usage', metric_type: 'usage', feature_area: 'mcp',
+    operation_family: 'execute',
+  });
+  assert.deepEqual(Object.keys(metric.labels).sort(), COUNTER_LABEL_KEYS);
+  assert.deepEqual(Object.keys(latency.labels).sort(), HISTOGRAM_LABEL_KEYS);
 });
 
 test('mcpToolCallTelemetry: latency rides the normalized component-latency family (subsystem=mcp)', () => {
   const { latency } = mcpToolCallTelemetry(call);
   assert.equal(latency.name, 'in_falcone_component_operation_duration_seconds');
+  assert.equal(latency.kind, 'histogram');
+  assert.equal(latency.labels.operation, 'tool_call');
   assert.equal(latency.labels.subsystem, 'mcp');
   assert.equal(latency.observedSeconds, 0.042);
 });
@@ -38,20 +52,54 @@ test('mcpToolCallTelemetry: emits a structured log line with the call attributio
 });
 
 test('mcpToolCallTelemetry: never carries a forbidden (PII/high-cardinality) label', () => {
-  // a caller cannot smuggle a forbidden label; the helper only emits bounded ones
-  const { metric, latency } = mcpToolCallTelemetry(call);
+  // Extra inputs cannot smuggle labels; the helper emits only its exact fixed allowlist.
+  const { metric, latency } = mcpToolCallTelemetry({
+    ...call,
+    user_id: 'usr-secret', request_id: 'req-secret', session_id: 'session-secret',
+    email: 'person@example.test', api_key_id: 'key-secret', raw_path: '/private',
+    raw_query: 'token=secret', arguments: { secret: 'value' }, result: 'private result',
+  });
   for (const labels of [metric.labels, latency.labels]) {
-    for (const forbidden of ['user_id', 'request_id', 'raw_path', 'object_key', 'email', 'api_key_id']) {
+    for (const forbidden of ['user_id', 'request_id', 'session_id', 'raw_path', 'raw_query', 'object_key', 'email', 'api_key_id', 'arguments', 'result', 'error', 'token', 'secret']) {
       assert.equal(forbidden in labels, false);
     }
   }
 });
 
-test('mcpToolCallTelemetry: status maps to status_class (denied/error)', () => {
+test('mcpToolCallTelemetry: accepts only the internal success/error/denied outcome enum', () => {
+  assert.equal(mcpToolCallTelemetry(call).metric.labels.status_class, 'success');
   assert.equal(mcpToolCallTelemetry({ ...call, status: 'denied' }).metric.labels.status_class, 'denied');
   assert.equal(mcpToolCallTelemetry({ ...call, status: 'error' }).metric.labels.status_class, 'error');
-  // platform scope when no tenant
-  assert.equal(mcpToolCallTelemetry({ ...call, tenantId: undefined, workspaceId: undefined }).metric.labels.metric_scope, 'platform');
+  for (const status of [undefined, 'ok', 'succeeded', 'failed', 'timeout', 'forbidden', 'unauthorized']) {
+    assert.throws(() => mcpToolCallTelemetry({ ...call, status }), /exactly success, error, or denied/);
+  }
+});
+
+test('mcpToolCallTelemetry: rejects a call with no verified tenant/workspace scope (never platform)', () => {
+  assert.throws(() => mcpToolCallTelemetry({ ...call, tenantId: undefined, workspaceId: undefined }), /verified tenant scope/);
+  assert.throws(() => mcpToolCallTelemetry({ ...call, tenantId: undefined }), /verified tenant scope/);
+
+  const { metric, latency } = mcpToolCallTelemetry({ ...call, workspaceId: undefined, oauthClientId: undefined });
+  assert.equal(metric.labels.metric_scope, 'tenant');
+  assert.equal(latency.labels.metric_scope, 'tenant');
+  for (const labels of [metric.labels, latency.labels]) {
+    assert.equal('workspace_id' in labels, false);
+    assert.equal('oauth_client' in labels, false);
+    assert.notEqual(labels.metric_scope, 'platform');
+  }
+});
+
+test('mcpToolCallTelemetry: rejects incomplete attribution and invalid observations', () => {
+  assert.throws(() => mcpToolCallTelemetry({ ...call, serverId: '' }), /canonical server id/);
+  assert.throws(() => mcpToolCallTelemetry({ ...call, toolName: '' }), /canonical tool name/);
+  assert.equal(mcpToolCallTelemetry({ ...call, environment: 'test' }).metric.labels.environment, 'test');
+  assert.equal(mcpToolCallTelemetry({ ...call, environment: 'staging' }).latency.labels.environment, 'staging');
+  for (const environment of ['', ' leading', 'has space', 'x'.repeat(65), 'line\nbreak']) {
+    assert.throws(() => mcpToolCallTelemetry({ ...call, environment }), /bounded environment/);
+  }
+  for (const latencyMs of [NaN, Infinity, -1, '42']) {
+    assert.throws(() => mcpToolCallTelemetry({ ...call, latencyMs }), /finite and non-negative/);
+  }
 });
 
 test('mcpAuditEvent: per-OAuth-client event for the mcp subsystem, tenant-scoped', () => {

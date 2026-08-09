@@ -16,7 +16,11 @@ import {
   readObservabilityHealthChecks,
   readObservabilityMetricsStack
 } from '../../packages/internal-contracts/src/index.mjs';
-import { collectObservabilityBusinessMetricViolations } from '../../scripts/lib/observability-business-metrics.mjs';
+import {
+  collectMcpBusinessMetricDescriptorViolations,
+  collectObservabilityBusinessMetricViolations,
+} from '../../scripts/lib/observability-business-metrics.mjs';
+import { mcpToolCallTelemetry } from '../../apps/control-plane-executor/src/mcp-observability.mjs';
 
 test('observability business metrics contract is exposed through shared readers', () => {
   const contract = readObservabilityBusinessMetrics();
@@ -90,13 +94,66 @@ test('every business metric family uses the in_falcone prefix and a known domain
 test('tenant and workspace scoped business metric families allow the required scope labels', () => {
   for (const family of listObservabilityBusinessMetricFamilies()) {
     if ((family.supported_scopes ?? []).includes('tenant')) {
-      assert.equal((family.allowed_optional_labels ?? []).includes('tenant_id'), true, `${family.id} must allow tenant_id`);
+      assert.equal(
+        (family.required_labels ?? []).includes('tenant_id')
+          || (family.allowed_optional_labels ?? []).includes('tenant_id')
+          || Object.hasOwn(family.emission_policy?.conditional_labels ?? {}, 'tenant_id'),
+        true,
+        `${family.id} must allow tenant_id`,
+      );
     }
 
     if ((family.supported_scopes ?? []).includes('workspace')) {
-      assert.equal((family.allowed_optional_labels ?? []).includes('workspace_id'), true, `${family.id} must allow workspace_id`);
+      assert.equal(
+        (family.required_labels ?? []).includes('workspace_id')
+          || (family.allowed_optional_labels ?? []).includes('workspace_id')
+          || Object.hasOwn(family.emission_policy?.conditional_labels ?? {}, 'workspace_id'),
+        true,
+        `${family.id} must allow workspace_id`,
+      );
     }
   }
+});
+
+test('MCP counter contract fixes scopes, outcomes, conditional labels, and canonical sources', () => {
+  const family = getObservabilityBusinessMetricFamily('mcp_tool_invocations_total');
+  assert.deepEqual(family.supported_scopes, ['tenant', 'workspace']);
+  assert.deepEqual(family.allowed_optional_labels, ['workspace_id', 'oauth_client']);
+  for (const label of ['tenant_id', 'server', 'tool_name', 'status_class']) {
+    assert.equal(family.required_labels.includes(label), true);
+  }
+  assert.deepEqual(family.emission_policy.allowed_status_classes, ['success', 'error', 'denied']);
+  assert.deepEqual(family.emission_policy.conditional_labels.workspace_id, {
+    required_when: { metric_scope: 'workspace' },
+    forbidden_when: { metric_scope: 'tenant' },
+    source: 'tenant_scoped_resolved_server_workspace',
+  });
+  assert.equal(
+    family.emission_policy.canonical_source_policy.tool_name,
+    'active_published_manifest_canonical_tool',
+  );
+});
+
+test('runtime MCP counter descriptor matches the manifest and deterministic drift is rejected', () => {
+  const { metric } = mcpToolCallTelemetry({
+    tenantId: 'ten-contract',
+    workspaceId: 'wrk-contract',
+    serverId: 'srv-contract',
+    toolName: 'canonical-tool',
+    oauthClientId: 'oauth-contract',
+    latencyMs: 5,
+    status: 'denied',
+    environment: 'test',
+  });
+  assert.deepEqual(collectMcpBusinessMetricDescriptorViolations(metric), []);
+
+  const invalid = structuredClone(metric);
+  invalid.labels.status_class = 'timeout';
+  invalid.labels.request_id = 'caller-controlled';
+  assert.deepEqual(collectMcpBusinessMetricDescriptorViolations(invalid), [
+    'MCP counter descriptor must use the exact required and conditional label keys.',
+    'MCP counter descriptor status_class must be success, error, or denied.',
+  ]);
 });
 
 test('quota utilization ratio remains tenant/workspace scoped and requires quota_metric_key', () => {

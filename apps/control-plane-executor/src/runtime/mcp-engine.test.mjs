@@ -19,12 +19,29 @@ function fakeFetch() {
   return impl;
 }
 
+function scriptedFetch({ status = 200, body = { ok: true }, error, jsonError } = {}) {
+  const calls = [];
+  const impl = async (url, init) => {
+    calls.push({ url, init });
+    if (error) throw error;
+    return {
+      status,
+      async json() {
+        if (jsonError) throw jsonError;
+        return body;
+      },
+    };
+  };
+  impl.calls = calls;
+  return impl;
+}
+
 function engine() {
   return createMcpEngine({ selfBaseUrl: 'http://cp.local', gatewayBaseUrl: 'https://gw.local', fetchImpl: fakeFetch(), runtimeImageDigest: TEST_DIGEST });
 }
 
-function fakeStateStore() {
-  let state = null;
+function fakeStateStore(initialState = null) {
+  let state = initialState ? structuredClone(initialState) : null;
   let saves = 0;
   return {
     get saves() { return saves; },
@@ -35,6 +52,54 @@ function fakeStateStore() {
       saves += 1;
     },
   };
+}
+
+function seededPublishedState({
+  tenantId = A.tenantId,
+  workspaceId = A.workspaceId,
+  serverId = 'srv-seeded',
+  tool,
+} = {}) {
+  return {
+    registry: {
+      servers: {
+        [`${tenantId}::${serverId}`]: {
+          tenantId,
+          serverId,
+          activeVersion: 'v1',
+          versions: [{ version: 'v1', active: true, tools: [tool] }],
+        },
+      },
+    },
+    servers: [{ serverId, name: serverId, source: 'instant', tenantId, workspaceId, draft: null, curated: null }],
+    auditLog: [],
+    rateWindows: [],
+  };
+}
+
+async function publishServer(e, {
+  identity = A,
+  workspaceId = identity.workspaceId,
+  name = 'telemetry-fixture',
+  source = 'instant',
+  resources,
+} = {}) {
+  const created = await e.executeMcp({
+    operation: 'create_server',
+    identity,
+    workspaceId,
+    body: { name, source, ...(resources === undefined ? {} : { resources }) },
+  });
+  await e.executeMcp({
+    operation: 'publish_version',
+    identity,
+    workspaceId,
+    serverId: created.serverId,
+    version: 'v1',
+    body: { version: 'v1' },
+  });
+  const view = await e.executeMcp({ operation: 'get_server', identity, workspaceId, serverId: created.serverId });
+  return { serverId: created.serverId, view };
 }
 
 function transactionalStateStore() {
@@ -205,4 +270,328 @@ test('hosted JSON-RPC refuses mutating official tools without caller write scope
   assert.equal(out.result.isError, true);
   assert.match(out.result.content[0].text, /mcp:falcone:workspaces:write/);
   assert.equal(fetchImpl.calls.length, before, 'missing write scope must not issue the upstream POST');
+});
+
+test('C07: management call submits one canonical counter/histogram pair and keeps metadata internal', async () => {
+  const fetchImpl = scriptedFetch({ body: { error: 'denied-looking result text is still a 2xx success' } });
+  const submissions = [];
+  let now = 1_000;
+  const identity = { ...A, actorId: 'generic-human-subject', verifiedOAuthClientId: 'oauth-client-verified' };
+  const e = createMcpEngine({
+    selfBaseUrl: 'http://cp.local',
+    gatewayBaseUrl: 'https://gw.local',
+    fetchImpl,
+    runtimeImageDigest: TEST_DIGEST,
+    metricsSink: (pair) => submissions.push(pair),
+    metricsEnvironment: 'staging',
+    clock: () => { now += 10; return now; },
+  });
+  const { serverId, view } = await publishServer(e, { identity });
+  const toolName = view.tools.find((tool) => !tool.mutates).name;
+
+  const out = await e.executeMcp({
+    operation: 'call_tool',
+    identity,
+    workspaceId: 'caller-workspace-hint',
+    serverId,
+    body: { name: toolName, arguments: { tenantId: 'ten-evil', workspaceId: 'ws-evil', secret: 'do-not-label' } },
+  });
+
+  assert.equal(fetchImpl.calls.length, 1);
+  assert.equal(submissions.length, 1);
+  assert.deepEqual(Object.keys(submissions[0]).sort(), ['counter', 'histogram']);
+  const { counter, histogram } = submissions[0];
+  assert.equal(counter.name, 'in_falcone_mcp_tool_invocations_total');
+  assert.equal(counter.kind, 'counter');
+  assert.equal(histogram.name, 'in_falcone_component_operation_duration_seconds');
+  assert.equal(histogram.kind, 'histogram');
+  for (const labels of [counter.labels, histogram.labels]) {
+    assert.equal(labels.tenant_id, A.tenantId);
+    assert.equal(labels.workspace_id, A.workspaceId);
+    assert.equal(labels.server, serverId);
+    assert.equal(labels.tool_name, toolName);
+    assert.equal(labels.oauth_client, 'oauth-client-verified');
+    assert.equal(labels.status_class, 'success');
+    assert.equal(labels.metric_scope, 'workspace');
+    assert.equal(labels.environment, 'staging');
+    assert.equal(Object.values(labels).includes('ten-evil'), false);
+    assert.equal(Object.values(labels).includes('ws-evil'), false);
+    assert.equal(Object.values(labels).includes('do-not-label'), false);
+  }
+  assert.equal(histogram.observedSeconds, 0.01);
+  assert.equal(out.result.status, 200);
+  assert.equal('outcomeClass' in out, false);
+  assert.equal('canonicalToolName' in out, false);
+  assert.equal('outcomeClass' in out.result, false);
+  assert.equal('canonicalToolName' in out.result, false);
+});
+
+test('C07: metricsEnvironment defaults compatibly and rejects unbounded/unsafe labels', () => {
+  assert.doesNotThrow(() => createMcpEngine({ metricsSink: null }));
+  for (const metricsEnvironment of ['', ' leading', 'has space', 'x'.repeat(65), 'line\nbreak']) {
+    assert.throws(() => createMcpEngine({ metricsEnvironment, metricsSink: null }), /metricsEnvironment must be a bounded/);
+  }
+});
+
+test('C07: JSON-RPC tools/call converges on the same seam and submits exactly once', async () => {
+  const fetchImpl = scriptedFetch();
+  const submissions = [];
+  const e = createMcpEngine({
+    selfBaseUrl: 'http://cp.local',
+    fetchImpl,
+    runtimeImageDigest: TEST_DIGEST,
+    metricsSink: (pair) => submissions.push(pair),
+  });
+  const { serverId, view } = await publishServer(e);
+  const toolName = view.tools.find((tool) => !tool.mutates).name;
+
+  const out = await e.executeMcpRpc({
+    identity: { ...A, oauthClientId: 'unverified-client-id' },
+    workspaceId: A.workspaceId,
+    serverId,
+    message: { jsonrpc: '2.0', id: 77, method: 'tools/call', params: { name: toolName, arguments: {} } },
+  });
+
+  assert.equal(out.id, 77);
+  assert.equal(out.result.isError, false);
+  assert.equal(fetchImpl.calls.length, 1);
+  assert.equal(submissions.length, 1, 'JSON-RPC wrapper must not submit a second pair');
+  assert.equal('oauth_client' in submissions[0].counter.labels, false, 'unverified client and generic actorId are omitted');
+  assert.equal('oauth_client' in submissions[0].histogram.labels, false);
+});
+
+test('C07 outcomes: missing BASE_SCOPE and missing declared mutating scope are denied without fetch', async () => {
+  {
+    const fetchImpl = scriptedFetch();
+    const submissions = [];
+    const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, metricsSink: (pair) => submissions.push(pair) });
+    const { serverId, view } = await publishServer(e);
+    const toolName = view.tools.find((tool) => !tool.mutates).name;
+    const out = await e.executeMcp({ operation: 'call_tool', identity: { ...A, scopes: [] }, workspaceId: A.workspaceId, serverId, body: { name: toolName } });
+    assert.equal(out.result.isError, true);
+    assert.match(out.result.content[0].text, /missing required scope/);
+    assert.equal(submissions.length, 1);
+    assert.equal(submissions[0].counter.labels.status_class, 'denied');
+    const audit = await e.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId });
+    assert.equal(audit.items.at(-1).detail.status, 'error', 'legacy audit derives status from result.isError');
+    assert.equal(fetchImpl.calls.length, 0);
+  }
+
+  {
+    const fetchImpl = scriptedFetch();
+    const submissions = [];
+    const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, metricsSink: (pair) => submissions.push(pair) });
+    const { serverId } = await publishServer(e, { source: 'official' });
+    const out = await e.executeMcp({
+      operation: 'call_tool',
+      identity: { ...A, scopes: [BASE_SCOPE] },
+      workspaceId: A.workspaceId,
+      serverId,
+      body: { name: 'create_workspace', arguments: { slug: 'blocked' } },
+    });
+    assert.equal(out.result.isError, true);
+    assert.match(out.result.content[0].text, /requires scope/);
+    assert.equal(submissions.length, 1);
+    assert.equal(submissions[0].counter.labels.status_class, 'denied');
+    assert.equal(fetchImpl.calls.length, 0);
+  }
+});
+
+test('C07 outcomes: mutating manifest without scope is an accounted engine error', async () => {
+  const tool = { name: 'legacy_mutation', description: 'legacy', mutates: true, scope: null, method: 'POST', path: '/v1/legacy', source: null };
+  const store = fakeStateStore(seededPublishedState({ tool }));
+  const fetchImpl = scriptedFetch();
+  const submissions = [];
+  const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, store, metricsSink: (pair) => submissions.push(pair) });
+
+  const out = await e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded', body: { name: tool.name } });
+
+  assert.equal(out.result.isError, true);
+  assert.match(out.result.content[0].text, /missing an explicit required scope/);
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].counter.labels.status_class, 'error');
+  assert.equal(fetchImpl.calls.length, 0);
+});
+
+test('C07 outcomes: call-shape validation failure is error and never reaches the backend', async () => {
+  const fetchImpl = scriptedFetch();
+  const submissions = [];
+  const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, metricsSink: (pair) => submissions.push(pair) });
+  const { serverId } = await publishServer(e, { resources: { storage: [{ name: 'docs', id: 'bucket-docs' }] } });
+
+  const out = await e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId, body: { name: 'get_object_docs', arguments: {} } });
+
+  assert.equal(out.result.isError, true);
+  assert.match(out.result.content[0].text, /object key is required/);
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].counter.labels.status_class, 'error');
+  assert.equal(fetchImpl.calls.length, 0);
+});
+
+test('C07 outcomes: non-2xx is error without changing the legacy caller-visible result shape', async () => {
+  const fetchImpl = scriptedFetch({ status: 503, body: { ok: true, message: 'success-looking body' } });
+  const submissions = [];
+  const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, metricsSink: (pair) => submissions.push(pair) });
+  const { serverId, view } = await publishServer(e);
+  const toolName = view.tools.find((tool) => !tool.mutates).name;
+
+  const out = await e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId, body: { name: toolName } });
+
+  assert.deepEqual(out.result, {
+    content: [{ type: 'text', text: JSON.stringify({ ok: true, message: 'success-looking body' }) }],
+    status: 503,
+  });
+  assert.equal('isError' in out.result, false, 'non-2xx did not expose isError before C07');
+  assert.equal('outcomeClass' in out.result, false);
+  assert.equal('canonicalToolName' in out.result, false);
+  assert.equal(submissions.length, 1);
+  assert.equal(submissions[0].counter.labels.status_class, 'error');
+  const audit = await e.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId });
+  assert.equal(audit.items.at(-1).detail.status, 'success', 'legacy non-2xx audit had no isError');
+});
+
+test('C07 outcomes: backend unavailability is error; a 2xx success stays success regardless of body text', async () => {
+  {
+    const fetchImpl = scriptedFetch({ error: new Error('connection refused') });
+    const submissions = [];
+    const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, metricsSink: (pair) => submissions.push(pair) });
+    const { serverId, view } = await publishServer(e);
+    const toolName = view.tools.find((tool) => !tool.mutates).name;
+    const out = await e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId, body: { name: toolName } });
+    assert.equal(out.result.isError, true);
+    assert.match(out.result.content[0].text, /backend unavailable: connection refused/);
+    assert.equal(submissions.length, 1);
+    assert.equal(submissions[0].counter.labels.status_class, 'error');
+    assert.equal(fetchImpl.calls.length, 1);
+  }
+
+  {
+    const fetchImpl = scriptedFetch({ status: 204, body: 'error denied failed' });
+    const submissions = [];
+    const e = createMcpEngine({ fetchImpl, runtimeImageDigest: TEST_DIGEST, metricsSink: (pair) => submissions.push(pair) });
+    const { serverId, view } = await publishServer(e);
+    const toolName = view.tools.find((tool) => !tool.mutates).name;
+    const out = await e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId, body: { name: toolName } });
+    assert.equal(out.result.status, 204);
+    assert.equal('isError' in out.result, false);
+    assert.equal(submissions.length, 1);
+    assert.equal(submissions[0].counter.labels.status_class, 'success');
+  }
+});
+
+test('C07 boundary: unknown tool has null internal outcome, valid public/audit results, and no submission', async () => {
+  const shaperInputs = [];
+  const submissions = [];
+  const e = createMcpEngine({
+    fetchImpl: scriptedFetch(),
+    runtimeImageDigest: TEST_DIGEST,
+    metricsSink: (pair) => submissions.push(pair),
+    telemetryShaper: (input) => { shaperInputs.push(input); throw new Error('must not shape unknown tools'); },
+  });
+  const { serverId } = await publishServer(e);
+
+  const out = await e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId, body: { name: 'caller_raw_unknown_name' } });
+
+  assert.equal(out.result.isError, true);
+  assert.match(out.result.content[0].text, /unknown tool/);
+  assert.equal('outcomeClass' in out.result, false);
+  assert.equal('canonicalToolName' in out.result, false);
+  assert.equal(shaperInputs.length, 0);
+  assert.equal(submissions.length, 0);
+  const audit = await e.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId });
+  assert.equal(audit.items.length >= 1, true);
+  assert.equal(typeof audit.items.at(-1).detail, 'object');
+});
+
+test('C07 boundary: unauthenticated, foreign, inactive, and pre-boundary rate-limit failures emit nothing', async () => {
+  const submissions = [];
+  const sink = (pair) => submissions.push(pair);
+  const e = createMcpEngine({ fetchImpl: scriptedFetch(), runtimeImageDigest: TEST_DIGEST, metricsSink: sink });
+  const { serverId, view } = await publishServer(e);
+  const toolName = view.tools.find((tool) => !tool.mutates).name;
+
+  await assert.rejects(
+    () => e.executeMcp({ operation: 'call_tool', identity: {}, workspaceId: A.workspaceId, serverId, body: { name: toolName } }),
+    (err) => err.statusCode === 401,
+  );
+  await assert.rejects(
+    () => e.executeMcp({ operation: 'call_tool', identity: B, workspaceId: B.workspaceId, serverId, body: { name: toolName } }),
+    (err) => err.statusCode === 404,
+  );
+
+  const inactive = await e.executeMcp({ operation: 'create_server', identity: A, workspaceId: A.workspaceId, body: { name: 'inactive', source: 'instant' } });
+  await assert.rejects(
+    () => e.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: inactive.serverId, body: { name: toolName } }),
+    (err) => err.statusCode === 409,
+  );
+  assert.equal(submissions.length, 0);
+
+  const rateSubmissions = [];
+  const rateEngine = createMcpEngine({
+    fetchImpl: scriptedFetch(),
+    runtimeImageDigest: TEST_DIGEST,
+    metricsSink: (pair) => rateSubmissions.push(pair),
+    plan: { maxServersPerTenant: 10, maxToolsPerServer: 100, toolCallsPerMinutePerServer: 0, toolCallsPerMinutePerOAuthClient: 100, mode: 'enforced' },
+  });
+  const rateFixture = await publishServer(rateEngine);
+  const rateTool = rateFixture.view.tools.find((tool) => !tool.mutates).name;
+  await assert.rejects(
+    () => rateEngine.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: rateFixture.serverId, body: { name: rateTool } }),
+    (err) => err.statusCode === 429,
+  );
+  assert.equal(rateSubmissions.length, 0);
+});
+
+test('C07 best effort: null/throwing sink and throwing shaper do not alter success/error or audit and never retry', async () => {
+  const tool = { name: 'stable_read', description: 'stable', mutates: false, scope: null, method: 'GET', path: '/v1/stable', source: null };
+
+  for (const status of [200, 503]) {
+    const state = seededPublishedState({ tool });
+    const control = createMcpEngine({
+      fetchImpl: scriptedFetch({ status, body: { stable: true } }),
+      runtimeImageDigest: TEST_DIGEST,
+      store: fakeStateStore(state),
+      metricsSink: null,
+    });
+    const expected = await control.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded', body: { name: tool.name } });
+    const controlAudit = await control.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded' });
+    assert.equal(controlAudit.items[0].detail.status, 'success', 'absent sink preserves legacy status, including 503');
+
+    let sinkCalls = 0;
+    const throwing = createMcpEngine({
+      fetchImpl: scriptedFetch({ status, body: { stable: true } }),
+      runtimeImageDigest: TEST_DIGEST,
+      store: fakeStateStore(state),
+      metricsSink: () => { sinkCalls += 1; throw new Error('sink failed'); },
+    });
+    const actual = await throwing.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded', body: { name: tool.name } });
+    assert.deepEqual(actual, expected);
+    assert.equal(sinkCalls, 1, `sink must not retry status ${status}`);
+    const audit = await throwing.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded' });
+    assert.equal(audit.items.length, 1);
+    assert.equal(typeof audit.items[0].detail, 'object');
+    assert.equal(audit.items[0].detail.message, 'mcp.tool_call', 'sink failure must not erase structured audit detail');
+    assert.equal(audit.items[0].detail.status, 'success', 'throwing sink must not replace legacy audit status');
+  }
+
+  let shaperCalls = 0;
+  let sinkCalls = 0;
+  const shapingFailure = createMcpEngine({
+    fetchImpl: scriptedFetch({ body: { stable: true } }),
+    runtimeImageDigest: TEST_DIGEST,
+    store: fakeStateStore(seededPublishedState({ tool })),
+    telemetryShaper: () => { shaperCalls += 1; throw new Error('shape failed'); },
+    metricsSink: () => { sinkCalls += 1; },
+  });
+  const out = await shapingFailure.executeMcp({ operation: 'call_tool', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded', body: { name: tool.name } });
+  assert.equal(out.result.status, 200);
+  assert.equal(shaperCalls, 1);
+  assert.equal(sinkCalls, 0);
+  const audit = await shapingFailure.executeMcp({ operation: 'list_audit', identity: A, workspaceId: A.workspaceId, serverId: 'srv-seeded' });
+  assert.equal(audit.items.length, 1);
+  assert.equal(audit.items[0].detail.message, 'mcp.tool_call');
+  assert.equal(audit.items[0].detail.server, 'srv-seeded');
+  assert.equal(audit.items[0].detail.tool, tool.name);
+  assert.equal(audit.items[0].detail.oauth_client, A.actorId);
+  assert.equal(audit.items[0].detail.status, 'success');
 });

@@ -16,6 +16,22 @@ test('observability metrics stack package remains internally consistent', () => 
   assert.deepEqual(violations, []);
 });
 
+test('MCP duration policy validation rejects bucket drift and generic label leakage', () => {
+  const stack = structuredClone(readObservabilityMetricsStack());
+  const duration = stack.naming.normalized_metric_families
+    .find((entry) => entry.id === 'component_operation_duration_seconds');
+  duration.allowed_optional_labels = ['server'];
+  duration.slice_policies[0].histogram_buckets_seconds = [0.5, 1];
+
+  const violations = collectObservabilityMetricsStackViolations(stack);
+  assert.equal(violations.includes(
+    'Normalized duration family must not grant generic optional labels for the MCP slice.'
+  ), true);
+  assert.equal(violations.includes(
+    'MCP duration slice buckets must exactly reuse the normalized latency buckets.'
+  ), true);
+});
+
 test('observability plane summary exposes the normalized foundation and all required subsystems', () => {
   const summary = summarizeObservabilityPlane();
   const stack = readObservabilityMetricsStack();

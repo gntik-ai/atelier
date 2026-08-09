@@ -165,6 +165,96 @@
           "collection_mode",
           "operation"
         ],
+        "slice_policies": [
+          {
+            "id": "mcp_tool_call",
+            "match_labels": {
+              "subsystem": "mcp",
+              "operation": "tool_call"
+            },
+            "supported_scopes": [
+              "tenant",
+              "workspace"
+            ],
+            "required_labels": [
+              "environment",
+              "subsystem",
+              "metric_scope",
+              "collection_mode",
+              "operation",
+              "tenant_id",
+              "server",
+              "tool_name",
+              "status_class"
+            ],
+            "allowed_conditional_labels": [
+              "workspace_id",
+              "oauth_client"
+            ],
+            "exact_label_keys": [
+              "environment",
+              "subsystem",
+              "metric_scope",
+              "collection_mode",
+              "operation",
+              "tenant_id",
+              "workspace_id",
+              "server",
+              "tool_name",
+              "oauth_client",
+              "status_class"
+            ],
+            "fixed_labels": {
+              "subsystem": "mcp",
+              "collection_mode": "push",
+              "operation": "tool_call"
+            },
+            "allowed_status_classes": [
+              "success",
+              "error",
+              "denied"
+            ],
+            "conditional_labels": {
+              "workspace_id": {
+                "required_when": {
+                  "metric_scope": "workspace"
+                },
+                "forbidden_when": {
+                  "metric_scope": "tenant"
+                },
+                "source": "tenant_scoped_resolved_server_workspace"
+              },
+              "oauth_client": {
+                "allowed_when": "verified_non_secret_oauth_client_id_available",
+                "otherwise": "omit",
+                "source": "credential_verified_oauth_client_id"
+              }
+            },
+            "canonical_source_policy": {
+              "metric_scope": "verified_tenant_or_tenant_resolved_workspace",
+              "tenant_id": "credential_verified_tenant_identity",
+              "workspace_id": "tenant_scoped_resolved_server_workspace",
+              "server": "tenant_scoped_canonical_server_record",
+              "tool_name": "active_published_manifest_canonical_tool",
+              "oauth_client": "credential_verified_non_secret_oauth_client_id",
+              "status_class": "internal_completed_invocation_outcome_class"
+            },
+            "histogram_buckets_seconds": [
+              0.005,
+              0.01,
+              0.025,
+              0.05,
+              0.1,
+              0.25,
+              0.5,
+              1,
+              2.5,
+              5,
+              10
+            ],
+            "non_matching_slice_policy": "mcp_attribution_labels_forbidden"
+          }
+        ],
         "description": "Normalized latency histogram for subsystem operations."
       },
       {

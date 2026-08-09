@@ -71,10 +71,36 @@ request (~1.2s observed in the ADR-12 spike). No idle cost.
 
 ## Observability
 
-Tool-call metrics: `in_falcone_mcp_tool_invocations_total` (domain `mcp_tool_usage`) + latency on
-`in_falcone_component_operation_duration_seconds` (`subsystem=mcp`). Audit: the `mcp` subsystem in
-the audit pipeline, queryable tenant-scoped in the console. All MCP observability/audit contracts are
-enforced by the `validate:observability-*` gates and the contract unit tests.
+The executor that hosts the MCP engine exports exactly two real-activity outputs on its existing
+unauthenticated-handler `GET /metrics` scrape surface:
+
+- `in_falcone_mcp_tool_invocations_total`, the `mcp_tool_usage` invocation counter; and
+- the `subsystem="mcp",operation="tool_call"` slice of
+  `in_falcone_component_operation_duration_seconds`, the matching latency histogram.
+
+One successful, error, or observable tool-level denial of a canonically resolved tool records one
+atomic counter/histogram pair. Pre-attribution failures and unknown tool names record neither half.
+Attribution comes from verified identity plus tenant-scoped server and published-manifest resolution:
+scope is only `tenant` or `workspace`, never `platform`; `oauth_client` is omitted unless a non-secret
+client id is derived from the signature-verified JWT client claims (`azp`, `client_id`, or
+`clientId`). Header-only, API-key, and subject-only identities omit it. The `environment` label uses
+bounded `FALCONE_ENVIRONMENT`, then `NODE_ENV`, then `production`. The process-local series reset and become absent on executor
+restart—there is no persistence, backfill, or synthetic zero. The separate control-plane metrics
+process does not mirror these samples.
+
+The `/metrics` handler and its network/topology trust boundary are unchanged; the handler adds no
+authentication or per-caller filtering. Keep this process-wide scrape surface inside its existing
+internal boundary. For the exact labels and buckets, PromQL, local scrape commands, absence
+troubleshooting, best-effort/atomicity semantics, limitations, and rollback, use the
+[C-07 MCP business-metric export runbook](/operations/observability#mcp-business-metric-export-c-07).
+That implementation was validated locally with hermetic tests only, not on a Kubernetes cluster.
+
+Audit remains independent: the `mcp` subsystem is queryable tenant-scoped in the console. Do not
+expect its historical `detail.status` buckets or row total to equal the new metric buckets: a scope
+denial is metric `denied` but audit `error`, a backend non-2xx result without `isError` is metric
+`error` but audit `success`, and an unknown tool has an audit record but no metric pair. The
+observability/audit contracts are enforced by the `validate:observability-*` gates and focused
+contract tests.
 
 ## E2E suite
 
