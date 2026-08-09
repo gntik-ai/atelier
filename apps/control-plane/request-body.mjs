@@ -17,6 +17,24 @@
 // `{bad` (400 INVALID_JSON) are already handled. See GitHub issue #666.
 
 /**
+ * Should a request body be PARSED as JSON? An absent content-type counts, for backward
+ * compatibility with clients that post JSON without declaring it.
+ *
+ * This is deliberately NOT the same question as "did the client declare a JSON envelope?" — see
+ * `declaresJsonBody` in storage-handlers.mjs, which is defined in terms of this so the one
+ * intentional difference (the absent-content-type case) is a single explicit clause rather than two
+ * hand-synchronised lists. The predicate lives here, next to `normalizeJsonBody`, for the reason
+ * this module exists: one definition, exercised verbatim by the server and by tests.
+ *
+ * @param {string|undefined|null} contentType raw request Content-Type header
+ * @returns {boolean}
+ */
+export function isJsonBody(contentType) {
+  const value = String(contentType ?? '').toLowerCase();
+  return value.includes('application/json') || value.includes('+json') || value === '';
+}
+
+/**
  * Decide the dispatched body for a JSON-content-type request from its raw bytes.
  *
  * Returns a discriminated result the caller maps directly to a response:

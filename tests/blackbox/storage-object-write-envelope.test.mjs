@@ -231,8 +231,24 @@ test('bbx-stor-env-05c: contentBase64 accepts every unambiguous base64 encoding 
   // The highest-value case for the hazard the guard exists for: an out-of-alphabet character in the
   // MIDDLE of otherwise-valid base64. Buffer.from() would silently drop it and return a shorter,
   // wrong byte string under a 201 — a naive filter-then-decode guard passes every case above and
-  // still fails this one. Non-ASCII whitespace belongs here too: no base64 encoder emits it.
-  for (const embedded of ['SE!!VMTE8=', 'SEVM TE8=x', 'SEV MTE8=', '﻿SEVMTE8=', 'SEVM TE8=', 'SEVM\0TE8=']) {
+  // still fails this one. Non-ASCII whitespace belongs here too: no base64 encoder emits it, and
+  // stripping it would turn a corrupt payload into a decodable one.
+  //
+  // The non-ASCII characters are written as \u escapes ON PURPOSE. As literal invisible characters
+  // they do not survive contact with tooling: a formatter, or a "strip non-ASCII" lint fix that
+  // normalises the NBSP to a plain space, turns it into 'SEV MTE8=' — which IS legitimately
+  // decodable, so the test would then fail claiming a silent shortening that never happened and
+  // point at the wrong thing entirely.
+  for (const embedded of [
+    'SE!!VMTE8=',              // out-of-alphabet character, mid-string
+    'SEVM=TE8',                // padding mid-string
+    'SEV\u00a0MTE8=',           // NBSP
+    '\ufeffSEVMTE8=',           // BOM
+    'SEVM\u2028TE8=',           // line separator
+    'SEVM\u3000TE8=',           // ideographic space
+    'SEVM\u000bTE8=',           // vertical tab: whitespace to \s, NOT in the ASCII set we strip
+    'SEVM\0TE8='               // NUL
+  ]) {
     assert.equal(
       resolveObjectBody({ body: { contentBase64: embedded } }).error?.statusCode, 400,
       `${JSON.stringify(embedded)} carries an out-of-alphabet character and must be refused, not silently shortened`
@@ -282,20 +298,32 @@ test('bbx-stor-env-05e: the stored content type comes from the envelope, never f
 // declaration, so a bodyless `curl -X PUT` keeps the touch semantics it has always had.
 test('bbx-stor-env-05f: an empty body is a touch unless the client explicitly declared JSON', async () => {
   const pool = makeMockPool();
-  for (const [contentType, expected] of [
-    ['application/octet-stream', 201],
-    ['image/png', 201],
-    ['', 201],
-    [undefined, 201],
-    ['application/json', 400],
-    ['application/merge-patch+json', 400]
+  for (const [contentType, expected, storedType] of [
+    ['application/octet-stream', 201, 'application/octet-stream'],
+    ['image/png', 201, 'image/png'],
+    // An absent header is not a declaration. Both of these also pin the bodyless content-type
+    // default: resolving it with `??` instead of `||` stores the empty string, which is what a
+    // later GET would then report for the object.
+    ['', 201, 'application/octet-stream'],
+    [undefined, 201, 'application/octet-stream'],
+    ['application/json', 400, null],
+    ['application/json; charset=utf-8', 400, null],
+    ['APPLICATION/JSON', 400, null],
+    ['application/merge-patch+json', 400, null]
   ]) {
-    await withFakeS3(async () => {
+    await withFakeS3(async ({ store, puts }) => {
       const res = await storagePutObject({
         ...ctxFor({ bucketId: BUCKET_A, objectKey: 'empty-decl.bin' }, { pool }),
         rawBody: Buffer.alloc(0), contentType
       });
       assert.equal(res.statusCode, expected, `Content-Type ${JSON.stringify(contentType)} must be ${expected}, got ${res.statusCode} ${JSON.stringify(res.body)}`);
+      if (expected === 400) {
+        assert.equal(res.body.code, 'STORAGE_INVALID_BODY');
+        assert.equal(puts.length, 0, 'a refused empty body reaches no backend');
+      } else {
+        assert.equal(store.get(`/${BUCKET_A}/empty-decl.bin`).contentType, storedType,
+          `Content-Type ${JSON.stringify(contentType)} stores ${storedType}`);
+      }
     });
   }
 });

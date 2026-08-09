@@ -11,6 +11,7 @@ import * as store from './tenant-store.mjs';
 import { issueBucketIdentity, revokeBucketIdentity, revokeIdentityByName, workspaceIdentityName } from './seaweedfs-identity.mjs';
 import { checkBucketQuota, checkByteQuota, usageLimits, dimensionStatus, STORAGE_QUOTA_EXCEEDED } from './storage-quota.mjs';
 import { canManageTenant } from './tenant-scope.mjs';
+import { isJsonBody } from './request-body.mjs';
 
 // Provider-neutral S3 endpoint/credentials (SeaweedFS S3 gateway port 8333, or any
 // S3-compatible backend). Legacy MINIO_* names remain as backward-compatible fallbacks;
@@ -406,14 +407,16 @@ function decodeObjectKey(rawKey) {
 //   - Either alphabet, standard (`+/`) or URL-safe (`-_`), but not a mix of the two — a mixed
 //     string is not valid in either and is exactly the corruption signal worth refusing.
 // A length ≡ 1 (mod 4) cannot be a base64 sequence at all.
-// Did the CLIENT explicitly declare a JSON request body? Mirrors server.mjs's `isJsonBody` EXCEPT
-// for the empty-content-type case: server.mjs treats an absent Content-Type as JSON for backward
-// compatibility, but an absent header is not a declaration, so a bodyless `curl -X PUT` keeps the
-// touch semantics it has always had.
-function declaresJsonBody(contentType) {
-  const value = String(contentType ?? '').toLowerCase();
-  return value.includes('application/json') || value.includes('+json');
-}
+// Did the CLIENT explicitly DECLARE a JSON request body? Deliberately one clause away from
+// `isJsonBody`, which answers "should this be parsed as JSON?" and counts an ABSENT Content-Type for
+// backward compatibility. An absent header is not a declaration, so a bodyless `curl -X PUT` keeps
+// the touch semantics it has always had. Defining this in terms of the shared predicate keeps the
+// divergence a single explicit clause instead of two lists to hand-synchronise — if server.mjs's
+// list ever grows, both move together.
+//
+// The divergence is unobservable on the parse path: server.mjs guards its whole parse block with
+// `if (rawBody.length)`, so for an empty body `isJsonBody` is never consulted at all.
+const declaresJsonBody = (contentType) => isJsonBody(contentType) && String(contentType ?? '') !== '';
 function decodeBase64Exact(raw) {
   const compact = raw.replace(/[\t\n\f\r ]+/g, '');
   const body = compact.replace(/={1,2}$/, '');

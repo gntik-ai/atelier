@@ -32,7 +32,7 @@ import { recordHttp, recordKnativeDependencyEvent, renderMetrics, normalizeRoute
 import { recordRouteAudit, recordRouteDenial } from './audit-writer.mjs';
 import { recordAuditEvent } from './audit-store.mjs';
 import { withPostgresSsl } from './transport-security.mjs';
-import { normalizeJsonBody } from './request-body.mjs';
+import { isJsonBody, normalizeJsonBody } from './request-body.mjs';
 import { listenAfterRequiredGates } from './control-plane-startup.mjs';
 import { resolveWebhookDatabasePrincipalNames } from './webhook-database-principals.mjs';
 import { prepareControlPlaneDatabases } from './control-plane-database-startup.mjs';
@@ -396,11 +396,13 @@ const server = http.createServer(async (req, res) => {
     // A non-JSON content-type carries an opaque/binary body (e.g. object uploads): keep the exact
     // bytes for the handler instead of rejecting with INVALID_JSON. JSON (or an unspecified type,
     // for backward compatibility) is parsed as before.
-    const isJsonBody = contentType.includes('application/json') || contentType.includes('+json') || contentType === '';
+    // Predicate lives in request-body.mjs so storage's `declaresJsonBody` can be defined in terms of
+    // it (it answers a different question and diverges on the absent-content-type case only).
+    const jsonBody = isJsonBody(contentType);
     let body = {};
     let rawBodyIsBinary = false;
     if (rawBody.length) {
-      if (isJsonBody) {
+      if (jsonBody) {
         // Parse + validate the JSON body in one place: unparseable bytes -> 400 INVALID_JSON,
         // a body that parses to a non-object (null, array, scalar) -> 400 VALIDATION_ERROR.
         // Rejecting here, before handler dispatch, keeps a malformed body from reaching a
