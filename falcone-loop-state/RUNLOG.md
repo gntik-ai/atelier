@@ -781,3 +781,54 @@ the fix is not on staging yet.
 4. The `mcp:storage:write-uses-legacy-lossy-field` candidate needs an MCP argument-validation slice
    before it can be filed.
 5. Still unaddressed from F0-6: O1/O2, §19 criteria 9–15, and the function-secrets surface.
+
+## Staging rollout — 2026-08-09, after PR #1006 merged
+
+**Rule 4 pre-flight recorded:** context `default`, target `in-falcone-staging` only. No other
+namespace touched. The rollout was a single-deployment image change, not a `helm upgrade`.
+
+| Step | Result |
+|---|---|
+| PR #1006 merged to `main` | `d9cd0f6b` (squash) |
+| Images built | `release-images.yml` dispatched on `main`, tag `0.6.6-main-d9cd0f6b`, all 6 images, success. `push_latest=false` — `latest` deliberately not moved |
+| control-plane rolled out | `sha256:0c6aeff8` (`0.6.6-main-fe2d2203`) → `sha256:26bb5ff1` (`0.6.6-main-d9cd0f6b`), ready, 0 restarts, 240 routes |
+
+**What the previous running image was.** `0c6aeff8` resolved to tag `0.6.6-main-fe2d2203` — an
+*older main build* rolled out out-of-band, **not** another track's experimental patch. Checked before
+replacing it precisely because FINDINGS:411-419 warns this deployment is not reproducible from the
+charts repo. So `fe2d2203 → d9cd0f6b` lost nothing; it added #965, #961, #994 and #966.
+
+**Verified in the running pod**, mirroring how #994 evidenced the bug in the first place:
+`decodeBase64Exact` present, `contentBase64` type-checked before decode, `STORAGE_INVALID_BODY`
+exported, and `content: o.content` at **zero** occurrences. `workspace_id` present 8× in
+`kc-admin.mjs`, so the same image carries #961. **No live end-to-end API probe was run** — the
+verification is image/code level in the deployed pod plus the three verifier passes on the code.
+
+### Why a targeted rollout and not `helm upgrade`
+
+`helm get values` pins `controlPlane.image` at tag **`0.3.1`** / digest `sha256:27aedb…`, while the
+pod has been running a `0.6.6-main-*` image for some time. So a plain `helm upgrade` would have
+**rolled the control plane BACKWARD to 0.3.1**, and it re-runs the `eso-preflight` and
+`falcone-temporal-schema` pre-upgrade hooks that failed on revisions 17 and 18 — on a shared cluster
+with other sessions active. A single-deployment image change is reversible with
+`kubectl rollout undo` and touches nothing else.
+
+### Drift, stated plainly
+
+The drift is **not** resolved — it pre-existed this rollout and this rollout continues it. Helm still
+pins `0.3.1`/`27aedb`, so **the next `helm upgrade` will revert the control plane to 0.3.1 and undo
+#994, #966 and #961 on staging.** The durable fix is a `controlPlane.image` values change in
+`gntik-ai/falcone-charts`, which CLAUDE.md rule 6 puts outside what this track may edit — it needs an
+operator there. This is the same class of finding as #965's `runAsUser` masking.
+
+### Not done, deliberately
+
+- **#961's back-fill for existing users has NOT been run.** New principals get the `workspace_id`
+  claim from now on; existing ones need the back-fill plus a per-user re-stamp, per
+  `docs/reference/architecture/workspace-id-claim-rollout.md`. That mutates Keycloak for every
+  existing user and belongs in an announced window.
+- **executor and workflow-worker images not rolled.** #965's fix is in *their* Dockerfiles, and
+  staging still carries the `runAsUser: 1000` values workaround that masks it. Rolling them would let
+  the workaround be removed — but removing it is another falcone-charts values change.
+- Objects a pre-fix deployment stored empty remain unrecoverable; only the writing client can
+  re-upload.
