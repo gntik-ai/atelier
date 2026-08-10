@@ -1753,3 +1753,55 @@ class of mistake as a test that asserts nothing. Every command after that carrie
 - **The release is still `failed` at rev 23** and all five restorations are out-of-band `kubectl` state.
   The next `helm upgrade` reverts every one of them, including the APISIX volumes. That is
   `falcone-charts#27`'s subject, now with five concrete items rather than one.
+
+### The `routes=195` anomaly resolved — 10 env vars were silently stripped, including a security control
+
+Chased the 45-route delta flagged above. It was not a route-table problem; it was one symptom of a
+larger, silent configuration loss. Diffing the control-plane container's env against revision 20:
+
+```text
+rev 20: 56 entries        after the failed upgrades: 46        dropped: 10, added: 0
+```
+
+All ten were **inline `env:` entries on the Deployment** — no ConfigMap or Secret involved; they simply
+stopped being rendered.
+
+| Dropped | Consequence |
+|---|---|
+| `REALM_BRUTE_FORCE_PROTECTED` `=true`, plus `_FAILURE_FACTOR` `=10`, `_MAX_WAIT_SECONDS` `=900`, `_PERMANENT_LOCKOUT` `=false` | **Keycloak brute-force protection off for newly provisioned tenant realms** — a security control silently disabled |
+| `ROUTE_MAP_FILE` `=/app/route-map.runtime.json` | **45 routes unreachable** (195 seed instead of 240) |
+| `STORAGE_TENANT_IDENTITIES` `=1` | per-tenant SeaweedFS identities disabled |
+| `REALTIME_DOCUMENTDB_URL` (secretKeyRef, optional) | realtime replication URL absent |
+| `WEBHOOK_MAX_SUBSCRIPTIONS_PER_WORKSPACE` `=25` | a quota silently unset |
+| `TENANT_APP_REDIRECT_URIS`, `TENANT_APP_WEB_ORIGINS` | tenant app OIDC redirect allow-list and CORS origins |
+
+**All ten restored** from rev 20's rendered manifest, verbatim. Env count back to 56, and the control
+plane logs `loaded 240 routes (seed + route map)` again. `GET /v1/tenants` still 401, pods 1/1, 0 restarts.
+
+**`ROUTE_MAP_FILE` is the instructive one**, because it shows how quiet this class is.
+`bootstrapControlPlane()` loads the extra map only `if (ROUTE_MAP_FILE)`, so with the variable gone the
+service starts happily, logs `routes=195`, and serves. **The distinguishing signal is a MISSING log
+line** — `loaded N routes (seed + route map)` never prints. Nothing errors; 45 declared routes just
+answer 404, indistinguishable from the declared-but-unserved class of #985. If the diff against rev 20
+had not been run, this environment would have looked healthy while a fifth of its route table was gone.
+
+**One value restored verbatim and deliberately NOT corrected:** `TENANT_APP_REDIRECT_URIS` in **rev 20
+itself** is `https://console.staging.in-falcone.example.com/*` — the placeholder host, not the real
+console. That predates the outage and is presumably its own bug (tenant app OIDC redirects pointing at a
+hostname that does not exist). Changing a Keycloak client's redirect allow-list is security-relevant and
+belongs in review (rule 7), not in an outage repair, so it was restored as-found and flagged.
+
+**The generalisable lesson, worth more than the fix:** a failed `helm upgrade` on this release degrades
+the namespace **silently** — service stays up, nothing errors, and the difference is a security control
+off and 45 routes missing. The platform has no notion of "an expected configuration key is absent". That
+is the same "fail closed or fail readiness" property #981 asks for on the verifier settings, and it
+generalises: any config-driven capability that degrades to a no-op when its variable disappears will do
+this again. Worth considering as its own requirement.
+
+**Out-of-band state now in the namespace**, all reverted by the next `helm upgrade`: ingress hosts ·
+`KEYCLOAK_ISSUER` · APISIX `runAsUser: 636` · APISIX `standalone-config` volume+mount · control-plane
+image digest · these 10 env entries. `falcone-charts#27` is the durable fix and now has six items.
+
+**Not posted to charts#27:** the write-up of this env loss was blocked by the permission classifier when
+attempting to comment on the charts repo. The text is prepared and needs a human to post it — recorded
+here so it is not lost.
