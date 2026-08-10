@@ -781,3 +781,106 @@ the fix is not on staging yet.
 4. The `mcp:storage:write-uses-legacy-lossy-field` candidate needs an MCP argument-validation slice
    before it can be filed.
 5. Still unaddressed from F0-6: O1/O2, §19 criteria 9–15, and the function-secrets surface.
+
+## Staging rollout — 2026-08-09, after PR #1006 merged
+
+**Rule 4 pre-flight recorded:** context `default`, target `in-falcone-staging` only. No other
+namespace touched. The rollout was a single-deployment image change, not a `helm upgrade`.
+
+| Step | Result |
+|---|---|
+| PR #1006 merged to `main` | `d9cd0f6b` (squash) |
+| Images built | `release-images.yml` dispatched on `main`, tag `0.6.6-main-d9cd0f6b`, all 6 images, success. `push_latest=false` — `latest` deliberately not moved |
+| control-plane rolled out | `sha256:0c6aeff8` (`0.6.6-main-fe2d2203`) → `sha256:26bb5ff1` (`0.6.6-main-d9cd0f6b`), ready, 0 restarts, 240 routes |
+
+**What the previous running image was.** `0c6aeff8` resolved to tag `0.6.6-main-fe2d2203` — an
+*older main build* rolled out out-of-band, **not** another track's experimental patch. Checked before
+replacing it precisely because FINDINGS:411-419 warns this deployment is not reproducible from the
+charts repo. So `fe2d2203 → d9cd0f6b` lost nothing; it added #965, #961, #994 and #966.
+
+**Verified in the running pod**, mirroring how #994 evidenced the bug in the first place:
+`decodeBase64Exact` present, `contentBase64` type-checked before decode, `STORAGE_INVALID_BODY`
+exported, and `content: o.content` at **zero** occurrences. `workspace_id` present 8× in
+`kc-admin.mjs`, so the same image carries #961. **No live end-to-end API probe was run** — the
+verification is image/code level in the deployed pod plus the three verifier passes on the code.
+
+### Why a targeted rollout and not `helm upgrade`
+
+`helm get values` pins `controlPlane.image` at tag **`0.3.1`** / digest `sha256:27aedb…`, while the
+pod has been running a `0.6.6-main-*` image for some time. So a plain `helm upgrade` would have
+**rolled the control plane BACKWARD to 0.3.1**, and it re-runs the `eso-preflight` and
+`falcone-temporal-schema` pre-upgrade hooks that failed on revisions 17 and 18 — on a shared cluster
+with other sessions active. A single-deployment image change is reversible with
+`kubectl rollout undo` and touches nothing else.
+
+### Drift, stated plainly
+
+The drift is **not** resolved — it pre-existed this rollout and this rollout continues it. Helm still
+pins `0.3.1`/`27aedb`, so **the next `helm upgrade` will revert the control plane to 0.3.1 and undo
+#994, #966 and #961 on staging.** The durable fix is a `controlPlane.image` values change in
+`gntik-ai/falcone-charts`, which CLAUDE.md rule 6 puts outside what this track may edit — it needs an
+operator there. This is the same class of finding as #965's `runAsUser` masking.
+
+### Not done, deliberately
+
+- **#961's back-fill for existing users has NOT been run.** New principals get the `workspace_id`
+  claim from now on; existing ones need the back-fill plus a per-user re-stamp, per
+  `docs/reference/architecture/workspace-id-claim-rollout.md`. That mutates Keycloak for every
+  existing user and belongs in an announced window.
+- **executor and workflow-worker images not rolled.** #965's fix is in *their* Dockerfiles, and
+  staging still carries the `runAsUser: 1000` values workaround that masks it. Rolling them would let
+  the workaround be removed — but removing it is another falcone-charts values change.
+- Objects a pre-fix deployment stored empty remain unrecoverable; only the writing client can
+  re-upload.
+
+## #961 realm back-fill — 2026-08-09, runbook §5
+
+**Rule 4 pre-flight recorded before both the dry run and the mutating run:** context `default`,
+target `in-falcone-staging` only.
+
+Run as an **in-cluster Job**, which is what runbook §5 prefers, specifically so the Keycloak admin
+credentials never reach a workstation: they were pulled by `secretKeyRef` from the same Secrets the
+control plane already uses (`in-falcone-keycloak-admin`, `in-falcone-postgresql`), so no credential
+value appeared in any manifest, shell, or file on disk. The Job pinned the **same image digest the
+control-plane Deployment is running** (`sha256:26bb5ff1`), so `kc-admin.mjs` and its two idempotent
+helpers were byte-identical to the deployed code.
+
+The reviewed script was supplied via ConfigMap and its sha256 verified equal to the repo copy
+(`3696d072…`) before running — `/app` and `/tmp` are both read-only in that image, so the script ran
+from an `emptyDir` with symlinks reproducing the paths its own relative import expects. **The script
+was not edited**; what ran was the reviewed file unmodified.
+
+| Phase | Result |
+|---|---|
+| Dry run (attempt 1) | **FAILED** — `getaddrinfo ENOTFOUND undefined`. `PGHOST` etc. are *inline* env on the Deployment, not in the three ConfigMaps `envFrom` pulls. Useful failure: it proved the plumbing before any write |
+| Dry run (attempt 2) | 2 realms, 2 needing work, 0 failures |
+| `--apply` | **2 of 2 realms repaired, 0 failures** |
+| §7 verification | **PASS on both realms** |
+
+Both realms were missing exactly what #961 describes: the `tenant_id` and `workspace_id` user-profile
+declarations, and the `workspace-context/workspace_id` protocol mapper. Neither was missing a
+`tenant-context` mapper — consistent with that absence being deliberate.
+
+§7 verification was a separate **read-only** Job, because the dry run alone does not check the
+security property: it confirmed `permissions.edit == ["admin"]` (never `"user"`, which would let a
+holder rewrite its own claim and make workspace authorization self-service), the
+`oidc-usermodel-attribute-mapper` on `workspace-context`, and **zero** user-model mappers on
+`tenant-context` — the property `bbx-wsid-04` also pins.
+
+Run artifacts (3 Jobs + 1 ConfigMap) deleted afterwards; the namespace is clean.
+
+### The §6 re-stamp is NOT done, and should not be done mechanically
+
+`usersWithoutStoredWorkspaceId` = **1 principal**, `llmwiki-s2-e2e`, in realm
+`c5b17f04-e748-4425-8f54-9a946811d2c8`. Declaring an attribute cannot invent a value Keycloak
+discarded at create time, so this principal still holds no `workspace_id` and no realm-level change
+can supply one.
+
+Runbook §6 is explicit that this is **not mechanical**: `workspace_id` is what workspace-scoped
+authorization binds to, so a guessed binding is a *granted* authorization, and bulk-assigning a
+default workspace is forbidden. For this specific principal the name says it is the portal's S2 E2E
+user, which points at option 2 (re-create through the normal signup path, which now stamps a
+validated binding) — but that is the portal's call, not this track's, and the alternative reading is
+option 3: if it is a tenant-level principal, the absence is *correct* rather than a gap.
+
+**Left open deliberately.** One user, one decision, and the wrong decision grants access.

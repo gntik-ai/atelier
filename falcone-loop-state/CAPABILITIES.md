@@ -241,8 +241,7 @@ workflow-worker replicas poll task queue `flows-main`; `CountWorkflowExecutions`
   envelope now carries exactly one payload representation, `contentBase64`, and the write path
   honours the same field (→ #994). Documented in
   `docs/reference/architecture/storage-object-io.md` and pinned by
-  `tests/blackbox/storage-object-write-envelope.test.mjs`. **Not yet true on staging**, which runs
-  the pre-fix image.
+  `tests/blackbox/storage-object-write-envelope.test.mjs`. **LIVE ON STAGING**: image `0.6.6-main-d9cd0f6b` (`sha256:26bb5ff1`), verified in the running pod (`decodeBase64Exact` present, `content: o.content` zero occurrences). Rolled 2026-08-09, **reverted overnight by three failed `helm upgrade` attempts**, restored 2026-08-10 — so it has not been continuously live, and it is out-of-band state that the next upgrade reverts again (`falcone-charts#27`).
 - There is no documented route for deleting a provisioned database because none exists (→ #967).
 - The `flc_` API-key authentication path is real and load-bearing but has no issuance path that
   works today (`workspace_api_keys` = 0 rows cluster-wide).
