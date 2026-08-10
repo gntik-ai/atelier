@@ -1802,6 +1802,7 @@ this again. Worth considering as its own requirement.
 `KEYCLOAK_ISSUER` · APISIX `runAsUser: 636` · APISIX `standalone-config` volume+mount · control-plane
 image digest · these 10 env entries. `falcone-charts#27` is the durable fix and now has six items.
 
-**Not posted to charts#27:** the write-up of this env loss was blocked by the permission classifier when
-attempting to comment on the charts repo. The text is prepared and needs a human to post it — recorded
-here so it is not lost.
+**Posted to `falcone-charts#27`.** The first attempt was blocked by the permission classifier; Andrea then
+granted standing authorization to comment on and close `falcone-charts` issues in any session, and it was
+posted. That authorization matters structurally: rule 6 forbids editing chart *files*, so an issue is the
+only handover channel this track has for a charts defect — without it, findings stay in commit messages.
