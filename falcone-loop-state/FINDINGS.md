@@ -1625,3 +1625,131 @@ narrows #972's real scope and the verifier was right to refuse to blend it.
 | ID | Fingerprint | Guess | Summary | What must be settled first |
 |---|---|---|---|---|
 | **E1** | `executor:functions:in-process-worker-backend-runs-tenant-code` | high (if reachable) | `apps/control-plane-executor/src/runtime/functions-executor.mjs:37` runs tenant source in a `worker_threads` worker whose own comment says *"NOT a security sandbox — production uses Knative pods"*. But `main.mjs:182` reads `process.env.FN_BACKEND === 'off' ? undefined : createFunctionsExecutor()`, `createFunctionsExecutor()` defaults to `localWorkerBackend()`, **`FN_BACKEND` is not set on the deployed executor**, and the executor is wired into the module registry at `main.mjs:386`. Withholding `require` from that `new Function` is not a boundary either — ambient `process` and dynamic `import()` remain. If a tenant can route a function invoke here, tenant code executes **in-process in the pod that does hold DB credentials and the gateway shared secret** — the inverse of the Knative path's blast radius. | **Reachability.** The verifier explicitly did NOT establish it (the known routing defects #981/#980/#985 make it non-obvious) and did not test it. Reachability is the whole question: unreachable makes this latent, reachable makes it worse than #1007. Needs its own explorer/verifier pass — it was correctly flagged rather than folded into A1-2. |
+
+## Remaining ten candidates — verdicts
+
+| ID | Verdict | Severity (re-rated) | Disposition |
+|---|---|---|---|
+| **C1** developer roles inert | **CONFIRMED** | high, bug | **#1008** — *not* a #961 symptom |
+| **C2** events publish drops payload | **CONFIRMED** (mechanism) | medium (was high) | **#1009** |
+| **C3** BYOK provider deadlock | **NOT-REPRODUCIBLE** | — | closed out, nothing filed |
+| **C4** `ten_`/`wrk_` vs UUID | **CONFIRMED** | high (handover) / medium (breakage) | **#1010** |
+| **C5** anon key write ceiling | **CONFIRMED** | medium, bug | **#1011** |
+| **C6** half A "no DDL route" | **NOT-REPRODUCIBLE** | — | wrong path shape probed |
+| **C6** adjacent (bearer↛postgres) | **CONFIRMED** | medium-high | **#1012** |
+| **C6** half B `err.code` leak | **CONFIRMED** (code level) | low-medium | **#1013** |
+| **C7** docs cluster-only path | **CONFIRMED** core | medium, bug | **#1014** |
+| **A1-1** supply chain (5 claims) | claim 2 **CONFIRMED**; 1+3 enhancements; **claim 4 NOT-REPRODUCIBLE**; 5 cosmetic | high (gate) | **#1015** (claim 2 only) |
+
+**Eleven candidates in, nine issues filed** (#1007–#1015), three legs refuted, two folded as duplicates.
+That ratio is the argument for rule 3: a third of what the explorers surfaced would have been filed
+wrong.
+
+### Refutations worth keeping, because each would have been a wrong issue
+
+- **C3** — the deadlock does not exist. `PUT …/llm-provider` returns 200 over bearer for owner, admin
+  and `workspace_admin`, and those 200s landed **while the control-plane deployment was scaled to 0**,
+  independently proving the route reaches the executor. A dedicated gateway route (`2003-llm`, priority
+  338) does it. The finder's 404 came from **path/method variants** (plural, trailing slash, POST), whose
+  `"No action mapped for …"` wording is the *control plane's* emitter reached through the executor's own
+  proxy fallback — not gateway misrouting. The apikey→403 leg is intended, documented in
+  `structural-write-role-gates.md` and pinned by a black-box test the verifier ran (5/5 pass).
+- **C6 half A** — the DDL/introspection family exists and matches its contract; it is **database**-scoped
+  (`/v1/postgres/databases/{db}/schemas`), not workspace-scoped. The probed paths are declared in no
+  contract and no catalog, so 404 was correct. Also **not** in #985's census, which holds exactly one
+  postgres entry.
+- **A1-1 claim 4** — "revision labels resolve to commits that are not ancestors of HEAD" is the **wrong
+  test**. `release-images.yml:149` sets the label correctly; `d9cd0f6b` is not an ancestor of HEAD and
+  **is on `origin/main`** — because HEAD is a feature branch. Traceability via the label is intact.
+
+### Two conclusions only visible across agents
+
+1. **C6's adjacent finding was orphaned by C3's refutation.** C6 recommended folding the postgres
+   bearer-routing defect into C3's row as "one gateway defect, two surfaces". C3 then came back
+   NOT-REPRODUCIBLE, so it has no parent and is filed standalone as #1012 — and the contrast is the fix:
+   `2003-llm` is exactly the high-priority route pattern `2005` lacks.
+2. **C2 is the third instance of #994's class**, after #1004. Three data points argue for the systemic
+   request-validation layer (#1005 extending #985's CI check) rather than a fourth handler-local patch.
+
+### Process notes from this pass
+
+- **Two verifiers hit permission blocks on credential access and stopped rather than reword around
+  them.** Correct call. The cost is that **C2's positive control is still unrun** and C6's live `500`
+  was never reproduced — both are filed on deployed-artifact evidence with the live leg named as
+  outstanding.
+- **C5's "probably dead" flag, which I passed on in the brief, was wrong.** The prior fragment observed
+  existing rows produced by the default path, not whether the ceiling is enforceable. Carrying a
+  finder's or a previous verifier's framing into a brief can suppress a real finding — worth guarding
+  against next time.
+- **C1 corrected its own candidate's wording**: "grant nothing" is too strong — all seven roles do get
+  `GET /v1/workspaces` 200 and `GET …/llm-provider` 200. Inert on structural routes and single-workspace
+  read, not universally.
+
+## #961 correction — the fix reaches signup, not the admin route
+
+Filed **#1016**, commented on #961, and the COVERAGE row corrected.
+
+`kc.createUser` supports `attributes` (`kc-admin.mjs:349-366`). `auth-handlers.mjs:277` (signup) passes
+them; **`b-handlers.mjs:243` (`POST /v1/tenants/{tenantId}/users`) does not** — no `attributes` argument
+at all, and the route accepts no workspace input to stamp even if it were threaded through. Verified
+directly by me after the C1 verifier found seven admin-created users with `attributes: []` in a realm
+created *after* the fix.
+
+**Consequence for the runbook:** §6's "re-stamp existing principals" is written as a one-time migration
+for principals created before the fix. It is not one-time while the admin route keeps producing new
+members of that population. Note it in §6 once #1016 lands.
+
+#961 was **not** reopened — the declaration half is real, verified, deployed and back-filled, and
+reopening would obscure that. The gap is a specific missing argument on a specific route with its own
+contract question, which is cleaner as its own issue.
+
+## Staging restore — 2026-08-10, after a 6-hour outage
+
+A concurrent operator ran `helm upgrade` three times (rev 21 chart 0.4.7, rev 22 chart 0.4.8, rev 23
+"context canceled") between 21:51 and 23:38. All three **failed**, and staging was left broken with
+nobody on it until 06:00. **Five** things were broken, not the four first visible:
+
+| # | Breakage | Restored from |
+|---|---|---|
+| 1 | Ingress hosts reverted to chart placeholders (`*.staging.in-falcone.example.com`) → public API/console/IAM/realtime 404 from nginx | rev 20 manifest, cross-checked against all four TLS certs' SANs |
+| 2 | `KEYCLOAK_ISSUER` dropped from control-plane → `issuer not trusted` ×27, bearer auth dead | rev 20: `https://iam.baas.musematic.ai/realms/in-falcone-platform` |
+| 3 | APISIX `runAsNonRoot` with **no** numeric `runAsUser` → new RS stuck in `CreateContainerConfigError` | rev 20 values: `runAsUser: 636` |
+| 4 | Control-plane image reverted to `adead18f`, losing #994/#966/#961 | re-pinned `sha256:26bb5ff1` |
+| 5 | **APISIX had every volume stripped**, including the mount supplying its route config — so it answered `{"error_msg":"404 Route Not Found"}` for everything while the ConfigMap still held the routes | rev 20 manifest: `standalone-config` → `/usr/local/apisix/conf/apisix.yaml` |
+
+Breakage 5 was only found because the ingress fix changed *whose* 404 it was: nginx's default backend
+became APISIX's JSON. Distinguishing the emitter is what surfaced it — the same discriminator C6 used
+to tell `NO_ROUTE` from `UNAUTHENTICATED`.
+
+Verified after: all four hosts 200 (iam via `.well-known/openid-configuration`; its `/health` 404 is
+Keycloak not serving that path publicly), `GET /v1/tenants` → **401** rather than 404 (routed *and* auth
+live), `issuer not trusted` **0** since restart, APISIX 3/3, and the storage fix present in the pod
+(`decodeBase64Exact` 2, lossy field 0).
+
+**A note on #965's closure:** breakage 3 is #965's exact failure mode on a **vendor** image
+(`apache/apisix`, whose `USER` is the name `apisix`). The #965 fix changed `USER node → USER 1000` in
+three *first-party* Dockerfiles, which cannot help a third-party image — that needs a numeric
+`runAsUser` in the chart. **The class #965 describes is not closed**, and #965 reads as if it were.
+
+### My rule 4 violation, recorded
+
+I ran a rule 4 preflight confirming context `default` and namespace `in-falcone-staging`, then applied
+the ingress manifest with `kubectl apply -f` **and no `-n`**. Helm strips `namespace:` from rendered
+manifests, so it landed in the context's default namespace. It was not harmless: nginx's admission
+webhook then **refused the legitimate restore** because `default/falcone-in-falcone-public` already
+claimed `api.baas.musematic.ai` — my own error blocked the fix, and the webhook's message is how I
+located it. Deleted; the real restore then applied in place with `creationTimestamp` preserved.
+
+**The lesson is narrow and worth keeping: a preflight that is not wired to the command it guards is
+decoration.** Verifying the namespace and then issuing a command that does not carry `-n` is the same
+class of mistake as a test that asserts nothing. Every command after that carried
+`-n in-falcone-staging`.
+
+### Still open after the restore
+
+- **`routes=195` where the same image reported `routes=240` earlier tonight.** Same digest, so it is
+  driven by ConfigMaps the failed upgrades rewrote and which I deliberately did not touch. A 45-route
+  delta may be masking missing functionality and should be checked before this environment is trusted.
+- **The release is still `failed` at rev 23** and all five restorations are out-of-band `kubectl` state.
+  The next `helm upgrade` reverts every one of them, including the APISIX volumes. That is
+  `falcone-charts#27`'s subject, now with five concrete items rather than one.
