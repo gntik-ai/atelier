@@ -38,6 +38,12 @@ if helm --kube-context "$FALCONE_CLUSTER_CONTEXT" -n "$FALCONE_NAMESPACE" status
     FALCONE_BACKUP_REFERENCE="$(json_get "$FALCONE_BACKUP_EVIDENCE_FILE" '.backup.reference')"
     log "Validated automatic staging backup/restore/parity evidence $FALCONE_BACKUP_REFERENCE"
   fi
+  # Legacy booleans are chart arguments derived from producer-backed evidence;
+  # they are never accepted as independent operator assertions.
+  if [[ -z "${FALCONE_BACKUP_EVIDENCE_FILE:-}" ]]; then
+    FALCONE_BACKUP_VERIFIED=false
+    FALCONE_PARITY_VERIFIED=false
+  fi
   if [[ "$FALCONE_BACKUP_VERIFIED" != "true" || "$FALCONE_PARITY_VERIFIED" != "true" ]]; then
     if [[ -n "${FALCONE_MIGRATION_WAIVER_FILE:-}" ]]; then
       revision_set="${FALCONE_PREFLIGHT_REVISION_SET:-}"

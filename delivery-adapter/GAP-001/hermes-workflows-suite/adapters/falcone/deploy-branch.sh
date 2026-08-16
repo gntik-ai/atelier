@@ -74,6 +74,12 @@ if helm --kube-context "$FALCONE_CLUSTER_CONTEXT" -n "$FALCONE_NAMESPACE" status
     [[ "$evidence_revision" == "$live_revision" ]] || blocked deploy backup_evidence_live_revision_mismatch
     log "Using validated automatic staging backup/restore/parity evidence $FALCONE_BACKUP_REFERENCE"
   fi
+  # Legacy booleans are outputs of evidence validation only. Reset any values
+  # injected through adapter.env so a maker cannot self-certify an upgrade.
+  if [[ -z "${FALCONE_BACKUP_EVIDENCE_FILE:-}" ]]; then
+    FALCONE_BACKUP_VERIFIED=false
+    FALCONE_PARITY_VERIFIED=false
+  fi
   if [[ "$FALCONE_BACKUP_VERIFIED" == "true" && "$FALCONE_PARITY_VERIFIED" == "true" ]]; then
     assert_no_placeholders FALCONE_BACKUP_REFERENCE "$FALCONE_BACKUP_REFERENCE"
   elif falcone_migration_waiver_load "$REVISION_SET" "$chart_commit"; then

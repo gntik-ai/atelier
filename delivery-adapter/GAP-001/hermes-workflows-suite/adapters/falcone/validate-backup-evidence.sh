@@ -47,6 +47,9 @@ jq -e \
     and .restore.isolation.storage == "tmpfs"
     and .restore.isolation.sourceNamespaceMutated == false
     and .parity.verified == true
+    and .parity.method == "bounded-postgresql-structural-inventory-v2"
+    and (.parity.sourceInventory | type == "array" and length == 2 and (.[0]|type=="number") and (.[1]|type=="string" and test("^[0-9a-f]{32}$")))
+    and (.parity.restoredInventory | type == "array" and length == 2 and (.[0]|type=="number") and (.[1]|type=="string" and test("^[0-9a-f]{32}$")))
     and .parity.sourceInventory == .parity.restoredInventory
     and (.observedAt | type == "string" and length > 0)
     and (.validUntil | type == "string" and length > 0)
@@ -79,5 +82,11 @@ if valid_until - observed > maximum:
     print("backup_evidence_invalid reason=evidence_window_too_long", file=sys.stderr)
     raise SystemExit(1)
 PY
+
+custody_path="$(jq -er '.backup.custodyPath' "$evidence_file")" || { echo "backup_evidence_invalid reason=custody_path_missing" >&2; exit 1; }
+expected_sha="$(jq -er '.backup.sha256' "$evidence_file")"
+[[ -f "$custody_path" ]] || { echo "backup_evidence_invalid reason=custody_file_missing" >&2; exit 1; }
+actual_sha="$(sha256sum "$custody_path" | awk '{print $1}')"
+[[ "$actual_sha" == "$expected_sha" ]] || { echo "backup_evidence_invalid reason=custody_sha256_mismatch" >&2; exit 1; }
 
 echo "FALCONE_BACKUP_EVIDENCE_VALID"

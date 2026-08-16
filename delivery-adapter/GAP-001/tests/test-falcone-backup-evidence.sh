@@ -20,7 +20,7 @@ case "$*" in
   "--context default -n in-falcone-staging exec statefulset/falcone-postgresql -- sh -ec "*)
     case "$*" in
       *pg_dump*) printf '%s' FAKE_CUSTOM_DUMP ;;
-      *psql*) printf '%s\n' '[17,42,9001]' ;;
+      *psql*) printf '%s\n' '[17,"0123456789abcdef0123456789abcdef"]' ;;
       *) exit 99 ;;
     esac ;;
   *) printf 'unexpected kubectl invocation: %s\n' "$*" >&2; exit 98 ;;
@@ -49,7 +49,7 @@ case "${1:-}" in
   exec)
     case "$*" in
       *pg_isready*) exit 0 ;;
-      *psql*) printf '%s\n' '[17,42,9001]' ;;
+      *psql*) printf '%s\n' '[17,"0123456789abcdef0123456789abcdef"]' ;;
       *) exit 0 ;;
     esac ;;
   cp|rm) exit 0 ;;
@@ -122,6 +122,7 @@ jq -e '
   and .backup.verified == true
   and .restore.verified == true
   and .parity.verified == true
+  and .parity.method == "bounded-postgresql-structural-inventory-v2"
   and (.backup.reference | test("^falcone-staging://default/in-falcone-staging/falcone/36/"))
   and (.backup.sha256 | test("^[0-9a-f]{64}$"))
   and .parity.sourceInventory == .parity.restoredInventory
@@ -134,6 +135,18 @@ backup_path="$(jq -r '.backup.custodyPath' "$T/evidence.json")"
 grep -q -- '--network none' "$DOCKER_LOG"
 grep -q -- '--tmpfs /var/lib/postgresql/data:rw,nosuid,size=2g' "$DOCKER_LOG"
 grep -q 'rm --force' "$DOCKER_LOG"
+
+# The evidence validator binds the JSON to the custody bytes.
+cp "$T/evidence.json" "$T/tampered-sha.json"
+printf 'tampered\n' >>"$backup_path"
+set +e
+out="$(FALCONE_SOURCE_REPO_DIR="$T/falcone" FALCONE_BACKUP_EVIDENCE_CONTRACT="$T/falcone/scripts/operations/staging-backup-evidence-contract.json" \
+  "$ROOT/adapters/falcone/validate-backup-evidence.sh" "$T/tampered-sha.json" 2>&1)"
+status=$?
+set -e
+[[ "$status" -ne 0 ]]
+[[ "$out" == *'custody_sha256_mismatch'* ]]
+printf '%s' FAKE_CUSTOM_DUMP >"$backup_path"
 
 cp "$T/evidence.json" "$T/stale.json"
 python3 - "$T/stale.json" <<'PY'

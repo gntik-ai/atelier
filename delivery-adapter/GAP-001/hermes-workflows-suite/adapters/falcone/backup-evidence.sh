@@ -79,13 +79,28 @@ source_inventory="$(kubectl --context "$context" -n "$namespace" exec "statefuls
   set +x
   export PGPASSWORD="$POSTGRESQL_PASSWORD"
   exec psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align --username="$POSTGRESQL_USERNAME" --dbname="$POSTGRESQL_DATABASE" --command="
+    WITH inventory AS (
+      SELECT c.oid::regclass::text AS relation,
+             c.relkind::text AS kind,
+             pg_get_userbyid(c.relowner) AS owner,
+             coalesce(obj_description(c.oid, '"'"'pg_class'"'"'),'"'"''"'"') AS detail
+        FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+       WHERE n.nspname NOT IN ('"'"'pg_catalog'"'"','"'"'information_schema'"'"')
+         AND c.relkind IN ('"'"'r'"'"','"'"'p'"'"','"'"'v'"'"','"'"'m'"'"','"'"'S'"'"')
+      UNION ALL
+      SELECT table_schema||'"'"'.'"'"'||table_name||'"'"'.'"'"'||column_name,
+             ordinal_position::text,
+             data_type||'"'"':'"'"'||udt_name,
+             is_nullable||'"'"':'"'"'||coalesce(column_default,'"'"''"'"')
+        FROM information_schema.columns
+       WHERE table_schema NOT IN ('"'"'pg_catalog'"'"','"'"'information_schema'"'"')
+    )
     SELECT json_build_array(
       current_setting('"'"'server_version_num'"'"')::integer / 10000,
-      (SELECT count(*) FROM pg_class WHERE relkind IN ('"'"'r'"'"','"'"'p'"'"') AND relnamespace NOT IN ('"'"'pg_catalog'"'"'::regnamespace,'"'"'information_schema'"'"'::regnamespace)),
-      (SELECT coalesce(sum(n_live_tup),0)::bigint FROM pg_stat_user_tables)
-    )"
+      md5(string_agg(concat_ws(E'"'"'\\x1f'"'"',relation,kind,owner,detail),E'"'"'\\x1e'"'"' ORDER BY relation,kind,owner,detail))
+    ) FROM inventory"
 ')"
-jq -e 'type == "array" and length == 3 and all(.[]; type == "number")' <<<"$source_inventory" >/dev/null || {
+jq -e 'type == "array" and length == 2 and (.[0]|type=="number") and (.[1]|type=="string" and test("^[0-9a-f]{32}$"))' <<<"$source_inventory" >/dev/null || {
   echo "BLOCKED_DELIVERY stage=backup_evidence reason=source_inventory_invalid" >&2; exit 78;
 }
 
@@ -100,12 +115,27 @@ docker cp "$backup_file" "$restore_container:/tmp/falcone-restore.dump"
 docker exec --user postgres "$restore_container" createdb falcone_restore
 docker exec --user postgres "$restore_container" pg_restore --exit-on-error --no-owner --no-acl --username postgres --dbname falcone_restore /tmp/falcone-restore.dump
 restored_inventory="$(docker exec --user postgres "$restore_container" psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align --username postgres --dbname falcone_restore --command="
+  WITH inventory AS (
+    SELECT c.oid::regclass::text AS relation,
+           c.relkind::text AS kind,
+           pg_get_userbyid(c.relowner) AS owner,
+           coalesce(obj_description(c.oid,'pg_class'),'') AS detail
+      FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+     WHERE n.nspname NOT IN ('pg_catalog','information_schema')
+       AND c.relkind IN ('r','p','v','m','S')
+    UNION ALL
+    SELECT table_schema||'.'||table_name||'.'||column_name,
+           ordinal_position::text,
+           data_type||':'||udt_name,
+           is_nullable||':'||coalesce(column_default,'')
+      FROM information_schema.columns
+     WHERE table_schema NOT IN ('pg_catalog','information_schema')
+  )
   SELECT json_build_array(
     current_setting('server_version_num')::integer / 10000,
-    (SELECT count(*) FROM pg_class WHERE relkind IN ('r','p') AND relnamespace NOT IN ('pg_catalog'::regnamespace,'information_schema'::regnamespace)),
-    (SELECT coalesce(sum(n_live_tup),0)::bigint FROM pg_stat_user_tables)
-  )")"
-jq -e 'type == "array" and length == 3 and all(.[]; type == "number")' <<<"$restored_inventory" >/dev/null || {
+    md5(string_agg(concat_ws(E'\\x1f',relation,kind,owner,detail),E'\\x1e' ORDER BY relation,kind,owner,detail))
+  ) FROM inventory")"
+jq -e 'type == "array" and length == 2 and (.[0]|type=="number") and (.[1]|type=="string" and test("^[0-9a-f]{32}$"))' <<<"$restored_inventory" >/dev/null || {
   echo "BLOCKED_DELIVERY stage=backup_evidence reason=restored_inventory_invalid" >&2; exit 78;
 }
 [[ "$(jq -cS . <<<"$source_inventory")" == "$(jq -cS . <<<"$restored_inventory")" ]] || {
@@ -136,7 +166,7 @@ jq -n \
     coverage:{required:["postgresql"],verified:["postgresql"],unverified:[]},
     backup:{verified:true,reference:$reference,custodyPath:$custodyPath,sha256:$backupSha256,format:"postgresql-custom"},
     restore:{verified:true,isolation:{network:"none",storage:"tmpfs",sourceNamespaceMutated:false}},
-    parity:{verified:true,method:"bounded-postgresql-inventory",sourceInventory:$sourceInventory,restoredInventory:$restoredInventory},
+    parity:{verified:true,method:"bounded-postgresql-structural-inventory-v2",sourceInventory:$sourceInventory,restoredInventory:$restoredInventory},
     observedAt:$observedAt,
     validUntil:$validUntil
   }' >"$tmp_evidence"
