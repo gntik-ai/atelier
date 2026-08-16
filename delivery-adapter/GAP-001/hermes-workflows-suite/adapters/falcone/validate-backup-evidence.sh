@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 set +x
+D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 evidence_file="${1:?Usage: validate-backup-evidence.sh <evidence.json>}"
 expected_context="${FALCONE_CLUSTER_CONTEXT:-default}"
