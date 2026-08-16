@@ -7,7 +7,7 @@ expected_context="${FALCONE_CLUSTER_CONTEXT:-default}"
 expected_namespace="${FALCONE_NAMESPACE:-in-falcone-staging}"
 expected_release="${FALCONE_HELM_RELEASE:-falcone}"
 source_repo="${FALCONE_SOURCE_REPO_DIR:-$HOME/projects/falcone}"
-contract_file="${FALCONE_BACKUP_EVIDENCE_CONTRACT:-$source_repo/scripts/operations/staging-backup-evidence-contract.json}"
+contract_file="${FALCONE_BACKUP_EVIDENCE_CONTRACT:-$D/staging-backup-evidence-contract.json}"
 
 command -v jq >/dev/null 2>&1 || { echo "backup_evidence_invalid reason=missing_jq" >&2; exit 1; }
 [[ -f "$evidence_file" ]] || { echo "backup_evidence_invalid reason=file_missing" >&2; exit 1; }
