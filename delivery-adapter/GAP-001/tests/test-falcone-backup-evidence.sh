@@ -34,7 +34,9 @@ set -euo pipefail
 printf '%s\n' "$*" >>"$HELM_LOG"
 case "$*" in
   "--kube-context default -n in-falcone-staging status falcone -o json")
-    printf '%s\n' '{"version":36,"chart":"in-falcone-0.4.19","app_version":"0.3.1","info":{"status":"deployed"}}' ;;
+    printf '%s\n' '{"name":"falcone","version":36,"info":{"status":"deployed"}}' ;;
+  "--kube-context default -n in-falcone-staging list -o json")
+    printf '%s\n' '[{"name":"falcone","chart":"in-falcone-0.4.19","app_version":"0.3.1","revision":"36","status":"deployed"}]' ;;
   *) printf 'unexpected helm invocation: %s\n' "$*" >&2; exit 98 ;;
 esac
 MOCK
@@ -175,7 +177,9 @@ printf '%s\n' "$*" >>"$HELM_LOG"
 case "$*" in
   "--kube-context default -n in-falcone-staging status falcone") exit 0 ;;
   "--kube-context default -n in-falcone-staging status falcone -o json")
-    printf '%s\n' '{"version":36,"chart":"in-falcone-0.4.19","app_version":"0.3.1","info":{"status":"deployed"}}' ;;
+    printf '%s\n' '{"name":"falcone","version":36,"info":{"status":"deployed"}}' ;;
+  "--kube-context default -n in-falcone-staging list -o json")
+    printf '%s\n' '[{"name":"falcone","chart":"in-falcone-0.4.19","app_version":"0.3.1","revision":"36","status":"deployed"}]' ;;
   lint*) exit 0 ;;
   template*) printf '%s\n' 'apiVersion: v1' ;;
   upgrade*) exit 0 ;;

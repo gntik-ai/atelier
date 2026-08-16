@@ -45,9 +45,11 @@ current_context="$(kubectl config current-context)"
 
 helm_status="$(helm --kube-context "$context" -n "$namespace" status "$release" -o json)"
 helm_revision="$(jq -er '.version | tonumber' <<<"$helm_status")"
-chart="$(jq -er '.chart' <<<"$helm_status")"
-app_version="$(jq -er '.app_version' <<<"$helm_status")"
 [[ "$(jq -r '.info.status' <<<"$helm_status")" == deployed ]] || { echo "BLOCKED_DELIVERY stage=backup_evidence reason=release_not_deployed" >&2; exit 78; }
+# Helm 4 `status -o json` no longer emits .chart/.app_version; source them from `list`.
+helm_list="$(helm --kube-context "$context" -n "$namespace" list -o json)"
+chart="$(jq -er --arg r "$release" '.[] | select(.name == $r) | .chart' <<<"$helm_list")"
+app_version="$(jq -er --arg r "$release" '.[] | select(.name == $r) | .app_version' <<<"$helm_list")"
 source_commit="$(git -C "$source_repo" rev-parse HEAD)"
 [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]] || { echo "BLOCKED_DELIVERY stage=backup_evidence reason=source_commit_invalid" >&2; exit 78; }
 
@@ -66,8 +68,8 @@ umask 077
 
 kubectl --context "$context" -n "$namespace" exec "statefulset/$release-postgresql" -- sh -ec '
   set +x
-  export PGPASSWORD="$POSTGRESQL_PASSWORD"
-  exec pg_dump --format=custom --no-owner --no-acl --username="$POSTGRESQL_USERNAME" --dbname="$POSTGRESQL_DATABASE"
+  export PGPASSWORD="$POSTGRESQL_POSTGRES_PASSWORD"
+  exec pg_dump --format=custom --no-owner --no-acl --username=postgres --dbname="$POSTGRESQL_DATABASE"
 ' >"$partial_file"
 [[ -s "$partial_file" ]] || { echo "BLOCKED_DELIVERY stage=backup_evidence reason=empty_postgresql_dump" >&2; exit 78; }
 chmod 0600 "$partial_file"
@@ -77,12 +79,12 @@ chmod 0600 "$backup_file"
 
 source_inventory="$(kubectl --context "$context" -n "$namespace" exec "statefulset/$release-postgresql" -- sh -ec '
   set +x
-  export PGPASSWORD="$POSTGRESQL_PASSWORD"
-  exec psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align --username="$POSTGRESQL_USERNAME" --dbname="$POSTGRESQL_DATABASE" --command="
+  export PGPASSWORD="$POSTGRESQL_POSTGRES_PASSWORD"
+  exec psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align --username=postgres --dbname="$POSTGRESQL_DATABASE" --command="
     WITH inventory AS (
       SELECT c.oid::regclass::text AS relation,
              c.relkind::text AS kind,
-             pg_get_userbyid(c.relowner) AS owner,
+              '"'"''"'"' AS owner,
              coalesce(obj_description(c.oid, '"'"'pg_class'"'"'),'"'"''"'"') AS detail
         FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
        WHERE n.nspname NOT IN ('"'"'pg_catalog'"'"','"'"'information_schema'"'"')
@@ -112,13 +114,14 @@ until docker exec --user postgres "$restore_container" pg_isready --quiet --user
   sleep 1
 done
 docker cp "$backup_file" "$restore_container:/tmp/falcone-restore.dump"
+docker exec "$restore_container" chmod 644 /tmp/falcone-restore.dump
 docker exec --user postgres "$restore_container" createdb falcone_restore
 docker exec --user postgres "$restore_container" pg_restore --exit-on-error --no-owner --no-acl --username postgres --dbname falcone_restore /tmp/falcone-restore.dump
 restored_inventory="$(docker exec --user postgres "$restore_container" psql --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align --username postgres --dbname falcone_restore --command="
   WITH inventory AS (
     SELECT c.oid::regclass::text AS relation,
            c.relkind::text AS kind,
-           pg_get_userbyid(c.relowner) AS owner,
+              '' AS owner,
            coalesce(obj_description(c.oid,'pg_class'),'') AS detail
       FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
      WHERE n.nspname NOT IN ('pg_catalog','information_schema')
