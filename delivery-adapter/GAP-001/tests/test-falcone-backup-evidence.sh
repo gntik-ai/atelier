@@ -165,6 +165,14 @@ set -e
 [[ "$status" -ne 0 ]]
 [[ "$out" == *'evidence_expired'* ]]
 
+# The validator must resolve the repo-owned evidence contract via its DEFAULT
+# path when FALCONE_BACKUP_EVIDENCE_CONTRACT is unset, so a consumer following
+# adapter.env.example never hits a phantom contract_missing. The default must be
+# identical to the producer's: $FALCONE_SOURCE_REPO_DIR/scripts/operations/.
+out="$(env -u FALCONE_BACKUP_EVIDENCE_CONTRACT FALCONE_SOURCE_REPO_DIR="$T/falcone" \
+  "$ROOT/adapters/falcone/validate-backup-evidence.sh" "$T/evidence.json" 2>&1)"
+[[ "$out" == *'FALCONE_BACKUP_EVIDENCE_VALID'* ]]
+
 cp "$T/evidence.json" "$T/wrong-revision.json"
 python3 - "$T/wrong-revision.json" <<'PY'
 import json,sys
