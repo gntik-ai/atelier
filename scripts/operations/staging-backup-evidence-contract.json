@@ -1,0 +1,49 @@
+{
+  "apiVersion": "falcone.gntik.ai/v1",
+  "kind": "FalconeStagingBackupEvidenceContract",
+  "metadata": {
+    "issue": "gntik-ai/falcone#1019",
+    "scope": "delivery-adapter",
+    "description": "Secret-safe contract for a restricted PostgreSQL backup, isolated restore rehearsal and bounded parity evidence before a staging upgrade."
+  },
+  "target": {
+    "context": "default",
+    "namespace": "in-falcone-staging",
+    "release": "falcone"
+  },
+  "requiredCoverage": [
+    "postgresql"
+  ],
+  "evidence": {
+    "apiVersion": "falcone.gntik.ai/v1",
+    "kind": "FalconeStagingBackupEvidence",
+    "requiredFields": [
+      "target.context",
+      "target.namespace",
+      "target.release",
+      "target.helmRevision",
+      "target.chart",
+      "source.commit",
+      "coverage.required",
+      "coverage.verified",
+      "coverage.unverified",
+      "backup.verified",
+      "backup.reference",
+      "backup.sha256",
+      "restore.verified",
+      "parity.verified",
+      "parity.sourceInventory",
+      "parity.restoredInventory",
+      "observedAt",
+      "validUntil"
+    ],
+    "maximumValidityHours": 24,
+    "secretMaterialAllowed": false,
+    "truthRequirements": {
+      "backup.verified": "A non-empty PostgreSQL custom-format dump exists in mode 0600 custody and has a SHA-256 digest.",
+      "restore.verified": "The dump was restored into an isolated matching PostgreSQL container with no network and tmpfs storage.",
+      "parity.verified": "The bounded source and restored PostgreSQL inventories are structurally equal.",
+      "coverage.unverified": "Must be empty for the required coverage set; unimplemented backends must never be silently promoted to verified."
+    }
+  }
+}
