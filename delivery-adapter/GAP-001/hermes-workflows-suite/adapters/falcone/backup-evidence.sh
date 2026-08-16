@@ -45,7 +45,18 @@ current_context="$(kubectl config current-context)"
 
 helm_status="$(helm --kube-context "$context" -n "$namespace" status "$release" -o json)"
 helm_revision="$(jq -er '.version | tonumber' <<<"$helm_status")"
-[[ "$(jq -r '.info.status' <<<"$helm_status")" == deployed ]] || { echo "BLOCKED_DELIVERY stage=backup_evidence reason=release_not_deployed" >&2; exit 78; }
+helm_release_status="$(jq -r '.info.status' <<<"$helm_status")"
+if [[ "$helm_release_status" != deployed ]]; then
+  # A failed post-upgrade hook (e.g. a transient OpenBao seal during the upgrade
+  # window) leaves Helm status "failed" while the database itself stays healthy
+  # and unmutated. Forward recovery needs fresh revision-bound evidence against
+  # that live revision before retrying the upgrade. This path is explicit opt-in
+  # (FALCONE_BACKUP_FORWARD_RECOVERY=1) and still performs a real dump, isolated
+  # restore and structural parity check; it never certifies a broken database.
+  if [[ "${FALCONE_BACKUP_FORWARD_RECOVERY:-}" != "1" || "$helm_release_status" != failed ]]; then
+    echo "BLOCKED_DELIVERY stage=backup_evidence reason=release_not_deployed status=$helm_release_status" >&2; exit 78;
+  fi
+fi
 # Helm 4 `status -o json` no longer emits .chart/.app_version; source them from `list`.
 helm_list="$(helm --kube-context "$context" -n "$namespace" list -o json)"
 chart="$(jq -er --arg r "$release" '.[] | select(.name == $r) | .chart' <<<"$helm_list")"

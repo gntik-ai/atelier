@@ -207,4 +207,42 @@ set -e
 [[ "$out" == *'backup_evidence_live_revision_mismatch'* ]]
 ! grep -q '^upgrade ' "$HELM_LOG"
 
+# A failed release (transient post-upgrade hook) blocks evidence capture by
+# default, but the explicit forward-recovery opt-in allows capturing fresh
+# revision-bound evidence so the upgrade can be retried. The opt-in must still
+# perform the real dump/restore/parity pipeline and bind the failed revision.
+cat >"$T/bin/helm" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >>"$HELM_LOG"
+case "$*" in
+  "--kube-context default -n in-falcone-staging status falcone") exit 0 ;;
+  "--kube-context default -n in-falcone-staging status falcone -o json")
+    printf '%s\n' '{"name":"falcone","version":37,"info":{"status":"failed"}}' ;;
+  "--kube-context default -n in-falcone-staging list -o json")
+    printf '%s\n' '[{"name":"falcone","chart":"in-falcone-0.4.19","app_version":"0.3.1","revision":"37","status":"failed"}]' ;;
+  *) printf 'unexpected helm invocation: %s\n' "$*" >&2; exit 98 ;;
+esac
+MOCK
+chmod +x "$T/bin/helm"
+python3 - "$HERMES_HOME/project-adapters/falcone/adapter.env" <<'PY'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1]); s=p.read_text(); p.write_text(s.replace('FALCONE_CLUSTER_CONTEXT=other','FALCONE_CLUSTER_CONTEXT=default'))
+PY
+set +e
+out="$(FALCONE_SOURCE_REPO_DIR="$T/falcone" FALCONE_BACKUP_EVIDENCE_CONTRACT="$T/falcone/scripts/operations/staging-backup-evidence-contract.json" \
+  "$ROOT/adapters/falcone/backup-evidence.sh" "$T/evidence-failed.json" 2>&1)"
+status=$?
+set -e
+[[ "$status" -eq 78 ]]
+[[ "$out" == *'release_not_deployed status=failed'* ]]
+[[ ! -e "$T/evidence-failed.json" ]]
+
+FALCONE_SOURCE_REPO_DIR="$T/falcone" FALCONE_BACKUP_EVIDENCE_CONTRACT="$T/falcone/scripts/operations/staging-backup-evidence-contract.json" \
+  FALCONE_BACKUP_FORWARD_RECOVERY=1 \
+  "$ROOT/adapters/falcone/backup-evidence.sh" "$T/evidence-failed.json"
+jq -e '.target.helmRevision == 37 and .backup.verified == true and .restore.verified == true and .parity.verified == true' "$T/evidence-failed.json" >/dev/null
+[[ "$(stat -c '%a' "$T/evidence-failed.json")" == 600 ]]
+
 echo FALCONE_BACKUP_EVIDENCE_OK
