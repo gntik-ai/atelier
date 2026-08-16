@@ -154,8 +154,8 @@ if [[ "$release_exists" == "true" ]]; then
     )
   else
     set_args+=(
-      --set-string "global.webhookDatabase.migration.backupVerified=true"
-      --set-string "global.webhookDatabase.migration.parityVerified=true"
+      --set "global.webhookDatabase.migration.backupVerified=true"
+      --set "global.webhookDatabase.migration.parityVerified=true"
       --set-string "global.webhookDatabase.migration.backupReference=$FALCONE_BACKUP_REFERENCE"
     )
   fi
