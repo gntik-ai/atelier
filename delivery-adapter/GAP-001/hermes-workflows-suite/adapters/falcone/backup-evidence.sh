@@ -153,7 +153,7 @@ v=dt.datetime.fromisoformat(sys.argv[1].replace('Z','+00:00'))+dt.timedelta(hour
 print(v.isoformat(timespec='seconds').replace('+00:00','Z'))
 PY
 )"
-reference="falcone-staging://$context/$namespace/$release/$helm_revision/$timestamp"
+reference="falcone-staging:$context:$namespace:$release:$helm_revision:$timestamp"
 tmp_evidence="${output_file}.partial.$$"
 jq -n \
   --arg context "$context" --arg namespace "$namespace" --arg release "$release" \

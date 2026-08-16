@@ -125,7 +125,7 @@ jq -e '
   and .restore.verified == true
   and .parity.verified == true
   and .parity.method == "bounded-postgresql-structural-inventory-v2"
-  and (.backup.reference | test("^falcone-staging://default/in-falcone-staging/falcone/36/"))
+  and (.backup.reference | test("^falcone-staging:default:in-falcone-staging:falcone:36:"))
   and (.backup.sha256 | test("^[0-9a-f]{64}$"))
   and .parity.sourceInventory == .parity.restoredInventory
 ' "$T/evidence.json" >/dev/null
